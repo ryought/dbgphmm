@@ -1,57 +1,46 @@
 ///
-/// kmer-counters
+/// kmer base struct definitions
 ///
-extern crate bio;
-use bio::io::fasta;
 
-pub struct Config {
-    pub filename: String,
-}
-fn parse_config(args: &[String]) -> Config {
-    Config {
-        filename: args[1].clone(),
+#[derive(Debug, PartialEq, PartialOrd, Eq, Hash)]
+pub struct Kmer(Vec<u8>);
+
+impl Kmer {
+    pub fn from(s: &[u8]) -> Kmer {
+        let v = s.to_vec();
+        // assert items in v is a,c,g,t,n
+        Kmer(v)
     }
-}
-impl Config {
-    pub fn new(args: &[String]) -> Config {
-        if args.len() < 2 {
-            panic!("not enough arguments");
-        }
-        Config {
-            filename: args[1].clone(),
-        }
+    pub fn adjacent(&self, other: &Kmer) -> bool {
+        let (_, a_suffix) = self.0.split_first().expect("k should be >1");
+        let (_, b_prefix) = other.0.split_last().expect("k should be >1");
+        a_suffix == b_prefix
     }
-}
-
-fn print(kmer: &[u8]) -> &str {
-    std::str::from_utf8(kmer).unwrap()
-}
-
-pub fn run_counter(config: Config) {
-    println!("filename: {}", config.filename);
-    let mut reader = fasta::Reader::from_file(config.filename).unwrap();
-    for result in reader.records() {
-        let record = result.unwrap();
-        let h = count(record.seq(), 20);
-        for (kmer, &occ) in h.iter() {
-            println!("{} {}", print(kmer), occ);
-        }
+    pub fn last(&self) -> u8 {
+        let (last, _) = self.0.split_last().expect("k should be >=1");
+        *last
     }
 }
 
-pub fn test_counter() {
-    let h = count(b"ATGCTAGCTTATG", 3);
-    for (kmer, &occ) in h.iter() {
-        println!("{} {}", print(kmer), occ);
+impl std::fmt::Display for Kmer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // iter returns reference
+        for &b in self.0.iter() {
+            write!(f, "{}", b as char)?;
+        }
+        Ok(())
     }
 }
 
 use std::collections::HashMap;
-fn count(seq: &[u8], k: usize) -> HashMap<&[u8], usize> {
-    let mut h = HashMap::new();
+pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
+    let mut h: HashMap<Kmer, usize> = HashMap::new();
     for i in 0..=&seq.len() - k {
-        let kmer = &seq[i..i + k];
-        match h.get(kmer) {
+        let kmer = Kmer::from(&seq[i..i + k]);
+        // let kmer = &seq[i..i + k];
+        // let count = h.entry(kmer).or_insert(0);
+        //*count += 1;
+        match h.get(&kmer) {
             Some(&occ) => {
                 h.insert(kmer, occ + 1);
             }
@@ -61,4 +50,46 @@ fn count(seq: &[u8], k: usize) -> HashMap<&[u8], usize> {
         };
     }
     h
+}
+
+pub fn test() {
+    let a = Kmer::from(b"ATCGATTAG");
+    let b = Kmer::from(b"TCGATTAGT");
+    let x = a.adjacent(&b);
+    let y = a.last();
+    println!("{} {} {} {} {}", a, b, a == b, x, y);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn kmer_equality() {
+        let a = Kmer::from(b"ATCGATTAG");
+        let b = Kmer::from(b"ATCGATTAG");
+        assert_eq!(a, b);
+    }
+    #[test]
+    fn kmer_adjacency() {
+        let a = Kmer::from(b"ATCGATTAG");
+        let b = Kmer::from(b"TCGATTAGA");
+        assert!(a.adjacent(&b));
+    }
+    #[test]
+    fn kmer_adjacency_fail() {
+        let a = Kmer::from(b"ATCGATTAG");
+        let b = Kmer::from(b"TCGATTAAA");
+        assert!(!a.adjacent(&b));
+    }
+    #[test]
+    fn kmer_last() {
+        let a = Kmer::from(b"ATCGATTAG");
+        assert_eq!(a.last(), b'G');
+    }
+    #[test]
+    #[should_panic]
+    fn k_zero_mer() {
+        let a = Kmer::from(b"");
+        let x = a.last();
+    }
 }

@@ -1,3 +1,4 @@
+mod counter;
 mod hoge; // load file src/hoge.rs
 mod kmer;
 mod linkedlist;
@@ -5,6 +6,7 @@ mod my_vec;
 mod prob;
 mod seq;
 mod test_struct;
+mod vec_of_vec;
 
 use std::io::prelude::*;
 
@@ -30,19 +32,22 @@ fn test() {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     // let config = parse_config(&args);
-    let config = kmer::Config::new(&args);
+    let config = counter::Config::new(&args);
     // run(config);
     // test5();
     // prob::test();
     // seq::test();
-    // kmer::run_counter(config);
+    // counter::run_counter(config);
 
     // my_vec::test();
     // seq::test2();
-    linkedlist::test2();
+    // linkedlist::test2();
+
+    // vec_of_vec::test();
+    kmer::test();
 }
 
-fn run2(config: kmer::Config) {
+fn run2(config: counter::Config) {
     let mut f = std::fs::File::open(config.filename).expect("file not found");
     let mut contents = String::new();
     f.read_to_string(&mut contents).expect("cannot read file");
