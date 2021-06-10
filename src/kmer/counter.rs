@@ -1,8 +1,10 @@
 ///
 /// kmer-counters
 ///
-extern crate bio;
+extern crate rand;
 use bio::io::fasta;
+use rand::seq::SliceRandom;
+use rand::{thread_rng, Rng};
 
 pub struct Config {
     pub filename: String,
@@ -40,23 +42,41 @@ pub fn run_counter(config: Config) {
 }
 
 pub fn test_counter() {
-    let h = count(b"ATGCTAGCTTATG", 3);
+    let s = get_random_vec(1000);
+    // println!("random {}", print(&s));
+    // let h = count(b"ATGCTAGCTTATG", 3);
+    let h = count(&s, 3);
     for (kmer, &occ) in h.iter() {
         println!("{} {}", print(kmer), occ);
     }
 }
 
+pub fn get_random_vec(len: usize) -> Vec<u8> {
+    // let mut rng = rand::thread_rng();
+    // let v: Vec<u8> = bases.choose_multiple(&mut rng, len).cloned().collect();
+    let v: Vec<u8> = Vec::new();
+    // let choices = [1, 2, 4, 8, 16, 32];
+    let choices = "ACGT".as_bytes();
+    let mut rng = rand::thread_rng();
+    // println!("{:?}", choices.choose(&mut rng));
+    let v: Vec<u8> = std::iter::repeat(())
+        .map(|()| *choices.choose(&mut rng).unwrap())
+        .take(len)
+        .collect();
+    v
+}
+
 use std::collections::HashMap;
-fn count(seq: &[u8], k: usize) -> HashMap<kmer::Kmer, usize> {
+fn count(seq: &[u8], k: usize) -> HashMap<Vec<u8>, usize> {
     let mut h = HashMap::new();
     for i in 0..=&seq.len() - k {
         let kmer = &seq[i..i + k];
         match h.get(kmer) {
             Some(&occ) => {
-                h.insert(kmer, occ + 1);
+                h.insert(kmer.to_vec(), occ + 1);
             }
             _ => {
-                h.insert(kmer, 1);
+                h.insert(kmer.to_vec(), 1);
             }
         };
     }
