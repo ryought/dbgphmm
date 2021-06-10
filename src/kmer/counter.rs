@@ -41,14 +41,18 @@ pub fn run_counter(config: Config) {
     }
 }
 
-pub fn test_counter() {
-    let s = get_random_vec(1000);
+pub fn test_counter() -> usize {
+    let s = get_random_vec(1000000);
     // println!("random {}", print(&s));
     // let h = count(b"ATGCTAGCTTATG", 3);
-    let h = count(&s, 3);
-    for (kmer, &occ) in h.iter() {
-        println!("{} {}", print(kmer), occ);
+    let h = count(&s, 8);
+    println!("{}", h.len());
+    /*
+    for (i, (kmer, &occ)) in h.iter().enumerate() {
+        println!("{}: {} {}", i, print(kmer), occ);
     }
+    */
+    h.len()
 }
 
 pub fn get_random_vec(len: usize) -> Vec<u8> {
@@ -67,7 +71,7 @@ pub fn get_random_vec(len: usize) -> Vec<u8> {
 }
 
 use std::collections::HashMap;
-fn count(seq: &[u8], k: usize) -> HashMap<Vec<u8>, usize> {
+pub fn count(seq: &[u8], k: usize) -> HashMap<Vec<u8>, usize> {
     let mut h = HashMap::new();
     for i in 0..=&seq.len() - k {
         let kmer = &seq[i..i + k];
@@ -77,6 +81,24 @@ fn count(seq: &[u8], k: usize) -> HashMap<Vec<u8>, usize> {
             }
             _ => {
                 h.insert(kmer.to_vec(), 1);
+            }
+        };
+    }
+    h
+}
+
+use super::kmer::Kmer;
+pub fn count_my_kmer(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
+    let mut h = HashMap::new();
+    for i in 0..=&seq.len() - k {
+        // XXX bottleneck here
+        let kmer = Kmer::from(&seq[i..i + k]);
+        match h.get(&kmer) {
+            Some(&occ) => {
+                h.insert(kmer, occ + 1);
+            }
+            _ => {
+                h.insert(kmer, 1);
             }
         };
     }

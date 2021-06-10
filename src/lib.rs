@@ -1,4 +1,13 @@
-mod hoge {
+pub mod hoge; // load file src/hoge.rs
+pub mod kmer;
+pub mod linkedlist;
+pub mod my_vec;
+pub mod prob;
+pub mod sleeper;
+pub mod test_struct;
+pub mod vec_of_vec;
+
+mod fuga {
     pub mod foo {
         pub fn hoge(x: i32) -> i32 {
             x + 100
@@ -16,6 +25,6 @@ mod hoge {
 }
 
 pub fn test() {
-    let y = crate::hoge::foo::hoge(20);
+    let y = crate::fuga::foo::hoge(20);
     println!("y {}", y);
 }

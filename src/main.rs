@@ -1,13 +1,5 @@
-mod hoge; // load file src/hoge.rs
-mod kmer;
-mod linkedlist;
-mod my_vec;
-mod prob;
-mod test_struct;
-mod vec_of_vec;
-
+use dbgphmm::*;
 use std::io::prelude::*;
-use std::{thread, time};
 
 fn test() {
     // generics
@@ -45,10 +37,8 @@ fn main() {
     // vec_of_vec::test();
     // kmer::test();
 
-    // counter::test_counter();
-    println!("start");
-    thread::sleep(time::Duration::from_secs(2));
-    println!("end");
+    kmer::counter::test_counter();
+    // sleeper::sleep();
 }
 
 fn run2(config: kmer::counter::Config) {
