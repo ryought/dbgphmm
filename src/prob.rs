@@ -9,18 +9,18 @@ pub struct Prob {
 }
 
 impl Prob {
-    fn from_prob(value: f64) -> Prob {
+    pub fn from_prob(value: f64) -> Prob {
         Prob {
             log_value: value.ln(),
         }
     }
-    fn from_log_prob(log_value: f64) -> Prob {
+    pub fn from_log_prob(log_value: f64) -> Prob {
         Prob { log_value }
     }
-    fn to_value(self) -> f64 {
+    pub fn to_value(self) -> f64 {
         self.log_value.exp()
     }
-    fn to_log_value(self) -> f64 {
+    pub fn to_log_value(self) -> f64 {
         self.log_value
     }
 }
@@ -28,7 +28,7 @@ impl Prob {
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.log_value)
+        write!(f, "{:.2}(=log({}))", self.log_value, self.to_value())
     }
 }
 
@@ -38,7 +38,11 @@ impl std::ops::Add for Prob {
     fn add(self, other: Self) -> Self {
         let x = self.log_value;
         let y = other.log_value;
-        if x > y {
+        if x == y {
+            Prob {
+                log_value: x + 2f64.ln(),
+            }
+        } else if x > y {
             Prob {
                 log_value: x + ((y - x).exp() + 1.0).ln(),
             }
@@ -126,6 +130,19 @@ pub fn test() {
         y.to_value(),
         p.to_value()
     );
+
+    let xs: Vec<Prob> = vec![];
+    let s: Prob = xs.iter().sum();
+    let p: Prob = xs.iter().product();
+    println!("0={} 1={}", s, p);
+
+    let xs: Vec<Prob> = vec![Prob::from_prob(0.0)];
+    let s: Prob = xs.iter().sum();
+    let p: Prob = xs.iter().product();
+    println!("0={} 1={}", s, p);
+
+    let e = Prob::from_prob(0.0);
+    println!("0+0={} {}", e, e + e);
 
     println!("test passed");
 }
