@@ -37,8 +37,10 @@ fn main() {
     // vec_of_vec::test();
     // kmer::test();
 
-    kmer::counter::test_counter();
+    // kmer::counter::test_counter();
     // sleeper::sleep();
+    hmm::test();
+    prob::test();
 }
 
 fn run2(config: kmer::counter::Config) {
