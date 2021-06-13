@@ -66,6 +66,8 @@ pub struct PHMMLayer {
     FM: Vec<Prob>,
     FI: Vec<Prob>,
     FD: Vec<Prob>,
+    FMB: Prob,
+    FIB: Prob,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash)]
@@ -101,9 +103,6 @@ pub trait PHMM {
     fn fmi_init(&self) -> (Vec<Prob>, Vec<Prob>) {
         let mut FM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut FI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        for v in self.nodes().iter() {
-            FM[v.0] = self.init_prob(v);
-        }
         (FM, FI)
     }
     fn fmi_from_fmid(
@@ -112,51 +111,69 @@ pub trait PHMM {
         fm: &[Prob],
         fi: &[Prob],
         fd: &[Prob],
+        fmb: Prob,
+        fib: Prob,
         emission: u8,
     ) -> (Vec<Prob>, Vec<Prob>) {
+        ///
         /// calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
         ///
         let mut FM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut FI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         for v in self.nodes().iter() {
+            // M state
             let emission_prob_M: Prob = if self.emission(v) == emission {
                 param.p_match
             } else {
                 param.p_mismatch
             };
-            FM[v.0] = emission_prob_M
-                * self
-                    .parents(v)
-                    .iter()
-                    .map(|w| {
-                        self.trans_prob(w, v)
-                            * (param.p_MM * fm[w.0] + param.p_IM * fi[w.0] + param.p_DM * fd[w.0])
-                    })
-                    .sum();
+            let from_normal: Prob = self
+                .parents(v)
+                .iter()
+                .map(|w| {
+                    self.trans_prob(w, v)
+                        * (param.p_MM * fm[w.0] + param.p_IM * fi[w.0] + param.p_DM * fd[w.0])
+                })
+                .sum();
+            let from_begin: Prob = self.init_prob(v) * (param.p_MM * fmb + param.p_IM * fib);
+            FM[v.0] = emission_prob_M * (from_normal + from_begin);
+
+            // I state
             let emission_prob_I: Prob = Prob::from_prob(0.25);
-            FI[v.0] = emission_prob_I
-                * self
-                    .parents(v)
-                    .iter()
-                    .map(|w| {
-                        self.trans_prob(w, v)
-                            * (param.p_MI * fm[w.0] + param.p_II * fi[w.0] + param.p_DI * fd[w.0])
-                    })
-                    .sum();
+            let from_normal: Prob = self
+                .parents(v)
+                .iter()
+                .map(|w| {
+                    self.trans_prob(w, v)
+                        * (param.p_MI * fm[w.0] + param.p_II * fi[w.0] + param.p_DI * fd[w.0])
+                })
+                .sum();
+            FI[v.0] = emission_prob_I * from_normal;
         }
         (FM, FI)
     }
-    fn fd_from_fmi(&self, param: &PHMMParams, fm: &[Prob], fi: &[Prob]) -> Vec<Prob> {
+    fn fd_from_fmi(
+        &self,
+        param: &PHMMParams,
+        fm: &[Prob],
+        fi: &[Prob],
+        fmb: Prob,
+        fib: Prob,
+    ) -> Vec<Prob> {
+        ///
         /// calc (FM[i], FI[i]) -> FD[i]
+        ///
         let mut FDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut FD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         for v in self.nodes().iter() {
-            FD0[v.0] = self
+            let from_normal: Prob = self
                 .parents(v)
                 .iter()
                 .map(|w| self.trans_prob(w, v) * (param.p_MD * fm[w.0] + param.p_ID * fi[w.0]))
                 .sum();
+            let from_begin: Prob = self.init_prob(v) * (param.p_MD * fmb + param.p_ID * fib);
+            FD0[v.0] = from_normal + from_begin;
         }
         FDs.push(FD0);
         // >0
@@ -179,11 +196,29 @@ pub trait PHMM {
             .collect();
         FD
     }
+    fn fb_init(&self) -> (Prob, Prob) {
+        let FMB = Prob::from_prob(1.0);
+        let FIB = Prob::from_prob(0.0);
+        (FMB, FIB)
+    }
+    fn fb_from_fb(&self, param: &PHMMParams, fmb: Prob, fib: Prob) -> (Prob, Prob) {
+        let FMB = Prob::from_prob(0.0);
+        let emission_prob_I: Prob = Prob::from_prob(0.25);
+        let FIB = emission_prob_I * (param.p_MI * fmb + param.p_II * fib);
+        (FMB, FIB)
+    }
     // prob calculation
     fn init(&self, param: &PHMMParams) -> PHMMLayer {
         let (FM, FI) = self.fmi_init();
-        let FD = self.fd_from_fmi(param, &FM, &FI);
-        PHMMLayer { FM, FI, FD }
+        let (FMB, FIB) = self.fb_init();
+        let FD = self.fd_from_fmi(param, &FM, &FI, FMB, FIB);
+        PHMMLayer {
+            FM,
+            FI,
+            FD,
+            FMB,
+            FIB,
+        }
     }
     fn step(&self, param: &PHMMParams, prev_layer: &PHMMLayer, emission: u8) -> PHMMLayer {
         let (FM, FI) = self.fmi_from_fmid(
@@ -191,10 +226,19 @@ pub trait PHMM {
             &prev_layer.FM,
             &prev_layer.FI,
             &prev_layer.FD,
+            prev_layer.FMB,
+            prev_layer.FIB,
             emission,
         );
-        let FD = self.fd_from_fmi(param, &FM, &FI);
-        PHMMLayer { FM, FI, FD }
+        let FD = self.fd_from_fmi(param, &FM, &FI, prev_layer.FMB, prev_layer.FIB);
+        let (FMB, FIB) = self.fb_from_fb(param, prev_layer.FMB, prev_layer.FIB);
+        PHMMLayer {
+            FM,
+            FI,
+            FD,
+            FMB,
+            FIB,
+        }
     }
 
     /*
@@ -316,5 +360,12 @@ pub fn test() {
             "{:?} FM={} FI={} FD={}",
             v, l1.FM[v.0], l1.FI[v.0], l1.FD[v.0]
         );
+    }
+    let (mut fmb, mut fib) = model.fb_init();
+    for _ in 0..5 {
+        println!("fmb: {}, fib: {}", fmb, fib);
+        let fbs = model.fb_from_fb(&param, fmb, fib);
+        fmb = fbs.0;
+        fib = fbs.1
     }
 }
