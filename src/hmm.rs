@@ -262,6 +262,14 @@ pub trait PHMM {
         }
         layers
     }
+    fn forward_prob(&self, param: &PHMMParams, emissions: &[u8]) -> Prob {
+        let layers = self.forward(param, emissions);
+        let last_layer = layers.last().unwrap();
+        let SFM: Prob = last_layer.FM.iter().sum();
+        let SFI: Prob = last_layer.FI.iter().sum();
+        let SFD: Prob = last_layer.FD.iter().sum();
+        SFM + SFI + SFD + last_layer.FMB + last_layer.FIB
+    }
 }
 
 pub struct LinearPHMM {
@@ -336,17 +344,12 @@ pub fn test(r: &[u8], q: &[u8]) {
             model.init_prob(node),
         );
     }
-    println!(
-        "{} {}",
-        model.is_adjacent(&Node(5), &Node(6)),
-        model.trans_prob(&Node(5), &Node(6))
-    );
-    println!("{}", model.is_adjacent(&Node(5), &Node(8)));
     let param = PHMMParams::new(
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         10,
     );
-    model.forward(&param, q);
+    let p = model.forward_prob(&param, q);
+    println!("prob = {}", p);
 }
