@@ -4,6 +4,7 @@ use crate::prob::Prob;
 pub struct PHMMParams {
     p_mismatch: Prob,
     p_match: Prob,
+    p_random: Prob,
     p_gap_open: Prob,
     p_gap_ext: Prob,
     p_MM: Prob,
@@ -37,6 +38,7 @@ impl PHMMParams {
             p_IM: Prob::from_prob(1.0 - p_gap_open.to_value() - p_gap_ext.to_value()),
             // p_match: 1 - p_mismatch
             p_match: Prob::from_prob(1.0 - p_mismatch.to_value()),
+            p_random: Prob::from_prob(0.25),
             n_max_gaps,
         }
     }
@@ -153,15 +155,9 @@ pub trait PHMM {
             FM[v.0] = emission_prob_M * (from_normal + from_begin);
 
             // I state
-            let emission_prob_I: Prob = Prob::from_prob(0.25);
-            let from_normal: Prob = self
-                .parents(v)
-                .iter()
-                .map(|w| {
-                    self.trans_prob(w, v)
-                        * (param.p_MI * fm[w.0] + param.p_II * fi[w.0] + param.p_DI * fd[w.0])
-                })
-                .sum();
+            let emission_prob_I: Prob = param.p_random;
+            let from_normal: Prob =
+                param.p_MI * fm[v.0] + param.p_II * fi[v.0] + param.p_DI * fd[v.0];
             FI[v.0] = emission_prob_I * from_normal;
         }
         (FM, FI)
