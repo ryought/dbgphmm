@@ -16,3 +16,4 @@ harness = false
 bio = "*"
 rand = "0.8"
 approx = "*"
+arrayvec = "*"
