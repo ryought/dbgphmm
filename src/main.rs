@@ -23,7 +23,7 @@ fn test() {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     // let config = parse_config(&args);
-    let config = kmer::counter::Config::new(&args);
+    // let config = kmer::counter::Config::new(&args);
     // run(config);
     // test5();
     // prob::test();
@@ -39,7 +39,7 @@ fn main() {
 
     // kmer::counter::test_counter();
     // sleeper::sleep();
-    hmm::test();
+    hmm::test(args[1].as_bytes(), args[2].as_bytes());
 }
 
 fn run2(config: kmer::counter::Config) {

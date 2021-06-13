@@ -326,9 +326,9 @@ fn print(probs: &[Prob]) {
     }
 }
 
-pub fn test() {
-    println!("hmm test");
-    let model = LinearPHMM::from(b"ATCGATTCGA");
+pub fn test(r: &[u8], q: &[u8]) {
+    println!("hmm test for {:?} {:?}", r, q);
+    let model = LinearPHMM::from(r);
     for node in model.nodes().iter() {
         println!(
             "{:?} {:?} {:?} {:?} {:?} {}",
@@ -352,5 +352,5 @@ pub fn test() {
         Prob::from_prob(0.01),
         10,
     );
-    model.forward(&param, b"ATCG");
+    model.forward(&param, q);
 }
