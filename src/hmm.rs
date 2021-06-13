@@ -70,6 +70,20 @@ pub struct PHMMLayer {
     FIB: Prob,
 }
 
+impl std::fmt::Display for PHMMLayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "Node:Begin FM={} FI={}", self.FMB, self.FIB);
+        for i in 0..self.FD.len() {
+            writeln!(
+                f,
+                "Node:{}\tFM={}\tFI={}\tFD={}",
+                i, self.FM[i], self.FI[i], self.FD[i]
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash)]
 pub struct Node(usize);
 
@@ -240,26 +254,18 @@ pub trait PHMM {
             FIB,
         }
     }
-
-    /*
-    fn forward(&self, emissions: &[u8]) -> Vec<PHMMLayer> {
+    fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
         let mut layers = Vec::new();
-        let layer = self.init();
+        let layer = self.init(&param);
+        println!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
-            let layer = self.step(&layers[i], emission);
+            let layer = self.step(&param, &layers[i], emission);
+            println!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
+        layers
     }
-    fn step(layer_prev: &PHMMLayer, emission: u8) -> PHMMLayer {
-        // fill for emission (seq[i])
-        for v in self.nodes().iter() {
-            // for w in node.childs().iter()
-            // or
-            for v in self.childs(node).iter() {}
-        }
-    }
-    */
 }
 
 pub struct LinearPHMM {
@@ -346,26 +352,5 @@ pub fn test() {
         Prob::from_prob(0.01),
         10,
     );
-    println!("param: {}", param);
-    let l0 = model.init(&param);
-    for v in model.nodes().iter() {
-        println!(
-            "{:?} FM={} FI={} FD={}",
-            v, l0.FM[v.0], l0.FI[v.0], l0.FD[v.0]
-        );
-    }
-    let l1 = model.step(&param, &l0, b'A');
-    for v in model.nodes().iter() {
-        println!(
-            "{:?} FM={} FI={} FD={}",
-            v, l1.FM[v.0], l1.FI[v.0], l1.FD[v.0]
-        );
-    }
-    let (mut fmb, mut fib) = model.fb_init();
-    for _ in 0..5 {
-        println!("fmb: {}, fib: {}", fmb, fib);
-        let fbs = model.fb_from_fb(&param, fmb, fib);
-        fmb = fbs.0;
-        fib = fbs.1
-    }
+    model.forward(&param, b"ATCG");
 }

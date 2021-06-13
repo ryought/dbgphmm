@@ -40,7 +40,6 @@ fn main() {
     // kmer::counter::test_counter();
     // sleeper::sleep();
     hmm::test();
-    prob::test();
 }
 
 fn run2(config: kmer::counter::Config) {
