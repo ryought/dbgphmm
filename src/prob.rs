@@ -35,6 +35,11 @@ impl std::fmt::Display for Prob {
 // operators
 impl std::ops::Add for Prob {
     type Output = Self;
+    /// Given x>y
+    /// log(exp(x) + exp(y))
+    /// = log(exp(x) (1 + exp(y-x)))
+    /// = log(exp(x)) + log(1 + exp(y-x))
+    /// = x + log(1 + exp(y-x))
     fn add(self, other: Self) -> Self {
         let x = self.log_value;
         let y = other.log_value;
@@ -147,6 +152,12 @@ pub fn test() {
     println!("test passed");
 }
 
+pub fn test2() {
+    let x = bio::stats::LogProb::from(bio::stats::Prob(0.5));
+    // XXX cannot multiply bio::stats::LogProb
+    // println!("x*x={}", x * x);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,5 +197,12 @@ mod tests {
         let x: Prob = xs.iter().product();
         let y = Prob::from_prob(0.001);
         assert_relative_eq!(x.to_value(), y.to_value());
+    }
+    #[test]
+    fn test_reflect() {
+        let x = Prob::from_prob(1.0);
+        let e = Prob::from_prob(0.0);
+        assert_relative_eq!((x + e).log_value, x.log_value);
+        assert_relative_eq!((x * e).log_value, e.log_value);
     }
 }
