@@ -11,14 +11,32 @@ impl Kmer {
         // assert items in v is a,c,g,t,n
         Kmer(v)
     }
+    pub fn from_vec(v: Vec<u8>) -> Kmer {
+        Kmer(v)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
     pub fn adjacent(&self, other: &Kmer) -> bool {
         let (_, a_suffix) = self.0.split_first().expect("k should be >1");
         let (_, b_prefix) = other.0.split_last().expect("k should be >1");
         a_suffix == b_prefix
     }
+    pub fn first(&self) -> u8 {
+        let (first, _) = self.0.split_first().expect("k should be >=1");
+        *first
+    }
     pub fn last(&self) -> u8 {
         let (last, _) = self.0.split_last().expect("k should be >=1");
         *last
+    }
+    pub fn prefix(&self) -> Kmer {
+        let (_, prefix) = self.0.split_last().expect("k should be >1");
+        Kmer(prefix.to_vec())
+    }
+    pub fn suffix(&self) -> Kmer {
+        let (_, suffix) = self.0.split_first().expect("k should be >1");
+        Kmer(suffix.to_vec())
     }
 }
 
@@ -58,6 +76,16 @@ pub fn test() {
     let x = a.adjacent(&b);
     let y = a.last();
     println!("{} {} {} {} {}", a, b, a == b, x, y);
+}
+
+pub fn tailing_kmers(kmer: &Kmer) -> Vec<Kmer> {
+    let k = kmer.len();
+    let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
+    let tails: Vec<Kmer> = (1..k)
+        .rev()
+        .map(|i| Kmer::from_vec([&blanks[..k - i], &kmer.0[..i]].concat()))
+        .collect();
+    tails
 }
 
 #[cfg(test)]
