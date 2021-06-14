@@ -132,7 +132,11 @@ impl DBG for DbgHash {
         DbgHash { store: h }
     }
     fn add(&mut self, kmer: Kmer, copy_num: u32) {
-        self.store.insert(kmer, copy_num);
+        let copy_num_old = self.find(&kmer);
+        if copy_num_old > 0 {
+            eprintln!("duplicate!");
+        }
+        self.store.insert(kmer, copy_num + copy_num_old);
     }
     fn find(&self, kmer: &Kmer) -> u32 {
         match self.store.get(&kmer) {
@@ -182,11 +186,17 @@ impl DbgHash {
 pub fn test() {
     let kmers: Vec<Kmer> = vec![
         Kmer::from(b"ATCG"),
+        Kmer::from(b"GGAC"),
+        Kmer::from(b"TGAC"),
+        Kmer::from(b"AGAC"),
+        Kmer::from(b"GACT"),
+        /*
         Kmer::from(b"TTCG"),
         Kmer::from(b"TCGT"),
         Kmer::from(b"TCGA"),
+        */
     ];
-    let copy_nums: Vec<u32> = vec![1, 7, 3, 5];
+    let copy_nums: Vec<u32> = vec![3, 2, 3, 3, 1];
     let mut d = DbgHash::from(kmers, copy_nums);
     d.augment_edge_kmers();
     println!("{}", d);
