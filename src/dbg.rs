@@ -9,6 +9,7 @@ pub trait DBG {
     fn find(&self, kmer: &Kmer) -> Option<u32>;
     fn is_exists(&self, kmer: &Kmer) -> bool;
     fn kmers(&self) -> Vec<Kmer>;
+    // fn kmers_and_copy_nums(&self) -> (Vec<Kmer>, Vec<u32>);
     fn childs(&self, kmer: &Kmer) -> Vec<Kmer> {
         kmer.childs()
             .into_iter()
@@ -20,13 +21,6 @@ pub trait DBG {
             .into_iter()
             .filter(|parent| self.is_exists(parent))
             .collect()
-    }
-    fn as_dot(&self) -> String {
-        // generate dot graph file
-        // digraph dbg {
-        //   AATAT -> ATTTAT;
-        // }
-        "hogehoge".to_string()
     }
 }
 
@@ -54,6 +48,27 @@ impl DBG for DbgHash {
     }
     fn kmers(&self) -> Vec<Kmer> {
         self.store.keys().map(|x| x.clone()).collect()
+    }
+}
+
+impl std::fmt::Display for DbgHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // generate dot graph file
+        // digraph dbg {
+        //   AATAT -> ATTTAT;
+        // }
+        writeln!(f, "digraph dbg {{");
+        for kmer in self.kmers().iter() {
+            // for node
+            let copy_num = self.find(kmer).unwrap();
+            writeln!(f, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
+            // for edges
+            for child in self.childs(kmer).iter() {
+                writeln!(f, "\t{} -> {};", kmer, child);
+            }
+        }
+        writeln!(f, "}}");
+        Ok(())
     }
 }
 
@@ -91,4 +106,5 @@ pub fn test() {
     for kmer in d.kmers().iter() {
         println!("kmer in store {}", kmer);
     }
+    println!(":::DBG OUT:::\n{}", d);
 }

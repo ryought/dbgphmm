@@ -17,6 +17,10 @@ struct DbgPHMM {
 }
 impl DbgPHMM {
     fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
+        // construct DbgHash and
+        // 1. check copy_num consistency
+        // 2. add tailing kmers
+        // 3. linearize kmers
         if !Self::is_copy_nums_valid(&kmers, &copy_nums) {
             return None;
         }
