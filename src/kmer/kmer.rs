@@ -40,7 +40,7 @@ impl Kmer {
     }
     pub fn childs(&self) -> Vec<Kmer> {
         let (_, suffix) = self.0.split_first().unwrap();
-        let childs = [b'A', b'C', b'G', b'T']
+        let childs = [b'A', b'C', b'G', b'T', b'N']
             .iter()
             .map(|last_base| {
                 let mut v = suffix.to_vec();
@@ -52,7 +52,7 @@ impl Kmer {
     }
     pub fn parents(&self) -> Vec<Kmer> {
         let (_, prefix) = self.0.split_last().unwrap();
-        let parents = [b'A', b'C', b'G', b'T']
+        let parents = [b'A', b'C', b'G', b'T', b'N']
             .iter()
             .map(|first_base| {
                 let mut v = prefix.to_vec();

@@ -1,5 +1,6 @@
 use super::base::{Node, PHMM};
 use crate::dbg;
+use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
@@ -15,12 +16,14 @@ struct DbgPHMM {
     emissions: Vec<u8>,
     */
 }
+
 impl DbgPHMM {
     fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
         // construct DbgHash and
         // 1. check copy_num consistency
         // 2. add tailing kmers
         // 3. linearize kmers
+        // let d = DbgHash::from(kmers, copy_nums);
         if !Self::is_copy_nums_valid(&kmers, &copy_nums) {
             return None;
         }

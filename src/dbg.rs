@@ -1,12 +1,16 @@
 use crate::kmer::kmer::{tailing_kmers, Kmer};
-use std::collections::HashMap;
+use crate::prob::Prob;
+use arrayvec::ArrayVec;
+use fnv::FnvHashMap as HashMap;
+// use ahash::AHashMap as HashMap;
+// use std::collections::HashMap;
 
 pub trait DBG {
     fn new() -> Self;
     fn add(&mut self, kmer: Kmer, copy_num: u32);
     // fn update(self, kmer: Kmer, copy_num: u32);
     // fn remove(self, kmer: Kmer);
-    fn find(&self, kmer: &Kmer) -> Option<u32>;
+    fn find(&self, kmer: &Kmer) -> u32;
     fn is_exists(&self, kmer: &Kmer) -> bool;
     fn kmers(&self) -> Vec<Kmer>;
     // fn kmers_and_copy_nums(&self) -> (Vec<Kmer>, Vec<u32>);
@@ -22,6 +26,87 @@ pub trait DBG {
             .filter(|parent| self.is_exists(parent))
             .collect()
     }
+    fn childs_with_copy_number(&self, kmer: &Kmer) -> Vec<(Kmer, u32)> {
+        kmer.childs()
+            .into_iter()
+            .map(|child| {
+                let copy_num = self.find(&child);
+                (child, copy_num)
+            })
+            .filter(|(_, copy_num)| *copy_num > 0)
+            .collect()
+    }
+    fn parents_with_copy_number(&self, kmer: &Kmer) -> Vec<(Kmer, u32)> {
+        kmer.parents()
+            .into_iter()
+            .map(|parent| {
+                let copy_num = self.find(&parent);
+                (parent, copy_num)
+            })
+            .filter(|(_, copy_num)| *copy_num > 0)
+            .collect()
+    }
+    fn childs_with_trans_prob(&self, kmer: &Kmer) -> Vec<(Kmer, Prob)> {
+        let childs_with_cn = self.childs_with_copy_number(kmer);
+        let sum_cn: u32 = childs_with_cn.iter().map(|(kmer, cn)| cn).sum();
+        childs_with_cn
+            .into_iter()
+            .map(|(kmer, cn)| (kmer, Prob::from_prob(f64::from(cn) / f64::from(sum_cn))))
+            .collect()
+    }
+    fn foremost_kmers(&self) -> Vec<Kmer> {
+        // kmers with no parents
+        self.kmers()
+            .iter()
+            .filter(|kmer| self.parents(kmer).len() == 0)
+            .map(|kmer| kmer.clone())
+            .collect()
+    }
+    fn vectorize(&self) -> (Vec<Kmer>, Vec<Vec<usize>>, Vec<Vec<usize>>) {
+        // assign an index to each kmers
+        // and returns (kmers, copy_nums, childs, parents, trans_probs)
+        let kmers = self.kmers();
+        let mut ids: HashMap<Kmer, usize> = HashMap::default();
+        for (i, kmer) in kmers.iter().enumerate() {
+            ids.insert(kmer.clone(), i);
+        }
+
+        let mut childs: Vec<Vec<usize>> = Vec::new();
+        let mut parents: Vec<Vec<usize>> = Vec::new();
+        for kmer in kmers.iter() {
+            childs.push(
+                self.childs(kmer)
+                    .iter()
+                    .map(|kmer| *ids.get(kmer).unwrap())
+                    .collect(),
+            );
+            parents.push(
+                self.parents(kmer)
+                    .iter()
+                    .map(|kmer| *ids.get(kmer).unwrap())
+                    .collect(),
+            );
+        }
+        (kmers, childs, parents)
+    }
+    fn is_copy_number_consistent(&self) -> bool {
+        // for all kmers
+        for kmer in self.kmers().iter() {
+            // check if sum_cn(childs) == sum_cn(siblings)
+            // siblings = parents of a child
+            let childs_with_cn = self.childs_with_copy_number(kmer);
+            if childs_with_cn.len() > 0 {
+                let sum_cn_childs: u32 = childs_with_cn.iter().map(|(_, cn)| cn).sum();
+                let (child, _) = childs_with_cn.first().unwrap();
+                let siblings_with_cn = self.parents_with_copy_number(child);
+                let sum_cn_siblings: u32 = siblings_with_cn.iter().map(|(_, cn)| cn).sum();
+                if sum_cn_childs != sum_cn_siblings {
+                    return false;
+                }
+            }
+        }
+        true
+    }
 }
 
 pub struct DbgHash {
@@ -31,16 +116,16 @@ pub struct DbgHash {
 impl DBG for DbgHash {
     // implementation using hashmap as a store
     fn new() -> DbgHash {
-        let h: HashMap<Kmer, u32> = HashMap::new();
+        let h: HashMap<Kmer, u32> = HashMap::default();
         DbgHash { store: h }
     }
     fn add(&mut self, kmer: Kmer, copy_num: u32) {
         self.store.insert(kmer, copy_num);
     }
-    fn find(&self, kmer: &Kmer) -> Option<u32> {
+    fn find(&self, kmer: &Kmer) -> u32 {
         match self.store.get(&kmer) {
-            Some(&copy_num) => Some(copy_num),
-            _ => None,
+            Some(&copy_num) => copy_num,
+            _ => 0,
         }
     }
     fn is_exists(&self, kmer: &Kmer) -> bool {
@@ -60,7 +145,7 @@ impl std::fmt::Display for DbgHash {
         writeln!(f, "digraph dbg {{");
         for kmer in self.kmers().iter() {
             // for node
-            let copy_num = self.find(kmer).unwrap();
+            let copy_num = self.find(kmer);
             writeln!(f, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
             // for edges
             for child in self.childs(kmer).iter() {
@@ -73,7 +158,7 @@ impl std::fmt::Display for DbgHash {
 }
 
 impl DbgHash {
-    fn from(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> DbgHash {
+    pub fn from(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> DbgHash {
         let mut d = DbgHash::new();
         for (kmer, copy_num) in kmers.into_iter().zip(copy_nums.into_iter()) {
             d.add(kmer, copy_num);
@@ -89,22 +174,20 @@ pub fn test() {
         Kmer::from(b"TCGT"),
         Kmer::from(b"TCGA"),
     ];
-    let copy_nums: Vec<u32> = vec![1, 1, 1, 1];
-    let d = DbgHash::from(kmers, copy_nums);
-    let childs = d.childs(&Kmer::from(b"ATCG"));
-    for child in childs {
-        println!("child in store: {}", child);
-    }
-    let parents = d.parents(&Kmer::from(b"TCGT"));
-    for parent in parents {
-        println!("parent in store: {}", parent);
-    }
-    let parents = d.parents(&Kmer::from(b"ATCG"));
-    for parent in parents {
-        println!("parent in store: {}", parent);
-    }
-    for kmer in d.kmers().iter() {
-        println!("kmer in store {}", kmer);
-    }
+    let copy_nums: Vec<u32> = vec![1, 7, 3, 5];
+    let mut d = DbgHash::from(kmers, copy_nums);
+    d.add(Kmer::from(b"NATC"), 1);
     println!(":::DBG OUT:::\n{}", d);
+    let (w, x, y) = d.vectorize();
+    for i in 0..w.len() {
+        println!("{}, {}, {:?}, {:?}", i, w[i], x[i], y[i]);
+    }
+    for (m, cn) in d.childs_with_copy_number(&Kmer::from(b"TTCG")).iter() {
+        println!("childs: {} {}", m, cn);
+    }
+    for (m, p) in d.childs_with_trans_prob(&Kmer::from(b"TTCG")).iter() {
+        println!("childs: {} {}", m, p);
+    }
+    let t = d.is_copy_number_consistent();
+    println!("check result: {}", t);
 }
