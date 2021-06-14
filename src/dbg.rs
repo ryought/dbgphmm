@@ -107,6 +107,15 @@ pub trait DBG {
         }
         true
     }
+    fn augment_edge_kmers(&mut self) {
+        // add `NATC`, `NNAT`, `NNNA` for foremost kmer `ATCG`
+        for kmer in self.foremost_kmers().iter() {
+            let cn = self.find(kmer);
+            for new_kmer in tailing_kmers(kmer).into_iter() {
+                self.add(new_kmer, cn);
+            }
+        }
+    }
 }
 
 pub struct DbgHash {
@@ -148,8 +157,8 @@ impl std::fmt::Display for DbgHash {
             let copy_num = self.find(kmer);
             writeln!(f, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
             // for edges
-            for child in self.childs(kmer).iter() {
-                writeln!(f, "\t{} -> {};", kmer, child);
+            for (child, p) in self.childs_with_trans_prob(kmer).iter() {
+                writeln!(f, "\t{} -> {} [label=\"{}\"];", kmer, child, p);
             }
         }
         writeln!(f, "}}");
@@ -176,18 +185,6 @@ pub fn test() {
     ];
     let copy_nums: Vec<u32> = vec![1, 7, 3, 5];
     let mut d = DbgHash::from(kmers, copy_nums);
-    d.add(Kmer::from(b"NATC"), 1);
-    println!(":::DBG OUT:::\n{}", d);
-    let (w, x, y) = d.vectorize();
-    for i in 0..w.len() {
-        println!("{}, {}, {:?}, {:?}", i, w[i], x[i], y[i]);
-    }
-    for (m, cn) in d.childs_with_copy_number(&Kmer::from(b"TTCG")).iter() {
-        println!("childs: {} {}", m, cn);
-    }
-    for (m, p) in d.childs_with_trans_prob(&Kmer::from(b"TTCG")).iter() {
-        println!("childs: {} {}", m, p);
-    }
-    let t = d.is_copy_number_consistent();
-    println!("check result: {}", t);
+    d.augment_edge_kmers();
+    println!("{}", d);
 }
