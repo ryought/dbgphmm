@@ -1,4 +1,4 @@
-use super::base::{Node, PHMM};
+use super::base::{Node, PHMMParams, PHMM};
 use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{tailing_kmers, Kmer};
@@ -6,6 +6,7 @@ use crate::prob::Prob;
 use arrayvec::ArrayVec;
 
 struct DbgPHMM {
+    dbg: DbgHash,
     // from vectorize
     kmers: Vec<Kmer>,
     childs: Vec<Vec<usize>>,
@@ -14,7 +15,6 @@ struct DbgPHMM {
     // add manually
     copy_nums: Vec<u32>,
     emissions: Vec<u8>,
-    // total_copy_num: u32,
 }
 
 impl DbgPHMM {
@@ -36,6 +36,7 @@ impl DbgPHMM {
         let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
 
         Some(DbgPHMM {
+            dbg: d,
             kmers,
             childs,
             parents,
@@ -45,8 +46,77 @@ impl DbgPHMM {
         })
     }
 }
-// impl PHMM for DbgPHMM {}
+
+impl PHMM for DbgPHMM {
+    fn nodes(&self) -> Vec<Node> {
+        (0..self.kmers.len()).map(|i| Node(i)).collect()
+    }
+    fn childs(&self, v: &Node) -> Vec<Node> {
+        self.childs[v.0].iter().map(|i| Node(*i)).collect()
+    }
+    fn parents(&self, v: &Node) -> Vec<Node> {
+        self.parents[v.0].iter().map(|i| Node(*i)).collect()
+    }
+    fn is_adjacent(&self, v: &Node, w: &Node) -> bool {
+        self.childs[v.0].iter().any(|&i| i == w.0)
+    }
+    fn copy_num(&self, v: &Node) -> u32 {
+        self.copy_nums[v.0]
+    }
+    fn emission(&self, v: &Node) -> u8 {
+        self.emissions[v.0]
+    }
+    fn trans_prob(&self, v: &Node, w: &Node) -> Prob {
+        match self.childs[v.0].iter().position(|&i| i == w.0) {
+            Some(index) => self.trans_probs[v.0][index],
+            None => Prob::from_prob(0.0),
+        }
+    }
+}
+
+impl std::fmt::Display for DbgPHMM {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "digraph dbgphmm {{");
+        for v in self.nodes().iter() {
+            // for node
+            let emission = self.emission(&v);
+            let copy_num = self.copy_num(&v);
+            writeln!(
+                f,
+                "\t{} [label=\"{} x{}\"];",
+                v.0, emission as char, copy_num
+            );
+            // for edges
+            for w in self.childs(&v).iter() {
+                let p = self.trans_prob(&v, &w);
+                writeln!(f, "\t{} -> {} [label=\"{}\"];", v.0, w.0, p);
+            }
+        }
+        writeln!(f, "}}");
+        Ok(())
+    }
+}
 
 pub fn test() {
-    println!("hello, i am dbg");
+    let kmers: Vec<Kmer> = vec![
+        Kmer::from(b"GGAC"),
+        Kmer::from(b"TGAC"),
+        Kmer::from(b"GACT"),
+        Kmer::from(b"GACC"),
+        Kmer::from(b"ACCT"),
+        Kmer::from(b"CCTG"),
+    ];
+    let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
+    let d = DbgPHMM::new(kmers, copy_nums).unwrap();
+    // println!("{}", d);
+
+    let param = PHMMParams::new(
+        Prob::from_prob(0.01),
+        Prob::from_prob(0.01),
+        Prob::from_prob(0.01),
+        10,
+    );
+    let q = b"GACCT";
+    let p = d.forward_prob(&param, q);
+    println!("prob = {}", p);
 }
