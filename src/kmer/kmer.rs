@@ -2,7 +2,7 @@
 /// kmer base struct definitions
 ///
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 pub struct Kmer(Vec<u8>);
 
 impl Kmer {

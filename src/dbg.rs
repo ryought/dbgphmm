@@ -8,9 +8,26 @@ pub trait DBG {
     // fn remove(self, kmer: Kmer);
     fn find(&self, kmer: &Kmer) -> Option<u32>;
     fn is_exists(&self, kmer: &Kmer) -> bool;
-    fn childs(&self, kmer: &Kmer) -> Vec<Kmer>;
-    fn parents(&self, kmer: &Kmer) -> Vec<Kmer>;
-    fn as_dot(&self) -> String;
+    fn kmers(&self) -> Vec<Kmer>;
+    fn childs(&self, kmer: &Kmer) -> Vec<Kmer> {
+        kmer.childs()
+            .into_iter()
+            .filter(|child| self.is_exists(child))
+            .collect()
+    }
+    fn parents(&self, kmer: &Kmer) -> Vec<Kmer> {
+        kmer.parents()
+            .into_iter()
+            .filter(|parent| self.is_exists(parent))
+            .collect()
+    }
+    fn as_dot(&self) -> String {
+        // generate dot graph file
+        // digraph dbg {
+        //   AATAT -> ATTTAT;
+        // }
+        "hogehoge".to_string()
+    }
 }
 
 pub struct DbgHash {
@@ -18,7 +35,7 @@ pub struct DbgHash {
 }
 
 impl DBG for DbgHash {
-    // store functions
+    // implementation using hashmap as a store
     fn new() -> DbgHash {
         let h: HashMap<Kmer, u32> = HashMap::new();
         DbgHash { store: h }
@@ -35,22 +52,8 @@ impl DBG for DbgHash {
     fn is_exists(&self, kmer: &Kmer) -> bool {
         self.store.contains_key(kmer)
     }
-    fn childs(&self, kmer: &Kmer) -> Vec<Kmer> {
-        kmer.childs()
-            .into_iter()
-            .filter(|child| self.is_exists(child))
-            .collect()
-    }
-    fn parents(&self, kmer: &Kmer) -> Vec<Kmer> {
-        kmer.parents()
-            .into_iter()
-            .filter(|parent| self.is_exists(parent))
-            .collect()
-    }
-    // output related
-    fn as_dot(&self) -> String {
-        // generate dot graph file
-        "hogehoge".to_string()
+    fn kmers(&self) -> Vec<Kmer> {
+        self.store.keys().map(|x| x.clone()).collect()
     }
 }
 
@@ -73,17 +76,19 @@ pub fn test() {
     ];
     let copy_nums: Vec<u32> = vec![1, 1, 1, 1];
     let d = DbgHash::from(kmers, copy_nums);
-    println!("{}", d.as_dot());
-    let childs = Kmer::from(b"ATCG").childs();
-    for child in childs {
-        println!("all child: {}", child);
-    }
-    let parents = Kmer::from(b"ATCG").parents();
-    for parent in parents {
-        println!("all parent: {}", parent);
-    }
     let childs = d.childs(&Kmer::from(b"ATCG"));
     for child in childs {
         println!("child in store: {}", child);
+    }
+    let parents = d.parents(&Kmer::from(b"TCGT"));
+    for parent in parents {
+        println!("parent in store: {}", parent);
+    }
+    let parents = d.parents(&Kmer::from(b"ATCG"));
+    for parent in parents {
+        println!("parent in store: {}", parent);
+    }
+    for kmer in d.kmers().iter() {
+        println!("kmer in store {}", kmer);
     }
 }
