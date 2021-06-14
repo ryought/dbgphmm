@@ -62,7 +62,7 @@ pub trait DBG {
             .map(|kmer| kmer.clone())
             .collect()
     }
-    fn vectorize(&self) -> (Vec<Kmer>, Vec<Vec<usize>>, Vec<Vec<usize>>) {
+    fn vectorize(&self) -> (Vec<Kmer>, Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<Prob>>) {
         // assign an index to each kmers
         // and returns (kmers, copy_nums, childs, parents, trans_probs)
         let kmers = self.kmers();
@@ -72,14 +72,17 @@ pub trait DBG {
         }
 
         let mut childs: Vec<Vec<usize>> = Vec::new();
+        let mut trans_probs: Vec<Vec<Prob>> = Vec::new();
         let mut parents: Vec<Vec<usize>> = Vec::new();
         for kmer in kmers.iter() {
+            let childs_with_tp = self.childs_with_trans_prob(kmer);
             childs.push(
-                self.childs(kmer)
+                childs_with_tp
                     .iter()
-                    .map(|kmer| *ids.get(kmer).unwrap())
+                    .map(|(kmer, _)| *ids.get(kmer).unwrap())
                     .collect(),
             );
+            trans_probs.push(childs_with_tp.iter().map(|(_, tp)| *tp).collect());
             parents.push(
                 self.parents(kmer)
                     .iter()
@@ -87,7 +90,7 @@ pub trait DBG {
                     .collect(),
             );
         }
-        (kmers, childs, parents)
+        (kmers, childs, parents, trans_probs)
     }
     fn is_copy_number_consistent(&self) -> bool {
         // for all kmers
