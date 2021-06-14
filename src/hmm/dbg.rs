@@ -1,4 +1,5 @@
 use super::base::{Node, PHMM};
+use crate::dbg;
 use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
@@ -105,14 +106,7 @@ fn find_edges() {}
 
 pub fn test() {
     println!("hello, i am dbg");
-
-    let kmers: Vec<Kmer> = vec![
-        Kmer::from(b"ATCG"),
-        Kmer::from(b"TTCG"),
-        Kmer::from(b"TCGT"),
-        Kmer::from(b"TCGA"),
-    ];
-    let copy_nums: Vec<u32> = vec![1, 1, 1, 1];
+    /*
     let d = DbgPHMM::new(kmers, copy_nums).unwrap();
 
     let edge = Kmer::from(b"TCGA");
@@ -120,4 +114,5 @@ pub fn test() {
     for t in tailings.iter() {
         println!("{}", t);
     }
+    */
 }

@@ -41,7 +41,8 @@ fn main() {
     // sleeper::sleep();
     hmm::testing::test(args[1].as_bytes(), args[2].as_bytes());
     my_array_vec::test();
-    hmm::dbg::test();
+    // hmm::dbg::test();
+    dbg::test();
 }
 
 fn run2(config: kmer::counter::Config) {

@@ -1,3 +1,4 @@
+pub mod dbg;
 pub mod hmm;
 pub mod hoge; // load file src/hoge.rs
 pub mod kmer;

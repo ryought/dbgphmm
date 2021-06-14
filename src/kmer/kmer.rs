@@ -38,6 +38,30 @@ impl Kmer {
         let (_, suffix) = self.0.split_first().expect("k should be >1");
         Kmer(suffix.to_vec())
     }
+    pub fn childs(&self) -> Vec<Kmer> {
+        let (_, suffix) = self.0.split_first().unwrap();
+        let childs = [b'A', b'C', b'G', b'T']
+            .iter()
+            .map(|last_base| {
+                let mut v = suffix.to_vec();
+                v.push(*last_base);
+                Kmer::from_vec(v)
+            })
+            .collect();
+        childs
+    }
+    pub fn parents(&self) -> Vec<Kmer> {
+        let (_, prefix) = self.0.split_last().unwrap();
+        let parents = [b'A', b'C', b'G', b'T']
+            .iter()
+            .map(|first_base| {
+                let mut v = prefix.to_vec();
+                v.insert(0, *first_base);
+                Kmer::from_vec(v)
+            })
+            .collect();
+        parents
+    }
 }
 
 impl std::fmt::Display for Kmer {
