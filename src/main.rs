@@ -1,3 +1,4 @@
+use clap::{AppSettings, Clap};
 use dbgphmm::*;
 use std::io::prelude::*;
 
@@ -20,8 +21,25 @@ fn test() {
     test_struct::hoge::test1();
 }
 
+/// de bruijn graph + profile HMM optimization package
+#[derive(Clap)]
+#[clap(version = "0.1", author = "ryought <ryought@ryought.app>")]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct Opts {
+    /// Fasta input
+    #[clap(default_value = "test.fa")]
+    fasta_filename: String,
+    /// Print debug info
+    #[clap(short, long)]
+    debug: bool,
+}
+
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let opts: Opts = Opts::parse();
+    println!("option fasta: {}", opts.fasta_filename);
+    println!("option debug: {}", opts.debug);
+
+    // let args: Vec<String> = std::env::args().collect();
     // let config = parse_config(&args);
     // let config = kmer::counter::Config::new(&args);
     // run(config);
@@ -41,8 +59,9 @@ fn main() {
     // sleeper::sleep();
     // hmm::testing::test(args[1].as_bytes(), args[2].as_bytes());
     // my_array_vec::test();
-    hmm::dbg::test();
+    // hmm::dbg::test();
     // dbg::test();
+    io::fasta::test();
 }
 
 fn run2(config: kmer::counter::Config) {
