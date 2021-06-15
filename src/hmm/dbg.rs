@@ -74,29 +74,6 @@ impl PHMM for DbgPHMM {
     }
 }
 
-impl std::fmt::Display for DbgPHMM {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "digraph dbgphmm {{");
-        for v in self.nodes().iter() {
-            // for node
-            let emission = self.emission(&v);
-            let copy_num = self.copy_num(&v);
-            writeln!(
-                f,
-                "\t{} [label=\"{} x{}\"];",
-                v.0, emission as char, copy_num
-            );
-            // for edges
-            for w in self.childs(&v).iter() {
-                let p = self.trans_prob(&v, &w);
-                writeln!(f, "\t{} -> {} [label=\"{}\"];", v.0, w.0, p);
-            }
-        }
-        writeln!(f, "}}");
-        Ok(())
-    }
-}
-
 pub fn test() {
     let kmers: Vec<Kmer> = vec![
         Kmer::from(b"GGAC"),
@@ -108,15 +85,18 @@ pub fn test() {
     ];
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
     let d = DbgPHMM::new(kmers, copy_nums).unwrap();
-    // println!("{}", d);
+    println!("{}", d.dbg.as_dot());
+    // println!("{}", d.as_dot());
 
+    /*
     let param = PHMMParams::new(
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         10,
     );
-    let q = b"GACCT";
+    let q = b"TGACCT";
     let p = d.forward_prob(&param, q);
     println!("prob = {}", p);
+    */
 }

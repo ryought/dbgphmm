@@ -1,4 +1,5 @@
 use crate::prob::Prob;
+use std::fmt::Write as FmtWrite;
 
 #[derive(Debug)]
 pub struct PHMMParams {
@@ -268,5 +269,26 @@ pub trait PHMM {
         let SFI: Prob = last_layer.FI.iter().sum();
         let SFD: Prob = last_layer.FD.iter().sum();
         SFM + SFI + SFD + last_layer.FMB + last_layer.FIB
+    }
+    fn as_dot(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "digraph dbgphmm {{");
+        for v in self.nodes().iter() {
+            // for node
+            let emission = self.emission(&v);
+            let copy_num = self.copy_num(&v);
+            writeln!(
+                &mut s,
+                "\t{} [label=\"{} x{}\"];",
+                v.0, emission as char, copy_num
+            );
+            // for edges
+            for w in self.childs(&v).iter() {
+                let p = self.trans_prob(&v, &w);
+                writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0, p);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
     }
 }

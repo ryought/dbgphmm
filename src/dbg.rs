@@ -2,6 +2,7 @@ use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
+use std::fmt::Write as FmtWrite;
 // use ahash::AHashMap as HashMap;
 // use std::collections::HashMap;
 
@@ -119,6 +120,25 @@ pub trait DBG {
             }
         }
     }
+    fn as_dot(&self) -> String {
+        // generate dot graph file
+        // digraph dbg {
+        //   AATAT -> ATTTAT;
+        // }
+        let mut s = String::new();
+        writeln!(&mut s, "digraph dbg {{");
+        for kmer in self.kmers().iter() {
+            // for node
+            let copy_num = self.find(kmer);
+            writeln!(&mut s, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
+            // for edges
+            for (child, p) in self.childs_with_trans_prob(kmer).iter() {
+                writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", kmer, child, p);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
 }
 
 pub struct DbgHash {
@@ -152,27 +172,6 @@ impl DBG for DbgHash {
     }
 }
 
-impl std::fmt::Display for DbgHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // generate dot graph file
-        // digraph dbg {
-        //   AATAT -> ATTTAT;
-        // }
-        writeln!(f, "digraph dbg {{");
-        for kmer in self.kmers().iter() {
-            // for node
-            let copy_num = self.find(kmer);
-            writeln!(f, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
-            // for edges
-            for (child, p) in self.childs_with_trans_prob(kmer).iter() {
-                writeln!(f, "\t{} -> {} [label=\"{}\"];", kmer, child, p);
-            }
-        }
-        writeln!(f, "}}");
-        Ok(())
-    }
-}
-
 impl DbgHash {
     pub fn from(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> DbgHash {
         let mut d = DbgHash::new();
@@ -199,5 +198,5 @@ pub fn test() {
     let copy_nums: Vec<u32> = vec![3, 2, 3, 3, 1];
     let mut d = DbgHash::from(kmers, copy_nums);
     d.augment_edge_kmers();
-    println!("{}", d);
+    println!("{}", d.as_dot());
 }
