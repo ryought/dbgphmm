@@ -4,31 +4,27 @@
 ///
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Prob {
-    log_value: f64,
-}
+pub struct Prob(f64);
 
 impl Prob {
     pub fn from_prob(value: f64) -> Prob {
-        Prob {
-            log_value: value.ln(),
-        }
+        Prob(value.ln())
     }
     pub fn from_log_prob(log_value: f64) -> Prob {
-        Prob { log_value }
+        Prob(log_value)
     }
     pub fn to_value(self) -> f64 {
-        self.log_value.exp()
+        self.0.exp()
     }
     pub fn to_log_value(self) -> f64 {
-        self.log_value
+        self.0
     }
 }
 
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:.2}(=log({}))", self.log_value, self.to_value())
+        write!(f, "{:.2}(=log({}))", self.0, self.to_value())
     }
 }
 
@@ -41,29 +37,21 @@ impl std::ops::Add for Prob {
     /// = log(exp(x)) + log(1 + exp(y-x))
     /// = x + log(1 + exp(y-x))
     fn add(self, other: Self) -> Self {
-        let x = self.log_value;
-        let y = other.log_value;
+        let x = self.0;
+        let y = other.0;
         if x == y {
-            Prob {
-                log_value: x + 2f64.ln(),
-            }
+            Prob(x + 2f64.ln())
         } else if x > y {
-            Prob {
-                log_value: x + ((y - x).exp() + 1.0).ln(),
-            }
+            Prob(x + ((y - x).exp() + 1.0).ln())
         } else {
-            Prob {
-                log_value: y + ((x - y).exp() + 1.0).ln(),
-            }
+            Prob(y + ((x - y).exp() + 1.0).ln())
         }
     }
 }
 impl std::ops::Mul for Prob {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
-        Prob {
-            log_value: self.log_value + other.log_value,
-        }
+        Prob(self.0 + other.0)
     }
 }
 // sum/prod
@@ -103,16 +91,16 @@ pub fn test() {
         y.to_value(),
         a.to_value(),
         b.to_value(),
-        z0.log_value,
-        z1.log_value,
+        z0.0,
+        z1.0,
         (z0 + z1).to_value(),
     );
-    assert_abs_diff_eq!(B.log_value, b.log_value);
+    assert_abs_diff_eq!(B.0, b.0);
 
     let x = Prob::from_prob(0.3);
     let e = Prob::from_prob(0.0);
-    assert_relative_eq!((x + e).log_value, x.log_value);
-    assert_relative_eq!((x * e).log_value, e.log_value);
+    assert_relative_eq!((x + e).0, x.0);
+    assert_relative_eq!((x * e).0, e.0);
     println!("{} == {}", (x + e).to_value(), x.to_value());
     println!("{} == {}", (x * e).to_value(), e.to_value());
 
@@ -127,7 +115,7 @@ pub fn test() {
     let p: Prob = xs.iter().product();
     let x = xs.iter().fold(Prob::from_prob(0.0), |sum, i| sum + *i);
     let y = Prob::from_prob(0.4);
-    assert_relative_eq!(x.log_value, y.log_value);
+    assert_relative_eq!(x.0, y.0);
     println!(
         "{} {} {} {}",
         x.to_value(),
@@ -166,15 +154,15 @@ mod tests {
     fn test_id() {
         let x = Prob::from_prob(0.3);
         let e = Prob::from_prob(0.0);
-        assert_relative_eq!((x + e).log_value, x.log_value);
-        assert_relative_eq!((x * e).log_value, e.log_value);
+        assert_relative_eq!((x + e).0, x.0);
+        assert_relative_eq!((x * e).0, e.0);
     }
     #[test]
     fn test_id_id() {
         let x = Prob::from_prob(1.0);
         let e = Prob::from_prob(0.0);
-        assert_relative_eq!((x + e).log_value, x.log_value);
-        assert_relative_eq!((x * e).log_value, e.log_value);
+        assert_relative_eq!((x + e).0, x.0);
+        assert_relative_eq!((x * e).0, e.0);
     }
     #[test]
     fn test_sum() {
@@ -202,7 +190,7 @@ mod tests {
     fn test_reflect() {
         let x = Prob::from_prob(1.0);
         let e = Prob::from_prob(0.0);
-        assert_relative_eq!((x + e).log_value, x.log_value);
-        assert_relative_eq!((x * e).log_value, e.log_value);
+        assert_relative_eq!((x + e).0, x.0);
+        assert_relative_eq!((x * e).0, e.0);
     }
 }
