@@ -1,4 +1,6 @@
 use clap::{AppSettings, Clap};
+use dbgphmm::hmm::base::PHMM;
+use dbgphmm::prob::Prob;
 use dbgphmm::*;
 use std::io::prelude::*;
 
@@ -23,12 +25,18 @@ fn test() {
 
 /// de bruijn graph + profile HMM optimization package
 #[derive(Clap)]
-#[clap(version = "0.1", author = "ryought <ryought@ryought.app>")]
+#[clap(version = "0.1", author = "ryought <ryonakabayashi@gmail.com>")]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
     /// Fasta input
     #[clap(default_value = "test.fa")]
-    fasta_filename: String,
+    dbg_fa: String,
+    /// Read fasta input
+    #[clap(default_value = "read.fa")]
+    reads_fa: String,
+    /// initial kmer size
+    #[clap(short, default_value = "8")]
+    k: usize,
     /// Print debug info
     #[clap(short, long)]
     debug: bool,
@@ -36,32 +44,17 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
-    println!("option fasta: {}", opts.fasta_filename);
-    println!("option debug: {}", opts.debug);
-
-    // let args: Vec<String> = std::env::args().collect();
-    // let config = parse_config(&args);
-    // let config = kmer::counter::Config::new(&args);
-    // run(config);
-    // test5();
-    // prob::test();
-    // seq::test();
-    // counter::run_counter(config);
-
-    // my_vec::test();
-    // seq::test2();
-    // linkedlist::test2();
-
-    // vec_of_vec::test();
-    // kmer::test();
-
-    // kmer::counter::test_counter();
-    // sleeper::sleep();
-    // hmm::testing::test(args[1].as_bytes(), args[2].as_bytes());
-    // my_array_vec::test();
-    // hmm::dbg::test();
-    // dbg::test();
-    io::fasta::test();
+    let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
+    let reads = io::fasta::parse_reads(&opts.reads_fa);
+    let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
+    let param = hmm::base::PHMMParams::new(
+        Prob::from_prob(0.01),
+        Prob::from_prob(0.01),
+        Prob::from_prob(0.01),
+        10,
+    );
+    let p = d.forward_prob(&param, &reads[0]);
+    println!("forward prob : {}", p);
 }
 
 fn run2(config: kmer::counter::Config) {

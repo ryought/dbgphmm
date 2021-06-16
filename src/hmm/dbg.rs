@@ -5,7 +5,7 @@ use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
 
-struct DbgPHMM {
+pub struct DbgPHMM {
     dbg: DbgHash,
     // from vectorize
     kmers: Vec<Kmer>,
@@ -18,7 +18,7 @@ struct DbgPHMM {
 }
 
 impl DbgPHMM {
-    fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
+    pub fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
         // construct DbgHash and
         let mut d = DbgHash::from(kmers, copy_nums);
 

@@ -116,6 +116,7 @@ pub trait PHMM {
         let total_copy_num = self.total_copy_num();
         Prob::from_prob(f64::from(copy_num) / f64::from(total_copy_num))
     }
+    // forward prob
     fn fmi_init(&self) -> (Vec<Prob>, Vec<Prob>) {
         let mut FM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut FI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
@@ -270,6 +271,7 @@ pub trait PHMM {
         let SFD: Prob = last_layer.FD.iter().sum();
         SFM + SFI + SFD + last_layer.FMB + last_layer.FIB
     }
+    // output
     fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph dbgphmm {{");

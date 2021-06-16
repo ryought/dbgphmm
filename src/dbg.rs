@@ -96,6 +96,7 @@ pub trait DBG {
     fn is_copy_number_consistent(&self) -> bool {
         // for all kmers
         for kmer in self.kmers().iter() {
+            eprintln!("consistency checking {}", kmer);
             // check if sum_cn(childs) == sum_cn(siblings)
             // siblings = parents of a child
             let childs_with_cn = self.childs_with_copy_number(kmer);
