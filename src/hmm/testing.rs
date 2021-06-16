@@ -1,6 +1,7 @@
 use super::base::*;
 use super::linear::LinearPHMM;
 use super::params::PHMMParams;
+use super::sampler::{pick_with_prob, PHMMSampler, State};
 use crate::prob::Prob;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;

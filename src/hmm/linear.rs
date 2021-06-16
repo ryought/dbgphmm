@@ -1,4 +1,5 @@
 use super::base::{Node, PHMM};
+use super::sampler::PHMMSampler;
 use crate::prob::Prob;
 
 pub struct LinearPHMM {
@@ -50,3 +51,5 @@ impl PHMM for LinearPHMM {
         }
     }
 }
+
+impl PHMMSampler for LinearPHMM {}
