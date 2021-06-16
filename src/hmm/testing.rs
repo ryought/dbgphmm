@@ -41,7 +41,7 @@ pub fn test_static() {
     );
     println!("{}", model.as_dot());
     for i in 0..10 {
-        let read = model.sample(&param, 5, i);
+        let read = model.sample(&param, 20, i);
         println!("r{}: {}", i, std::str::from_utf8(&read).unwrap());
     }
     // let p = model.forward_prob(&param, q);
@@ -71,6 +71,7 @@ pub fn test_random() {
             State::Del => n_c += 1,
             State::InsBegin => {}
             State::MatchBegin => {}
+            State::End => {}
         }
     }
     println!("choices {} {} {}", n_a, n_b, n_c);

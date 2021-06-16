@@ -1,7 +1,7 @@
 use super::base::{Node, PHMM};
 use super::params::PHMMParams;
 use crate::prob::Prob;
-use log::info;
+use log::trace;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
@@ -12,6 +12,7 @@ pub enum State {
     Del,
     MatchBegin,
     InsBegin,
+    End,
 }
 
 pub trait PHMMSampler: PHMM {
@@ -21,19 +22,19 @@ pub trait PHMMSampler: PHMM {
         let mut emissions: Vec<u8> = Vec::new();
         let mut now: (State, Node) = (State::MatchBegin, Node(0));
         for i in 0..=length {
-            info!("iter {} {:?}", i, now);
+            trace!("iter {} {:?}", i, now);
             // 1. emission
             match now {
                 (State::Match, v) => {
                     let emission_match_choices = emission_match_choices(&param, self.emission(&v));
                     let emission = pick_with_prob(&mut rng, &emission_match_choices);
-                    info!("emit {} <- {}", emission as char, self.emission(&v) as char);
+                    trace!("emit {} <- {}", emission as char, self.emission(&v) as char);
                     emissions.push(emission);
                 }
                 (State::Ins, _) | (State::InsBegin, _) => {
                     let emission_ins_choices = emission_ins_choices(&param);
                     let emission = pick_with_prob(&mut rng, &emission_ins_choices);
-                    info!("emit {} <- 0", emission as char);
+                    trace!("emit {} <- 0", emission as char);
                     emissions.push(emission);
                 }
                 _ => {}
@@ -55,8 +56,12 @@ pub trait PHMMSampler: PHMM {
                                 .into_iter()
                                 .map(|w| (w, self.trans_prob(&v, &w)))
                                 .collect();
-                            let w = pick_with_prob(&mut rng, &move_choices);
-                            (state, w)
+                            if move_choices.len() > 0 {
+                                let w = pick_with_prob(&mut rng, &move_choices);
+                                (state, w)
+                            } else {
+                                (State::End, Node(0))
+                            }
                         }
                     }
                 }
@@ -75,8 +80,12 @@ pub trait PHMMSampler: PHMM {
                                 .into_iter()
                                 .map(|w| (w, self.trans_prob(&v, &w)))
                                 .collect();
-                            let w = pick_with_prob(&mut rng, &move_choices);
-                            (state, w)
+                            if move_choices.len() > 0 {
+                                let w = pick_with_prob(&mut rng, &move_choices);
+                                (state, w)
+                            } else {
+                                (State::End, Node(0))
+                            }
                         }
                     }
                 }
@@ -95,8 +104,12 @@ pub trait PHMMSampler: PHMM {
                                 .into_iter()
                                 .map(|w| (w, self.trans_prob(&v, &w)))
                                 .collect();
-                            let w = pick_with_prob(&mut rng, &move_choices);
-                            (state, w)
+                            if move_choices.len() > 0 {
+                                let w = pick_with_prob(&mut rng, &move_choices);
+                                (state, w)
+                            } else {
+                                (State::End, Node(0))
+                            }
                         }
                     }
                 }
@@ -115,8 +128,12 @@ pub trait PHMMSampler: PHMM {
                                 .into_iter()
                                 .map(|w| (w, self.init_prob(&w)))
                                 .collect();
-                            let w = pick_with_prob(&mut rng, &move_choices);
-                            (state, w)
+                            if move_choices.len() > 0 {
+                                let w = pick_with_prob(&mut rng, &move_choices);
+                                (state, w)
+                            } else {
+                                (State::End, Node(0))
+                            }
                         }
                     }
                 }
@@ -135,11 +152,16 @@ pub trait PHMMSampler: PHMM {
                                 .into_iter()
                                 .map(|w| (w, self.init_prob(&w)))
                                 .collect();
-                            let w = pick_with_prob(&mut rng, &move_choices);
-                            (state, w)
+                            if move_choices.len() > 0 {
+                                let w = pick_with_prob(&mut rng, &move_choices);
+                                (state, w)
+                            } else {
+                                (State::End, Node(0))
+                            }
                         }
                     }
                 }
+                (State::End, _) => (State::End, Node(0)),
             };
             now = next;
         }
