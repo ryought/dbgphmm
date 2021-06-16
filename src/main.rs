@@ -47,7 +47,7 @@ fn main() {
     let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
     let reads = io::fasta::parse_reads(&opts.reads_fa);
     let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
-    let param = hmm::base::PHMMParams::new(
+    let param = hmm::params::PHMMParams::new(
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),

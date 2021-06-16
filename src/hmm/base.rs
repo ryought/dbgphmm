@@ -1,68 +1,6 @@
+use super::params::PHMMParams;
 use crate::prob::Prob;
 use std::fmt::Write as FmtWrite;
-
-#[derive(Debug)]
-pub struct PHMMParams {
-    p_mismatch: Prob,
-    p_match: Prob,
-    p_random: Prob,
-    p_gap_open: Prob,
-    p_gap_ext: Prob,
-    p_MM: Prob,
-    p_IM: Prob,
-    p_DM: Prob,
-    p_MI: Prob,
-    p_II: Prob,
-    p_DI: Prob,
-    p_MD: Prob,
-    p_ID: Prob,
-    p_DD: Prob,
-    n_max_gaps: u32,
-}
-
-impl PHMMParams {
-    pub fn new(p_mismatch: Prob, p_gap_open: Prob, p_gap_ext: Prob, n_max_gaps: u32) -> PHMMParams {
-        PHMMParams {
-            p_mismatch,
-            p_gap_open,
-            p_gap_ext,
-            p_DD: p_gap_ext,
-            p_II: p_gap_ext,
-            p_MI: p_gap_open,
-            p_MD: p_gap_open,
-            p_ID: p_gap_open,
-            p_DI: p_gap_open,
-            // p_MM: 1 - p_gap_open - p_gap_open,
-            p_MM: Prob::from_prob(1.0 - 2.0 * p_gap_open.to_value()),
-            // p_DM: 1 - p_gap_open - p_gap_ext,
-            p_DM: Prob::from_prob(1.0 - p_gap_open.to_value() - p_gap_ext.to_value()),
-            p_IM: Prob::from_prob(1.0 - p_gap_open.to_value() - p_gap_ext.to_value()),
-            // p_match: 1 - p_mismatch
-            p_match: Prob::from_prob(1.0 - p_mismatch.to_value()),
-            p_random: Prob::from_prob(0.25),
-            n_max_gaps,
-        }
-    }
-}
-
-impl std::fmt::Display for PHMMParams {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "p_mismatch: {}", self.p_mismatch);
-        writeln!(f, "p_match: {}", self.p_match);
-        writeln!(f, "p_gap_open: {}", self.p_gap_open);
-        writeln!(f, "p_gap_ext: {}", self.p_gap_ext);
-        writeln!(f, "p_MM: {}", self.p_MM);
-        writeln!(f, "p_IM: {}", self.p_IM);
-        writeln!(f, "p_DM: {}", self.p_DM);
-        writeln!(f, "p_MI: {}", self.p_MI);
-        writeln!(f, "p_II: {}", self.p_II);
-        writeln!(f, "p_DI: {}", self.p_DI);
-        writeln!(f, "p_MD: {}", self.p_MD);
-        writeln!(f, "p_ID: {}", self.p_ID);
-        writeln!(f, "p_DD: {}", self.p_DD);
-        Ok(())
-    }
-}
 
 #[derive(Debug)]
 pub struct PHMMLayer {
@@ -271,6 +209,8 @@ pub trait PHMM {
         let SFD: Prob = last_layer.FD.iter().sum();
         SFM + SFI + SFD + last_layer.FMB + last_layer.FIB
     }
+    // sample related
+    // fn sample(&self, param: &PHMMParams, length: u32) -> Vec<u8> {}
     // output
     fn as_dot(&self) -> String {
         let mut s = String::new();

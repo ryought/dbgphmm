@@ -1,5 +1,6 @@
-use super::base::{PHMMParams, PHMM};
+use super::base::PHMM;
 use super::linear::LinearPHMM;
+use super::params::PHMMParams;
 use crate::prob::Prob;
 
 pub fn test(r: &[u8], q: &[u8]) {

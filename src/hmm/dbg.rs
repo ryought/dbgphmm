@@ -1,4 +1,5 @@
-use super::base::{Node, PHMMParams, PHMM};
+use super::base::{Node, PHMM};
+use super::params::PHMMParams;
 use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{tailing_kmers, Kmer};
