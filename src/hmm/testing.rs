@@ -39,7 +39,10 @@ pub fn test_static() {
         10,
     );
     println!("{}", model.as_dot());
-    model.sample(&param, 10, 0);
+    for i in 0..10 {
+        let read = model.sample(&param, 5, i);
+        println!("r{}: {}", i, std::str::from_utf8(&read).unwrap());
+    }
     // let p = model.forward_prob(&param, q);
     // println!("prob = {}", p);
 }

@@ -1,5 +1,6 @@
 use super::params::PHMMParams;
 use crate::prob::Prob;
+use log::info;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
@@ -203,11 +204,11 @@ pub trait PHMM {
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
         let mut layers = Vec::new();
         let layer = self.init(&param);
-        println!("l0:\n{}", layer);
+        info!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
             let layer = self.step(&param, &layers[i], emission);
-            println!("l{}:\n{}", i, layer);
+            info!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
         layers
@@ -226,20 +227,20 @@ pub trait PHMM {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let mut emissions: Vec<u8> = Vec::new();
         let mut now: (State, Node) = (State::MatchBegin, Node(0));
-        for i in 0..length {
-            println!("iter {} {:?}", i, now);
+        for i in 0..=length {
+            info!("iter {} {:?}", i, now);
             // 1. emission
             match now {
                 (State::Match, v) => {
                     let emission_match_choices = emission_match_choices(&param, self.emission(&v));
                     let emission = pick_with_prob(&mut rng, &emission_match_choices);
-                    println!("emit {}", emission as char);
+                    info!("emit {} <- {}", emission as char, self.emission(&v) as char);
                     emissions.push(emission);
                 }
                 (State::Ins, _) | (State::InsBegin, _) => {
                     let emission_ins_choices = emission_ins_choices(&param);
                     let emission = pick_with_prob(&mut rng, &emission_ins_choices);
-                    println!("emit {}", emission as char);
+                    info!("emit {} <- 0", emission as char);
                     emissions.push(emission);
                 }
                 _ => {}

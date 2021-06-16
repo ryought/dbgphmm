@@ -43,6 +43,10 @@ struct Opts {
 }
 
 fn main() {
+    // enable logger
+    env_logger::init();
+
+    // parse options
     let opts: Opts = Opts::parse();
     let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
     let reads = io::fasta::parse_reads(&opts.reads_fa);

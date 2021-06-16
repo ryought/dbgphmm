@@ -2,6 +2,7 @@ use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
+use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 // use ahash::AHashMap as HashMap;
 // use std::collections::HashMap;
@@ -96,7 +97,7 @@ pub trait DBG {
     fn is_copy_number_consistent(&self) -> bool {
         // for all kmers
         for kmer in self.kmers().iter() {
-            eprintln!("consistency checking {}", kmer);
+            debug!("consistency checking {}", kmer);
             // check if sum_cn(childs) == sum_cn(siblings)
             // siblings = parents of a child
             let childs_with_cn = self.childs_with_copy_number(kmer);
@@ -155,7 +156,7 @@ impl DBG for DbgHash {
     fn add(&mut self, kmer: Kmer, copy_num: u32) {
         let copy_num_old = self.find(&kmer);
         if copy_num_old > 0 {
-            eprintln!("duplicate!");
+            warn!("duplicate!");
         }
         self.store.insert(kmer, copy_num + copy_num_old);
     }
