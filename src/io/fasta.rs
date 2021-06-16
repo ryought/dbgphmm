@@ -16,8 +16,6 @@ pub fn parse_kmers_and_copy_nums(filename: &str, k: usize) -> (Vec<Kmer>, Vec<u3
     }
     let kmers = d.kmers();
     let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
-    eprintln!("is_consistent: {}", d.is_copy_number_consistent());
-    println!("{}", d.as_dot());
     (kmers, copy_nums)
 }
 

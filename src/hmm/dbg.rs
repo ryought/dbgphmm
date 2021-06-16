@@ -86,7 +86,7 @@ pub fn test() {
     ];
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
     let d = DbgPHMM::new(kmers, copy_nums).unwrap();
-    println!("{}", d.dbg.as_dot());
+    // println!("{}", d.dbg.as_dot());
     // println!("{}", d.as_dot());
 
     /*

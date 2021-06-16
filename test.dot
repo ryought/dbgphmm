@@ -1,43 +1,53 @@
-digraph dbg {
-	TATN [label="TATN x1"];
-	TATN -> ATNN [label="0.00(=log(1))"];
-	NAAT [label="NAAT x1"];
-	NAAT -> AATA [label="0.00(=log(1))"];
-	TATA [label="TATA x1"];
-	TATA -> ATAT [label="0.00(=log(1))"];
-	CGAT [label="CGAT x2"];
-	CGAT -> GATA [label="-0.69(=log(0.5))"];
-	CGAT -> GATC [label="-0.69(=log(0.5))"];
-	TCGA [label="TCGA x2"];
-	TCGA -> CGAT [label="0.00(=log(1))"];
-	ATAT [label="ATAT x3"];
-	ATAT -> TATA [label="-1.39(=log(0.25))"];
-	ATAT -> TATC [label="-1.39(=log(0.25))"];
-	ATAT -> TATT [label="-1.39(=log(0.25))"];
-	ATAT -> TATN [label="-1.39(=log(0.25))"];
-	TATT [label="TATT x1"];
-	TATT -> ATTA [label="0.00(=log(1))"];
-	ATNN [label="ATNN x1"];
-	GATC [label="GATC x1"];
-	GATC -> ATCG [label="0.00(=log(1))"];
-	NNNA [label="NNNA x1"];
-	NNNA -> NNAA [label="0.00(=log(1))"];
-	AATA [label="AATA x1"];
-	AATA -> ATAT [label="0.00(=log(1))"];
-	GATA [label="GATA x1"];
-	GATA -> ATAT [label="0.00(=log(1))"];
-	ATTA [label="ATTA x1"];
-	ATTA -> TTAT [label="0.00(=log(1))"];
-	NNAA [label="NNAA x1"];
-	NNAA -> NAAT [label="0.00(=log(1))"];
-	TATC [label="TATC x1"];
-	TATC -> ATCG [label="0.00(=log(1))"];
-	ATCG [label="ATCG x2"];
-	ATCG -> TCGA [label="0.00(=log(1))"];
-	TTAT [label="TTAT x1"];
-	TTAT -> TATA [label="-1.39(=log(0.25))"];
-	TTAT -> TATC [label="-1.39(=log(0.25))"];
-	TTAT -> TATT [label="-1.39(=log(0.25))"];
-	TTAT -> TATN [label="-1.39(=log(0.25))"];
+digraph dbgphmm {
+	0 [label="A x1"];
+	0 -> 1 [label="0.00(=log(1))"];
+	1 [label="T x1"];
+	1 -> 2 [label="0.00(=log(1))"];
+	2 [label="C x1"];
+	2 -> 3 [label="0.00(=log(1))"];
+	3 [label="G x1"];
+	3 -> 4 [label="0.00(=log(1))"];
+	4 [label="A x1"];
+	4 -> 5 [label="0.00(=log(1))"];
+	5 [label="T x1"];
+	5 -> 6 [label="0.00(=log(1))"];
+	6 [label="T x1"];
+	6 -> 7 [label="0.00(=log(1))"];
+	7 [label="C x1"];
+	7 -> 8 [label="0.00(=log(1))"];
+	8 [label="G x1"];
+	8 -> 9 [label="0.00(=log(1))"];
+	9 [label="A x1"];
+	9 -> 10 [label="0.00(=log(1))"];
+	10 [label="T x1"];
+	10 -> 11 [label="0.00(=log(1))"];
+	11 [label="T x1"];
+	11 -> 12 [label="0.00(=log(1))"];
+	12 [label="A x1"];
+	12 -> 13 [label="0.00(=log(1))"];
+	13 [label="G x1"];
+	13 -> 14 [label="0.00(=log(1))"];
+	14 [label="C x1"];
+	14 -> 15 [label="0.00(=log(1))"];
+	15 [label="T x1"];
 }
 
+iter 0 (MatchBegin, Node(0))
+iter 1 (Match, Node(6))
+emit T
+iter 2 (Match, Node(7))
+emit C
+iter 3 (Match, Node(8))
+emit G
+iter 4 (Match, Node(9))
+emit A
+iter 5 (Match, Node(10))
+emit T
+iter 6 (Match, Node(11))
+emit T
+iter 7 (Match, Node(12))
+emit A
+iter 8 (Match, Node(13))
+emit G
+iter 9 (Match, Node(14))
+emit C

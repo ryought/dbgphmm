@@ -53,8 +53,12 @@ fn main() {
         Prob::from_prob(0.01),
         10,
     );
-    let p = d.forward_prob(&param, &reads[0]);
-    println!("forward prob : {}", p);
+    // let p = d.forward_prob(&param, &reads[0]);
+    // println!("forward prob : {}", p);
+    // let es = d.sample(&param, 10);
+    // println!("emmissions: {:?}", es);
+    // hmm::base::test_random();
+    hmm::testing::test_static();
 }
 
 fn run2(config: kmer::counter::Config) {
