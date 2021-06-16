@@ -7,6 +7,7 @@ pub mod linkedlist;
 pub mod my_array_vec;
 pub mod my_vec;
 pub mod prob;
+pub mod random_seq;
 pub mod sleeper;
 pub mod test_struct;
 pub mod vec_of_vec;
