@@ -2,6 +2,7 @@ use clap::{AppSettings, Clap};
 use dbgphmm::hmm::base::PHMM;
 use dbgphmm::prob::Prob;
 use dbgphmm::*;
+use log::{info, warn};
 use std::io::prelude::*;
 
 /// de bruijn graph + profile HMM optimization package
@@ -30,21 +31,21 @@ fn main() {
     // parse options
     let opts: Opts = Opts::parse();
     let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
-    let reads = io::fasta::parse_reads(&opts.reads_fa);
+    info!("from dbg_fa #kmer:{}", kmers.len());
     let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
+    let reads = io::fasta::parse_reads(&opts.reads_fa);
     let param = hmm::params::PHMMParams::new(
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
         Prob::from_prob(0.01),
-        10,
+        3,
     );
-    // let p = d.forward_prob(&param, &reads[0]);
-    // println!("forward prob : {}", p);
+    let p = d.forward_prob(&param, &reads[0]);
+    println!("forward prob : {}", p);
     // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);
     // hmm::base::test_random();
-    hmm::testing::test_static();
-
-    let v = random_seq::generate(100, 0);
-    println!("{}", std::str::from_utf8(&v).unwrap());
+    // hmm::testing::test_static();
+    // let v = random_seq::generate(100, 0);
+    // println!("{}", std::str::from_utf8(&v).unwrap());
 }

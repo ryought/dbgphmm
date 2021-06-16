@@ -1,6 +1,6 @@
 use super::params::PHMMParams;
 use crate::prob::Prob;
-use log::info;
+use log::{info, warn};
 use std::fmt::Write as FmtWrite;
 
 #[derive(Debug)]
@@ -116,6 +116,7 @@ pub trait PHMM {
         let mut FDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut FD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
+        warn!("fd0 init {}", self.nodes().len());
         for v in self.nodes().iter() {
             let from_normal: Prob = self
                 .parents(v)
@@ -128,6 +129,7 @@ pub trait PHMM {
         FDs.push(FD0);
         // >0
         for x in 1..param.n_max_gaps {
+            warn!("fd{} init", x);
             let mut FD: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
             let FD_prev = FDs.last().unwrap();
             for v in self.nodes().iter() {
@@ -159,8 +161,11 @@ pub trait PHMM {
     }
     // prob calculation
     fn init(&self, param: &PHMMParams) -> PHMMLayer {
+        warn!("fmi init");
         let (FM, FI) = self.fmi_init();
+        warn!("fb init");
         let (FMB, FIB) = self.fb_init();
+        warn!("fd init");
         let FD = self.fd_from_fmi(param, &FM, &FI, FMB, FIB);
         PHMMLayer {
             FM,
@@ -191,11 +196,13 @@ pub trait PHMM {
         }
     }
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
+        warn!("start forward!");
         let mut layers = Vec::new();
         let layer = self.init(&param);
-        info!("l0:\n{}", layer);
+        warn!("l0:\n{}", layer.FM.len());
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
+            warn!("l{}", i);
             let layer = self.step(&param, &layers[i], emission);
             info!("l{}:\n{}", i, layer);
             layers.push(layer);

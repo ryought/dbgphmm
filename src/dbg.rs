@@ -129,6 +129,8 @@ pub trait DBG {
         // }
         let mut s = String::new();
         writeln!(&mut s, "digraph dbg {{");
+        writeln!(&mut s, "node [fontsize = 6, shape = box];");
+        writeln!(&mut s, "edge [fontsize = 6];");
         for kmer in self.kmers().iter() {
             // for node
             let copy_num = self.find(kmer);
@@ -155,9 +157,6 @@ impl DBG for DbgHash {
     }
     fn add(&mut self, kmer: Kmer, copy_num: u32) {
         let copy_num_old = self.find(&kmer);
-        if copy_num_old > 0 {
-            warn!("duplicate!");
-        }
         self.store.insert(kmer, copy_num + copy_num_old);
     }
     fn find(&self, kmer: &Kmer) -> u32 {

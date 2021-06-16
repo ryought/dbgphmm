@@ -15,6 +15,7 @@ pub struct DbgPHMM {
     trans_probs: Vec<Vec<Prob>>,
     // add manually
     copy_nums: Vec<u32>,
+    total_copy_num: u32,
     emissions: Vec<u8>,
 }
 
@@ -25,7 +26,7 @@ impl DbgPHMM {
 
         // 1. check copy_num consistency
         if !d.is_copy_number_consistent() {
-            return None;
+            // return None;
         }
 
         // 2. add tailing kmers
@@ -34,6 +35,7 @@ impl DbgPHMM {
         // 3. linearize kmers
         let (kmers, childs, parents, trans_probs) = d.vectorize();
         let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
+        let total_copy_num: u32 = copy_nums.iter().sum();
         let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
 
         Some(DbgPHMM {
@@ -43,6 +45,7 @@ impl DbgPHMM {
             parents,
             trans_probs,
             copy_nums,
+            total_copy_num,
             emissions,
         })
     }
@@ -63,6 +66,9 @@ impl PHMM for DbgPHMM {
     }
     fn copy_num(&self, v: &Node) -> u32 {
         self.copy_nums[v.0]
+    }
+    fn total_copy_num(&self) -> u32 {
+        self.total_copy_num
     }
     fn emission(&self, v: &Node) -> u8 {
         self.emissions[v.0]
