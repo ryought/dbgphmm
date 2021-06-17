@@ -1,33 +1,38 @@
 use super::base::{Node, PHMM};
 use super::sampler::PHMMSampler;
 use crate::prob::Prob;
+use arrayvec::ArrayVec;
 
 pub struct LinearPHMM {
     bases: Vec<u8>,
+    nodes: Vec<Node>,
 }
 impl LinearPHMM {
     pub fn from(seq: &[u8]) -> LinearPHMM {
         LinearPHMM {
             bases: seq.to_vec(),
+            nodes: (0..seq.len()).map(|i| Node(i)).collect(),
         }
     }
 }
 impl PHMM for LinearPHMM {
-    fn nodes(&self) -> Vec<Node> {
-        (0..self.bases.len()).map(|i| Node(i)).collect()
+    fn nodes(&self) -> &[Node] {
+        &self.nodes
     }
-    fn childs(&self, v: &Node) -> Vec<Node> {
-        if v.0 != self.nodes().len() - 1 {
-            vec![Node(v.0 + 1)]
+    fn childs(&self, v: &Node) -> &[Node] {
+        // let mut childs = ArrayVec::<Node, 4>::new();
+        if v.0 == self.nodes().len() - 1 {
+            &[]
         } else {
-            vec![]
+            &self.nodes[v.0 + 1..v.0 + 2]
         }
     }
-    fn parents(&self, v: &Node) -> Vec<Node> {
-        if v.0 != 0 {
-            vec![Node(v.0 - 1)]
+    fn parents(&self, v: &Node) -> &[Node] {
+        // let mut childs = ArrayVec::<Node, 4>::new();
+        if v.0 == 0 {
+            &[]
         } else {
-            vec![]
+            &self.nodes[v.0 - 1..v.0]
         }
     }
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool {

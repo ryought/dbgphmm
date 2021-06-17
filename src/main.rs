@@ -24,9 +24,44 @@ struct Opts {
     debug: bool,
 }
 
+/*
+fn test() {
+    println!("run!");
+    let mut x: f64 = 0.0;
+    for i in 0..100_000 {
+        if i % 2 == 0 {
+            x += (i as f64).ln()
+        } else {
+            x -= (i as f64).ln()
+        }
+    }
+    println!("finish!");
+}
+*/
+
+fn head_ref(vec: &[u8], i: usize) -> &[u8] {
+    if i == 0 {
+        &[]
+    } else {
+        &vec[i..i + 1]
+    }
+}
+
+fn test_head_ref() {
+    let v: Vec<u8> = vec![10, 20, 30, 40, 50, 60];
+    for i in 0..6 {
+        let r = head_ref(&v, i);
+        println!("head ref {}: {:?}", i, r);
+    }
+}
+
 fn main() {
     // enable logger
     env_logger::init();
+
+    // hmm::dbg::test();
+
+    // ref_test::test();
 
     // parse options
     let opts: Opts = Opts::parse();
@@ -42,6 +77,7 @@ fn main() {
     );
     let p = d.forward_prob(&param, &reads[0]);
     println!("forward prob : {}", p);
+
     // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);
     // hmm::base::test_random();

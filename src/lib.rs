@@ -1,4 +1,5 @@
 pub mod dbg;
+pub mod graph;
 pub mod hmm;
 pub mod hoge; // load file src/hoge.rs
 pub mod io;
@@ -8,6 +9,7 @@ pub mod my_array_vec;
 pub mod my_vec;
 pub mod prob;
 pub mod random_seq;
+pub mod ref_test;
 pub mod sleeper;
 pub mod test_struct;
 pub mod vec_of_vec;

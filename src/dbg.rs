@@ -1,3 +1,4 @@
+use crate::hmm::base::Node;
 use crate::kmer::kmer::{tailing_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
@@ -64,7 +65,14 @@ pub trait DBG {
             .map(|kmer| kmer.clone())
             .collect()
     }
-    fn vectorize(&self) -> (Vec<Kmer>, Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<Prob>>) {
+    fn vectorize(
+        &self,
+    ) -> (
+        Vec<Kmer>,
+        Vec<ArrayVec<Node, 4>>,
+        Vec<ArrayVec<Node, 4>>,
+        Vec<ArrayVec<Prob, 4>>,
+    ) {
         // assign an index to each kmers
         // and returns (kmers, copy_nums, childs, parents, trans_probs)
         let kmers = self.kmers();
@@ -73,22 +81,22 @@ pub trait DBG {
             ids.insert(kmer.clone(), i);
         }
 
-        let mut childs: Vec<Vec<usize>> = Vec::new();
-        let mut trans_probs: Vec<Vec<Prob>> = Vec::new();
-        let mut parents: Vec<Vec<usize>> = Vec::new();
+        let mut childs: Vec<ArrayVec<Node, 4>> = Vec::new();
+        let mut trans_probs: Vec<ArrayVec<Prob, 4>> = Vec::new();
+        let mut parents: Vec<ArrayVec<Node, 4>> = Vec::new();
         for kmer in kmers.iter() {
             let childs_with_tp = self.childs_with_trans_prob(kmer);
             childs.push(
                 childs_with_tp
                     .iter()
-                    .map(|(kmer, _)| *ids.get(kmer).unwrap())
+                    .map(|(kmer, _)| Node(*ids.get(kmer).unwrap()))
                     .collect(),
             );
             trans_probs.push(childs_with_tp.iter().map(|(_, tp)| *tp).collect());
             parents.push(
                 self.parents(kmer)
                     .iter()
-                    .map(|kmer| *ids.get(kmer).unwrap())
+                    .map(|kmer| Node(*ids.get(kmer).unwrap()))
                     .collect(),
             );
         }

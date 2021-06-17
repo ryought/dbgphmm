@@ -1,5 +1,7 @@
 use super::params::PHMMParams;
+pub use crate::graph::Node;
 use crate::prob::Prob;
+use arrayvec::ArrayVec;
 use log::{info, warn};
 use std::fmt::Write as FmtWrite;
 
@@ -26,17 +28,14 @@ impl std::fmt::Display for PHMMLayer {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
-pub struct Node(pub usize);
-
 pub trait PHMM {
     // graph structures
-    fn nodes(&self) -> Vec<Node>;
+    fn nodes(&self) -> &[Node];
     fn n_nodes(&self) -> usize {
         self.nodes().len()
     }
-    fn childs(&self, v: &Node) -> Vec<Node>;
-    fn parents(&self, v: &Node) -> Vec<Node>;
+    fn childs(&self, v: &Node) -> &[Node];
+    fn parents(&self, v: &Node) -> &[Node];
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool;
     // hmm related values. each node has (copy_num, emission) attributes
     fn copy_num(&self, v: &Node) -> u32;

@@ -10,9 +10,10 @@ pub struct DbgPHMM {
     dbg: DbgHash,
     // from vectorize
     kmers: Vec<Kmer>,
-    childs: Vec<Vec<usize>>,
-    parents: Vec<Vec<usize>>,
-    trans_probs: Vec<Vec<Prob>>,
+    nodes: Vec<Node>,
+    childs: Vec<ArrayVec<Node, 4>>,
+    parents: Vec<ArrayVec<Node, 4>>,
+    trans_probs: Vec<ArrayVec<Prob, 4>>,
     // add manually
     copy_nums: Vec<u32>,
     total_copy_num: u32,
@@ -37,10 +38,12 @@ impl DbgPHMM {
         let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
         let total_copy_num: u32 = copy_nums.iter().sum();
         let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
+        let nodes: Vec<Node> = (0..kmers.len()).map(|i| Node(i)).collect();
 
         Some(DbgPHMM {
             dbg: d,
             kmers,
+            nodes,
             childs,
             parents,
             trans_probs,
@@ -52,17 +55,17 @@ impl DbgPHMM {
 }
 
 impl PHMM for DbgPHMM {
-    fn nodes(&self) -> Vec<Node> {
-        (0..self.kmers.len()).map(|i| Node(i)).collect()
+    fn nodes(&self) -> &[Node] {
+        &self.nodes
     }
-    fn childs(&self, v: &Node) -> Vec<Node> {
-        self.childs[v.0].iter().map(|i| Node(*i)).collect()
+    fn childs(&self, v: &Node) -> &[Node] {
+        &self.childs[v.0]
     }
-    fn parents(&self, v: &Node) -> Vec<Node> {
-        self.parents[v.0].iter().map(|i| Node(*i)).collect()
+    fn parents(&self, v: &Node) -> &[Node] {
+        &self.parents[v.0]
     }
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool {
-        self.childs[v.0].iter().any(|&i| i == w.0)
+        self.childs[v.0].iter().any(|&i| i == *w)
     }
     fn copy_num(&self, v: &Node) -> u32 {
         self.copy_nums[v.0]
@@ -74,7 +77,7 @@ impl PHMM for DbgPHMM {
         self.emissions[v.0]
     }
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob {
-        match self.childs[v.0].iter().position(|&i| i == w.0) {
+        match self.childs[v.0].iter().position(|&i| i == *w) {
             Some(index) => self.trans_probs[v.0][index],
             None => Prob::from_prob(0.0),
         }
@@ -93,7 +96,9 @@ pub fn test() {
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
     let d = DbgPHMM::new(kmers, copy_nums).unwrap();
     // println!("{}", d.dbg.as_dot());
-    // println!("{}", d.as_dot());
+    for v in d.nodes() {
+        println!("node {:?}", v);
+    }
 
     /*
     let param = PHMMParams::new(

@@ -53,8 +53,8 @@ pub trait PHMMSampler: PHMM {
                         _ => {
                             let move_choices: Vec<(Node, Prob)> = self
                                 .childs(&v)
-                                .into_iter()
-                                .map(|w| (w, self.trans_prob(&v, &w)))
+                                .iter()
+                                .map(|w| (*w, self.trans_prob(&v, &w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
@@ -77,8 +77,8 @@ pub trait PHMMSampler: PHMM {
                         _ => {
                             let move_choices: Vec<(Node, Prob)> = self
                                 .childs(&v)
-                                .into_iter()
-                                .map(|w| (w, self.trans_prob(&v, &w)))
+                                .iter()
+                                .map(|w| (*w, self.trans_prob(&v, &w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
@@ -101,8 +101,8 @@ pub trait PHMMSampler: PHMM {
                         _ => {
                             let move_choices: Vec<(Node, Prob)> = self
                                 .childs(&v)
-                                .into_iter()
-                                .map(|w| (w, self.trans_prob(&v, &w)))
+                                .iter()
+                                .map(|w| (*w, self.trans_prob(&v, &w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
@@ -125,8 +125,8 @@ pub trait PHMMSampler: PHMM {
                         _ => {
                             let move_choices: Vec<(Node, Prob)> = self
                                 .nodes()
-                                .into_iter()
-                                .map(|w| (w, self.init_prob(&w)))
+                                .iter()
+                                .map(|w| (*w, self.init_prob(&w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
@@ -149,8 +149,8 @@ pub trait PHMMSampler: PHMM {
                         _ => {
                             let move_choices: Vec<(Node, Prob)> = self
                                 .nodes()
-                                .into_iter()
-                                .map(|w| (w, self.init_prob(&w)))
+                                .iter()
+                                .map(|w| (*w, self.init_prob(&w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
