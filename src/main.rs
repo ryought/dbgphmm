@@ -72,6 +72,8 @@ fn main() {
     let param = hmm::params::PHMMParams::default();
     let p = d.forward_prob(&param, &reads[0]);
     println!("forward prob : {}", p);
+    // let p = d.backward(&param, &reads[0]);
+    // println!("backward prob : {}", p[0].FM);
 
     // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);
