@@ -33,17 +33,17 @@ pub fn test(r: &[u8], q: &[u8]) {
 pub fn test_static() {
     eprintln!("static");
     let model = LinearPHMM::from(b"ATCGATTCGATTAGCT");
-    let param = PHMMParams::new(
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        10,
-    );
+    let param = PHMMParams::default();
+
     println!("{}", model.as_dot());
-    for i in 0..10 {
-        let read = model.sample(&param, 20, i);
-        println!("r{}: {}", i, std::str::from_utf8(&read).unwrap());
-    }
+    println!("{}", model.as_node_list());
+
+    let s = b"ATCGGGA";
+    let pf = model.forward_prob(&param, s);
+    let pb = model.backward_prob(&param, s);
+
+    println!("prob {} {}", pf, pb);
+
     // let p = model.forward_prob(&param, q);
     // println!("prob = {}", p);
 }

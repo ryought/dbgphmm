@@ -62,7 +62,9 @@ fn main() {
     // hmm::dbg::test();
 
     // ref_test::test();
+    hmm::testing::test_static();
 
+    /*
     // parse options
     let opts: Opts = Opts::parse();
     let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
@@ -74,6 +76,7 @@ fn main() {
     println!("forward prob : {}", p);
     // let p = d.backward(&param, &reads[0]);
     // println!("backward prob : {}", p[0].FM);
+    */
 
     // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);

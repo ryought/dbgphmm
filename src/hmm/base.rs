@@ -2,7 +2,7 @@ use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
-use log::{info, warn};
+use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct PHMMLayer {
 
 impl std::fmt::Display for PHMMLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "Node:Begin pM={} pI={}", self.pMB, self.pIB);
+        writeln!(f, "Node:Begin\tpM={} pI={}", self.pMB, self.pIB);
         for i in 0..self.pD.len() {
             writeln!(
                 f,
@@ -27,7 +27,7 @@ impl std::fmt::Display for PHMMLayer {
                 i, self.pM[i], self.pI[i], self.pD[i]
             );
         }
-        writeln!(f, "Node:End pE={}", self.pE);
+        writeln!(f, "Node:End\tpE={}", self.pE);
         Ok(())
     }
 }
@@ -64,6 +64,7 @@ pub trait PHMM {
         let mut fI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         (fM, fI)
     }
+    /// calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
     fn fmi_from_fmid(
         &self,
         param: &PHMMParams,
@@ -74,7 +75,6 @@ pub trait PHMM {
         fib: Prob,
         emission: u8,
     ) -> (Vec<Prob>, Vec<Prob>) {
-        // calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
         let mut fM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut fI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         for v in self.nodes().iter() {
@@ -206,15 +206,16 @@ pub trait PHMM {
         }
     }
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
-        warn!("start forward!");
+        debug!("start forward!");
         let mut layers = Vec::new();
         let layer = self.f_init(&param);
-        warn!("l0:\n{}", layer.pM.len());
+        info!("l0:{}", layer.pM.len());
+        debug!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
-            warn!("l{}", i);
+            info!("l{} emission={}", i, emission as char);
             let layer = self.f_step(&param, &layers[i], emission);
-            info!("l{}:\n{}", i, layer);
+            debug!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
         layers
@@ -222,22 +223,200 @@ pub trait PHMM {
     fn forward_prob(&self, param: &PHMMParams, emissions: &[u8]) -> Prob {
         let layers = self.forward(param, emissions);
         let last_layer = layers.last().unwrap();
-        let sfM: Prob = last_layer.pM.iter().sum();
-        let sfI: Prob = last_layer.pI.iter().sum();
-        let sfD: Prob = last_layer.pD.iter().sum();
-        sfM + sfI + sfD + last_layer.pMB + last_layer.pIB
+        last_layer.pE
     }
 
     // backward
+    fn bd_from_bmi(
+        &self,
+        param: &PHMMParams,
+        bm1: &[Prob],
+        bi1: &[Prob],
+        emission: u8,
+    ) -> Vec<Prob> {
+        let mut bDs: Vec<Vec<Prob>> = Vec::new();
+        // 0
+        let mut bD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
+        for v in self.nodes().iter() {
+            let to_m: Prob = self
+                .childs(v)
+                .iter()
+                .map(|w| {
+                    let emission_prob_M: Prob = if self.emission(w) == emission {
+                        param.p_match
+                    } else {
+                        param.p_mismatch
+                    };
+                    self.trans_prob(v, w) * param.p_DM * bm1[w.0] * emission_prob_M
+                })
+                .sum();
+            let emission_prob_I: Prob = param.p_random;
+            let to_i = param.p_DI * emission_prob_I * bi1[v.0];
+            bD0[v.0] = to_m + to_i;
+        }
+        bDs.push(bD0);
+        // >0
+        for x in 1..param.n_max_gaps {
+            let mut bD: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
+            let bD_prev = bDs.last().unwrap();
+            for v in self.nodes().iter() {
+                bD[v.0] = self
+                    .childs(v)
+                    .iter()
+                    .map(|w| self.trans_prob(v, w) * param.p_DD * bD_prev[w.0])
+                    .sum();
+            }
+            bDs.push(bD);
+        }
+        let bD: Vec<Prob> = self
+            .nodes()
+            .iter()
+            .map(|v| bDs.iter().map(|bD| bD[v.0]).sum())
+            .collect();
+        bD
+    }
+    fn bmi_from_bmid(
+        &self,
+        param: &PHMMParams,
+        bm1: &[Prob],
+        bi1: &[Prob],
+        bd0: &[Prob],
+        emission: u8,
+    ) -> (Vec<Prob>, Vec<Prob>) {
+        let mut bm0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
+        let mut bi0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
+        for v in self.nodes().iter() {
+            // fill bm0
+            let to_md: Prob = self
+                .childs(v)
+                .iter()
+                .map(|w| {
+                    let emission_prob_M: Prob = if self.emission(w) == emission {
+                        param.p_match
+                    } else {
+                        param.p_mismatch
+                    };
+                    self.trans_prob(v, w)
+                        * (param.p_MM * emission_prob_M * bm1[w.0] + param.p_MD * bd0[w.0])
+                })
+                .sum();
+            let emission_prob_I: Prob = param.p_random;
+            let to_i = param.p_MI * emission_prob_I * bi1[v.0];
+            bm0[v.0] = to_md + to_i;
+
+            // fill bi0
+            let to_md: Prob = self
+                .childs(v)
+                .iter()
+                .map(|w| {
+                    let emission_prob_M: Prob = if self.emission(w) == emission {
+                        param.p_match
+                    } else {
+                        param.p_mismatch
+                    };
+                    self.trans_prob(v, w)
+                        * (param.p_IM * emission_prob_M * bm1[w.0] + param.p_ID * bd0[w.0])
+                })
+                .sum();
+            let emission_prob_I: Prob = param.p_random;
+            let to_i = param.p_II * emission_prob_I * bi1[v.0];
+            bi0[v.0] = to_md + to_i;
+        }
+        (bm0, bi0)
+    }
+    fn bb_from_bmd(
+        &self,
+        param: &PHMMParams,
+        bm1: &[Prob],
+        bd0: &[Prob],
+        bib1: Prob,
+        emission: u8,
+    ) -> (Prob, Prob) {
+        // bmb0
+        let to_md: Prob = self
+            .nodes()
+            .iter()
+            .map(|v| {
+                let emission_prob_M: Prob = if self.emission(v) == emission {
+                    param.p_match
+                } else {
+                    param.p_mismatch
+                };
+                self.init_prob(v)
+                    * (param.p_MM * emission_prob_M * bm1[v.0] + param.p_MD * bd0[v.0])
+            })
+            .sum();
+        let emission_prob_I: Prob = param.p_random;
+        let to_i = param.p_MI * emission_prob_I * bib1;
+        let bmb0 = to_md + to_i;
+
+        // bib0
+        let to_md: Prob = self
+            .nodes()
+            .iter()
+            .map(|v| {
+                let emission_prob_M: Prob = if self.emission(v) == emission {
+                    param.p_match
+                } else {
+                    param.p_mismatch
+                };
+                self.init_prob(v)
+                    * (param.p_IM * emission_prob_M * bm1[v.0] + param.p_ID * bd0[v.0])
+            })
+            .sum();
+        let emission_prob_I: Prob = param.p_random;
+        let to_i = param.p_II * emission_prob_I * bib1;
+        let bib0 = to_md + to_i;
+
+        (bmb0, bib0)
+    }
+    fn b_init(&self, param: &PHMMParams) -> PHMMLayer {
+        let mut bM: Vec<Prob> = vec![param.p_end; self.n_nodes()];
+        let mut bI: Vec<Prob> = vec![param.p_end; self.n_nodes()];
+        let mut bD: Vec<Prob> = vec![param.p_end; self.n_nodes()];
+        PHMMLayer {
+            pM: bM,
+            pI: bI,
+            pD: bD,
+            pMB: Prob::from_prob(0.0),
+            pIB: Prob::from_prob(0.0),
+            pE: Prob::from_prob(0.0),
+        }
+    }
+    fn b_step(&self, param: &PHMMParams, prev_layer: &PHMMLayer, emission: u8) -> PHMMLayer {
+        // emission: x[i+1]
+        let bD = self.bd_from_bmi(param, &prev_layer.pM, &prev_layer.pI, emission);
+        let (bM, bI) = self.bmi_from_bmid(param, &prev_layer.pM, &prev_layer.pI, &bD, emission);
+        let (bMB, bIB) = self.bb_from_bmd(param, &prev_layer.pM, &bD, prev_layer.pIB, emission);
+        PHMMLayer {
+            pM: bM,
+            pI: bI,
+            pD: bD,
+            pMB: bMB,
+            pIB: bIB,
+            pE: Prob::from_prob(0.0),
+        }
+    }
     fn backward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
+        debug!("start backward!");
         let mut layers = Vec::new();
-        let layer = self.f_init(&param);
+        let layer = self.b_init(&param);
+        info!("l0:{}", layer.pM.len());
+        debug!("l0:\n{}", layer);
         layers.push(layer);
-        for (i, &emission) in emissions.iter().enumerate() {
-            let layer = self.f_step(&param, &layers[i], emission);
+        for (i, &emission) in emissions.iter().rev().enumerate() {
+            info!("l{} emission={}", i, emission as char);
+            let layer = self.b_step(&param, &layers[i], emission);
+            debug!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
+        layers.reverse();
         layers
+    }
+    fn backward_prob(&self, param: &PHMMParams, emissions: &[u8]) -> Prob {
+        let layers = self.backward(param, emissions);
+        let first_layer = layers.first().unwrap();
+        first_layer.pMB
     }
 
     // output
@@ -260,6 +439,21 @@ pub trait PHMM {
             }
         }
         writeln!(&mut s, "}}");
+        s
+    }
+    fn as_node_list(&self) -> String {
+        let mut s = String::new();
+        for v in self.nodes().iter() {
+            writeln!(
+                &mut s,
+                "{:?} {:?} {:?} {} {:?}",
+                v,
+                self.childs(v),
+                self.parents(v),
+                self.copy_num(v),
+                self.emission(v) as char,
+            );
+        }
         s
     }
 }
