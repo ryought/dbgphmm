@@ -7,6 +7,7 @@ pub struct PHMMParams {
     pub p_random: Prob,
     pub p_gap_open: Prob,
     pub p_gap_ext: Prob,
+    pub p_end: Prob,
     pub p_MM: Prob,
     pub p_IM: Prob,
     pub p_DM: Prob,
@@ -21,10 +22,12 @@ pub struct PHMMParams {
 
 impl PHMMParams {
     pub fn new(p_mismatch: Prob, p_gap_open: Prob, p_gap_ext: Prob, n_max_gaps: u32) -> PHMMParams {
+        let p_end = Prob::from_prob(0.00001);
         PHMMParams {
             p_mismatch,
             p_gap_open,
             p_gap_ext,
+            p_end,
             p_DD: p_gap_ext,
             p_II: p_gap_ext,
             p_MI: p_gap_open,
@@ -32,15 +35,27 @@ impl PHMMParams {
             p_ID: p_gap_open,
             p_DI: p_gap_open,
             // p_MM: 1 - p_gap_open - p_gap_open,
-            p_MM: Prob::from_prob(1.0 - 2.0 * p_gap_open.to_value()),
+            p_MM: Prob::from_prob(1.0 - 2.0 * p_gap_open.to_value() - p_end.to_value()),
             // p_DM: 1 - p_gap_open - p_gap_ext,
-            p_DM: Prob::from_prob(1.0 - p_gap_open.to_value() - p_gap_ext.to_value()),
-            p_IM: Prob::from_prob(1.0 - p_gap_open.to_value() - p_gap_ext.to_value()),
+            p_DM: Prob::from_prob(
+                1.0 - p_gap_open.to_value() - p_gap_ext.to_value() - p_end.to_value(),
+            ),
+            p_IM: Prob::from_prob(
+                1.0 - p_gap_open.to_value() - p_gap_ext.to_value() - p_end.to_value(),
+            ),
             // p_match: 1 - p_mismatch
             p_match: Prob::from_prob(1.0 - p_mismatch.to_value()),
             p_random: Prob::from_prob(0.25),
             n_max_gaps,
         }
+    }
+    pub fn default() -> PHMMParams {
+        PHMMParams::new(
+            Prob::from_prob(0.01),
+            Prob::from_prob(0.01),
+            Prob::from_prob(0.01),
+            3,
+        )
     }
 }
 
@@ -50,6 +65,7 @@ impl std::fmt::Display for PHMMParams {
         writeln!(f, "p_match: {}", self.p_match);
         writeln!(f, "p_gap_open: {}", self.p_gap_open);
         writeln!(f, "p_gap_ext: {}", self.p_gap_ext);
+        writeln!(f, "p_end: {}", self.p_end);
         writeln!(f, "p_MM: {}", self.p_MM);
         writeln!(f, "p_IM: {}", self.p_IM);
         writeln!(f, "p_DM: {}", self.p_DM);
@@ -59,6 +75,7 @@ impl std::fmt::Display for PHMMParams {
         writeln!(f, "p_MD: {}", self.p_MD);
         writeln!(f, "p_ID: {}", self.p_ID);
         writeln!(f, "p_DD: {}", self.p_DD);
+        writeln!(f, "n_max_gaps: {}", self.n_max_gaps);
         Ok(())
     }
 }

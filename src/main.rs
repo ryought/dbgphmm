@@ -69,12 +69,7 @@ fn main() {
     info!("from dbg_fa #kmer:{}", kmers.len());
     let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
     let reads = io::fasta::parse_reads(&opts.reads_fa);
-    let param = hmm::params::PHMMParams::new(
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        3,
-    );
+    let param = hmm::params::PHMMParams::default();
     let p = d.forward_prob(&param, &reads[0]);
     println!("forward prob : {}", p);
 

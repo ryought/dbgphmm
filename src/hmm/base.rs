@@ -10,8 +10,11 @@ pub struct PHMMLayer {
     FM: Vec<Prob>,
     FI: Vec<Prob>,
     FD: Vec<Prob>,
+    // Begin
     FMB: Prob,
     FIB: Prob,
+    // End
+    FE: Prob,
 }
 
 impl std::fmt::Display for PHMMLayer {
@@ -24,6 +27,7 @@ impl std::fmt::Display for PHMMLayer {
                 i, self.FM[i], self.FI[i], self.FD[i]
             );
         }
+        writeln!(f, "Node:End FE={}", self.FE);
         Ok(())
     }
 }
@@ -70,9 +74,7 @@ pub trait PHMM {
         fib: Prob,
         emission: u8,
     ) -> (Vec<Prob>, Vec<Prob>) {
-        ///
-        /// calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
-        ///
+        // calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
         let mut FM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut FI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         for v in self.nodes().iter() {
@@ -109,9 +111,7 @@ pub trait PHMM {
         fmb: Prob,
         fib: Prob,
     ) -> Vec<Prob> {
-        ///
-        /// calc (FM[i], FI[i]) -> FD[i]
-        ///
+        // calc (FM[i], FI[i]) -> FD[i]
         let mut FDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut FD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
@@ -158,13 +158,21 @@ pub trait PHMM {
         let FIB = emission_prob_I * (param.p_MI * fmb + param.p_II * fib);
         (FMB, FIB)
     }
+    fn fe_init(&self) -> Prob {
+        let FE = Prob::from_prob(0.0);
+        FE
+    }
+    fn fe_from_fmid(&self, param: &PHMMParams, fm: &[Prob], fi: &[Prob], fd: &[Prob]) -> Prob {
+        self.nodes()
+            .iter()
+            .map(|v| param.p_end * (fm[v.0] + fi[v.0] + fd[v.0]))
+            .sum()
+    }
     // prob calculation
     fn init(&self, param: &PHMMParams) -> PHMMLayer {
-        warn!("fmi init");
         let (FM, FI) = self.fmi_init();
-        warn!("fb init");
         let (FMB, FIB) = self.fb_init();
-        warn!("fd init");
+        let FE = self.fe_init();
         let FD = self.fd_from_fmi(param, &FM, &FI, FMB, FIB);
         PHMMLayer {
             FM,
@@ -172,6 +180,7 @@ pub trait PHMM {
             FD,
             FMB,
             FIB,
+            FE,
         }
     }
     fn step(&self, param: &PHMMParams, prev_layer: &PHMMLayer, emission: u8) -> PHMMLayer {
@@ -186,12 +195,14 @@ pub trait PHMM {
         );
         let FD = self.fd_from_fmi(param, &FM, &FI, prev_layer.FMB, prev_layer.FIB);
         let (FMB, FIB) = self.fb_from_fb(param, prev_layer.FMB, prev_layer.FIB);
+        let FE = self.fe_from_fmid(param, &FM, &FI, &FD);
         PHMMLayer {
             FM,
             FI,
             FD,
             FMB,
             FIB,
+            FE,
         }
     }
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
