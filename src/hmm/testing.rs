@@ -38,11 +38,14 @@ pub fn test_static() {
     println!("{}", model.as_dot());
     println!("{}", model.as_node_list());
 
-    let s = b"ATCGGGA";
-    let pf = model.forward_prob(&param, s);
-    let pb = model.backward_prob(&param, s);
+    let s = b"TTCGGATT";
+    let pf = model.forward(&param, s);
+    let pb = model.backward(&param, s);
 
-    println!("prob {} {}", pf, pb);
+    let p = model.state_prob(&pf, &pb);
+    for (i, l) in p.iter().enumerate() {
+        println!("{}\n{}", i, l);
+    }
 
     // let p = model.forward_prob(&param, q);
     // println!("prob = {}", p);

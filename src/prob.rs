@@ -54,6 +54,12 @@ impl std::ops::Mul for Prob {
         Prob(self.0 + other.0)
     }
 }
+impl std::ops::Div for Prob {
+    type Output = Self;
+    fn div(self, other: Self) -> Self {
+        Prob(self.0 - other.0)
+    }
+}
 // sum/prod
 impl std::iter::Sum for Prob {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {

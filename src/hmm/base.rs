@@ -205,6 +205,10 @@ pub trait PHMM {
             pE: fE,
         }
     }
+    ///
+    /// Forward probability
+    /// layers[i] = P(x[0..i], end with a state)
+    ///
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
         debug!("start forward!");
         let mut layers = Vec::new();
@@ -397,6 +401,8 @@ pub trait PHMM {
             pE: Prob::from_prob(0.0),
         }
     }
+    /// Backward probability
+    /// layers[i] = P(x[i..] | start with a state)
     fn backward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
         debug!("start backward!");
         let mut layers = Vec::new();
@@ -418,7 +424,42 @@ pub trait PHMM {
         let first_layer = layers.first().unwrap();
         first_layer.pMB
     }
-
+    /// p[i][j] = (e[i] is emitted from j-th k-mer)
+    fn state_prob(
+        &self,
+        forward_layers: &[PHMMLayer],
+        backward_layers: &[PHMMLayer],
+    ) -> Vec<PHMMLayer> {
+        let mut prob_layers = Vec::new();
+        let p = backward_layers[0].pMB;
+        for (fl, bl) in forward_layers.iter().zip(backward_layers.iter()) {
+            let pl = PHMMLayer {
+                pM: fl
+                    .pM
+                    .iter()
+                    .zip(bl.pM.iter())
+                    .map(|(&f, &b)| f * b / p)
+                    .collect(),
+                pI: fl
+                    .pI
+                    .iter()
+                    .zip(bl.pI.iter())
+                    .map(|(&f, &b)| f * b / p)
+                    .collect(),
+                pD: fl
+                    .pD
+                    .iter()
+                    .zip(bl.pD.iter())
+                    .map(|(&f, &b)| f * b / p)
+                    .collect(),
+                pMB: fl.pMB * bl.pMB / p,
+                pIB: fl.pIB * bl.pIB / p,
+                pE: fl.pE * bl.pE / p,
+            };
+            prob_layers.push(pl);
+        }
+        prob_layers
+    }
     // output
     fn as_dot(&self) -> String {
         let mut s = String::new();
