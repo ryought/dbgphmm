@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod dbg;
 pub mod graph;
 pub mod hmm;

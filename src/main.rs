@@ -10,78 +10,101 @@ use std::io::prelude::*;
 #[clap(version = "0.1", author = "ryought <ryonakabayashi@gmail.com>")]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
-    /// Fasta input
-    #[clap(default_value = "test.fa")]
-    dbg_fa: String,
-    /// Read fasta input
-    #[clap(default_value = "read.fa")]
-    reads_fa: String,
-    /// initial kmer size
-    #[clap(short, default_value = "8")]
-    k: usize,
+    #[clap(subcommand)]
+    subcmd: SubCommand,
+    /// kmer size
+    #[clap(short = 'k', long, default_value = "8")]
+    kmer_size: usize,
+    /// mismatch probability
+    #[clap(long, default_value = "0.01")]
+    p_mismatch: f64,
+    /// gap open probability
+    #[clap(long, default_value = "0.01")]
+    p_gap_open: f64,
+    /// gap extension probability
+    #[clap(long, default_value = "0.01")]
+    p_gap_ext: f64,
+    /// number of consecutive dels to consider
+    #[clap(long, default_value = "3")]
+    n_max_gaps: u32,
     /// Print debug info
     #[clap(short, long)]
     debug: bool,
 }
 
-/*
-fn test() {
-    println!("run!");
-    let mut x: f64 = 0.0;
-    for i in 0..100_000 {
-        if i % 2 == 0 {
-            x += (i as f64).ln()
-        } else {
-            x -= (i as f64).ln()
-        }
-    }
-    println!("finish!");
-}
-*/
-
-fn head_ref(vec: &[u8], i: usize) -> &[u8] {
-    if i == 0 {
-        &[]
-    } else {
-        &vec[i..i + 1]
-    }
+#[derive(Clap)]
+enum SubCommand {
+    Generate(Generate),
+    Sample(Sample),
+    CalcProb(CalcProb),
+    Optimize(Optimize),
 }
 
-fn test_head_ref() {
-    let v: Vec<u8> = vec![10, 20, 30, 40, 50, 60];
-    for i in 0..6 {
-        let r = head_ref(&v, i);
-        println!("head ref {}: {:?}", i, r);
-    }
+/// Generate a random sequence
+#[derive(Clap)]
+struct Generate {
+    /// sequence length to generate
+    #[clap(short = 'l', long)]
+    length: usize,
+    /// random seed
+    #[clap(short = 's', long, default_value = "0")]
+    seed: u64,
 }
+
+/// Sample reads from the model
+#[derive(Clap)]
+struct Sample {
+    /// dbg fasta file
+    dbg_fa: String,
+    /// read length to generate
+    #[clap(short = 'l', long)]
+    length: u32,
+    /// number of reads
+    #[clap(short = 'n', long)]
+    n_reads: u32,
+}
+
+/// Calculate probability that the model produces the reads
+#[derive(Clap)]
+struct CalcProb {
+    /// dbg fasta file
+    dbg_fa: String,
+    /// reads fasta file
+    reads_fa: String,
+}
+
+/// Optimize the model to fit the reads
+#[derive(Clap)]
+struct Optimize {}
 
 fn main() {
     // enable logger
     env_logger::init();
 
-    // hmm::dbg::test();
-
-    // ref_test::test();
-    hmm::testing::test_static();
-
-    /*
     // parse options
     let opts: Opts = Opts::parse();
-    let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&opts.dbg_fa, opts.k);
-    info!("from dbg_fa #kmer:{}", kmers.len());
-    let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
-    let reads = io::fasta::parse_reads(&opts.reads_fa);
-    let param = hmm::params::PHMMParams::default();
-    let p = d.forward_prob(&param, &reads[0]);
-    println!("forward prob : {}", p);
-    // let p = d.backward(&param, &reads[0]);
-    // println!("backward prob : {}", p[0].FM);
-    */
+    let param = hmm::params::PHMMParams::new(
+        prob::Prob::from_prob(opts.p_mismatch),
+        prob::Prob::from_prob(opts.p_gap_open),
+        prob::Prob::from_prob(opts.p_gap_ext),
+        opts.n_max_gaps,
+    );
+
+    match opts.subcmd {
+        SubCommand::Generate(t) => {
+            cli::generate(t.length, t.seed);
+        }
+        SubCommand::Sample(t) => {
+            cli::sample(t.dbg_fa, t.length, t.n_reads, param);
+        }
+        SubCommand::CalcProb(t) => {
+            // cli::calc_prob(t.dbg_fa, t.reads_fa);
+        }
+        SubCommand::Optimize(t) => {}
+    }
 
     // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);
     // hmm::base::test_random();
     // hmm::testing::test_static();
-    // let v = random_seq::generate(100, 0);
-    // println!("{}", std::str::from_utf8(&v).unwrap());
 }

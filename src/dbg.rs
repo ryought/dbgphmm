@@ -151,6 +151,21 @@ pub trait DBG {
         writeln!(&mut s, "}}");
         s
     }
+    fn as_degree_stats(&self) {
+        let mut in_degs: [u32; 4] = [0; 4];
+        let mut out_degs: [u32; 4] = [0; 4];
+        for kmer in self.kmers().iter() {
+            let in_deg = self.parents(kmer).len();
+            let out_deg = self.childs(kmer).len();
+            in_degs[in_deg] += 1;
+            out_degs[out_deg] += 1;
+        }
+        println!("degree stats");
+        for i in 0..4 {
+            println!("in_deg={}: {}", i, in_degs[i]);
+            println!("out_deg={}: {}", i, out_degs[i]);
+        }
+    }
 }
 
 pub struct DbgHash {
