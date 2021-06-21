@@ -38,6 +38,7 @@ enum SubCommand {
     Sample(Sample),
     CalcProb(CalcProb),
     Optimize(Optimize),
+    Sandbox(Sandbox),
 }
 
 /// Generate a random sequence
@@ -77,6 +78,10 @@ struct CalcProb {
 #[derive(Clap)]
 struct Optimize {}
 
+/// Sandbox for debugging
+#[derive(Clap)]
+struct Sandbox {}
+
 fn main() {
     // enable logger
     env_logger::init();
@@ -89,21 +94,24 @@ fn main() {
         prob::Prob::from_prob(opts.p_gap_ext),
         opts.n_max_gaps,
     );
+    let k = opts.kmer_size;
 
     match opts.subcmd {
         SubCommand::Generate(t) => {
             cli::generate(t.length, t.seed);
         }
         SubCommand::Sample(t) => {
-            cli::sample(t.dbg_fa, t.length, t.n_reads, param);
+            cli::sample(t.dbg_fa, t.length, t.n_reads, k, param);
         }
         SubCommand::CalcProb(t) => {
-            // cli::calc_prob(t.dbg_fa, t.reads_fa);
+            cli::calc_prob(t.dbg_fa, t.reads_fa, k, param);
         }
         SubCommand::Optimize(t) => {}
+        SubCommand::Sandbox(t) => {
+            cli::sandbox();
+        }
     }
 
-    // let es = d.sample(&param, 10);
     // println!("emmissions: {:?}", es);
     // hmm::base::test_random();
     // hmm::testing::test_static();

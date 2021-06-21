@@ -1,5 +1,6 @@
 use super::base::{Node, PHMM};
 use super::params::PHMMParams;
+use super::sampler::PHMMSampler;
 use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{tailing_kmers, Kmer};
@@ -83,6 +84,8 @@ impl PHMM for DbgPHMM {
         }
     }
 }
+
+impl PHMMSampler for DbgPHMM {}
 
 pub fn test() {
     let kmers: Vec<Kmer> = vec![
