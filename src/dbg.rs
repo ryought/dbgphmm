@@ -156,7 +156,15 @@ pub trait DBG {
         for kmer in self.kmers().iter() {
             // for node
             let copy_num = self.find(kmer);
-            writeln!(&mut s, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
+            if kmer.is_head() | kmer.is_tail() {
+                writeln!(
+                    &mut s,
+                    "\t{} [label=\"{} x{}\" color=red];",
+                    kmer, kmer, copy_num
+                );
+            } else {
+                writeln!(&mut s, "\t{} [label=\"{} x{}\"];", kmer, kmer, copy_num);
+            }
             // for edges
             for (child, p) in self.childs_with_trans_prob(kmer).iter() {
                 writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", kmer, child, p);

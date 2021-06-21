@@ -62,6 +62,15 @@ impl Kmer {
             .collect();
         parents
     }
+    /// check if NNNNNX
+    pub fn is_head(&self) -> bool {
+        let k = self.0.len();
+        self.0[..k - 1].iter().all(|&x| x == b'N')
+    }
+    /// check if XNNNNN
+    pub fn is_tail(&self) -> bool {
+        self.0[1..].iter().all(|&x| x == b'N')
+    }
 }
 
 impl std::fmt::Display for Kmer {
