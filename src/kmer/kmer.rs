@@ -102,12 +102,23 @@ pub fn test() {
     println!("{} {} {} {} {}", a, b, a == b, x, y);
 }
 
-pub fn tailing_kmers(kmer: &Kmer) -> Vec<Kmer> {
+/// ATTC -> [NATT, NNAT, NNNA]
+pub fn starting_kmers(kmer: &Kmer) -> Vec<Kmer> {
+    let k = kmer.len();
+    let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
+    let heads: Vec<Kmer> = (1..k)
+        .rev()
+        .map(|i| Kmer::from_vec([&blanks[i..], &kmer.0[..i]].concat()))
+        .collect();
+    heads
+}
+
+/// ATTC -> [TTCN, TCNN, CNNN]
+pub fn ending_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
     let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
     let tails: Vec<Kmer> = (1..k)
-        .rev()
-        .map(|i| Kmer::from_vec([&blanks[..k - i], &kmer.0[..i]].concat()))
+        .map(|i| Kmer::from_vec([&kmer.0[i..], &blanks[..i]].concat()))
         .collect();
     tails
 }

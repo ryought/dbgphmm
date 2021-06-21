@@ -1,3 +1,4 @@
+use crate::dbg::DBG;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::hmm::sampler::PHMMSampler;
@@ -32,5 +33,9 @@ pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) 
 }
 
 pub fn sandbox() {
-    println!("hoge");
+    let seq = b"ATCGATTCGATTCGAT";
+    let d = dbg::DbgHash::from_seq(seq, 5);
+    println!("{}", d.as_dot());
+    eprintln!("{}", d.as_degree_stats());
+    eprintln!("{}", d.is_copy_number_consistent());
 }

@@ -1,5 +1,5 @@
 use crate::hmm::base::Node;
-use crate::kmer::kmer::{tailing_kmers, Kmer};
+use crate::kmer::kmer::{ending_kmers, starting_kmers, Kmer};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
@@ -125,9 +125,23 @@ pub trait DBG {
         // add `NATC`, `NNAT`, `NNNA` for foremost kmer `ATCG`
         for kmer in self.foremost_kmers().iter() {
             let cn = self.find(kmer);
-            for new_kmer in tailing_kmers(kmer).into_iter() {
+            for new_kmer in starting_kmers(kmer).into_iter() {
                 self.add(new_kmer, cn);
             }
+        }
+    }
+    fn add_seq(&mut self, seq: &[u8], k: usize) {
+        let first_kmer = Kmer::from(&seq[..k]);
+        for kmer in starting_kmers(&first_kmer).into_iter() {
+            self.add(kmer, 1);
+        }
+        for window in seq.windows(k) {
+            let kmer = Kmer::from(window);
+            self.add(kmer, 1);
+        }
+        let last_kmer = Kmer::from(&seq[seq.len() - k..]);
+        for kmer in ending_kmers(&last_kmer).into_iter() {
+            self.add(kmer, 1);
         }
     }
     fn as_dot(&self) -> String {
@@ -137,8 +151,8 @@ pub trait DBG {
         // }
         let mut s = String::new();
         writeln!(&mut s, "digraph dbg {{");
-        writeln!(&mut s, "node [fontsize = 6, shape = box];");
-        writeln!(&mut s, "edge [fontsize = 6];");
+        // writeln!(&mut s, "node [fontsize = 6, shape = box];");
+        // writeln!(&mut s, "edge [fontsize = 6];");
         for kmer in self.kmers().iter() {
             // for node
             let copy_num = self.find(kmer);
@@ -151,7 +165,9 @@ pub trait DBG {
         writeln!(&mut s, "}}");
         s
     }
-    fn as_degree_stats(&self) {
+    fn as_degree_stats(&self) -> String {
+        let mut s = String::new();
+
         let mut in_degs: [u32; 4] = [0; 4];
         let mut out_degs: [u32; 4] = [0; 4];
         for kmer in self.kmers().iter() {
@@ -160,11 +176,16 @@ pub trait DBG {
             in_degs[in_deg] += 1;
             out_degs[out_deg] += 1;
         }
-        println!("degree stats");
+        writeln!(&mut s, "degree stats");
+        writeln!(&mut s, "indeg");
         for i in 0..4 {
-            println!("in_deg={}: {}", i, in_degs[i]);
-            println!("out_deg={}: {}", i, out_degs[i]);
+            writeln!(&mut s, "{}\t{}", i, in_degs[i]);
         }
+        writeln!(&mut s, "outdeg");
+        for i in 0..4 {
+            writeln!(&mut s, "{}\t{}", i, out_degs[i]);
+        }
+        s
     }
 }
 
@@ -202,6 +223,11 @@ impl DbgHash {
         for (kmer, copy_num) in kmers.into_iter().zip(copy_nums.into_iter()) {
             d.add(kmer, copy_num);
         }
+        d
+    }
+    pub fn from_seq(seq: &[u8], k: usize) -> DbgHash {
+        let mut d = DbgHash::new();
+        d.add_seq(seq, k);
         d
     }
 }
