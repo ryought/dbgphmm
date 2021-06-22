@@ -29,6 +29,13 @@ pub trait DBG {
             .filter(|parent| self.is_exists(parent))
             .collect()
     }
+    fn neighbors(&self, km1mer: &Kmer) -> Vec<Kmer> {
+        km1mer
+            .neighbors()
+            .into_iter()
+            .filter(|neighbor| self.is_exists(neighbor))
+            .collect()
+    }
     fn childs_with_copy_number(&self, kmer: &Kmer) -> Vec<(Kmer, u32)> {
         kmer.childs()
             .into_iter()
@@ -195,6 +202,8 @@ pub trait DBG {
         }
         s
     }
+    // searching
+    fn spanning_tree(&self) {}
 }
 
 pub struct DbgHash {

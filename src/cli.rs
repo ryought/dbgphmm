@@ -33,9 +33,22 @@ pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) 
 }
 
 pub fn sandbox() {
+    let mut d = dbg::DbgHash::new();
+    /*
     let seq = b"ATCGATTCGATTCGAT";
     let d = dbg::DbgHash::from_seq(seq, 5);
+    */
+    d.add_seq(b"ATCGATTCGATTCGAT", 8);
+    // d.add_seq(b"ATCGATGCGATTCGAT", 8);
     println!("{}", d.as_dot());
-    eprintln!("{}", d.as_degree_stats());
-    eprintln!("{}", d.is_copy_number_consistent());
+    // eprintln!("{}", d.as_degree_stats());
+    // eprintln!("{}", d.is_copy_number_consistent());
+    let k = kmer::kmer::Kmer::from(b"NNNNNNN");
+    for m in k.neighbors().iter() {
+        println!("hoge {}", m);
+    }
+    eprintln!("#neighbors {}", d.neighbors(&k).len());
+    for m in d.neighbors(&k).into_iter() {
+        eprintln!("neighbor {} {}", k, m);
+    }
 }

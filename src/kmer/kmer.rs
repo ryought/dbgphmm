@@ -62,6 +62,26 @@ impl Kmer {
             .collect();
         parents
     }
+    /// return k+1mer {ACGT}<Kmer> and <Kmer>{ACGT} vector
+    pub fn neighbors(&self) -> Vec<Kmer> {
+        let bases = [b'A', b'C', b'G', b'T'];
+        let neighbors: Vec<Kmer> = bases
+            .iter()
+            .map(|&first_base| {
+                let mut v = Vec::new();
+                v.push(first_base);
+                v.extend_from_slice(&self.0);
+                Kmer::from_vec(v)
+            })
+            .chain(bases.iter().map(|&last_base| {
+                let mut v = Vec::new();
+                v.extend_from_slice(&self.0);
+                v.push(last_base);
+                Kmer::from_vec(v)
+            }))
+            .collect();
+        neighbors
+    }
     /// check if NNNNNX
     pub fn is_head(&self) -> bool {
         let k = self.0.len();
