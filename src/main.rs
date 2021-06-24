@@ -108,7 +108,7 @@ fn main() {
         }
         SubCommand::Optimize(t) => {}
         SubCommand::Sandbox(t) => {
-            cli::sandbox();
+            cli::sandbox2();
         }
     }
 

@@ -9,6 +9,7 @@ pub mod kmer;
 pub mod linkedlist;
 pub mod my_array_vec;
 pub mod my_vec;
+pub mod optimizer;
 pub mod prob;
 pub mod random_seq;
 pub mod ref_test;

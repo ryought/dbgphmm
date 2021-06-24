@@ -50,3 +50,7 @@ pub fn sandbox() {
         println!("cycle {} = {:?}", e, s.cycle_components(e));
     }
 }
+
+pub fn sandbox2() {
+    optimizer::test();
+}
