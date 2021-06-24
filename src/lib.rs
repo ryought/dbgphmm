@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod cycles;
 pub mod dbg;
 pub mod graph;
 pub mod hmm;

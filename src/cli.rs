@@ -2,6 +2,7 @@ use crate::dbg::DBG;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::hmm::sampler::PHMMSampler;
+use crate::kmer::kmer::Kmer;
 use crate::*;
 use log::{info, warn};
 
@@ -43,12 +44,9 @@ pub fn sandbox() {
     println!("{}", d.as_dot());
     // eprintln!("{}", d.as_degree_stats());
     // eprintln!("{}", d.is_copy_number_consistent());
-    let k = kmer::kmer::Kmer::from(b"NNNNNNN");
-    for m in k.neighbors().iter() {
-        println!("hoge {}", m);
-    }
-    eprintln!("#neighbors {}", d.neighbors(&k).len());
-    for m in d.neighbors(&k).into_iter() {
-        eprintln!("neighbor {} {}", k, m);
+    let root = Kmer::from(b"NNNNNNNA");
+    let s = cycles::DbgTree::new(&d, &root);
+    for e in s.cycle_keys().iter() {
+        println!("cycle {} = {:?}", e, s.cycle_components(e));
     }
 }
