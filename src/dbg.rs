@@ -82,7 +82,11 @@ pub trait DBG {
     ) {
         // assign an index to each kmers
         // and returns (kmers, copy_nums, childs, parents, trans_probs)
-        let kmers = self.kmers();
+        let kmers: Vec<Kmer> = self
+            .kmers()
+            .into_iter()
+            .filter(|kmer| kmer.is_emitable())
+            .collect();
         let mut ids: HashMap<Kmer, usize> = HashMap::default();
         for (i, kmer) in kmers.iter().enumerate() {
             ids.insert(kmer.clone(), i);
@@ -96,13 +100,21 @@ pub trait DBG {
             childs.push(
                 childs_with_tp
                     .iter()
+                    .filter(|(kmer, _)| kmer.is_emitable())
                     .map(|(kmer, _)| Node(*ids.get(kmer).unwrap()))
                     .collect(),
             );
-            trans_probs.push(childs_with_tp.iter().map(|(_, tp)| *tp).collect());
+            trans_probs.push(
+                childs_with_tp
+                    .iter()
+                    .filter(|(kmer, _)| kmer.is_emitable())
+                    .map(|(_, tp)| *tp)
+                    .collect(),
+            );
             parents.push(
                 self.parents(kmer)
                     .iter()
+                    .filter(|kmer| kmer.is_emitable())
                     .map(|kmer| Node(*ids.get(kmer).unwrap()))
                     .collect(),
             );

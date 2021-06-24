@@ -8,7 +8,7 @@ use crate::prob::Prob;
 use arrayvec::ArrayVec;
 
 pub struct DbgPHMM {
-    dbg: DbgHash,
+    pub dbg: DbgHash,
     // from vectorize
     kmers: Vec<Kmer>,
     nodes: Vec<Node>,
@@ -22,6 +22,32 @@ pub struct DbgPHMM {
 }
 
 impl DbgPHMM {
+    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgPHMM {
+        // construct dbg
+        let mut d = DbgHash::new();
+        for seq in seqs.iter() {
+            d.add_seq(seq, k);
+        }
+
+        // linearize kmers
+        let (kmers, childs, parents, trans_probs) = d.vectorize();
+        let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
+        let total_copy_num: u32 = copy_nums.iter().sum();
+        let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
+        let nodes: Vec<Node> = (0..kmers.len()).map(|i| Node(i)).collect();
+
+        DbgPHMM {
+            dbg: d,
+            kmers,
+            nodes,
+            childs,
+            parents,
+            trans_probs,
+            copy_nums,
+            total_copy_num,
+            emissions,
+        }
+    }
     pub fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
         // construct DbgHash and
         let mut d = DbgHash::from(kmers, copy_nums);

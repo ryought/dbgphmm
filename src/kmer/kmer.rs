@@ -91,6 +91,10 @@ impl Kmer {
     pub fn is_tail(&self) -> bool {
         self.0[1..].iter().all(|&x| x == b'N')
     }
+    /// check if not XXXXXN
+    pub fn is_emitable(&self) -> bool {
+        *self.0.last().unwrap() != b'N'
+    }
 }
 
 impl std::fmt::Display for Kmer {

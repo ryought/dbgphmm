@@ -13,17 +13,16 @@ pub fn generate(length: usize, seed: u64) {
 }
 
 pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, param: PHMMParams) {
-    println!("sampling {} {} {} {}", dbg_fa, length, n_reads, k);
-    println!("with param {}", param);
-
-    let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&dbg_fa, k);
-    let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
-    let es = d.sample(&param, 10, 0);
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
+    println!("{}", d.as_dot());
+    // println!("{}", d.dbg.as_dot());
+    // let es = d.sample(&param, 10, 0);
 }
 
 pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
     let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&dbg_fa, k);
-    let reads = io::fasta::parse_reads(&reads_fa);
+    let reads = io::fasta::parse_seqs(&reads_fa);
 
     info!("from dbg_fa #kmer:{}", kmers.len());
     let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
