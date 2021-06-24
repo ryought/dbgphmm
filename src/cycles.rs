@@ -75,12 +75,18 @@ impl DbgTree {
             loop_edges,
         }
     }
+    pub fn root(&self) -> &Kmer {
+        &self.root
+    }
     pub fn cycle_keys(&self) -> &[Kmer] {
         &self.loop_edges[..]
     }
     pub fn cycle_components(&self, kmer: &Kmer) -> Vec<Kmer> {
-        // travarse tree
-        let (left, left_depth) = kmer
+        let mut lefts: Vec<Kmer> = Vec::new();
+        let mut rights: Vec<Kmer> = Vec::new();
+
+        // find joints in the tree
+        let (mut left, left_depth) = kmer
             .childs()
             .into_iter()
             .find_map(|child| match self.depth.get(&child) {
@@ -88,7 +94,7 @@ impl DbgTree {
                 None => None,
             })
             .unwrap();
-        let (right, right_depth) = kmer
+        let (mut right, right_depth) = kmer
             .parents()
             .into_iter()
             .find_map(|parent| match self.depth.get(&parent) {
@@ -99,8 +105,46 @@ impl DbgTree {
         debug!("{}@{} -- {}@{}", left, left_depth, right, right_depth);
 
         // move to same depth
-        // find LCA
+        let d = left_depth.min(right_depth);
+        debug!("depth: {}", d);
 
-        Vec::new()
+        for i in d..right_depth {
+            let new_right = self.parent_on_tree.get(&right).unwrap().clone();
+            rights.push(right);
+            right = new_right;
+        }
+        for i in d..left_depth {
+            let new_left = self.parent_on_tree.get(&left).unwrap().clone();
+            lefts.push(left);
+            left = new_left;
+        }
+
+        // find LCA
+        for i in 0..=d {
+            debug!(
+                "same: {}@{} {}@{}",
+                left,
+                self.depth.get(&left).unwrap(),
+                right,
+                self.depth.get(&right).unwrap()
+            );
+            if right == left || i == d {
+                rights.push(right);
+                break;
+            } else {
+                let new_right = self.parent_on_tree.get(&right).unwrap().clone();
+                rights.push(right);
+                right = new_right;
+                let new_left = self.parent_on_tree.get(&left).unwrap().clone();
+                lefts.push(left);
+                left = new_left;
+            }
+        }
+
+        let path: Vec<Kmer> = std::iter::once(kmer.clone())
+            .chain(rights.into_iter())
+            .chain(lefts.into_iter().rev())
+            .collect();
+        path
     }
 }
