@@ -5,6 +5,8 @@ use crate::hmm::sampler::PHMMSampler;
 use crate::kmer::kmer::Kmer;
 use crate::*;
 use log::{info, warn};
+use rand::prelude::*;
+use rand_xoshiro::Xoshiro256PlusPlus;
 
 pub fn generate(length: usize, seed: u64) {
     let v = random_seq::generate(length, seed);
@@ -12,12 +14,19 @@ pub fn generate(length: usize, seed: u64) {
     println!("{}", std::str::from_utf8(&v).unwrap());
 }
 
-pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, param: PHMMParams) {
+pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, param: PHMMParams) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
-    println!("{}", d.as_dot());
+    // println!("{}", d.as_dot());
     // println!("{}", d.dbg.as_dot());
-    // let es = d.sample(&param, 10, 0);
+    // let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+    for i in 0..n_reads {
+        // let seed_for_a_read: u64 = rng.gen();
+        let seed_for_a_read = seed + i as u64;
+        let seq = d.sample(&param, length, seed_for_a_read);
+        let id = format!("{},{}", length, seed_for_a_read);
+        io::fasta::dump_seq(&id, &seq);
+    }
 }
 
 pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {

@@ -2,6 +2,7 @@ use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::Kmer;
 use bio::io::fasta;
 use log::warn;
+use std::io;
 
 pub fn sanitize_bases(seq: &[u8]) -> Vec<u8> {
     seq.iter()
@@ -49,6 +50,11 @@ pub fn parse_seqs(filename: &str) -> Vec<Vec<u8>> {
         reads.push(sanitize_bases(record.seq()));
     }
     reads
+}
+
+pub fn dump_seq(id: &str, seq: &[u8]) {
+    let mut writer = fasta::Writer::new(io::stdout());
+    writer.write(id, None, seq).unwrap();
 }
 
 pub fn read2() {

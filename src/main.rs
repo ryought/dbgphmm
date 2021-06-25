@@ -63,6 +63,9 @@ struct Sample {
     /// number of reads
     #[clap(short = 'n', long)]
     n_reads: u32,
+    /// random seed
+    #[clap(short = 's', long, default_value = "0")]
+    seed: u64,
 }
 
 /// Calculate probability that the model produces the reads
@@ -101,7 +104,7 @@ fn main() {
             cli::generate(t.length, t.seed);
         }
         SubCommand::Sample(t) => {
-            cli::sample(t.dbg_fa, t.length, t.n_reads, k, param);
+            cli::sample(t.dbg_fa, t.length, t.n_reads, k, t.seed, param);
         }
         SubCommand::CalcProb(t) => {
             cli::calc_prob(t.dbg_fa, t.reads_fa, k, param);
