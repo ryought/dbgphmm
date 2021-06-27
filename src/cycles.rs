@@ -4,6 +4,7 @@ use fnv::FnvHashMap as HashMap;
 use fnv::FnvHashSet as HashSet;
 use log::{debug, info, warn};
 use std::collections::VecDeque;
+use std::fmt::Write as FmtWrite;
 
 pub struct DbgTree {
     root: Kmer,
@@ -64,7 +65,6 @@ impl DbgTree {
         }
 
         // check if the tree is spanning whole graph?
-        warn!("spanning check started");
         for kmer in dbg.kmers().iter() {
             let suffix = kmer.suffix();
             let prefix = kmer.prefix();
@@ -75,7 +75,6 @@ impl DbgTree {
                 warn!("not spanning: {}", prefix);
             }
         }
-        warn!("spanning check finished");
 
         let mut loop_edges: Vec<Kmer> = Vec::new();
         for kmer in dbg.kmers().into_iter() {
@@ -83,8 +82,6 @@ impl DbgTree {
                 loop_edges.push(kmer);
             }
         }
-        warn!("#kmer: {}", dbg.kmers().len());
-        warn!("#LoopEdge: {}", loop_edges.len());
 
         DbgTree {
             root: root.clone(),
@@ -157,5 +154,24 @@ impl DbgTree {
             .collect();
         path
     }
-    pub fn as_stats(&self) {}
+    pub fn as_stats(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "#LoopEdge: {}", self.loop_edges.len());
+        // TODO cycle length histogram?
+        for (i, e) in self.loop_edges.iter().enumerate() {
+            writeln!(
+                &mut s,
+                "cycle #{} {} {}",
+                i,
+                e,
+                self.cycle_components(e).len()
+            );
+            /*
+            for p in s.cycle_components(e).iter() {
+                info!("{}", p);
+            }
+            */
+        }
+        s
+    }
 }
