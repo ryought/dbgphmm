@@ -40,6 +40,46 @@ pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) 
     // println!("backward prob : {}", p[0].FM);
 }
 
+pub fn optimize(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
+    info!("{}", d.dbg.as_degree_stats());
+
+    let reads = io::fasta::parse_seqs(&reads_fa);
+    let d = hmm::dbg::DbgPHMM::from_seqs(reads, k);
+    info!("{}", d.dbg.as_degree_stats());
+
+    let root = kmer::kmer::null_kmer(k - 1);
+    info!("root={}", root);
+
+    let s = cycles::DbgTree::new(&d.dbg, &root);
+    info!("#cycles={}", s.cycle_keys().len());
+    for (i, e) in s.cycle_keys().iter().enumerate() {
+        info!("cycle #{} {} {}", i, e, s.cycle_components(e).len());
+        for p in s.cycle_components(e).iter() {
+            info!("{}", p);
+        }
+    }
+
+    /*
+    info!("#cycles={}", s.cycle_keys().len());
+    for (i, e) in s.cycle_keys().iter().enumerate() {
+        info!("cycle #{} {} {}", i, e, s.cycle_components(e).len());
+    }
+
+    let i = d.dbg.find(&Kmer::from(b"CGGCGAAT"));
+    println!("i={}", i);
+    let v = d.dbg.childs(&Kmer::from(b"CGGCGAAT"));
+    for c in v.iter() {
+        println!("c={}", c);
+    }
+    let v = d.dbg.parents(&Kmer::from(b"CGGCGAAT"));
+    for p in v.iter() {
+        println!("p={}", p);
+    }
+    */
+}
+
 pub fn sandbox() {
     let mut d = dbg::DbgHash::new();
     /*

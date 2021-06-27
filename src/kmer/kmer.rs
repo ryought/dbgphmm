@@ -82,6 +82,45 @@ impl Kmer {
             .collect();
         neighbors
     }
+    /// kmer XXXXX -> k+1kmer {ACGT}XXXXX
+    pub fn preds(&self) -> Vec<Kmer> {
+        let bases = [b'A', b'C', b'G', b'T'];
+        bases
+            .iter()
+            .map(|&first_base| self.extend_first(first_base))
+            .collect()
+    }
+    /// kmer XXXXX -> k+1kmer XXXXX{ACGT}
+    pub fn succs(&self) -> Vec<Kmer> {
+        let bases = [b'A', b'C', b'G', b'T'];
+        bases
+            .iter()
+            .map(|&last_base| self.extend_last(last_base))
+            .collect()
+    }
+    pub fn extend_first(&self, first_base: u8) -> Kmer {
+        let mut v = Vec::new();
+        v.push(first_base);
+        v.extend_from_slice(&self.0);
+        Kmer::from_vec(v)
+    }
+    pub fn extend_last(&self, last_base: u8) -> Kmer {
+        let mut v = Vec::new();
+        v.extend_from_slice(&self.0);
+        v.push(last_base);
+        Kmer::from_vec(v)
+    }
+    pub fn join(&self, other: &Kmer) -> Kmer {
+        if self.adjacent(other) {
+            // self --> other
+            self.extend_last(other.last())
+        } else if other.adjacent(self) {
+            // other --> self
+            other.extend_last(self.last())
+        } else {
+            panic!("cannot join")
+        }
+    }
     /// check if NNNNNX
     pub fn is_head(&self) -> bool {
         let k = self.0.len();
@@ -133,6 +172,12 @@ pub fn test() {
     let x = a.adjacent(&b);
     let y = a.last();
     println!("{} {} {} {} {}", a, b, a == b, x, y);
+}
+
+/// return N*k
+pub fn null_kmer(k: usize) -> Kmer {
+    let v = vec![b'N'; k];
+    Kmer::from_vec(v)
 }
 
 /// ATTC -> [NATT, NNAT, NNNA]

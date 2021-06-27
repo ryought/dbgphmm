@@ -11,6 +11,11 @@ package
     - hoge.rs -> src/hoge/my.rs
 `mod my {}`
 
+## log level
+- DEBUG only for small data
+- INFO dev
+- WARN production
+
 ## development
 ```
 # For debug

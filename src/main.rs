@@ -79,7 +79,12 @@ struct CalcProb {
 
 /// Optimize the model to fit the reads
 #[derive(Clap)]
-struct Optimize {}
+struct Optimize {
+    /// dbg fasta file
+    dbg_fa: String,
+    /// reads fasta file
+    reads_fa: String,
+}
 
 /// Sandbox for debugging
 #[derive(Clap)]
@@ -109,7 +114,9 @@ fn main() {
         SubCommand::CalcProb(t) => {
             cli::calc_prob(t.dbg_fa, t.reads_fa, k, param);
         }
-        SubCommand::Optimize(t) => {}
+        SubCommand::Optimize(t) => {
+            cli::optimize(t.dbg_fa, t.reads_fa, k, param);
+        }
         SubCommand::Sandbox(t) => {
             cli::sandbox2();
         }

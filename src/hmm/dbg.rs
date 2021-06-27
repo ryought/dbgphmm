@@ -6,15 +6,16 @@ use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::Kmer;
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
+use log::{info, warn};
 
 pub struct DbgPHMM {
     pub dbg: DbgHash,
     // from vectorize
     kmers: Vec<Kmer>,
     nodes: Vec<Node>,
-    childs: Vec<ArrayVec<Node, 4>>,
-    parents: Vec<ArrayVec<Node, 4>>,
-    trans_probs: Vec<ArrayVec<Prob, 4>>,
+    childs: Vec<ArrayVec<Node, 5>>,
+    parents: Vec<ArrayVec<Node, 5>>,
+    trans_probs: Vec<ArrayVec<Prob, 5>>,
     // add manually
     copy_nums: Vec<u32>,
     total_copy_num: u32,

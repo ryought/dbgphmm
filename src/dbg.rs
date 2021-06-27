@@ -36,6 +36,20 @@ pub trait DBG {
             .filter(|neighbor| self.is_exists(neighbor))
             .collect()
     }
+    fn preds(&self, km1mer: &Kmer) -> Vec<Kmer> {
+        km1mer
+            .preds()
+            .into_iter()
+            .filter(|pred| self.is_exists(pred))
+            .collect()
+    }
+    fn succs(&self, km1mer: &Kmer) -> Vec<Kmer> {
+        km1mer
+            .succs()
+            .into_iter()
+            .filter(|succ| self.is_exists(succ))
+            .collect()
+    }
     fn childs_with_copy_number(&self, kmer: &Kmer) -> Vec<(Kmer, u32)> {
         kmer.childs()
             .into_iter()
@@ -76,9 +90,9 @@ pub trait DBG {
         &self,
     ) -> (
         Vec<Kmer>,
-        Vec<ArrayVec<Node, 4>>,
-        Vec<ArrayVec<Node, 4>>,
-        Vec<ArrayVec<Prob, 4>>,
+        Vec<ArrayVec<Node, 5>>,
+        Vec<ArrayVec<Node, 5>>,
+        Vec<ArrayVec<Prob, 5>>,
     ) {
         // assign an index to each kmers
         // and returns (kmers, copy_nums, childs, parents, trans_probs)
@@ -92,9 +106,9 @@ pub trait DBG {
             ids.insert(kmer.clone(), i);
         }
 
-        let mut childs: Vec<ArrayVec<Node, 4>> = Vec::new();
-        let mut trans_probs: Vec<ArrayVec<Prob, 4>> = Vec::new();
-        let mut parents: Vec<ArrayVec<Node, 4>> = Vec::new();
+        let mut childs: Vec<ArrayVec<Node, 5>> = Vec::new();
+        let mut trans_probs: Vec<ArrayVec<Prob, 5>> = Vec::new();
+        let mut parents: Vec<ArrayVec<Node, 5>> = Vec::new();
         for kmer in kmers.iter() {
             let childs_with_tp = self.childs_with_trans_prob(kmer);
             childs.push(
@@ -150,6 +164,10 @@ pub trait DBG {
         }
     }
     fn add_seq(&mut self, seq: &[u8], k: usize) {
+        if seq.len() < k {
+            warn!("added sed length={} shorter than k={}", seq.len(), k);
+            return;
+        }
         let first_kmer = Kmer::from(&seq[..k]);
         for kmer in starting_kmers(&first_kmer).into_iter() {
             self.add(kmer, 1);
@@ -195,22 +213,28 @@ pub trait DBG {
     fn as_degree_stats(&self) -> String {
         let mut s = String::new();
 
-        let mut in_degs: [u32; 4] = [0; 4];
-        let mut out_degs: [u32; 4] = [0; 4];
+        let mut in_degs: [u32; 6] = [0; 6];
+        let mut out_degs: [u32; 6] = [0; 6];
+        let mut n_kmer: u32 = 0;
         for kmer in self.kmers().iter() {
             let in_deg = self.parents(kmer).len();
             let out_deg = self.childs(kmer).len();
             in_degs[in_deg] += 1;
             out_degs[out_deg] += 1;
+            n_kmer += 1;
         }
-        writeln!(&mut s, "degree stats");
+        writeln!(&mut s, "#kmer: {}", n_kmer);
         writeln!(&mut s, "indeg");
-        for i in 0..4 {
-            writeln!(&mut s, "{}\t{}", i, in_degs[i]);
+        let mut n_kmer: u32 = 0;
+        for i in 0..6 {
+            n_kmer += in_degs[i];
+            writeln!(&mut s, "{}:\t{}\t{}", i, in_degs[i], n_kmer);
         }
         writeln!(&mut s, "outdeg");
-        for i in 0..4 {
-            writeln!(&mut s, "{}\t{}", i, out_degs[i]);
+        let mut n_kmer: u32 = 0;
+        for i in 0..6 {
+            n_kmer += out_degs[i];
+            writeln!(&mut s, "{}:\t{}\t{}", i, out_degs[i], n_kmer);
         }
         s
     }
