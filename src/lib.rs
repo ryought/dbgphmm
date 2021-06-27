@@ -3,7 +3,6 @@ pub mod cycles;
 pub mod dbg;
 pub mod graph;
 pub mod hmm;
-pub mod hoge; // load file src/hoge.rs
 pub mod io;
 pub mod kmer;
 pub mod linkedlist;
