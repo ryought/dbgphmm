@@ -2,7 +2,7 @@ use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
 
 #[derive(Debug)]
@@ -115,7 +115,7 @@ pub trait PHMM {
         let mut fDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut fD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        warn!("fd0 init {}", self.nodes().len());
+        info!("fd0 init {}", self.nodes().len());
         for v in self.nodes().iter() {
             let from_normal: Prob = self
                 .parents(v)
@@ -128,7 +128,7 @@ pub trait PHMM {
         fDs.push(fD0);
         // >0
         for x in 1..param.n_max_gaps {
-            warn!("fd{} init", x);
+            info!("fd{} init", x);
             let mut fD: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
             let fD_prev = fDs.last().unwrap();
             for v in self.nodes().iter() {
@@ -210,16 +210,16 @@ pub trait PHMM {
     /// layers[i] = P(x[0..i], end with a state)
     ///
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
-        debug!("start forward!");
+        trace!("start forward!");
         let mut layers = Vec::new();
         let layer = self.f_init(&param);
         info!("l0:{}", layer.pM.len());
-        debug!("l0:\n{}", layer);
+        trace!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
-            info!("l{} emission={}", i, emission as char);
+            trace!("l{} emission={}", i, emission as char);
             let layer = self.f_step(&param, &layers[i], emission);
-            debug!("l{}:\n{}", i, layer);
+            trace!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
         layers
@@ -407,13 +407,13 @@ pub trait PHMM {
         debug!("start backward!");
         let mut layers = Vec::new();
         let layer = self.b_init(&param);
-        info!("l0:{}", layer.pM.len());
-        debug!("l0:\n{}", layer);
+        trace!("l0:{}", layer.pM.len());
+        trace!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().rev().enumerate() {
-            info!("l{} emission={}", i, emission as char);
+            trace!("l{} emission={}", i, emission as char);
             let layer = self.b_step(&param, &layers[i], emission);
-            debug!("l{}:\n{}", i, layer);
+            trace!("l{}:\n{}", i, layer);
             layers.push(layer);
         }
         layers.reverse();

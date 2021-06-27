@@ -30,11 +30,10 @@ pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, pa
 }
 
 pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
-    let (kmers, copy_nums) = io::fasta::parse_kmers_and_copy_nums(&dbg_fa, k);
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
     let reads = io::fasta::parse_seqs(&reads_fa);
 
-    info!("from dbg_fa #kmer:{}", kmers.len());
-    let d = hmm::dbg::DbgPHMM::new(kmers, copy_nums).unwrap();
     let p = d.forward_prob(&param, &reads[0]);
     println!("forward prob : {}", p);
     // let p = d.backward(&param, &reads[0]);
