@@ -118,7 +118,7 @@ fn main() {
             cli::optimize(t.dbg_fa, t.reads_fa, k, param);
         }
         SubCommand::Sandbox(t) => {
-            cli::sandbox2();
+            cli::sandbox3();
         }
     }
 

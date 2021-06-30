@@ -75,5 +75,9 @@ pub fn sandbox() {
 }
 
 pub fn sandbox2() {
-    optimizer::test();
+    optimizer::base::test();
+}
+
+pub fn sandbox3() {
+    compressed_dbg::test();
 }
