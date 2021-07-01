@@ -4,6 +4,7 @@ use crate::graph::Node;
 use crate::kmer::kmer::{null_kmer, Kmer};
 use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
+use std::fmt::Write as FmtWrite;
 
 /// indexed and compressed dbg
 /// O(1) access to childs, parents, emissions of index
@@ -104,8 +105,8 @@ impl CompressedDBG {
     pub fn n_cycles(&self) -> usize {
         self.cycles.len()
     }
-    pub fn cycle_components(&self, i: usize) -> &[Node] {
-        &self.cycles[i]
+    pub fn cycle_components(&self, cycle_id: usize) -> &[Node] {
+        &self.cycles[cycle_id]
     }
     /// Calc transition probabilities from copy numbers of each kmers
     /// given
@@ -139,6 +140,45 @@ impl CompressedDBG {
             .map(|v| copy_nums[v.0])
             .sum()
     }
+    /// Graphviz dot format
+    pub fn as_dot(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "digraph cdbg {{");
+        for v in self.iter_nodes() {
+            // for node
+            let kmer = self.kmer(v);
+            writeln!(&mut s, "\t{} [label=\"{}\"];", v.0, kmer);
+            // for edges
+            for w in self.childs(v).iter() {
+                // writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0);
+                writeln!(&mut s, "\t{} -> {};", v.0, w.0);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
+    /// Graphviz dot format
+    pub fn as_dot_with_cycle(&self, cycle_id: usize) -> String {
+        let cycle = self.cycle_components(cycle_id);
+        let mut s = String::new();
+        writeln!(&mut s, "digraph cdbg {{");
+        for v in self.iter_nodes() {
+            // for node
+            let kmer = self.kmer(v);
+            if cycle.contains(&v) {
+                writeln!(&mut s, "\t{} [label=\"{}\" color=red];", v.0, kmer);
+            } else {
+                writeln!(&mut s, "\t{} [label=\"{}\"];", v.0, kmer);
+            }
+            // for edges
+            for w in self.childs(v).iter() {
+                // writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0);
+                writeln!(&mut s, "\t{} -> {};", v.0, w.0);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
 }
 
 pub fn test() {
@@ -149,6 +189,7 @@ pub fn test() {
     // println!("{}", d.as_dot());
     let cdbg = CompressedDBG::from(&d, 8);
 
+    /*
     for (i, v) in cdbg.iter_nodes().enumerate() {
         println!(
             "node #{}: {:?} childs:{:?} parents:{:?}",
@@ -158,9 +199,11 @@ pub fn test() {
             cdbg.parents(v)
         );
     }
-
     println!("#cycles: {}", cdbg.n_cycles());
     for i in 0..cdbg.n_cycles() {
         println!("cycle#{}: {:?}", i, cdbg.cycle_components(i));
     }
+    */
+
+    println!("{}", cdbg.as_dot_with_cycle(1));
 }

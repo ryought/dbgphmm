@@ -181,11 +181,11 @@ pub trait DBG {
             self.add(kmer, 1);
         }
     }
+    /// generate dot graph file
+    /// digraph dbg {
+    ///   AATAT -> ATTTAT;
+    /// }
     fn as_dot(&self) -> String {
-        // generate dot graph file
-        // digraph dbg {
-        //   AATAT -> ATTTAT;
-        // }
         let mut s = String::new();
         writeln!(&mut s, "digraph dbg {{");
         // writeln!(&mut s, "node [fontsize = 6, shape = box];");
