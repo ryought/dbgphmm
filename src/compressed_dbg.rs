@@ -84,22 +84,22 @@ impl CompressedDBG {
     pub fn iter_nodes(&self) -> impl std::iter::Iterator<Item = Node> {
         (0..self.n_kmers).map(|i| Node(i))
     }
-    pub fn childs(&self, v: Node) -> &[Node] {
+    pub fn childs(&self, v: &Node) -> &[Node] {
         &self.childs[v.0]
     }
-    pub fn parents(&self, v: Node) -> &[Node] {
+    pub fn parents(&self, v: &Node) -> &[Node] {
         &self.parents[v.0]
     }
-    pub fn is_adjacent(&self, v: Node, w: Node) -> bool {
-        self.childs(v).iter().any(|&u| u == w)
+    pub fn is_adjacent(&self, v: &Node, w: &Node) -> bool {
+        self.childs(v).iter().any(|u| *u == *w)
     }
-    pub fn emission(&self, v: Node) -> u8 {
+    pub fn emission(&self, v: &Node) -> u8 {
         self.emissions[v.0]
     }
-    pub fn is_emitable(&self, v: Node) -> bool {
+    pub fn is_emitable(&self, v: &Node) -> bool {
         self.emission(v) != b'N'
     }
-    pub fn kmer(&self, v: Node) -> &Kmer {
+    pub fn kmer(&self, v: &Node) -> &Kmer {
         &self.kmers[v.0]
     }
     pub fn n_cycles(&self) -> usize {
@@ -119,7 +119,7 @@ impl CompressedDBG {
         (0..self.n_kmers())
             .map(|i| {
                 let v = Node(i);
-                let cns: Vec<u32> = self.childs(v).iter().map(|&w| copy_nums[w.0]).collect();
+                let cns: Vec<u32> = self.childs(&v).iter().map(|&w| copy_nums[w.0]).collect();
                 let total_cn: u32 = cns.iter().sum();
                 cns.iter()
                     .map(|&cn| Prob::from_prob(f64::from(cn) / f64::from(total_cn)))
@@ -136,7 +136,7 @@ impl CompressedDBG {
     pub fn total_emitable_copy_num(&self, copy_nums: &[u32]) -> u32 {
         (0..self.n_kmers())
             .map(|i| Node(i))
-            .filter(|&v| self.is_emitable(v))
+            .filter(|&v| self.is_emitable(&v))
             .map(|v| copy_nums[v.0])
             .sum()
     }
@@ -146,10 +146,10 @@ impl CompressedDBG {
         writeln!(&mut s, "digraph cdbg {{");
         for v in self.iter_nodes() {
             // for node
-            let kmer = self.kmer(v);
+            let kmer = self.kmer(&v);
             writeln!(&mut s, "\t{} [label=\"{}\"];", v.0, kmer);
             // for edges
-            for w in self.childs(v).iter() {
+            for w in self.childs(&v).iter() {
                 // writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0);
                 writeln!(&mut s, "\t{} -> {};", v.0, w.0);
             }
@@ -164,14 +164,14 @@ impl CompressedDBG {
         writeln!(&mut s, "digraph cdbg {{");
         for v in self.iter_nodes() {
             // for node
-            let kmer = self.kmer(v);
+            let kmer = self.kmer(&v);
             if cycle.contains(&v) {
                 writeln!(&mut s, "\t{} [label=\"{}\" color=red];", v.0, kmer);
             } else {
                 writeln!(&mut s, "\t{} [label=\"{}\"];", v.0, kmer);
             }
             // for edges
-            for w in self.childs(v).iter() {
+            for w in self.childs(&v).iter() {
                 // writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0);
                 writeln!(&mut s, "\t{} -> {};", v.0, w.0);
             }

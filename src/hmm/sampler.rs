@@ -1,4 +1,4 @@
-use super::base::{Node, PHMM};
+use super::base::{iter_nodes, Node, PHMM};
 use super::params::PHMMParams;
 use crate::prob::Prob;
 use log::trace;
@@ -123,10 +123,8 @@ pub trait PHMMSampler: PHMM {
                     match state {
                         State::InsBegin => (state, Node(0)),
                         _ => {
-                            let move_choices: Vec<(Node, Prob)> = self
-                                .nodes()
-                                .iter()
-                                .map(|w| (*w, self.init_prob(&w)))
+                            let move_choices: Vec<(Node, Prob)> = iter_nodes(self.n_nodes())
+                                .map(|w| (w, self.init_prob(&w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);
@@ -147,10 +145,8 @@ pub trait PHMMSampler: PHMM {
                     match state {
                         State::InsBegin => (state, Node(0)),
                         _ => {
-                            let move_choices: Vec<(Node, Prob)> = self
-                                .nodes()
-                                .iter()
-                                .map(|w| (*w, self.init_prob(&w)))
+                            let move_choices: Vec<(Node, Prob)> = iter_nodes(self.n_nodes())
+                                .map(|w| (w, self.init_prob(&w)))
                                 .collect();
                             if move_choices.len() > 0 {
                                 let w = pick_with_prob(&mut rng, &move_choices);

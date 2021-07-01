@@ -16,12 +16,12 @@ impl LinearPHMM {
     }
 }
 impl PHMM for LinearPHMM {
-    fn nodes(&self) -> &[Node] {
-        &self.nodes
+    fn n_nodes(&self) -> usize {
+        self.nodes.len()
     }
     fn childs(&self, v: &Node) -> &[Node] {
         // let mut childs = ArrayVec::<Node, 4>::new();
-        if v.0 == self.nodes().len() - 1 {
+        if v.0 == self.nodes.len() - 1 {
             &[]
         } else {
             &self.nodes[v.0 + 1..v.0 + 2]

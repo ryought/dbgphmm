@@ -32,19 +32,20 @@ impl std::fmt::Display for PHMMLayer {
     }
 }
 
+pub fn iter_nodes(n_nodes: usize) -> impl std::iter::Iterator<Item = Node> {
+    (0..n_nodes).map(|i| Node(i))
+}
+
 pub trait PHMM {
-    // graph structures
-    fn nodes(&self) -> &[Node];
-    fn n_nodes(&self) -> usize {
-        self.nodes().len()
-    }
+    /// return a number of nodes
+    fn n_nodes(&self) -> usize;
     fn childs(&self, v: &Node) -> &[Node];
     fn parents(&self, v: &Node) -> &[Node];
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool;
     // hmm related values. each node has (copy_num, emission) attributes
     fn copy_num(&self, v: &Node) -> u32;
     fn total_copy_num(&self) -> u32 {
-        self.nodes().iter().map(|v| self.copy_num(v)).sum()
+        iter_nodes(self.n_nodes()).map(|v| self.copy_num(&v)).sum()
     }
     fn emission(&self, v: &Node) -> u8;
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob;
@@ -77,22 +78,22 @@ pub trait PHMM {
     ) -> (Vec<Prob>, Vec<Prob>) {
         let mut fM: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut fI: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        for v in self.nodes().iter() {
+        for v in iter_nodes(self.n_nodes()) {
             // M state
-            let emission_prob_M: Prob = if self.emission(v) == emission {
+            let emission_prob_M: Prob = if self.emission(&v) == emission {
                 param.p_match
             } else {
                 param.p_mismatch
             };
             let from_normal: Prob = self
-                .parents(v)
+                .parents(&v)
                 .iter()
                 .map(|w| {
-                    self.trans_prob(w, v)
+                    self.trans_prob(w, &v)
                         * (param.p_MM * fm[w.0] + param.p_IM * fi[w.0] + param.p_DM * fd[w.0])
                 })
                 .sum();
-            let from_begin: Prob = self.init_prob(v) * (param.p_MM * fmb + param.p_IM * fib);
+            let from_begin: Prob = self.init_prob(&v) * (param.p_MM * fmb + param.p_IM * fib);
             fM[v.0] = emission_prob_M * (from_normal + from_begin);
 
             // I state
@@ -115,14 +116,14 @@ pub trait PHMM {
         let mut fDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut fD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        info!("fd0 init {}", self.nodes().len());
-        for v in self.nodes().iter() {
+        info!("fd0 init {}", self.n_nodes());
+        for v in iter_nodes(self.n_nodes()) {
             let from_normal: Prob = self
-                .parents(v)
+                .parents(&v)
                 .iter()
-                .map(|w| self.trans_prob(w, v) * (param.p_MD * fm[w.0] + param.p_ID * fi[w.0]))
+                .map(|w| self.trans_prob(w, &v) * (param.p_MD * fm[w.0] + param.p_ID * fi[w.0]))
                 .sum();
-            let from_begin: Prob = self.init_prob(v) * (param.p_MD * fmb + param.p_ID * fib);
+            let from_begin: Prob = self.init_prob(&v) * (param.p_MD * fmb + param.p_ID * fib);
             fD0[v.0] = from_normal + from_begin;
         }
         fDs.push(fD0);
@@ -131,18 +132,16 @@ pub trait PHMM {
             info!("fd{} init", x);
             let mut fD: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
             let fD_prev = fDs.last().unwrap();
-            for v in self.nodes().iter() {
+            for v in iter_nodes(self.n_nodes()) {
                 fD[v.0] = self
-                    .parents(v)
+                    .parents(&v)
                     .iter()
-                    .map(|w| self.trans_prob(w, v) * (param.p_DD * fD_prev[w.0]))
+                    .map(|w| self.trans_prob(w, &v) * (param.p_DD * fD_prev[w.0]))
                     .sum();
             }
             fDs.push(fD);
         }
-        let fD: Vec<Prob> = self
-            .nodes()
-            .iter()
+        let fD: Vec<Prob> = iter_nodes(self.n_nodes())
             .map(|v| fDs.iter().map(|fD| fD[v.0]).sum())
             .collect();
         fD
@@ -163,8 +162,7 @@ pub trait PHMM {
         fE
     }
     fn fe_from_fmid(&self, param: &PHMMParams, fm: &[Prob], fi: &[Prob], fd: &[Prob]) -> Prob {
-        self.nodes()
-            .iter()
+        iter_nodes(self.n_nodes())
             .map(|v| param.p_end * (fm[v.0] + fi[v.0] + fd[v.0]))
             .sum()
     }
@@ -241,9 +239,9 @@ pub trait PHMM {
         let mut bDs: Vec<Vec<Prob>> = Vec::new();
         // 0
         let mut bD0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        for v in self.nodes().iter() {
+        for v in iter_nodes(self.n_nodes()) {
             let to_m: Prob = self
-                .childs(v)
+                .childs(&v)
                 .iter()
                 .map(|w| {
                     let emission_prob_M: Prob = if self.emission(w) == emission {
@@ -251,7 +249,7 @@ pub trait PHMM {
                     } else {
                         param.p_mismatch
                     };
-                    self.trans_prob(v, w) * param.p_DM * bm1[w.0] * emission_prob_M
+                    self.trans_prob(&v, w) * param.p_DM * bm1[w.0] * emission_prob_M
                 })
                 .sum();
             let emission_prob_I: Prob = param.p_random;
@@ -263,18 +261,16 @@ pub trait PHMM {
         for x in 1..param.n_max_gaps {
             let mut bD: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
             let bD_prev = bDs.last().unwrap();
-            for v in self.nodes().iter() {
+            for v in iter_nodes(self.n_nodes()) {
                 bD[v.0] = self
-                    .childs(v)
+                    .childs(&v)
                     .iter()
-                    .map(|w| self.trans_prob(v, w) * param.p_DD * bD_prev[w.0])
+                    .map(|w| self.trans_prob(&v, w) * param.p_DD * bD_prev[w.0])
                     .sum();
             }
             bDs.push(bD);
         }
-        let bD: Vec<Prob> = self
-            .nodes()
-            .iter()
+        let bD: Vec<Prob> = iter_nodes(self.n_nodes())
             .map(|v| bDs.iter().map(|bD| bD[v.0]).sum())
             .collect();
         bD
@@ -289,10 +285,10 @@ pub trait PHMM {
     ) -> (Vec<Prob>, Vec<Prob>) {
         let mut bm0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
         let mut bi0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
-        for v in self.nodes().iter() {
+        for v in iter_nodes(self.n_nodes()) {
             // fill bm0
             let to_md: Prob = self
-                .childs(v)
+                .childs(&v)
                 .iter()
                 .map(|w| {
                     let emission_prob_M: Prob = if self.emission(w) == emission {
@@ -300,7 +296,7 @@ pub trait PHMM {
                     } else {
                         param.p_mismatch
                     };
-                    self.trans_prob(v, w)
+                    self.trans_prob(&v, w)
                         * (param.p_MM * emission_prob_M * bm1[w.0] + param.p_MD * bd0[w.0])
                 })
                 .sum();
@@ -310,7 +306,7 @@ pub trait PHMM {
 
             // fill bi0
             let to_md: Prob = self
-                .childs(v)
+                .childs(&v)
                 .iter()
                 .map(|w| {
                     let emission_prob_M: Prob = if self.emission(w) == emission {
@@ -318,7 +314,7 @@ pub trait PHMM {
                     } else {
                         param.p_mismatch
                     };
-                    self.trans_prob(v, w)
+                    self.trans_prob(&v, w)
                         * (param.p_IM * emission_prob_M * bm1[w.0] + param.p_ID * bd0[w.0])
                 })
                 .sum();
@@ -337,16 +333,14 @@ pub trait PHMM {
         emission: u8,
     ) -> (Prob, Prob) {
         // bmb0
-        let to_md: Prob = self
-            .nodes()
-            .iter()
+        let to_md: Prob = iter_nodes(self.n_nodes())
             .map(|v| {
-                let emission_prob_M: Prob = if self.emission(v) == emission {
+                let emission_prob_M: Prob = if self.emission(&v) == emission {
                     param.p_match
                 } else {
                     param.p_mismatch
                 };
-                self.init_prob(v)
+                self.init_prob(&v)
                     * (param.p_MM * emission_prob_M * bm1[v.0] + param.p_MD * bd0[v.0])
             })
             .sum();
@@ -355,16 +349,14 @@ pub trait PHMM {
         let bmb0 = to_md + to_i;
 
         // bib0
-        let to_md: Prob = self
-            .nodes()
-            .iter()
+        let to_md: Prob = iter_nodes(self.n_nodes())
             .map(|v| {
-                let emission_prob_M: Prob = if self.emission(v) == emission {
+                let emission_prob_M: Prob = if self.emission(&v) == emission {
                     param.p_match
                 } else {
                     param.p_mismatch
                 };
-                self.init_prob(v)
+                self.init_prob(&v)
                     * (param.p_IM * emission_prob_M * bm1[v.0] + param.p_ID * bd0[v.0])
             })
             .sum();
@@ -464,7 +456,7 @@ pub trait PHMM {
     fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph dbgphmm {{");
-        for v in self.nodes().iter() {
+        for v in iter_nodes(self.n_nodes()) {
             // for node
             let emission = self.emission(&v);
             let copy_num = self.copy_num(&v);
@@ -484,15 +476,15 @@ pub trait PHMM {
     }
     fn as_node_list(&self) -> String {
         let mut s = String::new();
-        for v in self.nodes().iter() {
+        for v in iter_nodes(self.n_nodes()) {
             writeln!(
                 &mut s,
                 "{:?} {:?} {:?} {} {:?}",
                 v,
-                self.childs(v),
-                self.parents(v),
-                self.copy_num(v),
-                self.emission(v) as char,
+                self.childs(&v),
+                self.parents(&v),
+                self.copy_num(&v),
+                self.emission(&v) as char,
             );
         }
         s

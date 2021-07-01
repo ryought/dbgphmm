@@ -83,8 +83,8 @@ impl DbgPHMM {
 }
 
 impl PHMM for DbgPHMM {
-    fn nodes(&self) -> &[Node] {
-        &self.nodes
+    fn n_nodes(&self) -> usize {
+        self.nodes.len()
     }
     fn childs(&self, v: &Node) -> &[Node] {
         &self.childs[v.0]
@@ -126,9 +126,6 @@ pub fn test() {
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
     let d = DbgPHMM::new(kmers, copy_nums).unwrap();
     // println!("{}", d.dbg.as_dot());
-    for v in d.nodes() {
-        println!("node {:?}", v);
-    }
 
     /*
     let param = PHMMParams::new(

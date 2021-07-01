@@ -9,15 +9,15 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 pub fn test(r: &[u8], q: &[u8]) {
     println!("hmm test for {:?} {:?}", r, q);
     let model = LinearPHMM::from(r);
-    for node in model.nodes().iter() {
+    for node in iter_nodes(model.n_nodes()) {
         println!(
             "{:?} {:?} {:?} {:?} {:?} {}",
             node,
-            model.childs(node),
-            model.parents(node),
-            model.copy_num(node),
-            model.emission(node) as char,
-            model.init_prob(node),
+            model.childs(&node),
+            model.parents(&node),
+            model.copy_num(&node),
+            model.emission(&node) as char,
+            model.init_prob(&node),
         );
     }
     let param = PHMMParams::new(
