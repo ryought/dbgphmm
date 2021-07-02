@@ -23,22 +23,16 @@ pub struct DbgPHMM {
 }
 
 impl DbgPHMM {
-    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgPHMM {
-        // construct dbg
-        let mut d = DbgHash::new();
-        for seq in seqs.iter() {
-            d.add_seq(seq, k);
-        }
-
+    pub fn from_dbg(dbg: DbgHash) -> DbgPHMM {
         // linearize kmers
-        let (kmers, childs, parents, trans_probs) = d.vectorize();
-        let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
+        let (kmers, childs, parents, trans_probs) = dbg.vectorize();
+        let copy_nums: Vec<u32> = kmers.iter().map(|kmer| dbg.find(kmer)).collect();
         let total_copy_num: u32 = copy_nums.iter().sum();
         let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
         let nodes: Vec<Node> = (0..kmers.len()).map(|i| Node(i)).collect();
 
         DbgPHMM {
-            dbg: d,
+            dbg,
             kmers,
             nodes,
             childs,
@@ -48,6 +42,14 @@ impl DbgPHMM {
             total_copy_num,
             emissions,
         }
+    }
+    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgPHMM {
+        // construct dbg
+        let mut d = DbgHash::new();
+        for seq in seqs.iter() {
+            d.add_seq(seq, k);
+        }
+        DbgPHMM::from_dbg(d)
     }
     pub fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {
         // construct DbgHash and
@@ -62,23 +64,7 @@ impl DbgPHMM {
         d.augment_edge_kmers();
 
         // 3. linearize kmers
-        let (kmers, childs, parents, trans_probs) = d.vectorize();
-        let copy_nums: Vec<u32> = kmers.iter().map(|kmer| d.find(kmer)).collect();
-        let total_copy_num: u32 = copy_nums.iter().sum();
-        let emissions: Vec<u8> = kmers.iter().map(|kmer| kmer.last()).collect();
-        let nodes: Vec<Node> = (0..kmers.len()).map(|i| Node(i)).collect();
-
-        Some(DbgPHMM {
-            dbg: d,
-            kmers,
-            nodes,
-            childs,
-            parents,
-            trans_probs,
-            copy_nums,
-            total_copy_num,
-            emissions,
-        })
+        Some(DbgPHMM::from_dbg(d))
     }
 }
 

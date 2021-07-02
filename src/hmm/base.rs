@@ -45,9 +45,15 @@ pub trait PHMM {
     // hmm related values. each node has (copy_num, emission) attributes
     fn copy_num(&self, v: &Node) -> u32;
     fn total_copy_num(&self) -> u32 {
-        iter_nodes(self.n_nodes()).map(|v| self.copy_num(&v)).sum()
+        iter_nodes(self.n_nodes())
+            .filter(|v| self.is_emitable(&v))
+            .map(|v| self.copy_num(&v))
+            .sum()
     }
     fn emission(&self, v: &Node) -> u8;
+    fn is_emitable(&self, v: &Node) -> bool {
+        self.emission(v) != b'N'
+    }
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob;
     fn label(&self, v: &Node) -> String {
         let label = String::new();
@@ -55,9 +61,13 @@ pub trait PHMM {
     }
 
     fn init_prob(&self, v: &Node) -> Prob {
-        let copy_num = self.copy_num(v);
-        let total_copy_num = self.total_copy_num();
-        Prob::from_prob(f64::from(copy_num) / f64::from(total_copy_num))
+        if self.is_emitable(v) {
+            let copy_num = self.copy_num(v);
+            let total_copy_num = self.total_copy_num();
+            Prob::from_prob(f64::from(copy_num) / f64::from(total_copy_num))
+        } else {
+            Prob::from_prob(0.0)
+        }
     }
     // forward prob
     fn fmi_init(&self) -> (Vec<Prob>, Vec<Prob>) {
@@ -460,10 +470,14 @@ pub trait PHMM {
             // for node
             let emission = self.emission(&v);
             let copy_num = self.copy_num(&v);
+            let init_prob = self.init_prob(&v);
             writeln!(
                 &mut s,
                 "\t{} [label=\"{} x{}\"];",
-                v.0, emission as char, copy_num
+                v.0,
+                emission as char,
+                copy_num // "\t{} [label=\"{} x{} {}\"];",
+                         // v.0, emission as char, copy_num, init_prob
             );
             // for edges
             for w in self.childs(&v).iter() {

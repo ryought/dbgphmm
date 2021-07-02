@@ -80,5 +80,6 @@ pub fn sandbox2() {
 
 pub fn sandbox3() {
     // compressed_dbg::test();
-    optimizer::cdbg::test();
+    // optimizer::cdbg::test();
+    hmm::cdbg::test();
 }

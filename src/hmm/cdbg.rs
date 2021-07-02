@@ -66,3 +66,31 @@ impl<'a> PHMM for CDbgPHMM<'a> {
 }
 
 impl<'a> PHMMSampler for CDbgPHMM<'a> {}
+
+pub fn test() {
+    let mut d = DbgHash::new();
+    // d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
+    d.add_seq(b"ATCGATTCGATCG", 8);
+    let cdbg = CompressedDBG::from(&d, 8);
+    let copy_nums_true: Vec<u32> = cdbg
+        .iter_nodes()
+        .map(|v| {
+            let kmer = cdbg.kmer(&v);
+            d.find(kmer)
+        })
+        .collect();
+
+    let param = PHMMParams::default();
+    let read = b"GGATCGA";
+
+    // 0. construct cdbgphmm
+    let model = CDbgPHMM::new(&cdbg, copy_nums_true);
+    // 1. check graphviz
+    // println!("{}", model.as_dot());
+    println!("{}", model.forward_prob(&param, read));
+
+    // 2. check prob is same
+    let old_model = super::dbg::DbgPHMM::from_dbg(d);
+    // println!("{}", old_model.as_dot());
+    println!("{}", old_model.forward_prob(&param, read));
+}

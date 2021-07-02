@@ -115,15 +115,29 @@ impl CompressedDBG {
     /// this computes
     /// trans_probs[i] = [p(i->0), p(i->1), p(i->2), p(i->3)]
     pub fn copy_num_to_trans_prob(&self, copy_nums: &[u32]) -> Vec<Vec<Prob>> {
-        // TODO assert copy_nums has the same shape
-        //
-        (0..self.n_kmers())
-            .map(|i| {
-                let v = Node(i);
-                let cns: Vec<u32> = self.childs(&v).iter().map(|&w| copy_nums[w.0]).collect();
+        assert_eq!(self.n_kmers(), copy_nums.len());
+        self.iter_nodes()
+            .map(|v| {
+                let cns: Vec<u32> = self
+                    .childs(&v)
+                    .iter()
+                    .map(|&w| {
+                        if self.is_emitable(&w) {
+                            copy_nums[w.0]
+                        } else {
+                            0
+                        }
+                    })
+                    .collect();
                 let total_cn: u32 = cns.iter().sum();
                 cns.iter()
-                    .map(|&cn| Prob::from_prob(f64::from(cn) / f64::from(total_cn)))
+                    .map(|&cn| {
+                        if self.is_emitable(&v) && total_cn > 0 {
+                            Prob::from_prob(f64::from(cn) / f64::from(total_cn))
+                        } else {
+                            Prob::from_prob(0.0)
+                        }
+                    })
                     .collect()
             })
             .collect()
