@@ -168,6 +168,11 @@ impl CompressedDBG {
             .map(|v| copy_nums[v.0])
             .sum()
     }
+    /// prior score of this
+    /// Assuming genome size ~ Normal(ave, std)
+    pub fn prior_score(&self, ave_size: u32, std_size: u32) -> Prob {
+        Prob::from_prob(1.0)
+    }
     /// Graphviz dot format
     pub fn as_dot(&self) -> String {
         let mut s = String::new();

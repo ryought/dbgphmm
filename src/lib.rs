@@ -2,6 +2,7 @@ pub mod cli;
 pub mod compressed_dbg;
 pub mod cycles;
 pub mod dbg;
+pub mod distribution;
 pub mod graph;
 pub mod hmm;
 pub mod io;
