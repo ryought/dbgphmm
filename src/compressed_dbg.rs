@@ -56,15 +56,23 @@ impl CompressedDBG {
 
         let root = null_kmer(k - 1);
         let s = cycles::DbgTree::new(dbg, &root);
+
         let cycles: Vec<Vec<Node>> = s
             .cycle_keys()
             .iter()
             .map(|key| {
                 s.cycle_components(key)
                     .iter()
-                    .map(|kmer| {
-                        *ids.get(kmer)
-                            .unwrap_or_else(|| panic!("kmer not found {}", kmer))
+                    .enumerate()
+                    .map(|(i, kmer)| {
+                        *ids.get(kmer).unwrap_or_else(|| {
+                            panic!(
+                                "kmer not found (#{} in {}) {}",
+                                i,
+                                s.cycle_components(key).len(),
+                                kmer
+                            )
+                        })
                     })
                     .collect()
             })
@@ -241,6 +249,11 @@ pub fn test() {
 
     let p = cdbg.is_consistent_copy_num(&copy_nums_true);
     println!("copy-nums-consistency {:?}", p);
+
+    println!("#cycles: {}", cdbg.n_cycles());
+    for i in 0..cdbg.n_cycles() {
+        println!("cycle#{}: {:?}", i, cdbg.cycle_components(i));
+    }
 
     /*
     for (i, v) in cdbg.iter_nodes().enumerate() {

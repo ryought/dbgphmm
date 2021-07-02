@@ -6,9 +6,16 @@ use log::{debug, info, warn};
 use std::collections::VecDeque;
 use std::fmt::Write as FmtWrite;
 
+enum ParentType {
+    /// parent XYYYY -> child YYYYZ
+    Succ,
+    /// parent YYYYX -> child ZYYYY
+    Pred,
+}
+
 pub struct DbgTree {
     root: Kmer,
-    parent_on_tree: HashMap<Kmer, Kmer>,
+    parent_on_tree: HashMap<Kmer, (Kmer, ParentType)>,
     depth: HashMap<Kmer, usize>,
     loop_edges: Vec<Kmer>,
 }
@@ -20,7 +27,7 @@ pub struct DbgTree {
 impl DbgTree {
     pub fn new<T: DBG>(dbg: &T, root: &Kmer) -> DbgTree {
         // struct elements
-        let mut parent_on_tree: HashMap<Kmer, Kmer> = HashMap::default(); // parent_on_tree[node] = node
+        let mut parent_on_tree: HashMap<Kmer, (Kmer, ParentType)> = HashMap::default(); // parent_on_tree[node] = (node, succ|pred)
         let mut depth: HashMap<Kmer, usize> = HashMap::default(); // depth of node
 
         // do dfs
@@ -37,12 +44,13 @@ impl DbgTree {
             let (km1mer, d) = q.pop_front().unwrap();
             debug!("DFS: now: {}@{}", km1mer, d);
 
-            // succs XXXX -> XXXX{ACGT}
+            // km1mer XYYY -> succ YYYZ
             for succ in dbg.succs(&km1mer).into_iter() {
                 let suffix = succ.suffix();
                 if !is_visited.contains(&suffix) {
                     debug!("DFS: hop_succ: {} -> {}", km1mer, suffix);
-                    parent_on_tree.insert(suffix.clone(), km1mer.clone());
+                    // suffix=YYZ <- km1mer=YYY by moving edge=YYYZ
+                    parent_on_tree.insert(suffix.clone(), (km1mer.clone(), ParentType::Succ));
                     is_visited.insert(suffix.clone());
                     is_used_edge.insert(succ);
                     depth.insert(suffix.clone(), d + 1);
@@ -50,12 +58,13 @@ impl DbgTree {
                 }
             }
 
-            // preds XXXX -> {ACGT}XXXX
+            // km1mer YYYX -> preds ZYYY
             for pred in dbg.preds(&km1mer).into_iter() {
                 let prefix = pred.prefix();
                 if !is_visited.contains(&prefix) {
                     debug!("DFS: hop_pred: {} -> {}", km1mer, prefix);
-                    parent_on_tree.insert(prefix.clone(), km1mer.clone());
+                    // prefix=ZYY <- km1mer=YYY by moving edge=ZYYY
+                    parent_on_tree.insert(prefix.clone(), (km1mer.clone(), ParentType::Pred));
                     is_visited.insert(prefix.clone());
                     is_used_edge.insert(pred);
                     depth.insert(prefix.clone(), d + 1);
@@ -114,17 +123,23 @@ impl DbgTree {
         let d = left_depth.min(right_depth);
         debug!("depth: {}", d);
 
-        for i in d..right_depth {
+        for _ in d..right_depth {
             debug!("right: {}", d);
-            let new_right = self.parent_on_tree.get(&right).unwrap().clone();
-            rights.push(right.join(&new_right));
-            right = new_right;
+            let (new_right, right_type) = self.parent_on_tree.get(&right).unwrap().clone();
+            match right_type {
+                ParentType::Succ => rights.push(right.extend_first(new_right.first())),
+                ParentType::Pred => rights.push(right.extend_last(new_right.last())),
+            }
+            right = new_right.clone();
         }
-        for i in d..left_depth {
+        for _ in d..left_depth {
             debug!("left: {}", d);
-            let new_left = self.parent_on_tree.get(&left).unwrap().clone();
-            lefts.push(left.join(&new_left));
-            left = new_left;
+            let (new_left, left_type) = self.parent_on_tree.get(&left).unwrap().clone();
+            match left_type {
+                ParentType::Succ => lefts.push(left.extend_first(new_left.first())),
+                ParentType::Pred => lefts.push(left.extend_last(new_left.last())),
+            }
+            left = new_left.clone();
         }
 
         // find LCA
@@ -139,12 +154,18 @@ impl DbgTree {
             if right == left || i == d {
                 break;
             } else {
-                let new_right = self.parent_on_tree.get(&right).unwrap().clone();
-                rights.push(right.join(&new_right));
-                right = new_right;
-                let new_left = self.parent_on_tree.get(&left).unwrap().clone();
-                lefts.push(left.join(&new_left));
-                left = new_left;
+                let (new_right, right_type) = self.parent_on_tree.get(&right).unwrap().clone();
+                match right_type {
+                    ParentType::Succ => rights.push(right.extend_first(new_right.first())),
+                    ParentType::Pred => rights.push(right.extend_last(new_right.last())),
+                }
+                right = new_right.clone();
+                let (new_left, left_type) = self.parent_on_tree.get(&left).unwrap().clone();
+                match left_type {
+                    ParentType::Succ => lefts.push(left.extend_first(new_left.first())),
+                    ParentType::Pred => lefts.push(left.extend_last(new_left.last())),
+                }
+                left = new_left.clone();
             }
         }
 
