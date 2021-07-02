@@ -1,4 +1,7 @@
-/// simulated annealing optimization module
+//! simulated annealing optimization module
+//!
+
+use log::{debug, info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
@@ -67,7 +70,7 @@ pub fn simple_run<T: SAState>(init: T, n_iteration: u64) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
     let mut now = init;
     for i in 0..n_iteration {
-        println!("now: {}", now.as_string());
+        debug!("now: {}", now.as_string());
         now = now.next(&mut rng);
     }
 }

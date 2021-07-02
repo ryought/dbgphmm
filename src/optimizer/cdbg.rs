@@ -11,17 +11,29 @@ use std::fmt::Write as FmtWrite;
 struct CDbgState<'a> {
     cdbg: &'a CompressedDBG,
     copy_nums: Vec<u32>,
+    ave_size: u32,
+    std_size: u32,
 }
 
 impl<'a> CDbgState<'a> {
     /// create state with given copy-nums
-    fn new(cdbg: &CompressedDBG, copy_nums: Vec<u32>) -> CDbgState {
-        CDbgState { cdbg, copy_nums }
+    fn new(cdbg: &CompressedDBG, copy_nums: Vec<u32>, ave_size: u32, std_size: u32) -> CDbgState {
+        CDbgState {
+            cdbg,
+            copy_nums,
+            ave_size,
+            std_size,
+        }
     }
     /// initial state with all-zero copy-nums
-    fn init(cdbg: &CompressedDBG) -> CDbgState {
+    fn init(cdbg: &CompressedDBG, ave_size: u32, std_size: u32) -> CDbgState {
         let copy_nums = vec![0; cdbg.n_kmers()];
-        CDbgState { cdbg, copy_nums }
+        CDbgState {
+            cdbg,
+            copy_nums,
+            ave_size,
+            std_size,
+        }
     }
 }
 
@@ -34,25 +46,42 @@ impl<'a> SAState for CDbgState<'a> {
     }
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
+        // 1. pick a cycle
         let cycle_id = rng.gen_range(0..self.cdbg.n_cycles());
         debug!("next: {}", cycle_id);
+        // 2. pick a direction (+1 or -1) of modifying the copy-nums
+        let min_copy_num = self
+            .cdbg
+            .cycle_components(cycle_id)
+            .iter()
+            .map(|v| self.copy_nums[v.0])
+            .min()
+            .unwrap();
+        let is_down: bool = min_copy_num > 0 && rng.gen();
+        debug!("direction: {} (min: {})", is_down, min_copy_num);
         let mut copy_nums = self.copy_nums.clone();
-        // TODO how much increase/decrease copy-nums?
         for v in self.cdbg.cycle_components(cycle_id) {
-            copy_nums[v.0] += 1;
+            if is_down {
+                copy_nums[v.0] -= 1;
+            } else {
+                copy_nums[v.0] += 1;
+            }
         }
         CDbgState {
             cdbg: self.cdbg,
             copy_nums,
+            ave_size: self.ave_size,
+            std_size: self.std_size,
         }
     }
     fn as_string(&self) -> String {
         let mut s = String::new();
         writeln!(
             &mut s,
-            "{:?} {}",
+            "{:?} {} {}",
             self.copy_nums,
-            self.cdbg.is_consistent_copy_num(&self.copy_nums)
+            self.cdbg.is_consistent_copy_num(&self.copy_nums),
+            self.cdbg.total_emitable_copy_num(&self.copy_nums)
         );
         s
     }
@@ -63,6 +92,6 @@ pub fn test() {
     d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
     let cdbg = CompressedDBG::from(&d, 8);
 
-    let s0 = CDbgState::init(&cdbg);
+    let s0 = CDbgState::init(&cdbg, 20, 10);
     simple_run(s0, 100);
 }
