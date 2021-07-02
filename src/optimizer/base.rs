@@ -1,34 +1,35 @@
 /// simulated annealing optimization module
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
+use std::fmt::Write as FmtWrite;
 
-trait SAState: Clone + std::fmt::Debug {
-    /// score of the state
+pub trait SAState: Clone {
+    /// Score of the state. Typically, this score corresponds to
+    /// the log likelihood (log p) of the model to be maximized.
     fn score(&self) -> f64;
     /// get a randomly-picked neighbor state (using rng)
     fn next<R: Rng>(&self, rng: &mut R) -> Self;
+    /// output for logging
+    fn as_string(&self) -> String;
 }
 
-/// find SAState with global minimum score
-struct Annealer {
+/// find SAState with global maximum score
+pub struct Annealer {
     init_temp: f64,
     cooling_rate: f64,
-    // rng: &mut R,
-    // now: T,
-    // history: Vec<T>,
 }
 
 impl Annealer {
-    fn new() -> Annealer {
+    pub fn new() -> Annealer {
         Annealer {
             init_temp: 1.0,
             cooling_rate: 0.8,
         }
     }
-    fn temp_schedule(&self, iteration: u64) -> f64 {
+    pub fn temp_schedule(&self, iteration: u64) -> f64 {
         self.init_temp * self.cooling_rate.powi(iteration as i32)
     }
-    fn step<T: SAState, R: Rng>(&self, rng: &mut R, now: &T, iteration: u64) -> T {
+    pub fn step<T: SAState, R: Rng>(&self, rng: &mut R, now: &T, iteration: u64) -> T {
         let temp = self.temp_schedule(iteration);
         let next = now.next(rng);
         // TODO avoid recalculation of now.score()
@@ -42,14 +43,14 @@ impl Annealer {
             now.score()
         );
         if rng.gen_bool(p.min(1f64)) {
-            println!("A {:?}", next);
+            println!("A {:?}", next.as_string());
             next
         } else {
-            println!("R {:?}", now);
+            println!("R {:?}", now.as_string());
             now.clone()
         }
     }
-    fn run<T: SAState, R: Rng>(&self, rng: &mut R, init_state: T, n_iteration: u64) -> Vec<T> {
+    pub fn run<T: SAState, R: Rng>(&self, rng: &mut R, init_state: T, n_iteration: u64) -> Vec<T> {
         let mut states = Vec::new();
         let mut now = init_state;
         for i in 0..n_iteration {
@@ -58,6 +59,16 @@ impl Annealer {
             now = new_state;
         }
         states
+    }
+}
+
+/// greedy transition of SAStates for debugging
+pub fn simple_run<T: SAState>(init: T, n_iteration: u64) {
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+    let mut now = init;
+    for i in 0..n_iteration {
+        println!("now: {}", now.as_string());
+        now = now.next(&mut rng);
     }
 }
 
@@ -89,6 +100,11 @@ impl SAState for TestState {
             *x = 1;
         }
         TestState { bits: new_bits }
+    }
+    fn as_string(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "{:?}", self.bits);
+        s
     }
 }
 pub fn test() {
