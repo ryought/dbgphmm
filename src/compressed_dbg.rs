@@ -4,6 +4,7 @@ use crate::graph::Node;
 use crate::kmer::kmer::{null_kmer, Kmer};
 use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
+use histo::Histogram;
 use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 
@@ -227,6 +228,11 @@ impl CompressedDBG {
     pub fn as_cycle_stats(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#cycles={}", self.n_cycles());
+        let mut histogram = Histogram::with_buckets(10);
+        for i in 0..self.n_cycles() {
+            histogram.add(self.cycle_components(i).len() as u64);
+        }
+        writeln!(&mut s, "{}", histogram);
         s
     }
 }

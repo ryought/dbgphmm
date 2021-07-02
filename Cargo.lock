@@ -354,6 +354,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "fnv",
+ "histo",
  "libm",
  "log",
  "rand 0.8.3",
@@ -508,6 +509,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "322f4de77956e22ed0e5032c359a0f1273f1f7f0d79bfa3b8ffbc730d7fbcc5c"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "histo"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a4195184b16b1e8e50353b41f83ad743b80d687b4c41a6f1d0d50231325e258"
+dependencies = [
+ "streaming-stats",
 ]
 
 [[package]]
@@ -1109,6 +1119,15 @@ checksum = "1e34b58a8f9b7462b6922e0b4e3c83d1b3c2075f7f996a56d6c66afa81590064"
 dependencies = [
  "nalgebra",
  "rand 0.7.3",
+]
+
+[[package]]
+name = "streaming-stats"
+version = "0.1.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbc32bf233385fb1ae0c4cf13a8dfd11efec71f6a9de95feac8c870788bc8b25"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
