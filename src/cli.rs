@@ -14,9 +14,29 @@ pub fn generate(length: usize, seed: u64) {
     println!("{}", std::str::from_utf8(&v).unwrap());
 }
 
+pub fn stat(dbg_fa: String, k: usize) {
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let d = dbg::DbgHash::from_seqs(seqs, k);
+    info!("deg {}", d.as_degree_stats());
+    let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
+    let copy_nums_true: Vec<u32> = cdbg
+        .iter_nodes()
+        .map(|v| {
+            let kmer = cdbg.kmer(&v);
+            d.find(kmer)
+        })
+        .collect();
+
+    let total = cdbg.total_emitable_copy_num(&copy_nums_true);
+    let p = cdbg.is_consistent_copy_num(&copy_nums_true);
+    info!("copy-nums total={} consistent={:?}", total, p);
+    info!("cycle {}", cdbg.as_cycle_stats());
+}
+
 pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, param: PHMMParams) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
+    info!("{}", d.dbg.as_degree_stats());
     // println!("{}", d.as_dot());
     // println!("{}", d.dbg.as_dot());
     // let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
@@ -80,8 +100,7 @@ pub fn sandbox2() {
 
 pub fn sandbox3() {
     // compressed_dbg::test();
-    // optimizer::cdbg::test();
-    hmm::cdbg::test();
-
-    distribution::test();
+    optimizer::cdbg::test();
+    // hmm::cdbg::test();
+    // distribution::test();
 }

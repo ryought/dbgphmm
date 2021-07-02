@@ -70,7 +70,7 @@ pub fn simple_run<T: SAState>(init: T, n_iteration: u64) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
     let mut now = init;
     for i in 0..n_iteration {
-        debug!("now: {}", now.as_string());
+        debug!("now: score={} state={}", now.score(), now.as_string());
         now = now.next(&mut rng);
     }
 }

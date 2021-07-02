@@ -62,7 +62,10 @@ impl CompressedDBG {
             .map(|key| {
                 s.cycle_components(key)
                     .iter()
-                    .map(|kmer| *ids.get(kmer).unwrap())
+                    .map(|kmer| {
+                        *ids.get(kmer)
+                            .unwrap_or_else(|| panic!("kmer not found {}", kmer))
+                    })
                     .collect()
             })
             .collect();
@@ -210,6 +213,12 @@ impl CompressedDBG {
             }
         }
         writeln!(&mut s, "}}");
+        s
+    }
+
+    pub fn as_cycle_stats(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "#cycles={}", self.n_cycles());
         s
     }
 }

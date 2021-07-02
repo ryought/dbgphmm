@@ -45,10 +45,7 @@ impl DbgPHMM {
     }
     pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgPHMM {
         // construct dbg
-        let mut d = DbgHash::new();
-        for seq in seqs.iter() {
-            d.add_seq(seq, k);
-        }
+        let d = DbgHash::from_seqs(seqs, k);
         DbgPHMM::from_dbg(d)
     }
     pub fn new(kmers: Vec<Kmer>, copy_nums: Vec<u32>) -> Option<DbgPHMM> {

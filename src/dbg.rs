@@ -283,6 +283,14 @@ impl DbgHash {
         d.add_seq(seq, k);
         d
     }
+    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgHash {
+        // construct dbg
+        let mut d = DbgHash::new();
+        for seq in seqs.iter() {
+            d.add_seq(seq, k);
+        }
+        d
+    }
 }
 
 pub fn test() {

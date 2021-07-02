@@ -35,6 +35,7 @@ struct Opts {
 #[derive(Clap)]
 enum SubCommand {
     Generate(Generate),
+    Stat(Stat),
     Sample(Sample),
     CalcProb(CalcProb),
     Optimize(Optimize),
@@ -50,6 +51,13 @@ struct Generate {
     /// random seed
     #[clap(short = 's', long, default_value = "0")]
     seed: u64,
+}
+
+/// Show de bruijn graph statistics
+#[derive(Clap)]
+struct Stat {
+    /// dbg fasta file
+    dbg_fa: String,
 }
 
 /// Sample reads from the model
@@ -107,6 +115,9 @@ fn main() {
     match opts.subcmd {
         SubCommand::Generate(t) => {
             cli::generate(t.length, t.seed);
+        }
+        SubCommand::Stat(t) => {
+            cli::stat(t.dbg_fa, k);
         }
         SubCommand::Sample(t) => {
             cli::sample(t.dbg_fa, t.length, t.n_reads, k, t.seed, param);

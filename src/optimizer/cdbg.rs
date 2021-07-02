@@ -1,6 +1,7 @@
 use super::base::{simple_run, SAState};
 use crate::compressed_dbg::CompressedDBG;
 use crate::dbg::{DbgHash, DBG};
+use crate::distribution::normal_bin;
 use log::{debug, info, warn};
 use rand::prelude::*;
 use std::fmt::Write as FmtWrite;
@@ -41,8 +42,12 @@ impl<'a> SAState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
-        // TODO temporary constant scores
-        1.0
+        normal_bin(
+            self.cdbg.total_emitable_copy_num(&self.copy_nums),
+            self.ave_size,
+            self.std_size,
+        )
+        .to_log_value()
     }
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
@@ -92,6 +97,6 @@ pub fn test() {
     d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
     let cdbg = CompressedDBG::from(&d, 8);
 
-    let s0 = CDbgState::init(&cdbg, 20, 10);
+    let s0 = CDbgState::init(&cdbg, 26, 10);
     simple_run(s0, 100);
 }
