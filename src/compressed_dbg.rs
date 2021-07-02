@@ -4,6 +4,7 @@ use crate::graph::Node;
 use crate::kmer::kmer::{null_kmer, Kmer};
 use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
+use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 
 /// indexed and compressed dbg
@@ -129,9 +130,22 @@ impl CompressedDBG {
     }
     /// check copy_nums consistency by
     /// (total cn of parents) == (total cn of childs of one of the parents)
-    /// TODO
     pub fn is_consistent_copy_num(&self, copy_nums: &[u32]) -> bool {
-        true
+        if self.n_kmers() != copy_nums.len() {
+            warn!("copy_nums shape mismatch");
+            return false;
+        }
+        self.iter_nodes().all(|v| {
+            let parents = self.parents(&v);
+            if parents.len() == 0 {
+                false
+            } else {
+                let siblings = self.childs(&parents[0]);
+                let total_parents: u32 = parents.iter().map(|v| copy_nums[v.0]).sum();
+                let total_siblings: u32 = siblings.iter().map(|v| copy_nums[v.0]).sum();
+                total_parents == total_siblings
+            }
+        })
     }
     pub fn total_emitable_copy_num(&self, copy_nums: &[u32]) -> u32 {
         (0..self.n_kmers())
@@ -188,6 +202,17 @@ pub fn test() {
     // d.add_seq(b"ATCTCGATCTTGATAGATCG", 8);
     // println!("{}", d.as_dot());
     let cdbg = CompressedDBG::from(&d, 8);
+    let copy_nums_true: Vec<u32> = cdbg
+        .iter_nodes()
+        .map(|v| {
+            let kmer = cdbg.kmer(&v);
+            d.find(kmer)
+        })
+        .collect();
+    println!("copy-nums {:?}", copy_nums_true);
+
+    let p = cdbg.is_consistent_copy_num(&copy_nums_true);
+    println!("copy-nums-consistency {:?}", p);
 
     /*
     for (i, v) in cdbg.iter_nodes().enumerate() {
@@ -205,5 +230,5 @@ pub fn test() {
     }
     */
 
-    println!("{}", cdbg.as_dot_with_cycle(1));
+    // println!("{}", cdbg.as_dot_with_cycle(1));
 }
