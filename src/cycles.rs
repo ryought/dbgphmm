@@ -14,6 +14,18 @@ enum ParentType {
     Pred,
 }
 
+/// Cycle is a sequence of k-mers
+/// For example, direction of ATCG -> TCGT -> CGTA is all forward.
+/// but ATCG -> CATC is reverse.
+/// i.e.
+/// Forward <=> XYYY -> YYYZ
+/// Reverse <=> YYYX -> ZYYY
+#[derive(Copy, Clone, Debug)]
+pub enum CycleDirection {
+    Forward,
+    Reverse,
+}
+
 pub struct DbgTree {
     root: Kmer,
     parent_on_tree: HashMap<Kmer, (Kmer, ParentType)>,
@@ -114,9 +126,9 @@ impl DbgTree {
         };
         (parent_km1mer.clone(), edge_kmer, parent_type)
     }
-    pub fn cycle_components(&self, kmer: &Kmer) -> Vec<Kmer> {
-        let mut lefts: Vec<Kmer> = Vec::new(); // edges
-        let mut rights: Vec<Kmer> = Vec::new(); // edges
+    pub fn cycle_components(&self, kmer: &Kmer) -> Vec<(Kmer, CycleDirection)> {
+        let mut lefts: Vec<(Kmer, CycleDirection)> = Vec::new(); // edges
+        let mut rights: Vec<(Kmer, CycleDirection)> = Vec::new(); // edges
 
         // find joints in the tree
         //  <------   left
@@ -135,13 +147,23 @@ impl DbgTree {
         for _ in d..right_depth {
             debug!("right: {}", d);
             let (r, edge, p_type) = self.go_up_tree(&right);
-            rights.push(edge);
+            // if going right (child -> parent), Pred is Forward
+            let direction = match p_type {
+                ParentType::Pred => CycleDirection::Forward,
+                ParentType::Succ => CycleDirection::Reverse,
+            };
+            rights.push((edge, direction));
             right = r;
         }
         for _ in d..left_depth {
             debug!("left: {}", d);
             let (l, edge, p_type) = self.go_up_tree(&left);
-            lefts.push(edge);
+            // if going left (parent -> child), Succ is Forward
+            let direction = match p_type {
+                ParentType::Succ => CycleDirection::Forward,
+                ParentType::Pred => CycleDirection::Reverse,
+            };
+            lefts.push((edge, direction));
             left = l;
         }
 
@@ -158,18 +180,29 @@ impl DbgTree {
                 break;
             } else {
                 let (r, edge, p_type) = self.go_up_tree(&right);
-                rights.push(edge);
+                // if going right (child -> parent), Pred is Forward
+                let direction = match p_type {
+                    ParentType::Pred => CycleDirection::Forward,
+                    ParentType::Succ => CycleDirection::Reverse,
+                };
+                rights.push((edge, direction));
                 right = r;
                 let (l, edge, p_type) = self.go_up_tree(&left);
-                lefts.push(edge);
+                // if going left (parent -> child), Succ is Forward
+                let direction = match p_type {
+                    ParentType::Succ => CycleDirection::Forward,
+                    ParentType::Pred => CycleDirection::Reverse,
+                };
+                lefts.push((edge, direction));
                 left = l;
             }
         }
 
-        let path: Vec<Kmer> = std::iter::once(kmer.clone())
-            .chain(rights.into_iter())
-            .chain(lefts.into_iter().rev())
-            .collect();
+        let path: Vec<(Kmer, CycleDirection)> =
+            std::iter::once((kmer.clone(), CycleDirection::Forward))
+                .chain(rights.into_iter())
+                .chain(lefts.into_iter().rev())
+                .collect();
         path
     }
     pub fn as_stats(&self) -> String {

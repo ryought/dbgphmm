@@ -58,6 +58,12 @@ impl CompressedDBG {
         let root = null_kmer(k - 1);
         let s = cycles::DbgTree::new(dbg, &root);
 
+        for i in s.cycle_keys() {
+            for (v, t) in s.cycle_components(i) {
+                println!("cycle{} {} {:?}", i, v, t);
+            }
+        }
+
         let cycles: Vec<Vec<Node>> = s
             .cycle_keys()
             .iter()
@@ -65,7 +71,7 @@ impl CompressedDBG {
                 s.cycle_components(key)
                     .iter()
                     .enumerate()
-                    .map(|(i, kmer)| {
+                    .map(|(i, (kmer, _))| {
                         *ids.get(kmer).unwrap_or_else(|| {
                             panic!(
                                 "kmer not found (#{} in {}) {}",
