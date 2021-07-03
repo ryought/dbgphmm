@@ -1,4 +1,5 @@
 use crate::cycles;
+use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::graph::Node;
 use crate::kmer::kmer::{null_kmer, Kmer};
@@ -20,7 +21,7 @@ pub struct CompressedDBG {
     kmers: Vec<Kmer>,
     ids: HashMap<Kmer, Node>,
     emissions: Vec<u8>,
-    cycles: Vec<Vec<Node>>,
+    cycles: Vec<Vec<(Node, CycleDirection)>>,
 }
 
 impl CompressedDBG {
@@ -58,29 +59,13 @@ impl CompressedDBG {
         let root = null_kmer(k - 1);
         let s = cycles::DbgTree::new(dbg, &root);
 
-        for i in s.cycle_keys() {
-            for (v, t) in s.cycle_components(i) {
-                println!("cycle{} {} {:?}", i, v, t);
-            }
-        }
-
-        let cycles: Vec<Vec<Node>> = s
+        let cycles: Vec<Vec<(Node, CycleDirection)>> = s
             .cycle_keys()
             .iter()
             .map(|key| {
                 s.cycle_components(key)
                     .iter()
-                    .enumerate()
-                    .map(|(i, (kmer, _))| {
-                        *ids.get(kmer).unwrap_or_else(|| {
-                            panic!(
-                                "kmer not found (#{} in {}) {}",
-                                i,
-                                s.cycle_components(key).len(),
-                                kmer
-                            )
-                        })
-                    })
+                    .map(|(kmer, dir)| (*ids.get(kmer).unwrap(), *dir))
                     .collect()
             })
             .collect();
@@ -124,7 +109,7 @@ impl CompressedDBG {
     pub fn n_cycles(&self) -> usize {
         self.cycles.len()
     }
-    pub fn cycle_components(&self, cycle_id: usize) -> &[Node] {
+    pub fn cycle_components(&self, cycle_id: usize) -> &[(Node, CycleDirection)] {
         &self.cycles[cycle_id]
     }
     /// Calc transition probabilities from copy numbers of each kmers
@@ -186,6 +171,44 @@ impl CompressedDBG {
             .map(|v| copy_nums[v.0])
             .sum()
     }
+    /// cycle is a sequence of (node, direction)
+    /// when is_up=true, node with direction=Forward will get +1.
+    /// all nodes should be >=0 after this update
+    pub fn is_acceptable(&self, copy_nums: &[u32], cycle_id: usize, is_up: bool) -> bool {
+        self.cycle_components(cycle_id).iter().all(|(v, dir)| {
+            if is_up && *dir == CycleDirection::Reverse {
+                copy_nums[v.0] > 0
+            } else if !is_up && *dir == CycleDirection::Forward {
+                copy_nums[v.0] > 0
+            } else {
+                true
+            }
+        })
+    }
+    pub fn update_by_cycle(&self, copy_nums: &[u32], cycle_id: usize, is_up: bool) -> Vec<u32> {
+        let mut new_copy_nums = copy_nums.to_vec();
+        for (v, dir) in self.cycle_components(cycle_id).iter() {
+            if is_up {
+                match dir {
+                    CycleDirection::Forward => new_copy_nums[v.0] += 1,
+                    CycleDirection::Reverse => new_copy_nums[v.0] -= 1,
+                }
+            } else {
+                match dir {
+                    CycleDirection::Forward => new_copy_nums[v.0] -= 1,
+                    CycleDirection::Reverse => new_copy_nums[v.0] += 1,
+                }
+            }
+        }
+        new_copy_nums
+    }
+    pub fn is_all_cycle_consistent(&self, init_copy_nums: &[u32]) {
+        for i in 0..self.n_cycles() {
+            let x = self.is_acceptable(init_copy_nums, i, true);
+            let y = self.is_acceptable(init_copy_nums, i, false);
+            println!("i={}, x={}, y={}", i, x, y);
+        }
+    }
     /// prior score of this
     /// Assuming genome size ~ Normal(ave, std)
     pub fn prior_score(&self, ave_size: u32, std_size: u32) -> Prob {
@@ -216,7 +239,7 @@ impl CompressedDBG {
         for v in self.iter_nodes() {
             // for node
             let kmer = self.kmer(&v);
-            if cycle.contains(&v) {
+            if cycle.iter().any(|&(w, _)| w == v) {
                 writeln!(&mut s, "\t{} [label=\"{}\" color=red];", v.0, kmer);
             } else {
                 writeln!(&mut s, "\t{} [label=\"{}\"];", v.0, kmer);

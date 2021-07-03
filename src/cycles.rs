@@ -20,7 +20,7 @@ enum ParentType {
 /// i.e.
 /// Forward <=> XYYY -> YYYZ
 /// Reverse <=> YYYX -> ZYYY
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CycleDirection {
     Forward,
     Reverse,

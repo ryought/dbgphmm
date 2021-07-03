@@ -31,6 +31,30 @@ pub fn stat(dbg_fa: String, k: usize) {
     let p = cdbg.is_consistent_copy_num(&copy_nums_true);
     info!("copy-nums total={} consistent={:?}", total, p);
     info!("cycle {}", cdbg.as_cycle_stats());
+
+    for i in 0..cdbg.n_cycles() {
+        let is_a = cdbg.is_acceptable(&copy_nums_true, i, true);
+        let is_b = cdbg.is_acceptable(&copy_nums_true, i, false);
+        let n_rev: u32 = cdbg
+            .cycle_components(i)
+            .iter()
+            .map(|(_, dir)| match dir {
+                cycles::CycleDirection::Reverse => 1,
+                _ => 0,
+            })
+            .sum();
+        let new_a = cdbg.update_by_cycle(&copy_nums_true, i, true);
+        let new_b = cdbg.update_by_cycle(&copy_nums_true, i, false);
+        info!(
+            "cycle#{} up={} down={} up_ok={} down_ok={} n_rev={}",
+            i,
+            is_a,
+            is_b,
+            cdbg.is_consistent_copy_num(&new_a),
+            cdbg.is_consistent_copy_num(&new_b),
+            n_rev,
+        );
+    }
 }
 
 pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, param: PHMMParams) {

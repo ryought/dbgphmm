@@ -1,5 +1,6 @@
 use super::base::{simple_run, SAState};
 use crate::compressed_dbg::CompressedDBG;
+use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
 use log::{debug, info, warn};
@@ -59,13 +60,13 @@ impl<'a> SAState for CDbgState<'a> {
             .cdbg
             .cycle_components(cycle_id)
             .iter()
-            .map(|v| self.copy_nums[v.0])
+            .map(|(v, _)| self.copy_nums[v.0])
             .min()
             .unwrap();
         let is_down: bool = min_copy_num > 0 && rng.gen();
         debug!("direction: {} (min: {})", is_down, min_copy_num);
         let mut copy_nums = self.copy_nums.clone();
-        for v in self.cdbg.cycle_components(cycle_id) {
+        for (v, _) in self.cdbg.cycle_components(cycle_id) {
             if is_down {
                 copy_nums[v.0] -= 1;
             } else {
