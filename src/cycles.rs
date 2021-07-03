@@ -6,6 +6,7 @@ use log::{debug, info, warn};
 use std::collections::VecDeque;
 use std::fmt::Write as FmtWrite;
 
+#[derive(Copy, Clone)]
 enum ParentType {
     /// parent XYYYY -> child YYYYZ
     Succ,
@@ -105,6 +106,14 @@ impl DbgTree {
     pub fn cycle_keys(&self) -> &[Kmer] {
         &self.loop_edges[..]
     }
+    fn go_up_tree(&self, km1mer: &Kmer) -> (Kmer, Kmer, ParentType) {
+        let (parent_km1mer, parent_type) = self.parent_on_tree.get(km1mer).unwrap().clone();
+        let edge_kmer = match parent_type {
+            ParentType::Succ => km1mer.extend_first(parent_km1mer.first()),
+            ParentType::Pred => km1mer.extend_last(parent_km1mer.last()),
+        };
+        (parent_km1mer.clone(), edge_kmer, parent_type)
+    }
     pub fn cycle_components(&self, kmer: &Kmer) -> Vec<Kmer> {
         let mut lefts: Vec<Kmer> = Vec::new(); // edges
         let mut rights: Vec<Kmer> = Vec::new(); // edges
@@ -125,21 +134,15 @@ impl DbgTree {
 
         for _ in d..right_depth {
             debug!("right: {}", d);
-            let (new_right, right_type) = self.parent_on_tree.get(&right).unwrap().clone();
-            match right_type {
-                ParentType::Succ => rights.push(right.extend_first(new_right.first())),
-                ParentType::Pred => rights.push(right.extend_last(new_right.last())),
-            }
-            right = new_right.clone();
+            let (r, edge, p_type) = self.go_up_tree(&right);
+            rights.push(edge);
+            right = r;
         }
         for _ in d..left_depth {
             debug!("left: {}", d);
-            let (new_left, left_type) = self.parent_on_tree.get(&left).unwrap().clone();
-            match left_type {
-                ParentType::Succ => lefts.push(left.extend_first(new_left.first())),
-                ParentType::Pred => lefts.push(left.extend_last(new_left.last())),
-            }
-            left = new_left.clone();
+            let (l, edge, p_type) = self.go_up_tree(&left);
+            lefts.push(edge);
+            left = l;
         }
 
         // find LCA
@@ -154,18 +157,12 @@ impl DbgTree {
             if right == left || i == d {
                 break;
             } else {
-                let (new_right, right_type) = self.parent_on_tree.get(&right).unwrap().clone();
-                match right_type {
-                    ParentType::Succ => rights.push(right.extend_first(new_right.first())),
-                    ParentType::Pred => rights.push(right.extend_last(new_right.last())),
-                }
-                right = new_right.clone();
-                let (new_left, left_type) = self.parent_on_tree.get(&left).unwrap().clone();
-                match left_type {
-                    ParentType::Succ => lefts.push(left.extend_first(new_left.first())),
-                    ParentType::Pred => lefts.push(left.extend_last(new_left.last())),
-                }
-                left = new_left.clone();
+                let (r, edge, p_type) = self.go_up_tree(&right);
+                rights.push(edge);
+                right = r;
+                let (l, edge, p_type) = self.go_up_tree(&left);
+                lefts.push(edge);
+                left = l;
             }
         }
 
