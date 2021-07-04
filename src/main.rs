@@ -37,7 +37,7 @@ enum SubCommand {
     Generate(Generate),
     Stat(Stat),
     Sample(Sample),
-    CalcProb(CalcProb),
+    Forward(Forward),
     Optimize(Optimize),
     Sandbox(Sandbox),
 }
@@ -78,7 +78,7 @@ struct Sample {
 
 /// Calculate probability that the model produces the reads
 #[derive(Clap)]
-struct CalcProb {
+struct Forward {
     /// dbg fasta file
     dbg_fa: String,
     /// reads fasta file
@@ -88,10 +88,23 @@ struct CalcProb {
 /// Optimize the model to fit the reads
 #[derive(Clap)]
 struct Optimize {
-    /// dbg fasta file
-    dbg_fa: String,
     /// reads fasta file
     reads_fa: String,
+    /// true dbg fasta file for validation
+    #[clap(long)]
+    true_dbg_fa: Option<String>,
+    /// initial temperature in simulated annealing
+    #[clap(short = 'T', long, default_value = "1.0")]
+    init_temp: f64,
+    /// cooling rate in simulated annealing
+    #[clap(short = 'R', long, default_value = "0.8")]
+    cooling_rate: f64,
+    /// average of genome size in prior distribution
+    #[clap(short = 'M', long)]
+    genome_size_ave: u32,
+    /// std. dev. of genome size in prior distribution
+    #[clap(short = 'V', long)]
+    genome_size_std_var: u32,
 }
 
 /// Sandbox for debugging
@@ -122,12 +135,22 @@ fn main() {
         SubCommand::Sample(t) => {
             cli::sample(t.dbg_fa, t.length, t.n_reads, k, t.seed, param);
         }
-        SubCommand::CalcProb(t) => {
-            cli::calc_prob(t.dbg_fa, t.reads_fa, k, param);
+        SubCommand::Forward(t) => {
+            cli::forward(t.dbg_fa, t.reads_fa, k, param);
         }
-        SubCommand::Optimize(t) => {
-            cli::optimize(t.dbg_fa, t.reads_fa, k, param);
-        }
+        SubCommand::Optimize(t) => match t.true_dbg_fa {
+            Some(dbg_fa) => cli::optimize_with_answer(
+                dbg_fa,
+                t.reads_fa,
+                k,
+                param,
+                t.init_temp,
+                t.cooling_rate,
+                t.genome_size_ave,
+                t.genome_size_std_var,
+            ),
+            None => cli::optimize(t.reads_fa, k, param),
+        },
         SubCommand::Sandbox(t) => {
             cli::sandbox3();
         }

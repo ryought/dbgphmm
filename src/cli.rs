@@ -73,7 +73,7 @@ pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, pa
     }
 }
 
-pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
+pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
@@ -91,20 +91,28 @@ pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) 
     println!("#total\t{}", p_total.to_log_value());
 }
 
-pub fn optimize(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
-    info!("{}", d.dbg.as_degree_stats());
-
+/// Experiments of optimizer
+/// 1. construct dbg from reads
+/// 2. determine (true) copy_nums from fa
+/// 3. optimize
+pub fn optimize_with_answer(
+    dbg_fa: String,
+    reads_fa: String,
+    k: usize,
+    param: PHMMParams,
+    init_temp: f64,
+    cooling_rate: f64,
+    ave_size: u32,
+    std_size: u32,
+) {
     let reads = io::fasta::parse_seqs(&reads_fa);
-    let d = hmm::dbg::DbgPHMM::from_seqs(reads, k);
-    info!("{}", d.dbg.as_degree_stats());
+    let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(reads, k);
 
-    let root = kmer::kmer::null_kmer(k - 1);
-    info!("root={}", root);
+    // let seqs = io::fasta::parse_seqs(&dbg_fa);
+}
 
-    let s = cycles::DbgTree::new(&d.dbg, &root);
-    info!("{}", s.as_stats());
+pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
+    println!("not implemented!");
 }
 
 pub fn sandbox() {
