@@ -209,6 +209,18 @@ impl CompressedDBG {
             println!("i={}, x={}, y={}", i, x, y);
         }
     }
+    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> (CompressedDBG, Vec<u32>) {
+        let dbg = DbgHash::from_seqs(seqs, k);
+        let cdbg = CompressedDBG::from(&dbg, k);
+        let copy_nums: Vec<u32> = cdbg
+            .iter_nodes()
+            .map(|v| {
+                let kmer = cdbg.kmer(&v);
+                dbg.find(kmer)
+            })
+            .collect();
+        (cdbg, copy_nums)
+    }
     /// prior score of this
     /// Assuming genome size ~ Normal(ave, std)
     pub fn prior_score(&self, ave_size: u32, std_size: u32) -> Prob {

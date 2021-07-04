@@ -75,13 +75,20 @@ pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, pa
 
 pub fn calc_prob(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
-    let reads = io::fasta::parse_seqs(&reads_fa);
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
+    let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
 
-    let p = d.forward_prob(&param, &reads[0]);
-    println!("forward prob : {}", p);
-    // let p = d.backward(&param, &reads[0]);
-    // println!("backward prob : {}", p[0].FM);
+    let reads = io::fasta::parse_seqs(&reads_fa);
+    let mut ps: Vec<prob::Prob> = Vec::new();
+    for (i, read) in reads.iter().enumerate() {
+        let p = phmm.forward_prob(&param, read);
+        println!("{}\t{}", i, p.to_log_value());
+        ps.push(p);
+        // let p = phmm.backward_prob(&param, read);
+        // println!("backward prob : {}", p);
+    }
+    let p_total: prob::Prob = ps.iter().product();
+    println!("#total\t{}", p_total.to_log_value());
 }
 
 pub fn optimize(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
