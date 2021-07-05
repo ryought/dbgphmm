@@ -20,12 +20,7 @@ pub fn test(r: &[u8], q: &[u8]) {
             model.init_prob(&node),
         );
     }
-    let param = PHMMParams::new(
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        Prob::from_prob(0.01),
-        10,
-    );
+    let param = PHMMParams::default();
     let p = model.forward_prob(&param, q);
     println!("prob = {}", p);
 }

@@ -57,17 +57,38 @@ pub fn stat(dbg_fa: String, k: usize) {
     }
 }
 
-pub fn sample(dbg_fa: String, length: u32, n_reads: u32, k: usize, seed: u64, param: PHMMParams) {
+pub fn sample(
+    dbg_fa: String,
+    length: u32,
+    n_reads: u32,
+    k: usize,
+    seed: u64,
+    param: PHMMParams,
+    start_from_head: bool,
+) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let d = hmm::dbg::DbgPHMM::from_seqs(seqs, k);
-    info!("{}", d.dbg.as_degree_stats());
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
+    let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
+    info!("{}", cdbg.as_degree_stats());
+    let from = if start_from_head {
+        let head = cdbg
+            .heads()
+            .first()
+            .unwrap_or_else(|| panic!("Cannot find head node"))
+            .clone();
+        Some(head)
+    } else {
+        None
+    };
+    info!("from={:?}", from);
+
     // println!("{}", d.as_dot());
     // println!("{}", d.dbg.as_dot());
     // let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
     for i in 0..n_reads {
         // let seed_for_a_read: u64 = rng.gen();
         let seed_for_a_read = seed + i as u64;
-        let seq = d.sample(&param, length, seed_for_a_read);
+        let seq = phmm.sample(&param, length, seed_for_a_read, from);
         let id = format!("{},{}", length, seed_for_a_read);
         io::fasta::dump_seq(&id, &seq);
     }
@@ -115,7 +136,7 @@ pub fn optimize_with_answer(
     let copy_nums_true = cdbg.true_copy_nums_from_seqs(seqs, k).unwrap();
     println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
     */
-    println!("{}", cdbg.as_dot());
+    // println!("{}", cdbg.as_dot());
 }
 
 pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {

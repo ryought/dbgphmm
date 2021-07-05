@@ -24,6 +24,9 @@ struct Opts {
     /// gap extension probability
     #[clap(long, default_value = "0.01")]
     p_gap_ext: f64,
+    /// end probability
+    #[clap(long, default_value = "0.00001")]
+    p_end: f64,
     /// number of consecutive dels to consider
     #[clap(long, default_value = "3")]
     n_max_gaps: u32,
@@ -74,6 +77,9 @@ struct Sample {
     /// random seed
     #[clap(short = 's', long, default_value = "0")]
     seed: u64,
+    /// Require all reads to start from the head node
+    #[clap(long)]
+    start_from_head: bool,
 }
 
 /// Calculate probability that the model produces the reads
@@ -121,6 +127,7 @@ fn main() {
         prob::Prob::from_prob(opts.p_mismatch),
         prob::Prob::from_prob(opts.p_gap_open),
         prob::Prob::from_prob(opts.p_gap_ext),
+        prob::Prob::from_prob(opts.p_end),
         opts.n_max_gaps,
     );
     let k = opts.kmer_size;
@@ -133,7 +140,15 @@ fn main() {
             cli::stat(t.dbg_fa, k);
         }
         SubCommand::Sample(t) => {
-            cli::sample(t.dbg_fa, t.length, t.n_reads, k, t.seed, param);
+            cli::sample(
+                t.dbg_fa,
+                t.length,
+                t.n_reads,
+                k,
+                t.seed,
+                param,
+                t.start_from_head,
+            );
         }
         SubCommand::Forward(t) => {
             cli::forward(t.dbg_fa, t.reads_fa, k, param);

@@ -21,8 +21,13 @@ pub struct PHMMParams {
 }
 
 impl PHMMParams {
-    pub fn new(p_mismatch: Prob, p_gap_open: Prob, p_gap_ext: Prob, n_max_gaps: u32) -> PHMMParams {
-        let p_end = Prob::from_prob(0.00001);
+    pub fn new(
+        p_mismatch: Prob,
+        p_gap_open: Prob,
+        p_gap_ext: Prob,
+        p_end: Prob,
+        n_max_gaps: u32,
+    ) -> PHMMParams {
         PHMMParams {
             p_mismatch,
             p_gap_open,
@@ -51,9 +56,10 @@ impl PHMMParams {
     }
     pub fn default() -> PHMMParams {
         PHMMParams::new(
-            Prob::from_prob(0.01),
-            Prob::from_prob(0.01),
-            Prob::from_prob(0.01),
+            Prob::from_prob(0.01),    // mismatch
+            Prob::from_prob(0.01),    // gap_open
+            Prob::from_prob(0.01),    // gap_ext
+            Prob::from_prob(0.00001), // end
             3,
         )
     }

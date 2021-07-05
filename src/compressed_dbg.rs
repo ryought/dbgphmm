@@ -113,6 +113,15 @@ impl CompressedDBG {
     pub fn cycle_components(&self, cycle_id: usize) -> &[(Node, CycleDirection)] {
         &self.cycles[cycle_id]
     }
+    /// Get a vec of NNNNN{ACGT} in cdbg
+    pub fn heads(&self) -> Vec<Node> {
+        null_kmer(self.k - 1)
+            .succs()
+            .iter()
+            .filter_map(|kmer| self.ids.get(&kmer))
+            .map(|&v| v)
+            .collect()
+    }
     /// Calc transition probabilities from copy numbers of each kmers
     /// given
     /// childs[i] = [0, 1, 2, 3]
@@ -323,6 +332,29 @@ impl CompressedDBG {
             histogram.add(self.cycle_components(i).len() as u64);
         }
         writeln!(&mut s, "{}", histogram);
+        s
+    }
+
+    pub fn as_degree_stats(&self) -> String {
+        let mut s = String::new();
+
+        let mut in_degs: [u32; 6] = [0; 6];
+        let mut out_degs: [u32; 6] = [0; 6];
+        for v in self.iter_nodes() {
+            let in_deg = self.parents(&v).len();
+            let out_deg = self.childs(&v).len();
+            in_degs[in_deg] += 1;
+            out_degs[out_deg] += 1;
+        }
+        writeln!(&mut s, "#kmer: {}", self.n_kmers());
+        writeln!(&mut s, "indeg");
+        for i in 0..6 {
+            writeln!(&mut s, "{}:\t{}", i, in_degs[i]);
+        }
+        writeln!(&mut s, "outdeg");
+        for i in 0..6 {
+            writeln!(&mut s, "{}:\t{}", i, out_degs[i]);
+        }
         s
     }
 }
