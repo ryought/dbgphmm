@@ -1,10 +1,10 @@
-use super::base::{simple_run, SAState};
+use super::base::{simple_run, Annealer, SAState};
 use crate::compressed_dbg::CompressedDBG;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
-use crate::distribution::normal_bin;
 use log::{debug, info, warn};
 use rand::prelude::*;
+use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
 
 /// SAState for cdbg
@@ -37,42 +37,38 @@ impl<'a> CDbgState<'a> {
             std_size,
         }
     }
+    fn choose_cycle_and_direction<R: Rng>(&self, rng: &mut R) -> (usize, bool) {
+        for _ in 0..100 {
+            // 1. pick a cycle
+            let cycle_id = rng.gen_range(0..self.cdbg.n_cycles());
+
+            // 2. pick a direction (+1 or -1) of modifying the copy-nums
+            let is_up_movable = self.cdbg.is_acceptable(&self.copy_nums, cycle_id, true);
+            let is_down_movable = self.cdbg.is_acceptable(&self.copy_nums, cycle_id, false);
+            match (is_up_movable, is_down_movable) {
+                (true, true) => return (cycle_id, rng.gen()),
+                (true, false) => return (cycle_id, true),
+                (false, true) => return (cycle_id, false),
+                _ => continue,
+            };
+        }
+        panic!("movable cycle not found");
+    }
 }
 
 impl<'a> SAState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
-        normal_bin(
-            self.cdbg.total_emitable_copy_num(&self.copy_nums),
-            self.ave_size,
-            self.std_size,
-        )
-        .to_log_value()
+        self.cdbg
+            .prior_score(&self.copy_nums, self.ave_size, self.std_size)
+            .to_log_value()
     }
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
-        // 1. pick a cycle
-        let cycle_id = rng.gen_range(0..self.cdbg.n_cycles());
-        debug!("next: {}", cycle_id);
-        // 2. pick a direction (+1 or -1) of modifying the copy-nums
-        let min_copy_num = self
-            .cdbg
-            .cycle_components(cycle_id)
-            .iter()
-            .map(|(v, _)| self.copy_nums[v.0])
-            .min()
-            .unwrap();
-        let is_down: bool = min_copy_num > 0 && rng.gen();
-        debug!("direction: {} (min: {})", is_down, min_copy_num);
-        let mut copy_nums = self.copy_nums.clone();
-        for (v, _) in self.cdbg.cycle_components(cycle_id) {
-            if is_down {
-                copy_nums[v.0] -= 1;
-            } else {
-                copy_nums[v.0] += 1;
-            }
-        }
+        let (cycle_id, is_up) = self.choose_cycle_and_direction(rng);
+        info!("next: cycle={} up={}", cycle_id, is_up);
+        let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, is_up);
         CDbgState {
             cdbg: self.cdbg,
             copy_nums,
@@ -98,6 +94,13 @@ pub fn test() {
     d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
     let cdbg = CompressedDBG::from(&d, 8);
 
-    let s0 = CDbgState::init(&cdbg, 26, 10);
-    simple_run(s0, 100);
+    let init = CDbgState::init(&cdbg, 26, 10);
+    // simple_run(init, 100);
+
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
+    let a = Annealer::new();
+    let history = a.run(&mut rng, init, 100);
+    for state in history.iter() {
+        println!("f: {:?}", state.score());
+    }
 }

@@ -1,6 +1,7 @@
 use crate::cycles;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
+use crate::distribution::normal_bin;
 use crate::graph::Node;
 use crate::kmer::kmer::{null_kmer, Kmer};
 use crate::prob::Prob;
@@ -223,8 +224,8 @@ impl CompressedDBG {
     }
     /// prior score of this
     /// Assuming genome size ~ Normal(ave, std)
-    pub fn prior_score(&self, ave_size: u32, std_size: u32) -> Prob {
-        Prob::from_prob(1.0)
+    pub fn prior_score(&self, copy_nums: &[u32], ave_size: u32, std_size: u32) -> Prob {
+        normal_bin(self.total_emitable_copy_num(copy_nums), ave_size, std_size)
     }
     /// Graphviz dot format
     pub fn as_dot(&self) -> String {

@@ -38,7 +38,7 @@ impl Annealer {
         // TODO avoid recalculation of now.score()
         let p = ((next.score() - now.score()) / temp).exp();
         // accept next state with prob min(1, p)
-        println!(
+        debug!(
             "{} prob={} P(next)={} P(now)={}",
             iteration,
             p,
@@ -46,10 +46,10 @@ impl Annealer {
             now.score()
         );
         if rng.gen_bool(p.min(1f64)) {
-            println!("A {:?}", next.as_string());
+            debug!("A {:?}", next.as_string());
             next
         } else {
-            println!("R {:?}", now.as_string());
+            debug!("R {:?}", now.as_string());
             now.clone()
         }
     }
