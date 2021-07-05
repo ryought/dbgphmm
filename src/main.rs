@@ -167,7 +167,7 @@ fn main() {
             None => cli::optimize(t.reads_fa, k, param),
         },
         SubCommand::Sandbox(t) => {
-            cli::sandbox3();
+            cli::sandbox();
         }
     }
 

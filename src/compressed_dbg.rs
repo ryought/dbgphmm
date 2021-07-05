@@ -143,6 +143,7 @@ impl CompressedDBG {
                     })
                     .collect();
                 let total_cn: u32 = cns.iter().sum();
+                // TODO check my own copy numbers > 0 ?
                 cns.iter()
                     .map(|&cn| {
                         if self.is_emitable(&v) && total_cn > 0 {

@@ -137,6 +137,26 @@ pub fn optimize_with_answer(
     println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
     */
     // println!("{}", cdbg.as_dot());
+    //
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
+    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums));
+    let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
+
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let v = vec![seqs[0].clone()];
+    let copy_nums_part = cdbg.true_copy_nums_from_seqs(v, k).unwrap();
+    let phmm_part = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums_part);
+
+    let read = b"ATGTGAAAGGGGCCCTAAGATCT";
+    let param = PHMMParams::default();
+    let p = phmm.forward_prob(&param, read);
+    let p_part = phmm_part.forward_prob(&param, read);
+    println!("{}", p);
+    println!("{}", p_part);
+
+    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_part));
+    // println!("{}", phmm_part.as_dot());
 }
 
 pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
@@ -144,34 +164,5 @@ pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
 }
 
 pub fn sandbox() {
-    let mut d = dbg::DbgHash::new();
-    /*
-    let seq = b"ATCGATTCGATTCGAT";
-    let d = dbg::DbgHash::from_seq(seq, 5);
-    */
-    d.add_seq(b"ATCGATTCGATTCGAT", 8);
-    // d.add_seq(b"ATCGATGCGATTCGAT", 8);
-    println!("{}", d.as_dot());
-    // eprintln!("{}", d.as_degree_stats());
-    // eprintln!("{}", d.is_copy_number_consistent());
-    let root = Kmer::from(b"NNNNNNNA");
-    let s = cycles::DbgTree::new(&d, &root);
-    for e in s.cycle_keys().iter() {
-        println!("cycle {} = {:?}", e, s.cycle_components(e));
-    }
-}
-
-pub fn sandbox2() {
-    optimizer::base::test();
-}
-
-pub fn sandbox3() {
-    for kmer in kmer::kmer::linear_seq_to_kmers(b"ATCGTAGCTATTA", 4) {
-        println!("kmer={}", kmer);
-    }
-
-    // compressed_dbg::test();
-    // optimizer::cdbg::test();
-    // hmm::cdbg::test();
-    // distribution::test();
+    println!("sandbox");
 }
