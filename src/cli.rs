@@ -108,7 +108,14 @@ pub fn optimize_with_answer(
     let reads = io::fasta::parse_seqs(&reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(reads, k);
 
-    // let seqs = io::fasta::parse_seqs(&dbg_fa);
+    // TODO what if true kmer is not existent in cdbg?
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    cdbg.check_kmer_existence(seqs, k);
+    /*
+    let copy_nums_true = cdbg.true_copy_nums_from_seqs(seqs, k).unwrap();
+    println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
+    */
+    println!("{}", cdbg.as_dot());
 }
 
 pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
@@ -138,8 +145,12 @@ pub fn sandbox2() {
 }
 
 pub fn sandbox3() {
+    for kmer in kmer::kmer::linear_seq_to_kmers(b"ATCGTAGCTATTA", 4) {
+        println!("kmer={}", kmer);
+    }
+
     // compressed_dbg::test();
-    optimizer::cdbg::test();
+    // optimizer::cdbg::test();
     // hmm::cdbg::test();
     // distribution::test();
 }

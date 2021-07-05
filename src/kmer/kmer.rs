@@ -1,6 +1,7 @@
-///
-/// kmer base struct definitions
-///
+//!
+//! kmer base struct definitions
+//!
+use log::{debug, info, warn};
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 pub struct Kmer(Vec<u8>);
@@ -180,12 +181,11 @@ pub fn null_kmer(k: usize) -> Kmer {
     Kmer::from_vec(v)
 }
 
-/// ATTC -> [NATT, NNAT, NNNA]
+/// ATTC -> [NNNA, NNAT, NATT]
 pub fn starting_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
     let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
     let heads: Vec<Kmer> = (1..k)
-        .rev()
         .map(|i| Kmer::from_vec([&blanks[i..], &kmer.0[..i]].concat()))
         .collect();
     heads
@@ -199,6 +199,26 @@ pub fn ending_kmers(kmer: &Kmer) -> Vec<Kmer> {
         .map(|i| Kmer::from_vec([&kmer.0[i..], &blanks[..i]].concat()))
         .collect();
     tails
+}
+
+/// ATCGATTC -> Iterator on [NNA, NAT, ATC, TCG, ..., TTC, TCN, CNN]
+/// TODO avoid reallocation?
+pub fn linear_seq_to_kmers(seq: &[u8], k: usize) -> impl std::iter::Iterator<Item = Kmer> + '_ {
+    if seq.len() < k {
+        panic!("added sed length={} shorter than k={}", seq.len(), k);
+    }
+    let first_kmer = Kmer::from(&seq[..k]);
+    let last_kmer = Kmer::from(&seq[seq.len() - k..]);
+    starting_kmers(&first_kmer)
+        .into_iter()
+        .chain(seq.windows(k).map(|subseq| Kmer::from(subseq)))
+        .chain(ending_kmers(&last_kmer).into_iter())
+    /*
+    let mut extended_seq = vec![b'N'; k - 1];
+    extended_seq.extend_from_slice(seq);
+    extended_seq.extend_from_slice(&seq[..k - 1]);
+    extended_seq.windows(k).map(|subseq| Kmer::from(subseq))
+    */
 }
 
 #[cfg(test)]

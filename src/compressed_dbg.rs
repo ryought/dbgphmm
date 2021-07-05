@@ -3,7 +3,7 @@ use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
 use crate::graph::Node;
-use crate::kmer::kmer::{null_kmer, Kmer};
+use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
 use histo::Histogram;
@@ -222,6 +222,37 @@ impl CompressedDBG {
             .collect();
         (cdbg, copy_nums)
     }
+    /// calculate true copy nums from seq
+    /// Main use case is to determine the true copy_nums on cdbg constructed from reads
+    /// by using reference information
+    pub fn true_copy_nums_from_seqs(&self, seqs: Vec<Vec<u8>>, k: usize) -> Option<Vec<u32>> {
+        let mut copy_nums: Vec<u32> = vec![0; self.n_kmers()];
+        for seq in seqs.iter() {
+            for kmer in linear_seq_to_kmers(seq, k) {
+                match self.ids.get(&kmer) {
+                    Some(&v) => copy_nums[v.0] += 1,
+                    None => {
+                        warn!("true kmer {} not found in cdbg", kmer);
+                        return None;
+                    }
+                }
+            }
+        }
+        Some(copy_nums)
+    }
+    pub fn check_kmer_existence(&self, seqs: Vec<Vec<u8>>, k: usize) {
+        let mut t: u32 = 0;
+        let mut f: u32 = 0;
+        for seq in seqs.iter() {
+            for kmer in linear_seq_to_kmers(seq, k) {
+                match self.ids.get(&kmer) {
+                    Some(&v) => t += 1,
+                    None => f += 1,
+                }
+            }
+        }
+        warn!("exist={} not_exist={}", t, f);
+    }
     /// prior score of this
     /// Assuming genome size ~ Normal(ave, std)
     pub fn prior_score(&self, copy_nums: &[u32], ave_size: u32, std_size: u32) -> Prob {
@@ -260,6 +291,23 @@ impl CompressedDBG {
             // for edges
             for w in self.childs(&v).iter() {
                 // writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0);
+                writeln!(&mut s, "\t{} -> {};", v.0, w.0);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
+    /// dot with copy_number info on nodes
+    pub fn as_dot_with_copy_nums(&self, copy_nums: &[u32]) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "digraph cdbg {{");
+        for v in self.iter_nodes() {
+            // for node
+            let kmer = self.kmer(&v);
+            let copy_num = copy_nums[v.0];
+            writeln!(&mut s, "\t{} [label=\"{} x{}\"];", v.0, kmer, copy_num);
+            // for edges
+            for w in self.childs(&v).iter() {
                 writeln!(&mut s, "\t{} -> {};", v.0, w.0);
             }
         }
