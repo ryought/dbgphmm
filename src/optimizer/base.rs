@@ -32,24 +32,35 @@ impl Annealer {
     pub fn temp_schedule(&self, iteration: u64) -> f64 {
         self.init_temp * self.cooling_rate.powi(iteration as i32)
     }
-    pub fn step<T: SAState, R: Rng>(&self, rng: &mut R, now: &T, iteration: u64) -> T {
+    pub fn step<T: SAState, R: Rng>(
+        &self,
+        rng: &mut R,
+        now: &T,
+        iteration: u64,
+        is_verbose: bool,
+    ) -> T {
         let temp = self.temp_schedule(iteration);
         let next = now.next(rng);
         // TODO avoid recalculation of now.score()
         let p = ((next.score() - now.score()) / temp).exp();
+
         // accept next state with prob min(1, p)
-        debug!(
-            "{} prob={} P(next)={} P(now)={}",
-            iteration,
-            p,
-            next.score(),
-            now.score()
-        );
-        if rng.gen_bool(p.min(1f64)) {
-            debug!("A {:?}", next.as_string());
+        let is_accepted = rng.gen_bool(p.min(1f64));
+        if is_verbose {
+            println!(
+                "{}\t{:.32}\t{:.32}\t{:.32}\t{:.32}\t{}\t{}",
+                iteration,
+                temp,
+                now.score(),
+                next.score(),
+                p,
+                is_accepted,
+                now.as_string(),
+            )
+        }
+        if is_accepted {
             next
         } else {
-            debug!("R {:?}", now.as_string());
             now.clone()
         }
     }
@@ -57,7 +68,22 @@ impl Annealer {
         let mut states = Vec::new();
         let mut now = init_state;
         for i in 0..n_iteration {
-            let new_state = self.step(rng, &now, i);
+            let new_state = self.step(rng, &now, i, false);
+            states.push(now);
+            now = new_state;
+        }
+        states
+    }
+    pub fn run_with_log<T: SAState, R: Rng>(
+        &self,
+        rng: &mut R,
+        init_state: T,
+        n_iteration: u64,
+    ) -> Vec<T> {
+        let mut states = Vec::new();
+        let mut now = init_state;
+        for i in 0..n_iteration {
+            let new_state = self.step(rng, &now, i, true);
             states.push(now);
             now = new_state;
         }

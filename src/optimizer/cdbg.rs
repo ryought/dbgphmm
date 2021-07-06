@@ -10,29 +10,39 @@ use std::fmt::Write as FmtWrite;
 /// SAState for cdbg
 /// for cycle debugging purpose
 #[derive(Clone)]
-struct CDbgState<'a> {
+pub struct CDbgState<'a> {
     cdbg: &'a CompressedDBG,
     copy_nums: Vec<u32>,
+    cycle_vec: Vec<u32>, // how many times cycle basis was used?
     ave_size: u32,
     std_size: u32,
 }
 
 impl<'a> CDbgState<'a> {
     /// create state with given copy-nums
-    fn new(cdbg: &CompressedDBG, copy_nums: Vec<u32>, ave_size: u32, std_size: u32) -> CDbgState {
+    pub fn new(
+        cdbg: &CompressedDBG,
+        copy_nums: Vec<u32>,
+        cycle_vec: Vec<u32>,
+        ave_size: u32,
+        std_size: u32,
+    ) -> CDbgState {
         CDbgState {
             cdbg,
             copy_nums,
+            cycle_vec,
             ave_size,
             std_size,
         }
     }
     /// initial state with all-zero copy-nums
-    fn init(cdbg: &CompressedDBG, ave_size: u32, std_size: u32) -> CDbgState {
+    pub fn init(cdbg: &CompressedDBG, ave_size: u32, std_size: u32) -> CDbgState {
         let copy_nums = vec![0; cdbg.n_kmers()];
+        let cycle_vec = vec![0; cdbg.n_cycles()];
         CDbgState {
             cdbg,
             copy_nums,
+            cycle_vec,
             ave_size,
             std_size,
         }
@@ -67,23 +77,31 @@ impl<'a> SAState for CDbgState<'a> {
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
         let (cycle_id, is_up) = self.choose_cycle_and_direction(rng);
-        info!("next: cycle={} up={}", cycle_id, is_up);
         let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, is_up);
+        let cycle_vec = self
+            .cdbg
+            .update_cycle_vec_by_cycle(&self.cycle_vec, cycle_id, is_up);
+        let is_consistent = self.cdbg.is_consistent_copy_num(&self.copy_nums);
+        assert!(is_consistent);
+        info!(
+            "next cycle={} up={} is_consistent={}",
+            cycle_id, is_up, is_consistent
+        );
         CDbgState {
             cdbg: self.cdbg,
             copy_nums,
+            cycle_vec,
             ave_size: self.ave_size,
             std_size: self.std_size,
         }
     }
     fn as_string(&self) -> String {
         let mut s = String::new();
-        writeln!(
+        write!(
             &mut s,
-            "{:?} {} {}",
-            self.copy_nums,
-            self.cdbg.is_consistent_copy_num(&self.copy_nums),
-            self.cdbg.total_emitable_copy_num(&self.copy_nums)
+            "{}\t{:?}",
+            self.cdbg.total_emitable_copy_num(&self.copy_nums),
+            self.cycle_vec,
         );
         s
     }

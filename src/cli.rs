@@ -145,17 +145,17 @@ pub fn optimize_with_answer(
     let reads = io::fasta::parse_seqs(&reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
-    // TODO what if true kmer is not existent in cdbg?
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    // cdbg.check_kmer_existence(&seqs, k);
-    let copy_nums_true = cdbg.true_copy_nums_from_seqs(&seqs, k).unwrap();
-    // let total_copy_num_true = cdbg.total_emitable_copy_num(&copy_nums);
-    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
+    let copy_nums_true = cdbg
+        .true_copy_nums_from_seqs(&seqs, k)
+        .unwrap_or_else(|| panic!("True copy_nums is not in read cdbg"));
+    let true_size = cdbg.total_emitable_copy_num(&copy_nums_true);
+    info!("true_size={}", true_size);
 
-    /*
-     */
-    // println!("{}", cdbg.as_dot());
-    //
+    let init = optimizer::cdbg::CDbgState::init(&cdbg, true_size, std_size);
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
+    let a = optimizer::base::Annealer::new();
+    let history = a.run_with_log(&mut rng, init, 100);
 
     /*
     let seqs = io::fasta::parse_seqs(&dbg_fa);

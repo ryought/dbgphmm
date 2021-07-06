@@ -213,6 +213,20 @@ impl CompressedDBG {
         }
         new_copy_nums
     }
+    pub fn update_cycle_vec_by_cycle(
+        &self,
+        cycle_vec: &[u32],
+        cycle_id: usize,
+        is_up: bool,
+    ) -> Vec<u32> {
+        let mut new_cycle_vec = cycle_vec.to_vec();
+        if is_up {
+            new_cycle_vec[cycle_id] += 1;
+        } else {
+            new_cycle_vec[cycle_id] -= 1;
+        }
+        new_cycle_vec
+    }
     pub fn is_all_cycle_consistent(&self, init_copy_nums: &[u32]) {
         for i in 0..self.n_cycles() {
             let x = self.is_acceptable(init_copy_nums, i, true);
