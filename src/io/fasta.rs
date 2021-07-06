@@ -52,9 +52,9 @@ pub fn parse_seqs(filename: &str) -> Vec<Vec<u8>> {
     reads
 }
 
-pub fn dump_seq(id: &str, seq: &[u8]) {
+pub fn dump_seq(id: &str, seq: &[u8], desc: Option<&str>) {
     let mut writer = fasta::Writer::new(io::stdout());
-    writer.write(id, None, seq).unwrap();
+    writer.write(id, desc, seq).unwrap();
 }
 
 pub fn read2() {

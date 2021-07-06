@@ -15,9 +15,47 @@ pub enum State {
     End,
 }
 
+#[derive(Debug)]
+pub struct SampleInfo {
+    pub n_base: u32,
+    pub n_match: u32,
+    pub n_mismatch: u32,
+    pub n_ins: u32,
+    pub n_del: u32,
+}
+
+impl SampleInfo {
+    fn new() -> SampleInfo {
+        SampleInfo {
+            n_base: 0,
+            n_match: 0,
+            n_mismatch: 0,
+            n_ins: 0,
+            n_del: 0,
+        }
+    }
+}
+
+// display
+impl std::fmt::Display for SampleInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}={}+{}+{},{}",
+            self.n_base, self.n_match, self.n_mismatch, self.n_ins, self.n_del
+        )
+    }
+}
+
 pub trait PHMMSampler: PHMM {
     // sampling related
-    fn sample(&self, param: &PHMMParams, length: u32, seed: u64, from: Option<Node>) -> Vec<u8> {
+    fn sample(
+        &self,
+        param: &PHMMParams,
+        length: u32,
+        seed: u64,
+        from: Option<Node>,
+    ) -> (Vec<u8>, SampleInfo) {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let mut emissions: Vec<u8> = Vec::new();
         let mut now: (State, Node) = (State::MatchBegin, Node(0));
@@ -26,6 +64,8 @@ pub trait PHMMSampler: PHMM {
             None => (false, Node(0)),
         };
 
+        let mut info = SampleInfo::new();
+
         for i in 0..=length {
             trace!("iter {} {:?}", i, now);
             // 1. emission
@@ -33,13 +73,27 @@ pub trait PHMMSampler: PHMM {
                 (State::Match, v) => {
                     let emission_match_choices = emission_match_choices(&param, self.emission(&v));
                     let emission = pick_with_prob(&mut rng, &emission_match_choices);
+
+                    // store info
                     trace!("emit {} <- {}", emission as char, self.emission(&v) as char);
+                    if emission != self.emission(&v) {
+                        info.n_mismatch += 1;
+                    } else {
+                        info.n_match += 1;
+                    }
+                    info.n_base += 1;
+
                     emissions.push(emission);
                 }
                 (State::Ins, _) | (State::InsBegin, _) => {
                     let emission_ins_choices = emission_ins_choices(&param);
                     let emission = pick_with_prob(&mut rng, &emission_ins_choices);
+
+                    // store info
                     trace!("emit {} <- 0", emission as char);
+                    info.n_base += 1;
+                    info.n_ins += 1;
+
                     emissions.push(emission);
                 }
                 _ => {}
@@ -101,6 +155,8 @@ pub trait PHMMSampler: PHMM {
                     }
                 }
                 (State::Del, v) => {
+                    info.n_del += 1;
+
                     let state_choices = [
                         (State::Match, param.p_DM),
                         (State::Ins, param.p_DI),
@@ -187,7 +243,7 @@ pub trait PHMMSampler: PHMM {
             };
             now = next;
         }
-        emissions
+        (emissions, info)
     }
 }
 

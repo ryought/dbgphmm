@@ -235,7 +235,7 @@ impl CompressedDBG {
     /// calculate true copy nums from seq
     /// Main use case is to determine the true copy_nums on cdbg constructed from reads
     /// by using reference information
-    pub fn true_copy_nums_from_seqs(&self, seqs: Vec<Vec<u8>>, k: usize) -> Option<Vec<u32>> {
+    pub fn true_copy_nums_from_seqs(&self, seqs: &[Vec<u8>], k: usize) -> Option<Vec<u32>> {
         let mut copy_nums: Vec<u32> = vec![0; self.n_kmers()];
         for seq in seqs.iter() {
             for kmer in linear_seq_to_kmers(seq, k) {
@@ -250,7 +250,7 @@ impl CompressedDBG {
         }
         Some(copy_nums)
     }
-    pub fn check_kmer_existence(&self, seqs: Vec<Vec<u8>>, k: usize) {
+    pub fn check_kmer_existence(&self, seqs: &[Vec<u8>], k: usize) {
         let mut t: u32 = 0;
         let mut f: u32 = 0;
         for seq in seqs.iter() {

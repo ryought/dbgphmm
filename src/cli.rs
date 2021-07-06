@@ -88,9 +88,9 @@ pub fn sample(
     for i in 0..n_reads {
         // let seed_for_a_read: u64 = rng.gen();
         let seed_for_a_read = seed + i as u64;
-        let seq = phmm.sample(&param, length, seed_for_a_read, from);
+        let (seq, info) = phmm.sample(&param, length, seed_for_a_read, from);
         let id = format!("{},{}", length, seed_for_a_read);
-        io::fasta::dump_seq(&id, &seq);
+        io::fasta::dump_seq(&id, &seq, Some(&info.to_string()));
     }
 }
 
@@ -131,13 +131,17 @@ pub fn optimize_with_answer(
 
     // TODO what if true kmer is not existent in cdbg?
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    cdbg.check_kmer_existence(seqs, k);
+    // cdbg.check_kmer_existence(&seqs, k);
+    let copy_nums_true = cdbg.true_copy_nums_from_seqs(&seqs, k).unwrap();
+    let total_copy_num_true = cdbg.total_emitable_copy_num(&copy_nums);
+    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
+
     /*
-    let copy_nums_true = cdbg.true_copy_nums_from_seqs(seqs, k).unwrap();
-    println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
-    */
+     */
     // println!("{}", cdbg.as_dot());
     //
+
+    /*
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
     // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums));
@@ -154,6 +158,7 @@ pub fn optimize_with_answer(
     let p_part = phmm_part.forward_prob(&param, read);
     println!("{}", p);
     println!("{}", p_part);
+    */
 
     // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_part));
     // println!("{}", phmm_part.as_dot());
