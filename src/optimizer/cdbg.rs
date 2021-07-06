@@ -12,7 +12,7 @@ use std::fmt::Write as FmtWrite;
 #[derive(Clone)]
 pub struct CDbgState<'a> {
     cdbg: &'a CompressedDBG,
-    copy_nums: Vec<u32>,
+    pub copy_nums: Vec<u32>,
     cycle_vec: Vec<u32>, // how many times cycle basis was used?
     ave_size: u32,
     std_size: u32,
