@@ -164,11 +164,12 @@ pub fn optimize_with_answer(
         let a = optimizer::base::Annealer::new();
         let history = a.run_with_log(&mut rng, init_state, 100);
 
+        let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
         let true_state = optimizer::cdbg::CDbgState::new(
             optimizer::cdbg::ModelType::PriorOnly,
             &cdbg,
             copy_nums_true.clone(),
-            vec![1; cdbg.n_cycles()],
+            cycle_vec_true,
             true_size,
             std_size,
         );

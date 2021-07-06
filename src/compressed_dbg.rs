@@ -227,6 +227,46 @@ impl CompressedDBG {
         }
         new_cycle_vec
     }
+    /// Convert copy_nums into cycle_vec
+    /// For each cycle basis,
+    /// (the amount of cycle basis in the cycle vec) == (copy_num of cycle key edge)
+    /// and the total amount will be the cycle vec
+    pub fn cycle_vec_from_copy_nums(&self, copy_nums: &[u32]) -> Vec<u32> {
+        let mut cycle_vec: Vec<i32> = vec![0; self.n_cycles()];
+        for cycle_id in 0..self.n_cycles() {
+            let (node, _) = self.cycle_components(cycle_id).first().unwrap();
+            let count = copy_nums[node.0];
+            cycle_vec[cycle_id] += count as i32;
+        }
+        cycle_vec
+            .iter()
+            .map(|&x| {
+                assert!(x >= 0);
+                x as u32
+            })
+            .collect()
+    }
+    /// Convert cycle_vec into copy_nums
+    /// Inverse function of cycle_vec_from_copy_nums
+    pub fn copy_nums_from_cycle_vec(&self, cycle_vec: &[u32]) -> Vec<u32> {
+        let mut copy_nums: Vec<i32> = vec![0; self.n_kmers()];
+        for cycle_id in 0..self.n_cycles() {
+            let count = cycle_vec[cycle_id];
+            for (node, dir) in self.cycle_components(cycle_id).iter() {
+                match dir {
+                    CycleDirection::Forward => copy_nums[node.0] += count as i32,
+                    CycleDirection::Reverse => copy_nums[node.0] -= count as i32,
+                }
+            }
+        }
+        copy_nums
+            .iter()
+            .map(|&x| {
+                assert!(x >= 0);
+                x as u32
+            })
+            .collect()
+    }
     pub fn is_all_cycle_consistent(&self, init_copy_nums: &[u32]) {
         for i in 0..self.n_cycles() {
             let x = self.is_acceptable(init_copy_nums, i, true);
