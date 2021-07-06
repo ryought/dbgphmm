@@ -10,6 +10,8 @@ pub trait SAState: Clone {
     /// Score of the state. Typically, this score corresponds to
     /// the log likelihood (log p) of the model to be maximized.
     fn score(&self) -> f64;
+    /// fill the score on cache
+    fn fill_score(&mut self) -> f64;
     /// get a randomly-picked neighbor state (using rng)
     fn next<R: Rng>(&self, rng: &mut R) -> Self;
     /// output for logging
@@ -40,7 +42,8 @@ impl Annealer {
         is_verbose: bool,
     ) -> T {
         let temp = self.temp_schedule(iteration);
-        let next = now.next(rng);
+        let mut next = now.next(rng);
+        next.fill_score();
         // TODO avoid recalculation of now.score()
         let p = ((next.score() - now.score()) / temp).exp();
 
@@ -67,6 +70,7 @@ impl Annealer {
     pub fn run<T: SAState, R: Rng>(&self, rng: &mut R, init_state: T, n_iteration: u64) -> Vec<T> {
         let mut states = Vec::new();
         let mut now = init_state;
+        now.fill_score();
         for i in 0..n_iteration {
             let new_state = self.step(rng, &now, i, false);
             states.push(now);
@@ -82,6 +86,7 @@ impl Annealer {
     ) -> Vec<T> {
         let mut states = Vec::new();
         let mut now = init_state;
+        now.fill_score();
         for i in 0..n_iteration {
             let new_state = self.step(rng, &now, i, true);
             states.push(now);
@@ -118,6 +123,9 @@ impl SAState for TestState {
     /// score by how near the target value
     fn score(&self) -> f64 {
         -(0.3 - (self.bits.iter().sum::<u8>() as f64 / self.bits.len() as f64)).abs()
+    }
+    fn fill_score(&mut self) -> f64 {
+        self.score()
     }
     /// pick random position and swap it
     fn next<R: Rng>(&self, rng: &mut R) -> TestState {

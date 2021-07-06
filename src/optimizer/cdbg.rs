@@ -21,6 +21,8 @@ pub struct CDbgState<'a> {
     std_size: u32,
     reads: Option<&'a [Vec<u8>]>,
     param: PHMMParams,
+    prior_score_cache: Option<Prob>,
+    forward_score_cache: Option<Prob>,
 }
 
 impl<'a> CDbgState<'a> {
@@ -42,6 +44,8 @@ impl<'a> CDbgState<'a> {
             std_size,
             reads,
             param,
+            prior_score_cache: None,
+            forward_score_cache: None,
         }
     }
     /// initial state with all-zero copy-nums
@@ -95,10 +99,17 @@ impl<'a> CDbgState<'a> {
             None => Prob::from_prob(1.0),
         }
     }
-    fn score(&self) -> Prob {
-        match self.reads {
-            Some(reads) => self.prior_score() + self.forward_score(),
-            None => self.prior_score(),
+    fn calc_score(&mut self) -> Prob {
+        match (self.prior_score_cache, self.forward_score_cache) {
+            (Some(prior_score), Some(forward_score)) => prior_score + forward_score,
+            _ => {
+                let prior_score = self.prior_score();
+                let forward_score = self.forward_score();
+                self.prior_score_cache = Some(prior_score);
+                self.forward_score_cache = Some(forward_score);
+                warn!("score filled {} {}", prior_score, forward_score);
+                prior_score + forward_score
+            }
         }
     }
 }
@@ -107,7 +118,11 @@ impl<'a> SAState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
-        self.score().to_log_value()
+        (self.prior_score_cache.unwrap() + self.forward_score_cache.unwrap()).to_log_value()
+    }
+    fn fill_score(&mut self) -> f64 {
+        self.calc_score();
+        self.score()
     }
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
@@ -128,18 +143,34 @@ impl<'a> SAState for CDbgState<'a> {
             cycle_vec,
             ave_size: self.ave_size,
             std_size: self.std_size,
-            reads: None,
+            reads: self.reads,
             param: self.param.clone(),
+            prior_score_cache: None,
+            forward_score_cache: None,
         }
     }
     fn as_string(&self) -> String {
         let mut s = String::new();
-        write!(
-            &mut s,
-            "{}\t{:?}",
-            self.cdbg.total_emitable_copy_num(&self.copy_nums),
-            self.cycle_vec,
-        );
+        match (self.prior_score_cache, self.forward_score_cache) {
+            (Some(prior_score), Some(forward_score)) => {
+                write!(
+                    &mut s,
+                    "{}\t{}\t{}\t{:?}",
+                    prior_score,
+                    forward_score,
+                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cycle_vec,
+                );
+            }
+            _ => {
+                write!(
+                    &mut s,
+                    "Defered\tDefered\t{}\t{:?}",
+                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cycle_vec,
+                );
+            }
+        }
         s
     }
 }
@@ -156,7 +187,4 @@ pub fn test() {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
     let a = Annealer::new();
     let history = a.run(&mut rng, init, 100);
-    for state in history.iter() {
-        println!("f: {:?}", state.score());
-    }
 }
