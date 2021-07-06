@@ -16,7 +16,7 @@ pub fn generate(length: usize, seed: u64) {
 
 pub fn stat(dbg_fa: String, k: usize) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let d = dbg::DbgHash::from_seqs(seqs, k);
+    let d = dbg::DbgHash::from_seqs(&seqs, k);
     info!("deg {}", d.as_degree_stats());
     let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
     let copy_nums_true: Vec<u32> = cdbg
@@ -57,6 +57,17 @@ pub fn stat(dbg_fa: String, k: usize) {
     }
 }
 
+pub fn readstat(dbg_fa: String, reads_fa: String, k: usize) {
+    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let dbg = dbg::DbgHash::from_seqs(&seqs, k);
+
+    let reads = io::fasta::parse_seqs(&reads_fa);
+    let read_dbg = dbg::DbgHash::from_seqs(&reads, k);
+
+    let result = dbg.compare_dbg(&read_dbg);
+    println!("{:?}", result);
+}
+
 pub fn sample(
     dbg_fa: String,
     length: u32,
@@ -67,7 +78,7 @@ pub fn sample(
     start_from_head: bool,
 ) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
     info!("{}", cdbg.as_degree_stats());
     let from = if start_from_head {
@@ -96,7 +107,7 @@ pub fn sample(
 
 pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
 
     let reads = io::fasta::parse_seqs(&reads_fa);
@@ -127,13 +138,13 @@ pub fn optimize_with_answer(
     std_size: u32,
 ) {
     let reads = io::fasta::parse_seqs(&reads_fa);
-    let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(reads, k);
+    let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
     // TODO what if true kmer is not existent in cdbg?
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     // cdbg.check_kmer_existence(&seqs, k);
     let copy_nums_true = cdbg.true_copy_nums_from_seqs(&seqs, k).unwrap();
-    let total_copy_num_true = cdbg.total_emitable_copy_num(&copy_nums);
+    // let total_copy_num_true = cdbg.total_emitable_copy_num(&copy_nums);
     // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_true));
 
     /*

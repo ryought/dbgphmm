@@ -43,7 +43,7 @@ impl DbgPHMM {
             emissions,
         }
     }
-    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgPHMM {
+    pub fn from_seqs(seqs: &[Vec<u8>], k: usize) -> DbgPHMM {
         // construct dbg
         let d = DbgHash::from_seqs(seqs, k);
         DbgPHMM::from_dbg(d)

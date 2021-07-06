@@ -39,6 +39,7 @@ struct Opts {
 enum SubCommand {
     Generate(Generate),
     Stat(Stat),
+    ReadStat(ReadStat),
     Sample(Sample),
     Forward(Forward),
     Optimize(Optimize),
@@ -61,6 +62,15 @@ struct Generate {
 struct Stat {
     /// dbg fasta file
     dbg_fa: String,
+}
+
+/// Statistics of reads
+#[derive(Clap)]
+struct ReadStat {
+    /// dbg fasta file
+    dbg_fa: String,
+    /// read fasta file
+    reads_fa: String,
 }
 
 /// Sample reads from the model
@@ -138,6 +148,9 @@ fn main() {
         }
         SubCommand::Stat(t) => {
             cli::stat(t.dbg_fa, k);
+        }
+        SubCommand::ReadStat(t) => {
+            cli::readstat(t.dbg_fa, t.reads_fa, k);
         }
         SubCommand::Sample(t) => {
             cli::sample(

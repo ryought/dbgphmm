@@ -220,7 +220,7 @@ impl CompressedDBG {
             println!("i={}, x={}, y={}", i, x, y);
         }
     }
-    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> (CompressedDBG, Vec<u32>) {
+    pub fn from_seqs(seqs: &[Vec<u8>], k: usize) -> (CompressedDBG, Vec<u32>) {
         let dbg = DbgHash::from_seqs(seqs, k);
         let cdbg = CompressedDBG::from(&dbg, k);
         let copy_nums: Vec<u32> = cdbg
@@ -250,7 +250,7 @@ impl CompressedDBG {
         }
         Some(copy_nums)
     }
-    pub fn check_kmer_existence(&self, seqs: &[Vec<u8>], k: usize) {
+    pub fn check_kmer_existence(&self, seqs: &[Vec<u8>], k: usize) -> (u32, u32) {
         let mut t: u32 = 0;
         let mut f: u32 = 0;
         for seq in seqs.iter() {
@@ -261,7 +261,7 @@ impl CompressedDBG {
                 }
             }
         }
-        warn!("exist={} not_exist={}", t, f);
+        (t, f)
     }
     /// prior score of this
     /// Assuming genome size ~ Normal(ave, std)

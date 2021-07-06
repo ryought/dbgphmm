@@ -8,6 +8,23 @@ use std::fmt::Write as FmtWrite;
 // use ahash::AHashMap as HashMap;
 // use std::collections::HashMap;
 
+#[derive(Debug)]
+pub struct DBGCompareResult {
+    pub n_shared: u32,
+    pub n_self_only: u32,
+    pub n_other_only: u32,
+}
+
+impl DBGCompareResult {
+    fn new() -> DBGCompareResult {
+        DBGCompareResult {
+            n_shared: 0,
+            n_self_only: 0,
+            n_other_only: 0,
+        }
+    }
+}
+
 pub trait DBG {
     fn new() -> Self;
     fn add(&mut self, kmer: Kmer, copy_num: u32);
@@ -238,8 +255,28 @@ pub trait DBG {
         }
         s
     }
-    // searching
-    fn spanning_tree(&self) {}
+    // stats
+    /// Compare two dbg (self and other).
+    /// kmers of type {shared, self-only, other-only}
+    /// and its occurrence
+    fn compare_dbg<T: DBG>(&self, other: &T) -> DBGCompareResult {
+        let mut r = DBGCompareResult::new();
+
+        for self_kmer in self.kmers().iter() {
+            if other.is_exists(&self_kmer) {
+                r.n_shared += 1;
+            } else {
+                r.n_self_only += 1;
+            }
+        }
+
+        for other_kmer in other.kmers().iter() {
+            if !self.is_exists(&other_kmer) {
+                r.n_other_only += 1;
+            }
+        }
+        r
+    }
 }
 
 pub struct DbgHash {
@@ -283,13 +320,16 @@ impl DbgHash {
         d.add_seq(seq, k);
         d
     }
-    pub fn from_seqs(seqs: Vec<Vec<u8>>, k: usize) -> DbgHash {
+    pub fn from_seqs(seqs: &[Vec<u8>], k: usize) -> DbgHash {
         // construct dbg
         let mut d = DbgHash::new();
         for seq in seqs.iter() {
             d.add_seq(seq, k);
         }
         d
+    }
+    pub fn iter_kmers(&self) -> impl std::iter::Iterator<Item = &Kmer> {
+        self.store.keys()
     }
 }
 
