@@ -143,6 +143,9 @@ pub fn optimize_with_answer(
     std_size: u32,
     prior_only: bool,
 ) {
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
+    let a = optimizer::base::Annealer::new();
+
     let reads = io::fasta::parse_seqs(&reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
@@ -154,30 +157,47 @@ pub fn optimize_with_answer(
     info!("true_size={}", true_size);
 
     if prior_only {
-        let init_state = optimizer::cdbg::CDbgState::init(
-            optimizer::cdbg::ModelType::PriorOnly,
-            &cdbg,
-            true_size,
-            std_size,
-        );
-        let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
-        let a = optimizer::base::Annealer::new();
+        let init_state =
+            optimizer::cdbg::CDbgState::init(&cdbg, true_size, std_size, None, param.clone());
         let history = a.run_with_log(&mut rng, init_state, 100);
 
         let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
         let true_state = optimizer::cdbg::CDbgState::new(
-            optimizer::cdbg::ModelType::PriorOnly,
             &cdbg,
             copy_nums_true.clone(),
             cycle_vec_true,
             true_size,
             std_size,
+            None,
+            param.clone(),
         );
         a.run_with_log(&mut rng, true_state, 1);
         println!("{:?}", history.last().unwrap().copy_nums);
         println!("{:?}", copy_nums_true);
     } else {
-        println!("under construction!");
+        let init_state = optimizer::cdbg::CDbgState::init(
+            &cdbg,
+            true_size,
+            std_size,
+            Some(&reads),
+            param.clone(),
+        );
+        warn!("start annealer");
+        let history = a.run_with_log(&mut rng, init_state, 100);
+
+        let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
+        let true_state = optimizer::cdbg::CDbgState::new(
+            &cdbg,
+            copy_nums_true.clone(),
+            cycle_vec_true,
+            true_size,
+            std_size,
+            Some(&reads),
+            param.clone(),
+        );
+        a.run_with_log(&mut rng, true_state, 1);
+        println!("{:?}", history.last().unwrap().copy_nums);
+        println!("{:?}", copy_nums_true);
     }
 
     /*

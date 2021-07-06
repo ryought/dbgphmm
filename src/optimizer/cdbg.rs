@@ -2,65 +2,59 @@ use super::base::{simple_run, Annealer, SAState};
 use crate::compressed_dbg::CompressedDBG;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
+use crate::hmm;
+use crate::hmm::base::PHMM;
+use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 use log::{debug, info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
 
-#[derive(Copy, Clone)]
-pub enum ModelType {
-    Full,
-    PriorOnly,
-}
-
 /// SAState for cdbg and cdbg-based phmm
 #[derive(Clone)]
 pub struct CDbgState<'a> {
-    pub model_type: ModelType,
     cdbg: &'a CompressedDBG,
     pub copy_nums: Vec<u32>,
     cycle_vec: Vec<u32>, // how many times cycle basis was used?
     ave_size: u32,
     std_size: u32,
+    reads: Option<&'a [Vec<u8>]>,
+    param: PHMMParams,
 }
 
 impl<'a> CDbgState<'a> {
     /// create state with given copy-nums
     pub fn new(
-        model_type: ModelType,
-        cdbg: &CompressedDBG,
+        cdbg: &'a CompressedDBG,
         copy_nums: Vec<u32>,
         cycle_vec: Vec<u32>,
         ave_size: u32,
         std_size: u32,
-    ) -> CDbgState {
+        reads: Option<&'a [Vec<u8>]>,
+        param: PHMMParams,
+    ) -> CDbgState<'a> {
         CDbgState {
-            model_type,
             cdbg,
             copy_nums,
             cycle_vec,
             ave_size,
             std_size,
+            reads,
+            param,
         }
     }
     /// initial state with all-zero copy-nums
     pub fn init(
-        model_type: ModelType,
-        cdbg: &CompressedDBG,
+        cdbg: &'a CompressedDBG,
         ave_size: u32,
         std_size: u32,
-    ) -> CDbgState {
+        reads: Option<&'a [Vec<u8>]>,
+        param: PHMMParams,
+    ) -> CDbgState<'a> {
         let copy_nums = vec![0; cdbg.n_kmers()];
         let cycle_vec = vec![0; cdbg.n_cycles()];
-        CDbgState {
-            model_type,
-            cdbg,
-            copy_nums,
-            cycle_vec,
-            ave_size,
-            std_size,
-        }
+        CDbgState::new(cdbg, copy_nums, cycle_vec, ave_size, std_size, reads, param)
     }
     fn choose_cycle_and_direction<R: Rng>(&self, rng: &mut R) -> (usize, bool) {
         for _ in 0..100 {
@@ -84,8 +78,28 @@ impl<'a> CDbgState<'a> {
             .prior_score(&self.copy_nums, self.ave_size, self.std_size)
     }
     fn forward_score(&self) -> Prob {
-        warn!("forward score not implemented");
-        Prob::from_prob(0.0)
+        // TODO omit this cloning of copy_nums(Cdbgphmm does not have to real vec)
+        match self.reads {
+            Some(reads) => {
+                let phmm = hmm::cdbg::CDbgPHMM::new(self.cdbg, self.copy_nums.clone());
+
+                reads
+                    .iter()
+                    .enumerate()
+                    .map(|(i, read)| {
+                        // warn!("read i={}", i);
+                        phmm.forward_prob(&self.param, read)
+                    })
+                    .product()
+            }
+            None => Prob::from_prob(1.0),
+        }
+    }
+    fn score(&self) -> Prob {
+        match self.reads {
+            Some(reads) => self.prior_score() + self.forward_score(),
+            None => self.prior_score(),
+        }
     }
 }
 
@@ -93,10 +107,7 @@ impl<'a> SAState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
-        match self.model_type {
-            ModelType::PriorOnly => self.prior_score().to_log_value(),
-            ModelType::Full => (self.prior_score() + self.forward_score()).to_log_value(),
-        }
+        self.score().to_log_value()
     }
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
@@ -112,12 +123,13 @@ impl<'a> SAState for CDbgState<'a> {
             cycle_id, is_up, is_consistent
         );
         CDbgState {
-            model_type: self.model_type,
             cdbg: self.cdbg,
             copy_nums,
             cycle_vec,
             ave_size: self.ave_size,
             std_size: self.std_size,
+            reads: None,
+            param: self.param.clone(),
         }
     }
     fn as_string(&self) -> String {
@@ -137,7 +149,8 @@ pub fn test() {
     d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
     let cdbg = CompressedDBG::from(&d, 8);
 
-    let init = CDbgState::init(ModelType::PriorOnly, &cdbg, 26, 10);
+    let param = PHMMParams::default();
+    let init = CDbgState::init(&cdbg, 26, 10, None, param);
     // simple_run(init, 100);
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
