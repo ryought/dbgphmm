@@ -36,6 +36,19 @@ impl SampleInfo {
     }
 }
 
+pub fn sum_sample_infos(infos: &[SampleInfo]) -> SampleInfo {
+    let zero = SampleInfo::new();
+    infos
+        .iter()
+        .fold(SampleInfo::new(), |acc, info| SampleInfo {
+            n_base: acc.n_base + info.n_base,
+            n_match: acc.n_match + info.n_match,
+            n_mismatch: acc.n_mismatch + info.n_mismatch,
+            n_ins: acc.n_ins + info.n_ins,
+            n_del: acc.n_del + info.n_del,
+        })
+}
+
 // display
 impl std::fmt::Display for SampleInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

@@ -96,13 +96,18 @@ pub fn sample(
     // println!("{}", d.as_dot());
     // println!("{}", d.dbg.as_dot());
     // let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+    let mut infos: Vec<hmm::sampler::SampleInfo> = Vec::new();
     for i in 0..n_reads {
         // let seed_for_a_read: u64 = rng.gen();
         let seed_for_a_read = seed + i as u64;
         let (seq, info) = phmm.sample(&param, length, seed_for_a_read, from);
+        // output fasta
         let id = format!("{},{}", length, seed_for_a_read);
         io::fasta::dump_seq(&id, &seq, Some(&info.to_string()));
+        // store info in vec
+        infos.push(info);
     }
+    info!("{:?}", hmm::sampler::sum_sample_infos(&infos));
 }
 
 pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
