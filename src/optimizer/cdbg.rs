@@ -101,14 +101,14 @@ impl<'a> CDbgState<'a> {
     }
     fn calc_score(&mut self) -> Prob {
         match (self.prior_score_cache, self.forward_score_cache) {
-            (Some(prior_score), Some(forward_score)) => prior_score + forward_score,
+            (Some(prior_score), Some(forward_score)) => prior_score * forward_score,
             _ => {
                 let prior_score = self.prior_score();
                 let forward_score = self.forward_score();
                 self.prior_score_cache = Some(prior_score);
                 self.forward_score_cache = Some(forward_score);
                 warn!("score filled {} {}", prior_score, forward_score);
-                prior_score + forward_score
+                prior_score * forward_score
             }
         }
     }
@@ -118,7 +118,7 @@ impl<'a> SAState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
-        (self.prior_score_cache.unwrap() + self.forward_score_cache.unwrap()).to_log_value()
+        (self.prior_score_cache.unwrap() * self.forward_score_cache.unwrap()).to_log_value()
     }
     fn fill_score(&mut self) -> f64 {
         self.calc_score();
@@ -185,6 +185,6 @@ pub fn test() {
     // simple_run(init, 100);
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
-    let a = Annealer::new();
+    let a = Annealer::new(1.0, 0.8);
     let history = a.run(&mut rng, init, 100);
 }

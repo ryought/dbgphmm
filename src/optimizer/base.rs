@@ -25,10 +25,10 @@ pub struct Annealer {
 }
 
 impl Annealer {
-    pub fn new() -> Annealer {
+    pub fn new(init_temp: f64, cooling_rate: f64) -> Annealer {
         Annealer {
-            init_temp: 1.0,
-            cooling_rate: 0.8,
+            init_temp,
+            cooling_rate,
         }
     }
     pub fn temp_schedule(&self, iteration: u64) -> f64 {
@@ -51,7 +51,7 @@ impl Annealer {
         let is_accepted = rng.gen_bool(p.min(1f64));
         if is_verbose {
             println!(
-                "{}\t{:.32}\t{:.32}\t{:.32}\t{:.32}\t{}\t{}",
+                "{}\t{:.32}\t{:.32}\t{:.32}\t{:.32}\t{}\t{}\t{}",
                 iteration,
                 temp,
                 now.score(),
@@ -59,6 +59,7 @@ impl Annealer {
                 p,
                 is_accepted,
                 now.as_string(),
+                next.as_string(),
             )
         }
         if is_accepted {
@@ -155,7 +156,7 @@ pub fn test() {
 
     let init = TestState::new(30);
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
-    let a = Annealer::new();
+    let a = Annealer::new(1.0, 0.8);
     let history = a.run(&mut rng, init, 100);
     for state in history.iter() {
         println!("f: {:?}", state.bits);

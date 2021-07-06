@@ -115,6 +115,9 @@ struct Optimize {
     /// cooling rate in simulated annealing
     #[clap(short = 'R', long, default_value = "0.8")]
     cooling_rate: f64,
+    /// cooling rate in simulated annealing
+    #[clap(short = 'I', long, default_value = "100")]
+    n_iteration: u64,
     /// average of genome size in prior distribution
     #[clap(short = 'M', long)]
     genome_size_ave: u32,
@@ -177,6 +180,7 @@ fn main() {
                 param,
                 t.init_temp,
                 t.cooling_rate,
+                t.n_iteration,
                 t.genome_size_ave,
                 t.genome_size_std_var,
                 t.prior_only,

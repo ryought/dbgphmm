@@ -139,12 +139,13 @@ pub fn optimize_with_answer(
     param: PHMMParams,
     init_temp: f64,
     cooling_rate: f64,
+    n_iteration: u64,
     ave_size: u32,
     std_size: u32,
     prior_only: bool,
 ) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
-    let a = optimizer::base::Annealer::new();
+    let a = optimizer::base::Annealer::new(init_temp, cooling_rate);
 
     let reads = io::fasta::parse_seqs(&reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
@@ -183,7 +184,7 @@ pub fn optimize_with_answer(
             param.clone(),
         );
         warn!("start annealer");
-        let history = a.run_with_log(&mut rng, init_state, 100);
+        let history = a.run_with_log(&mut rng, init_state, n_iteration);
 
         let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
         let true_state = optimizer::cdbg::CDbgState::new(
