@@ -121,6 +121,9 @@ struct Optimize {
     /// std. dev. of genome size in prior distribution
     #[clap(short = 'V', long)]
     genome_size_std_var: u32,
+    /// Only uses prior score as a state score (not forward score)
+    #[clap(long)]
+    prior_only: bool,
 }
 
 /// Sandbox for debugging
@@ -176,6 +179,7 @@ fn main() {
                 t.cooling_rate,
                 t.genome_size_ave,
                 t.genome_size_std_var,
+                t.prior_only,
             ),
             None => cli::optimize(t.reads_fa, k, param),
         },
