@@ -7,6 +7,7 @@ use crate::*;
 use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
+use rayon::prelude::*;
 
 pub fn generate(length: usize, seed: u64) {
     let v = random_seq::generate(length, seed);
@@ -110,22 +111,31 @@ pub fn sample(
     info!("{:?}", hmm::sampler::sum_sample_infos(&infos));
 }
 
-pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams) {
+pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams, parallel: bool) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
 
     let reads = io::fasta::parse_seqs(&reads_fa);
-    let mut ps: Vec<prob::Prob> = Vec::new();
-    for (i, read) in reads.iter().enumerate() {
-        let p = phmm.forward_prob(&param, read);
-        println!("{}\t{}", i, p.to_log_value());
-        ps.push(p);
-        // let p = phmm.backward_prob(&param, read);
-        // println!("backward prob : {}", p);
+
+    if parallel {
+        let p_total: prob::Prob = reads
+            .par_iter()
+            .map(|read| phmm.forward_prob(&param, read))
+            .product();
+        println!("#total\t{}", p_total.to_log_value());
+    } else {
+        let mut ps: Vec<prob::Prob> = Vec::new();
+        for (i, read) in reads.iter().enumerate() {
+            let p = phmm.forward_prob(&param, read);
+            println!("{}\t{}", i, p.to_log_value());
+            ps.push(p);
+            // let p = phmm.backward_prob(&param, read);
+            // println!("backward prob : {}", p);
+        }
+        let p_total: prob::Prob = ps.iter().product();
+        println!("#total\t{}", p_total.to_log_value());
     }
-    let p_total: prob::Prob = ps.iter().product();
-    println!("#total\t{}", p_total.to_log_value());
 }
 
 /// Experiments of optimizer
@@ -143,6 +153,8 @@ pub fn optimize_with_answer(
     ave_size: u32,
     std_size: u32,
     prior_only: bool,
+    start_from_true_copy_nums: bool,
+    parallel: bool,
 ) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
     let a = optimizer::base::Annealer::new(init_temp, cooling_rate);
@@ -157,45 +169,32 @@ pub fn optimize_with_answer(
     let true_size = cdbg.total_emitable_copy_num(&copy_nums_true);
     info!("true_size={}", true_size);
 
-    if prior_only {
-        let init_state =
-            optimizer::cdbg::CDbgState::init(&cdbg, true_size, std_size, None, param.clone());
-        let history = a.run_with_log(&mut rng, init_state, 100);
+    let init_state = optimizer::cdbg::CDbgState::init(
+        &cdbg,
+        true_size,
+        std_size,
+        if prior_only { None } else { Some(&reads) },
+        param.clone(),
+        parallel,
+    );
+    let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
+    let true_state = optimizer::cdbg::CDbgState::new(
+        &cdbg,
+        copy_nums_true.clone(),
+        cycle_vec_true,
+        true_size,
+        std_size,
+        if prior_only { None } else { Some(&reads) },
+        param.clone(),
+        parallel,
+    );
 
-        let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
-        let true_state = optimizer::cdbg::CDbgState::new(
-            &cdbg,
-            copy_nums_true.clone(),
-            cycle_vec_true,
-            true_size,
-            std_size,
-            None,
-            param.clone(),
-        );
-        a.run_with_log(&mut rng, true_state, 1);
+    if start_from_true_copy_nums {
+        let history = a.run_with_log(&mut rng, true_state, n_iteration);
         println!("{:?}", history.last().unwrap().copy_nums);
         println!("{:?}", copy_nums_true);
     } else {
-        let init_state = optimizer::cdbg::CDbgState::init(
-            &cdbg,
-            true_size,
-            std_size,
-            Some(&reads),
-            param.clone(),
-        );
-        warn!("start annealer");
         let history = a.run_with_log(&mut rng, init_state, n_iteration);
-
-        let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
-        let true_state = optimizer::cdbg::CDbgState::new(
-            &cdbg,
-            copy_nums_true.clone(),
-            cycle_vec_true,
-            true_size,
-            std_size,
-            Some(&reads),
-            param.clone(),
-        );
         a.run_with_log(&mut rng, true_state, 1);
         println!("{:?}", history.last().unwrap().copy_nums);
         println!("{:?}", copy_nums_true);

@@ -99,6 +99,9 @@ struct Forward {
     dbg_fa: String,
     /// reads fasta file
     reads_fa: String,
+    /// Use rayon to parallel calculation
+    #[clap(long)]
+    parallel: bool,
 }
 
 /// Optimize the model to fit the reads
@@ -127,6 +130,12 @@ struct Optimize {
     /// Only uses prior score as a state score (not forward score)
     #[clap(long)]
     prior_only: bool,
+    /// Start from true copy numbers infered from true_dbg_fa
+    #[clap(long)]
+    start_from_true_copy_nums: bool,
+    /// Use rayon to parallel calculation
+    #[clap(long)]
+    parallel: bool,
 }
 
 /// Sandbox for debugging
@@ -170,7 +179,7 @@ fn main() {
             );
         }
         SubCommand::Forward(t) => {
-            cli::forward(t.dbg_fa, t.reads_fa, k, param);
+            cli::forward(t.dbg_fa, t.reads_fa, k, param, t.parallel);
         }
         SubCommand::Optimize(t) => match t.true_dbg_fa {
             Some(dbg_fa) => cli::optimize_with_answer(
@@ -184,6 +193,8 @@ fn main() {
                 t.genome_size_ave,
                 t.genome_size_std_var,
                 t.prior_only,
+                t.start_from_true_copy_nums,
+                t.parallel,
             ),
             None => cli::optimize(t.reads_fa, k, param),
         },
