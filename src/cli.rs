@@ -154,12 +154,18 @@ pub fn optimize_with_answer(
     info!("true_size={}", true_size);
 
     if prior_only {
-        let init_state = optimizer::cdbg::CDbgState::init(&cdbg, true_size, std_size);
+        let init_state = optimizer::cdbg::CDbgState::init(
+            optimizer::cdbg::ModelType::PriorOnly,
+            &cdbg,
+            true_size,
+            std_size,
+        );
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
         let a = optimizer::base::Annealer::new();
         let history = a.run_with_log(&mut rng, init_state, 100);
 
         let true_state = optimizer::cdbg::CDbgState::new(
+            optimizer::cdbg::ModelType::PriorOnly,
             &cdbg,
             copy_nums_true.clone(),
             vec![1; cdbg.n_cycles()],
