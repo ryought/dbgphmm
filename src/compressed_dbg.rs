@@ -330,6 +330,7 @@ impl CompressedDBG {
 
         // check count is all zero
         let is_zero = counts.iter().all(|&c| c == 0);
+        assert!(is_zero);
         debug!("is_zero: {}", is_zero);
         seqs
     }
