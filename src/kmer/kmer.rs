@@ -15,6 +15,9 @@ impl Kmer {
     pub fn from_vec(v: Vec<u8>) -> Kmer {
         Kmer(v)
     }
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
     pub fn len(&self) -> usize {
         self.0.len()
     }

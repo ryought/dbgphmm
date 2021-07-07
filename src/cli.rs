@@ -228,5 +228,15 @@ pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
 }
 
 pub fn sandbox() {
-    println!("sandbox");
+    let mut reads: Vec<Vec<u8>> = Vec::new();
+    // reads.push(b"ATCGATTCGATCGATTCGATAGATCG".to_vec());
+    reads.push(b"AGGCTAGTAAAAAAAAAAAAAATCGATCTTTCGATCG".to_vec());
+    reads.push(b"GGATAGTTCGATCTG".to_vec());
+    reads.push(b"GGCTAGTTCGATCGG".to_vec());
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&reads, 8);
+    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums));
+    for (i, seq) in cdbg.to_seqs(&copy_nums, 8).iter().enumerate() {
+        let id = format!("{}", i);
+        io::fasta::dump_seq(&id, &seq, None);
+    }
 }

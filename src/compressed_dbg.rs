@@ -304,6 +304,60 @@ impl CompressedDBG {
         }
         Some(copy_nums)
     }
+    /// Get sequences that fully represents this cdbg
+    /// by walking Eulerian circuit
+    pub fn to_seqs(&self, copy_nums: &[u32], k: usize) -> Vec<Vec<u8>> {
+        // counts[node] = (remaining copy_num of the node(k-mer))
+        let mut counts = copy_nums.to_vec();
+        let mut seqs = Vec::new();
+
+        // find nodes that is not visited yet
+        for head in self.heads().iter() {
+            if counts[head.0] > 0 {
+                seqs.push(self.travarse_kmers(head, &mut counts));
+            }
+        }
+        // find nodes that is not visited yet
+        loop {
+            match counts.iter().position(|&c| c > 0) {
+                Some(i) => {
+                    let node = Node(i);
+                    seqs.push(self.travarse_kmers(&node, &mut counts));
+                }
+                None => break,
+            }
+        }
+
+        // check count is all zero
+        let is_zero = counts.iter().all(|&c| c == 0);
+        debug!("is_zero: {}", is_zero);
+        seqs
+    }
+    fn travarse_kmers(&self, from: &Node, counts: &mut [u32]) -> Vec<u8> {
+        debug!("start: {}", self.kmer(from));
+        // add from (first kmer)
+        let mut now = from;
+        let mut seq = self.kmer(from).to_vec();
+        counts[from.0] -= 1;
+        loop {
+            match self
+                .childs(now)
+                .iter()
+                .filter(|child| counts[child.0] > 0)
+                .next()
+            {
+                Some(child) => {
+                    debug!("next: {}", self.kmer(child));
+                    // append a child (preceding kmer)
+                    seq.push(self.emission(child));
+                    counts[child.0] -= 1;
+                    now = child;
+                }
+                None => break,
+            };
+        }
+        seq
+    }
     pub fn check_kmer_existence(&self, seqs: &[Vec<u8>], k: usize) -> (u32, u32) {
         let mut t: u32 = 0;
         let mut f: u32 = 0;
