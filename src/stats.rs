@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DbgStats {
@@ -56,16 +55,16 @@ pub struct CompareResult {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct AllStats {
-    dbg_stats: Option<DbgStats>,
-    copy_num_stats: Option<CopyNumStats>,
+    pub dbg: Option<DbgStats>,
+    pub copy_num: Option<CopyNumStats>,
+    pub degree: Option<DegreeStats>,
+    pub path: Option<PathStats>,
+    pub cycle_summary: Option<CycleSummaryStats>,
+    pub cycles: Option<Vec<CycleStats>>,
 }
 
 pub fn test() {
-    // let point = DbgStats::default();
-    let point = AllStats {
-        dbg_stats: None,
-        copy_num_stats: Some(CopyNumStats::default()),
-    };
+    let point = DbgStats::default();
     let serialized = serde_json::to_string_pretty(&point).unwrap();
     println!("{}", serialized);
 }

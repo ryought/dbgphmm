@@ -288,6 +288,18 @@ impl CompressedDBG {
             println!("i={}, x={}, y={}", i, x, y);
         }
     }
+    pub fn validate_cycles(&self, copy_nums_true: &[u32]) {
+        for i in 0..self.n_cycles() {
+            let is_a = self.is_acceptable(&copy_nums_true, i, true);
+            let is_b = self.is_acceptable(&copy_nums_true, i, false);
+            assert!(is_a);
+            assert!(is_b);
+            let new_a = self.update_by_cycle(&copy_nums_true, i, true);
+            let new_b = self.update_by_cycle(&copy_nums_true, i, false);
+            assert!(self.is_consistent_copy_num(&new_a));
+            assert!(self.is_consistent_copy_num(&new_b));
+        }
+    }
     pub fn from_seqs(seqs: &[Vec<u8>], k: usize) -> (CompressedDBG, Vec<u32>) {
         let dbg = DbgHash::from_seqs(seqs, k);
         let cdbg = CompressedDBG::from(&dbg, k);
@@ -447,7 +459,7 @@ impl CompressedDBG {
         writeln!(&mut s, "}}");
         s
     }
-
+    /// show a histogram of cycle length distribution
     pub fn as_cycle_histogram(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#cycles={}", self.n_cycles());
@@ -458,7 +470,8 @@ impl CompressedDBG {
         writeln!(&mut s, "{}", histogram);
         s
     }
-    pub fn as_stats(&self) -> stats::DbgStats {
+    // stats related
+    pub fn as_dbg_stats(&self) -> stats::DbgStats {
         let mut r = stats::DbgStats::default();
         r.k = self.k;
         r.n_kmers = self.n_kmers as u32;
@@ -517,6 +530,18 @@ impl CompressedDBG {
                 _ => 0,
             })
             .sum();
+        r
+    }
+    pub fn as_all_stats(&self, copy_nums: &[u32]) -> stats::AllStats {
+        let mut r = stats::AllStats::default();
+        r.dbg = Some(self.as_dbg_stats());
+        r.copy_num = Some(self.as_copy_num_stats(copy_nums));
+        r.degree = Some(self.as_degree_stats());
+        r.cycle_summary = Some(self.as_cycle_summary_stats());
+        let cycles = (0..self.n_cycles())
+            .map(|i| self.as_cycle_stats(i))
+            .collect();
+        r.cycles = Some(cycles);
         r
     }
 }

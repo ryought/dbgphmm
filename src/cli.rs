@@ -20,7 +20,7 @@ pub fn stat(dbg_fa: String, k: usize) {
     let d = dbg::DbgHash::from_seqs(&seqs, k);
     info!("{:?}", d.as_degree_stats());
     let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
-    info!("{:?}", cdbg.as_stats());
+    info!("{:?}", cdbg.as_dbg_stats());
     info!("{:?}", cdbg.as_degree_stats());
     let copy_nums_true: Vec<u32> = cdbg
         .iter_nodes()
@@ -38,29 +38,13 @@ pub fn stat(dbg_fa: String, k: usize) {
     info!("{:?}", cdbg.as_cycle_summary_stats());
 
     for i in 0..cdbg.n_cycles() {
-        let is_a = cdbg.is_acceptable(&copy_nums_true, i, true);
-        let is_b = cdbg.is_acceptable(&copy_nums_true, i, false);
-        let n_rev: u32 = cdbg
-            .cycle_components(i)
-            .iter()
-            .map(|(_, dir)| match dir {
-                cycles::CycleDirection::Reverse => 1,
-                _ => 0,
-            })
-            .sum();
-        let new_a = cdbg.update_by_cycle(&copy_nums_true, i, true);
-        let new_b = cdbg.update_by_cycle(&copy_nums_true, i, false);
-        info!(
-            "cycle#{} up={} down={} up_ok={} down_ok={} n_rev={}",
-            i,
-            is_a,
-            is_b,
-            cdbg.is_consistent_copy_num(&new_a),
-            cdbg.is_consistent_copy_num(&new_b),
-            n_rev,
-        );
         info!("{:?}", cdbg.as_cycle_stats(i));
     }
+
+    let all_stats = cdbg.as_all_stats(&copy_nums_true);
+    let json = serde_json::to_string_pretty(&all_stats).unwrap();
+    // info!("{:#?}", cdbg.as_all_stats(&copy_nums_true));
+    println!("{}", json);
 }
 
 pub fn compare(self_dbg_fa: String, other_dbg_fa: String, k: usize) {
