@@ -30,10 +30,12 @@ pub fn stat(dbg_fa: String, k: usize) {
         })
         .collect();
 
-    let total = cdbg.total_emitable_copy_num(&copy_nums_true);
-    let p = cdbg.is_consistent_copy_num(&copy_nums_true);
-    info!("copy-nums total={} consistent={:?}", total, p);
-    info!("cycle {}", cdbg.as_cycle_stats());
+    info!("{:?}", cdbg.as_copy_num_stats(&copy_nums_true));
+    // let cn_zero: Vec<u32> = vec![0; cdbg.n_kmers()];
+    // info!("{:?}", cdbg.as_copy_num_stats(&cn_zero));
+    // info!("{:?}", copy_nums_true);
+    info!("cycle {}", cdbg.as_cycle_histogram());
+    info!("{:?}", cdbg.as_cycle_summary_stats());
 
     for i in 0..cdbg.n_cycles() {
         let is_a = cdbg.is_acceptable(&copy_nums_true, i, true);
@@ -57,6 +59,7 @@ pub fn stat(dbg_fa: String, k: usize) {
             cdbg.is_consistent_copy_num(&new_b),
             n_rev,
         );
+        info!("{:?}", cdbg.as_cycle_stats(i));
     }
 }
 

@@ -10,8 +10,14 @@ pub struct DbgStats {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CopyNumStats {
-    pub n_kmers: u32,
-    pub n_heads: u32,
+    pub total: u32,
+    pub total_emitable: u32,
+    pub is_consistent: bool,
+    pub average: f32,
+    pub min: u32,
+    pub max: u32,
+    pub n_zero_copy_kmer: u32,
+    pub n_nonzero_copy_kmer: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -27,11 +33,18 @@ pub struct PathStats {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct CycleStats {
+pub struct CycleSummaryStats {
     pub n_cycles: u32,
     pub min_cycle_len: u32,
     pub max_cycle_len: u32,
-    pub average_cycle_len: u32,
+    pub average_cycle_len: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct CycleStats {
+    pub id: usize,
+    pub len: usize,
+    pub n_reverse: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]

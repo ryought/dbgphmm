@@ -448,7 +448,7 @@ impl CompressedDBG {
         s
     }
 
-    pub fn as_cycle_stats(&self) -> String {
+    pub fn as_cycle_histogram(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#cycles={}", self.n_cycles());
         let mut histogram = Histogram::with_buckets(10);
@@ -458,7 +458,6 @@ impl CompressedDBG {
         writeln!(&mut s, "{}", histogram);
         s
     }
-
     pub fn as_stats(&self) -> stats::DbgStats {
         let mut r = stats::DbgStats::default();
         r.k = self.k;
@@ -466,7 +465,6 @@ impl CompressedDBG {
         r.n_starting_kmers = self.starting_kmers().len() as u32;
         r
     }
-
     pub fn as_degree_stats(&self) -> stats::DegreeStats {
         let mut r = stats::DegreeStats::default();
         for v in self.iter_nodes() {
@@ -475,6 +473,50 @@ impl CompressedDBG {
             r.in_degs[in_deg] += 1;
             r.out_degs[out_deg] += 1;
         }
+        r
+    }
+    pub fn as_copy_num_stats(&self, copy_nums: &[u32]) -> stats::CopyNumStats {
+        let mut r = stats::CopyNumStats::default();
+        r.is_consistent = self.is_consistent_copy_num(copy_nums);
+        r.total_emitable = self.total_emitable_copy_num(copy_nums);
+        r.min = *copy_nums.iter().min().unwrap();
+        r.max = *copy_nums.iter().max().unwrap();
+        r.total = copy_nums.iter().sum();
+        r.average = r.total as f32 / copy_nums.len() as f32;
+        r.n_zero_copy_kmer = copy_nums.iter().filter(|c| **c == 0).count() as u32;
+        r.n_nonzero_copy_kmer = copy_nums.len() as u32 - r.n_zero_copy_kmer;
+        r
+    }
+    pub fn as_cycle_summary_stats(&self) -> stats::CycleSummaryStats {
+        let mut r = stats::CycleSummaryStats::default();
+        r.n_cycles = self.n_cycles() as u32;
+        let cycle_lengths: Vec<u32> = (0..self.n_cycles())
+            .map(|i| self.cycle_components(i).len() as u32)
+            .collect();
+        if self.n_cycles() == 0 {
+            r.min_cycle_len = 0;
+            r.max_cycle_len = 0;
+            r.average_cycle_len = 0f32;
+        } else {
+            r.min_cycle_len = *cycle_lengths.iter().min().unwrap();
+            r.max_cycle_len = *cycle_lengths.iter().max().unwrap();
+            let total: u32 = cycle_lengths.iter().sum();
+            r.average_cycle_len = total as f32 / self.n_cycles() as f32;
+        }
+        r
+    }
+    pub fn as_cycle_stats(&self, cycle_id: usize) -> stats::CycleStats {
+        let mut r = stats::CycleStats::default();
+        r.id = cycle_id;
+        r.len = self.cycle_components(cycle_id).len();
+        r.n_reverse = self
+            .cycle_components(cycle_id)
+            .iter()
+            .map(|(_, dir)| match dir {
+                cycles::CycleDirection::Reverse => 1,
+                _ => 0,
+            })
+            .sum();
         r
     }
 }
