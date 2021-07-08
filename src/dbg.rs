@@ -1,29 +1,13 @@
 use crate::hmm::base::Node;
 use crate::kmer::kmer::{ending_kmers, starting_kmers, Kmer};
 use crate::prob::Prob;
+use crate::stats;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 // use ahash::AHashMap as HashMap;
 // use std::collections::HashMap;
-
-#[derive(Debug)]
-pub struct DBGCompareResult {
-    pub n_shared: u32,
-    pub n_self_only: u32,
-    pub n_other_only: u32,
-}
-
-impl DBGCompareResult {
-    fn new() -> DBGCompareResult {
-        DBGCompareResult {
-            n_shared: 0,
-            n_self_only: 0,
-            n_other_only: 0,
-        }
-    }
-}
 
 pub trait DBG {
     fn new() -> Self;
@@ -227,40 +211,21 @@ pub trait DBG {
         writeln!(&mut s, "}}");
         s
     }
-    fn as_degree_stats(&self) -> String {
-        let mut s = String::new();
-
-        let mut in_degs: [u32; 6] = [0; 6];
-        let mut out_degs: [u32; 6] = [0; 6];
-        let mut n_kmer: u32 = 0;
+    fn as_degree_stats(&self) -> stats::DegreeStats {
+        let mut r = stats::DegreeStats::default();
         for kmer in self.kmers().iter() {
             let in_deg = self.parents(kmer).len();
             let out_deg = self.childs(kmer).len();
-            in_degs[in_deg] += 1;
-            out_degs[out_deg] += 1;
-            n_kmer += 1;
+            r.in_degs[in_deg] += 1;
+            r.out_degs[out_deg] += 1;
         }
-        writeln!(&mut s, "#kmer: {}", n_kmer);
-        writeln!(&mut s, "indeg");
-        let mut n_kmer: u32 = 0;
-        for i in 0..6 {
-            n_kmer += in_degs[i];
-            writeln!(&mut s, "{}:\t{}\t{}", i, in_degs[i], n_kmer);
-        }
-        writeln!(&mut s, "outdeg");
-        let mut n_kmer: u32 = 0;
-        for i in 0..6 {
-            n_kmer += out_degs[i];
-            writeln!(&mut s, "{}:\t{}\t{}", i, out_degs[i], n_kmer);
-        }
-        s
+        r
     }
-    // stats
     /// Compare two dbg (self and other).
     /// kmers of type {shared, self-only, other-only}
     /// and its occurrence
-    fn compare_dbg<T: DBG>(&self, other: &T) -> DBGCompareResult {
-        let mut r = DBGCompareResult::new();
+    fn compare_dbg<T: DBG>(&self, other: &T) -> stats::CompareResult {
+        let mut r = stats::CompareResult::default();
 
         for self_kmer in self.kmers().iter() {
             if other.is_exists(&self_kmer) {

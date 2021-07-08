@@ -18,7 +18,7 @@ pub fn generate(length: usize, seed: u64) {
 pub fn stat(dbg_fa: String, k: usize) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let d = dbg::DbgHash::from_seqs(&seqs, k);
-    info!("deg {}", d.as_degree_stats());
+    info!("deg {:?}", d.as_degree_stats());
     let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
     let copy_nums_true: Vec<u32> = cdbg
         .iter_nodes()
