@@ -18,8 +18,10 @@ pub fn generate(length: usize, seed: u64) {
 pub fn stat(dbg_fa: String, k: usize) {
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let d = dbg::DbgHash::from_seqs(&seqs, k);
-    info!("deg {:?}", d.as_degree_stats());
+    info!("{:?}", d.as_degree_stats());
     let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
+    info!("{:?}", cdbg.as_stats());
+    info!("{:?}", cdbg.as_degree_stats());
     let copy_nums_true: Vec<u32> = cdbg
         .iter_nodes()
         .map(|v| {
@@ -81,7 +83,7 @@ pub fn sample(
     let seqs = io::fasta::parse_seqs(&dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
-    info!("{}", cdbg.as_degree_stats());
+    info!("{:?}", cdbg.as_degree_stats());
     let from = if start_from_head {
         let head = cdbg
             .heads()

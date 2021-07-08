@@ -5,6 +5,7 @@ use crate::distribution::normal_bin;
 use crate::graph::Node;
 use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
+use crate::stats;
 use fnv::FnvHashMap as HashMap;
 use histo::Histogram;
 use log::{debug, info, warn};
@@ -120,6 +121,19 @@ impl CompressedDBG {
             .iter()
             .filter_map(|kmer| self.ids.get(&kmer))
             .map(|&v| v)
+            .collect()
+    }
+    /// Get a vec of N{ACGT}^{k-1} in cdbg
+    pub fn starting_kmers(&self) -> Vec<Node> {
+        self.iter_nodes()
+            .filter_map(|v| {
+                let kmer = self.kmer(&v);
+                if kmer.is_starting() {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
             .collect()
     }
     /// Calc transition probabilities from copy numbers of each kmers
@@ -445,27 +459,23 @@ impl CompressedDBG {
         s
     }
 
-    pub fn as_degree_stats(&self) -> String {
-        let mut s = String::new();
+    pub fn as_stats(&self) -> stats::DbgStats {
+        let mut r = stats::DbgStats::default();
+        r.k = self.k;
+        r.n_kmers = self.n_kmers as u32;
+        r.n_starting_kmers = self.starting_kmers().len() as u32;
+        r
+    }
 
-        let mut in_degs: [u32; 6] = [0; 6];
-        let mut out_degs: [u32; 6] = [0; 6];
+    pub fn as_degree_stats(&self) -> stats::DegreeStats {
+        let mut r = stats::DegreeStats::default();
         for v in self.iter_nodes() {
             let in_deg = self.parents(&v).len();
             let out_deg = self.childs(&v).len();
-            in_degs[in_deg] += 1;
-            out_degs[out_deg] += 1;
+            r.in_degs[in_deg] += 1;
+            r.out_degs[out_deg] += 1;
         }
-        writeln!(&mut s, "#kmer: {}", self.n_kmers());
-        writeln!(&mut s, "indeg");
-        for i in 0..6 {
-            writeln!(&mut s, "{}:\t{}", i, in_degs[i]);
-        }
-        writeln!(&mut s, "outdeg");
-        for i in 0..6 {
-            writeln!(&mut s, "{}:\t{}", i, out_degs[i]);
-        }
-        s
+        r
     }
 }
 
@@ -510,4 +520,21 @@ pub fn test() {
     */
 
     // println!("{}", cdbg.as_dot_with_cycle(1));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn starting() {
+        let mut d = DbgHash::new();
+        d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
+        let cdbg = CompressedDBG::from(&d, 8);
+        let starting = cdbg.starting_kmers();
+        // only 1 starting kmer
+        assert_eq!(starting.len(), 1);
+        // starting kmer is the first 7-mer
+        assert_eq!(cdbg.kmer(&starting[0]).clone(), Kmer::from(b"NATCGATT"));
+    }
 }

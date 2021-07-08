@@ -29,3 +29,21 @@ cargo run
 cargo build --release
 ./target/release/dbgphmm
 ```
+
+### run test with stdout
+```sh
+cargo test -- --nocapture
+```
+
+### set log level
+```sh
+RUST_LOG=info cargo run -- sandbox
+RUST_LOG=dbgphmm::cli::info cargo run -- sandbox
+```
+
+### automatic build update
+```sh
+cargo watch -x 'build --release'
+```
+
+### benchmark

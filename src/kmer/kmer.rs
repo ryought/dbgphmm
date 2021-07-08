@@ -138,6 +138,11 @@ impl Kmer {
     pub fn is_emitable(&self) -> bool {
         *self.0.last().unwrap() != b'N'
     }
+    /// check if NXXXXX
+    pub fn is_starting(&self) -> bool {
+        let k = self.0.len();
+        self.0[0] == b'N' && self.0[1..].iter().all(|&x| x != b'N')
+    }
 }
 
 impl std::fmt::Display for Kmer {
@@ -256,5 +261,14 @@ mod tests {
     fn k_zero_mer() {
         let a = Kmer::from(b"");
         let x = a.last();
+    }
+    #[test]
+    fn starting() {
+        let a = Kmer::from(b"ATCGATTAG");
+        assert!(!a.is_starting());
+        let a = Kmer::from(b"NNNNAAAAA");
+        assert!(!a.is_starting());
+        let a = Kmer::from(b"NAGTAAAAA");
+        assert!(a.is_starting());
     }
 }
