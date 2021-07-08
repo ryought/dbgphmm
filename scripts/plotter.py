@@ -64,6 +64,16 @@ def parse_stats(json_filename):
 def dist(state_a, state_b):
     return np.linalg.norm(np.array(state_a) - np.array(state_b))
 
+def diff(state_a, state_b):
+    return [b - a for (a, b) in zip(state_a, state_b)]
+
+def diff_index(state_a, state_b):
+    diffs = []
+    for i, (a, b) in enumerate(zip(state_a, state_b)):
+        if a != b:
+            diffs.append((i, b-a))
+    return diffs
+
 def plot_temp(logs, stats, filename):
     x = np.array([log.id for log in logs])
 
@@ -114,26 +124,65 @@ def plot_projected(logs, stats, filename):
     plt.savefig(filename)
 
 def plot_basis(logs, stats, filename):
+    plt.figure(figsize=(10, 20))
+    N = 6
+
     x = [cycle['id'] for cycle in stats['cycles']]
-    y = [cycle['len'] for cycle in stats['cycles']]
-    plt.subplot(4, 1, 1)
-    plt.bar(x, y)
+    lengths = [cycle['len'] for cycle in stats['cycles']]
+    plt.subplot(N, 1, 1)
+    plt.bar(x, lengths)
+
+    # up/down: how many times the modification of i-th base occured and how it changed the score?
+    up = [[] for _ in range(stats['cycle_summary']['n_cycles'])]
+    down = [[] for _ in range(stats['cycle_summary']['n_cycles'])]
+    for log in logs:
+        d = diff_index(log.now_state, log.next_state)
+        ds = log.next_score - log.now_score
+        i, direction = d[0]
+        if direction == 1:
+            up[i].append(ds)
+        else:
+            down[i].append(ds)
+
+    plt.subplot(N, 1, 2)
+    count_up = [len(u) for u in up]
+    count_down = [len(d) for d in down]
+    plt.bar(x, count_up, label='up')
+    plt.bar(x, count_down, bottom=count_up, label='down')
+    plt.legend()
+
+    plt.subplot(N, 1, 3)
+    plt.scatter(x, [min(u) if len(u) > 0 else 0 for u in up])
+    plt.scatter(x, [max(u) if len(u) > 0 else 0 for u in up])
+
+    plt.subplot(N, 1, 4)
+    plt.scatter(
+        [lengths[diff_index(log.now_state, log.next_state)[0][0]] for log in logs],
+        [log.next_score - log.now_score for log in logs]
+    )
+
+    plt.subplot(N, 1, 5)
+    plt.scatter(lengths, count_up, alpha=0.2)
+
+    plt.subplot(N, 1, 6)
+    plt.scatter(lengths, count_down, alpha=0.2)
+
     plt.savefig(filename)
 
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('tsv_filename', type=str, help='tsv created by dbgphmm optimize')
     parser.add_argument('json_filename', type=str, help='json created by dbgphmm stats')
-    parser.add_argument('--start-from-true-copy-nums', action='store_true', help='Bool flag( --debug or no )')
+    # parser.add_argument('--start-from-true-copy-nums', action='store_true', help='Bool flag( --debug or no )')
     args = parser.parse_args()
 
     logs = parse_logs(args.tsv_filename)
     stats = parse_stats(args.json_filename)
 
-    if args.start_from_true_copy_nums:
-        plot_temp(logs, stats, args.tsv_filename + '.tempscore.png')
-        plot_projected(logs, stats, args.tsv_filename + '.projected.png')
-        plot_basis(logs, stats, args.tsv_filename + '.basis.png')
+    # if args.start_from_true_copy_nums:
+    plot_temp(logs, stats, args.tsv_filename + '.tempscore.png')
+    plot_projected(logs, stats, args.tsv_filename + '.projected.png')
+    plot_basis(logs, stats, args.tsv_filename + '.basis.png')
 
 if __name__ == '__main__':
     main()
