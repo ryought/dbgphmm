@@ -219,6 +219,8 @@ pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
 }
 
 pub fn sandbox() {
+    stats::test();
+    /*
     let mut reads: Vec<Vec<u8>> = Vec::new();
     // reads.push(b"ATCGATTCGATCGATTCGATAGATCG".to_vec());
     reads.push(b"AGGCTAGTAAAAAAAAAAAAAATCGATCTTTCGATCG".to_vec());
@@ -230,4 +232,5 @@ pub fn sandbox() {
         let id = format!("{}", i);
         io::fasta::dump_seq(&id, &seq, None);
     }
+    */
 }

@@ -360,6 +360,8 @@ dependencies = [
  "rand 0.8.3",
  "rand_xoshiro",
  "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

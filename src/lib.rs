@@ -15,6 +15,7 @@ pub mod prob;
 pub mod random_seq;
 pub mod ref_test;
 pub mod sleeper;
+pub mod stats;
 pub mod test_struct;
 pub mod vec_of_vec;
 
