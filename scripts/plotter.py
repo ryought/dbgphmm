@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 @dataclass
 class OptimizeLog:
@@ -88,7 +89,35 @@ def plot_temp(logs, stats, filename):
     plt.xlabel('id')
     plt.savefig(filename)
 
+def plot_projected(logs, stats, filename):
+    pca = PCA(n_components=2)
+    X = np.array([log.now_state for log in logs])
+    C = np.array([log.now_score for log in logs])
+    T = np.array([log.id for log in logs])
+    pca.fit(X)
+    Y = pca.transform(X)
+
+    plt.subplot(2, 1, 1)
+    plt.scatter(Y[:, 0], Y[:, 1], c=C)
+    plt.scatter(Y[0, 0], Y[0, 1], marker='+', color='red')
+    plt.colorbar()
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+
+    plt.subplot(2, 1, 2)
+    plt.scatter(Y[:, 0], Y[:, 1], c=T)
+    plt.scatter(Y[0, 0], Y[0, 1], marker='+', color='red')
+    plt.colorbar()
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+
+    plt.savefig(filename)
+
 def plot_basis(logs, stats, filename):
+    x = [cycle['id'] for cycle in stats['cycles']]
+    y = [cycle['len'] for cycle in stats['cycles']]
+    plt.subplot(4, 1, 1)
+    plt.bar(x, y)
     plt.savefig(filename)
 
 def main():
@@ -103,6 +132,7 @@ def main():
 
     if args.start_from_true_copy_nums:
         plot_temp(logs, stats, args.tsv_filename + '.tempscore.png')
+        plot_projected(logs, stats, args.tsv_filename + '.projected.png')
         plot_basis(logs, stats, args.tsv_filename + '.basis.png')
 
 if __name__ == '__main__':
