@@ -139,6 +139,9 @@ struct Optimize {
     /// Use rayon to parallel calculation
     #[clap(long)]
     parallel: bool,
+    /// random seed
+    #[clap(short = 's', long, default_value = "11")]
+    seed: u64,
 }
 
 /// Sandbox for debugging
@@ -199,6 +202,7 @@ fn main() {
                 t.start_from_true_copy_nums,
                 t.dump_seqs,
                 t.parallel,
+                t.seed,
             ),
             None => cli::optimize(t.reads_fa, k, param),
         },

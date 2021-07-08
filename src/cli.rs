@@ -146,8 +146,9 @@ pub fn optimize_with_answer(
     start_from_true_copy_nums: bool,
     dump_seqs: bool,
     parallel: bool,
+    seed: u64,
 ) {
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
     let a = optimizer::base::Annealer::new(init_temp, cooling_rate);
 
     let reads = io::fasta::parse_seqs(&reads_fa);
