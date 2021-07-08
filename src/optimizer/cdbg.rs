@@ -171,8 +171,8 @@ impl<'a> SAState for CDbgState<'a> {
                 write!(
                     &mut s,
                     "{}\t{}\t{}\t{:?}",
-                    prior_score,
-                    forward_score,
+                    prior_score.to_log_value(),
+                    forward_score.to_log_value(),
                     self.cdbg.total_emitable_copy_num(&self.copy_nums),
                     self.cycle_vec,
                 );

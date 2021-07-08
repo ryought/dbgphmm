@@ -191,36 +191,27 @@ pub fn optimize_with_answer(
 
     if start_from_true_copy_nums {
         let history = a.run_with_log(&mut rng, true_state, n_iteration);
-        println!("{:?}", history.last().unwrap().copy_nums);
-        println!("{:?}", copy_nums_true);
+        let copy_nums_final = &history.last().unwrap().copy_nums;
+        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+            let id = format!("{}", i);
+            io::fasta::dump_seq(&id, &seq, None);
+        }
     } else {
         let history = a.run_with_log(&mut rng, init_state, n_iteration);
         a.run_with_log(&mut rng, true_state, 1);
-        println!("{:?}", history.last().unwrap().copy_nums);
-        println!("{:?}", copy_nums_true);
+        // println!("{:?}", history.last().unwrap().copy_nums);
+        // println!("{:?}", copy_nums_true);
+        let copy_nums_final = &history.last().unwrap().copy_nums;
+        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+            let id = format!("{}", i);
+            io::fasta::dump_seq(&id, &seq, None);
+        }
     }
 
-    /*
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(seqs, k);
-    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums));
-    let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
-
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let v = vec![seqs[0].clone()];
-    let copy_nums_part = cdbg.true_copy_nums_from_seqs(v, k).unwrap();
-    let phmm_part = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums_part);
-
-    let read = b"ATGTGAAAGGGGCCCTAAGATCT";
-    let param = PHMMParams::default();
-    let p = phmm.forward_prob(&param, read);
-    let p_part = phmm_part.forward_prob(&param, read);
-    println!("{}", p);
-    println!("{}", p_part);
-    */
-
-    // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums_part));
-    // println!("{}", phmm_part.as_dot());
+    for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
+        let id = format!("t{}", i);
+        io::fasta::dump_seq(&id, &seq, None);
+    }
 }
 
 pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
@@ -235,7 +226,7 @@ pub fn sandbox() {
     reads.push(b"GGCTAGTTCGATCGG".to_vec());
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&reads, 8);
     // println!("{}", cdbg.as_dot_with_copy_nums(&copy_nums));
-    for (i, seq) in cdbg.to_seqs(&copy_nums, 8).iter().enumerate() {
+    for (i, seq) in cdbg.to_seqs(&copy_nums).iter().enumerate() {
         let id = format!("{}", i);
         io::fasta::dump_seq(&id, &seq, None);
     }

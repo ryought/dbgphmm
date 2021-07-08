@@ -306,7 +306,7 @@ impl CompressedDBG {
     }
     /// Get sequences that fully represents this cdbg
     /// by walking Eulerian circuit
-    pub fn to_seqs(&self, copy_nums: &[u32], k: usize) -> Vec<Vec<u8>> {
+    pub fn to_seqs(&self, copy_nums: &[u32]) -> Vec<Vec<u8>> {
         // counts[node] = (remaining copy_num of the node(k-mer))
         let mut counts = copy_nums.to_vec();
         let mut seqs = Vec::new();
