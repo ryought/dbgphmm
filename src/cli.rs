@@ -182,6 +182,7 @@ pub fn optimize_with_answer(
     );
 
     if start_from_true_copy_nums {
+        // real run from true
         let history = a.run_with_log(&mut rng, true_state, n_iteration);
         let copy_nums_final = &history.last().unwrap().copy_nums;
         if dump_seqs {
@@ -191,8 +192,10 @@ pub fn optimize_with_answer(
             }
         }
     } else {
-        let history = a.run_with_log(&mut rng, init_state, n_iteration);
+        // test run from true
         a.run_with_log(&mut rng, true_state, 1);
+        // real run from zero
+        let history = a.run_with_log(&mut rng, init_state, n_iteration);
         // println!("{:?}", history.last().unwrap().copy_nums);
         // println!("{:?}", copy_nums_true);
         let copy_nums_final = &history.last().unwrap().copy_nums;
