@@ -39,7 +39,7 @@ struct Opts {
 enum SubCommand {
     Generate(Generate),
     Stat(Stat),
-    ReadStat(ReadStat),
+    Compare(Compare),
     Sample(Sample),
     Forward(Forward),
     Optimize(Optimize),
@@ -64,13 +64,13 @@ struct Stat {
     dbg_fa: String,
 }
 
-/// Statistics of reads
+/// Compare two dbg, e.g. between two refs or ref/reads
 #[derive(Clap)]
-struct ReadStat {
-    /// dbg fasta file
-    dbg_fa: String,
-    /// read fasta file
-    reads_fa: String,
+struct Compare {
+    /// self dbg fasta (e.g. reference fasta)
+    self_dbg_fa: String,
+    /// other dbg fasta (e.g. reads fasta)
+    other_dbg_fa: String,
 }
 
 /// Sample reads from the model
@@ -164,8 +164,8 @@ fn main() {
         SubCommand::Stat(t) => {
             cli::stat(t.dbg_fa, k);
         }
-        SubCommand::ReadStat(t) => {
-            cli::readstat(t.dbg_fa, t.reads_fa, k);
+        SubCommand::Compare(t) => {
+            cli::compare(t.self_dbg_fa, t.other_dbg_fa, k);
         }
         SubCommand::Sample(t) => {
             cli::sample(

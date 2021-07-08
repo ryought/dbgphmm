@@ -58,14 +58,14 @@ pub fn stat(dbg_fa: String, k: usize) {
     }
 }
 
-pub fn readstat(dbg_fa: String, reads_fa: String, k: usize) {
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
-    let dbg = dbg::DbgHash::from_seqs(&seqs, k);
+pub fn compare(self_dbg_fa: String, other_dbg_fa: String, k: usize) {
+    let self_seqs = io::fasta::parse_seqs(&self_dbg_fa);
+    let self_dbg = dbg::DbgHash::from_seqs(&self_seqs, k);
 
-    let reads = io::fasta::parse_seqs(&reads_fa);
-    let read_dbg = dbg::DbgHash::from_seqs(&reads, k);
+    let other_seqs = io::fasta::parse_seqs(&other_dbg_fa);
+    let other_dbg = dbg::DbgHash::from_seqs(&other_seqs, k);
 
-    let result = dbg.compare_dbg(&read_dbg);
+    let result = self_dbg.compare_dbg(&other_dbg);
     println!("{:?}", result);
 }
 
