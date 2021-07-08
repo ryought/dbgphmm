@@ -55,7 +55,8 @@ pub fn compare(self_dbg_fa: String, other_dbg_fa: String, k: usize) {
     let other_dbg = dbg::DbgHash::from_seqs(&other_seqs, k);
 
     let result = self_dbg.compare_dbg(&other_dbg);
-    println!("{:?}", result);
+    let json = serde_json::to_string_pretty(&result).unwrap();
+    println!("{}", json);
 }
 
 pub fn sample(
@@ -143,6 +144,7 @@ pub fn optimize_with_answer(
     std_size: u32,
     prior_only: bool,
     start_from_true_copy_nums: bool,
+    dump_seqs: bool,
     parallel: bool,
 ) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
@@ -181,9 +183,11 @@ pub fn optimize_with_answer(
     if start_from_true_copy_nums {
         let history = a.run_with_log(&mut rng, true_state, n_iteration);
         let copy_nums_final = &history.last().unwrap().copy_nums;
-        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-            let id = format!("{}", i);
-            io::fasta::dump_seq(&id, &seq, None);
+        if dump_seqs {
+            for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                let id = format!("{}", i);
+                io::fasta::dump_seq(&id, &seq, None);
+            }
         }
     } else {
         let history = a.run_with_log(&mut rng, init_state, n_iteration);
@@ -191,15 +195,19 @@ pub fn optimize_with_answer(
         // println!("{:?}", history.last().unwrap().copy_nums);
         // println!("{:?}", copy_nums_true);
         let copy_nums_final = &history.last().unwrap().copy_nums;
-        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-            let id = format!("{}", i);
-            io::fasta::dump_seq(&id, &seq, None);
+        if dump_seqs {
+            for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                let id = format!("{}", i);
+                io::fasta::dump_seq(&id, &seq, None);
+            }
         }
     }
 
-    for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
-        let id = format!("t{}", i);
-        io::fasta::dump_seq(&id, &seq, None);
+    if dump_seqs {
+        for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
+            let id = format!("t{}", i);
+            io::fasta::dump_seq(&id, &seq, None);
+        }
     }
 }
 

@@ -43,7 +43,7 @@ RUST_LOG=dbgphmm::cli::info cargo run -- sandbox
 
 ### automatic build update
 ```sh
-cargo watch -x 'build --release'
+cargo watch --ignore scripts/ -x 'build --release'
 ```
 
 ### benchmark

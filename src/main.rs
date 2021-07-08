@@ -133,6 +133,9 @@ struct Optimize {
     /// Start from true copy numbers infered from true_dbg_fa
     #[clap(long)]
     start_from_true_copy_nums: bool,
+    /// Dump seqs as FASTA after optimizing
+    #[clap(long)]
+    dump_seqs: bool,
     /// Use rayon to parallel calculation
     #[clap(long)]
     parallel: bool,
@@ -194,6 +197,7 @@ fn main() {
                 t.genome_size_std_var,
                 t.prior_only,
                 t.start_from_true_copy_nums,
+                t.dump_seqs,
                 t.parallel,
             ),
             None => cli::optimize(t.reads_fa, k, param),
