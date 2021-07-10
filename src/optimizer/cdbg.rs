@@ -1,4 +1,5 @@
-use super::base::{simple_run, Annealer, SAState};
+use super::annealer::{simple_run, Annealer, SAState};
+use super::base::ScoreableState;
 use crate::compressed_dbg::CompressedDBG;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
@@ -128,7 +129,7 @@ impl<'a> CDbgState<'a> {
     }
 }
 
-impl<'a> SAState for CDbgState<'a> {
+impl<'a> ScoreableState for CDbgState<'a> {
     /// Calc the posterior probability
     /// Now it returns only the prior score (no read information)
     fn score(&self) -> f64 {
@@ -138,6 +139,33 @@ impl<'a> SAState for CDbgState<'a> {
         self.calc_score();
         self.score()
     }
+    fn as_string(&self) -> String {
+        let mut s = String::new();
+        match (self.prior_score_cache, self.forward_score_cache) {
+            (Some(prior_score), Some(forward_score)) => {
+                write!(
+                    &mut s,
+                    "{}\t{}\t{}\t{:?}",
+                    prior_score.to_log_value(),
+                    forward_score.to_log_value(),
+                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cycle_vec,
+                );
+            }
+            _ => {
+                write!(
+                    &mut s,
+                    "Defered\tDefered\t{}\t{:?}",
+                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cycle_vec,
+                );
+            }
+        }
+        s
+    }
+}
+
+impl<'a> SAState for CDbgState<'a> {
     /// Pick cycles randomly and return new state
     fn next<R: Rng>(&self, rng: &mut R) -> CDbgState<'a> {
         let (cycle_id, is_up) = self.choose_cycle_and_direction(rng);
@@ -163,30 +191,6 @@ impl<'a> SAState for CDbgState<'a> {
             forward_score_cache: None,
             parallel: self.parallel,
         }
-    }
-    fn as_string(&self) -> String {
-        let mut s = String::new();
-        match (self.prior_score_cache, self.forward_score_cache) {
-            (Some(prior_score), Some(forward_score)) => {
-                write!(
-                    &mut s,
-                    "{}\t{}\t{}\t{:?}",
-                    prior_score.to_log_value(),
-                    forward_score.to_log_value(),
-                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
-                    self.cycle_vec,
-                );
-            }
-            _ => {
-                write!(
-                    &mut s,
-                    "Defered\tDefered\t{}\t{:?}",
-                    self.cdbg.total_emitable_copy_num(&self.copy_nums),
-                    self.cycle_vec,
-                );
-            }
-        }
-        s
     }
 }
 
