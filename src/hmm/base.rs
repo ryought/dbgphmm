@@ -2,10 +2,11 @@ use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
+use itertools::izip;
 use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PHMMLayer {
     pM: Vec<Prob>,
     pI: Vec<Prob>,
@@ -15,6 +16,26 @@ pub struct PHMMLayer {
     pIB: Prob,
     // End
     pE: Prob,
+}
+
+impl PHMMLayer {
+    pub fn new(n_kmers: usize) -> PHMMLayer {
+        PHMMLayer {
+            pM: vec![Prob::from_prob(0.0); n_kmers],
+            pI: vec![Prob::from_prob(0.0); n_kmers],
+            pD: vec![Prob::from_prob(0.0); n_kmers],
+            pMB: Prob::from_prob(0.0),
+            pIB: Prob::from_prob(0.0),
+            pE: Prob::from_prob(0.0),
+        }
+    }
+    /// p[i][j] = (e[i] is emitted from j-th kmer)
+    /// ignore 3 states of each kmer.
+    pub fn to_kmer_prob(&self) -> Vec<Prob> {
+        izip!(&self.pM, &self.pI, &self.pD)
+            .map(|(&m, &i, &d)| m + i + d)
+            .collect()
+    }
 }
 
 impl std::fmt::Display for PHMMLayer {
@@ -29,6 +50,49 @@ impl std::fmt::Display for PHMMLayer {
         }
         writeln!(f, "Node:End\tpE={}", self.pE);
         Ok(())
+    }
+}
+
+// operators
+impl<'a, 'b> std::ops::Add<&'b PHMMLayer> for &'a PHMMLayer {
+    type Output = PHMMLayer;
+    fn add(self, other: &'b PHMMLayer) -> PHMMLayer {
+        // assert that length is same
+        assert_eq!(self.pM.len(), other.pM.len());
+        assert_eq!(self.pI.len(), other.pI.len());
+        assert_eq!(self.pD.len(), other.pD.len());
+        let pM = self
+            .pM
+            .iter()
+            .zip(other.pM.iter())
+            .map(|(&s, &o)| s + o)
+            .collect();
+        let pI = self
+            .pI
+            .iter()
+            .zip(other.pI.iter())
+            .map(|(&s, &o)| s + o)
+            .collect();
+        let pD = self
+            .pD
+            .iter()
+            .zip(other.pD.iter())
+            .map(|(&s, &o)| s + o)
+            .collect();
+        PHMMLayer {
+            pM,
+            pI,
+            pD,
+            pMB: self.pMB + other.pMB,
+            pIB: self.pIB + other.pIB,
+            pE: self.pE + other.pE,
+        }
+    }
+}
+
+impl std::iter::Sum for PHMMLayer {
+    fn sum<I: Iterator<Item = PHMMLayer>>(iter: I) -> PHMMLayer {
+        iter.reduce(|a, b| &a + &b).unwrap()
     }
 }
 
@@ -426,7 +490,7 @@ pub trait PHMM {
         let first_layer = layers.first().unwrap();
         first_layer.pMB
     }
-    /// p[i][j] = (e[i] is emitted from j-th k-mer)
+    /// p[i][j] = (e[i] is emitted from j-th state)
     fn state_prob(
         &self,
         forward_layers: &[PHMMLayer],
@@ -502,5 +566,21 @@ pub trait PHMM {
             );
         }
         s
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layer() {
+        let mut l1 = PHMMLayer::new(5);
+        l1.pI[3] = Prob::from_prob(0.5);
+        let mut l2 = PHMMLayer::new(5);
+        l2.pM[1] = Prob::from_prob(0.5);
+        let l3 = &l1 + &l2;
+        assert_eq!(l1.pI[3], l3.pI[3]);
+        assert_eq!(l2.pM[1], l3.pM[1]);
     }
 }
