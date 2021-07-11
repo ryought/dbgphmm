@@ -5,7 +5,7 @@ use crate::hmm::sampler::PHMMSampler;
 use crate::kmer::kmer::Kmer;
 use crate::prob::Prob;
 use crate::*;
-use clap::{AppSettings, Clap};
+use clap::{AppSettings, ArgEnum, Clap};
 use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -117,6 +117,14 @@ enum Optimizer {
     Grad(Grad),
 }
 
+#[derive(ArgEnum, Debug)]
+pub enum InitStateType {
+    Zero,
+    True,
+    ReadCount,
+    Random,
+}
+
 /// Benchmark optimizers of the model to fit the reads with true dbg file
 #[derive(Clap)]
 struct Benchmark {
@@ -132,9 +140,9 @@ struct Benchmark {
     /// Only uses prior score as a state score (not forward score)
     #[clap(long)]
     prior_only: bool,
-    /// Start from true copy numbers infered from true_dbg_fa
-    #[clap(long)]
-    start_from_true_copy_nums: bool,
+    /// initial state that optimization starts from
+    #[clap(long, arg_enum, default_value = "zero")]
+    init_state: InitStateType,
     /// Dump seqs as FASTA after optimizing
     #[clap(long)]
     dump_seqs: bool,
@@ -368,14 +376,6 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
     let true_size = cdbg.total_emitable_copy_num(&copy_nums_true);
     info!("true_size={}", true_size);
 
-    let init_state = optimizer::cdbg::CDbgState::init(
-        &cdbg,
-        true_size,
-        opts.genome_size_std_var,
-        if opts.prior_only { None } else { Some(&reads) },
-        param.clone(),
-        opts.parallel,
-    );
     let true_state = optimizer::cdbg::CDbgState::new(
         &cdbg,
         copy_nums_true.clone(),
@@ -394,30 +394,43 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 opts_annealer.init_temp,
                 opts_annealer.cooling_rate,
             );
-            if opts.start_from_true_copy_nums {
-                // real run from true
-                let history = a.run_with_log(&mut rng, true_state, opts_annealer.n_iteration);
-                let copy_nums_final = &history.last().unwrap().copy_nums;
-                if opts.dump_seqs {
-                    for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-                        let id = format!("{}", i);
-                        io::fasta::dump_seq(&id, &seq, None);
+
+            match opts.init_state {
+                InitStateType::Zero => {
+                    // test run from true
+                    a.run_with_log(&mut rng, true_state, 1);
+                    // real run from zero
+                    let init_state = optimizer::cdbg::CDbgState::init(
+                        &cdbg,
+                        true_size,
+                        opts.genome_size_std_var,
+                        if opts.prior_only { None } else { Some(&reads) },
+                        param.clone(),
+                        opts.parallel,
+                    );
+                    let history = a.run_with_log(&mut rng, init_state, opts_annealer.n_iteration);
+                    // println!("{:?}", history.last().unwrap().copy_nums);
+                    // println!("{:?}", copy_nums_true);
+                    let copy_nums_final = &history.last().unwrap().copy_nums;
+                    if opts.dump_seqs {
+                        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                            let id = format!("{}", i);
+                            io::fasta::dump_seq(&id, &seq, None);
+                        }
                     }
                 }
-            } else {
-                // test run from true
-                a.run_with_log(&mut rng, true_state, 1);
-                // real run from zero
-                let history = a.run_with_log(&mut rng, init_state, opts_annealer.n_iteration);
-                // println!("{:?}", history.last().unwrap().copy_nums);
-                // println!("{:?}", copy_nums_true);
-                let copy_nums_final = &history.last().unwrap().copy_nums;
-                if opts.dump_seqs {
-                    for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-                        let id = format!("{}", i);
-                        io::fasta::dump_seq(&id, &seq, None);
+                InitStateType::True => {
+                    // real run from true
+                    let history = a.run_with_log(&mut rng, true_state, opts_annealer.n_iteration);
+                    let copy_nums_final = &history.last().unwrap().copy_nums;
+                    if opts.dump_seqs {
+                        for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                            let id = format!("{}", i);
+                            io::fasta::dump_seq(&id, &seq, None);
+                        }
                     }
                 }
+                _ => panic!("not implemented"),
             }
 
             if opts.dump_seqs {
@@ -429,12 +442,22 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
         }
         Optimizer::Grad(opts_grad) => {
             let g = optimizer::grad::GradientDescent::new(opts_grad.max_iteration, true);
-            if opts.start_from_true_copy_nums {
-                // real run from true
-                let history = g.run(true_state);
-            } else {
-                // real run from true
-                let history = g.run(init_state);
+            match opts.init_state {
+                InitStateType::True => {
+                    let history = g.run(true_state);
+                }
+                InitStateType::Zero => {
+                    let init_state = optimizer::cdbg::CDbgState::init(
+                        &cdbg,
+                        true_size,
+                        opts.genome_size_std_var,
+                        if opts.prior_only { None } else { Some(&reads) },
+                        param.clone(),
+                        opts.parallel,
+                    );
+                    let history = g.run(init_state);
+                }
+                _ => panic!("not implemented"),
             }
         }
     }
