@@ -167,62 +167,39 @@ pub fn main() {
     let k = opts.kmer_size;
 
     match opts.subcmd {
-        SubCommand::Generate(t) => {
-            cli::generate(t.length, t.seed);
+        SubCommand::Generate(o) => {
+            cli::generate(o);
         }
-        SubCommand::Stat(t) => {
-            cli::stat(t.dbg_fa, k);
+        SubCommand::Stat(o) => {
+            cli::stat(o, k);
         }
-        SubCommand::Compare(t) => {
-            cli::compare(t.self_dbg_fa, t.other_dbg_fa, k);
+        SubCommand::Compare(o) => {
+            cli::compare(o, k);
         }
-        SubCommand::Sample(t) => {
-            cli::sample(
-                t.dbg_fa,
-                t.length,
-                t.n_reads,
-                k,
-                t.seed,
-                param,
-                t.start_from_head,
-            );
+        SubCommand::Sample(o) => {
+            cli::sample(o, k, param);
         }
-        SubCommand::Forward(t) => {
-            cli::forward(t.dbg_fa, t.reads_fa, k, param, t.parallel);
+        SubCommand::Forward(o) => {
+            cli::forward(o, k, param);
         }
-        SubCommand::Optimize(t) => match t.true_dbg_fa {
-            Some(dbg_fa) => cli::optimize_with_answer(
-                dbg_fa,
-                t.reads_fa,
-                k,
-                param,
-                t.init_temp,
-                t.cooling_rate,
-                t.n_iteration,
-                t.genome_size_ave,
-                t.genome_size_std_var,
-                t.prior_only,
-                t.start_from_true_copy_nums,
-                t.dump_seqs,
-                t.parallel,
-                t.seed,
-            ),
-            None => cli::optimize(t.reads_fa, k, param),
+        SubCommand::Optimize(o) => match o.true_dbg_fa {
+            Some(_) => cli::optimize_with_answer(o, k, param),
+            None => cli::optimize(o, k, param),
         },
-        SubCommand::Sandbox(t) => {
-            cli::sandbox();
+        SubCommand::Sandbox(o) => {
+            cli::sandbox(o);
         }
     }
 }
 
-pub fn generate(length: usize, seed: u64) {
-    let v = random_seq::generate(length, seed);
+fn generate(opts: Generate) {
+    let v = random_seq::generate(opts.length, opts.seed);
     println!(">randseq");
     println!("{}", std::str::from_utf8(&v).unwrap());
 }
 
-pub fn stat(dbg_fa: String, k: usize) {
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
+fn stat(opts: Stat, k: usize) {
+    let seqs = io::fasta::parse_seqs(&opts.dbg_fa);
     let d = dbg::DbgHash::from_seqs(&seqs, k);
     info!("{:?}", d.as_degree_stats());
     let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
@@ -253,11 +230,11 @@ pub fn stat(dbg_fa: String, k: usize) {
     println!("{}", json);
 }
 
-pub fn compare(self_dbg_fa: String, other_dbg_fa: String, k: usize) {
-    let self_seqs = io::fasta::parse_seqs(&self_dbg_fa);
+fn compare(opts: Compare, k: usize) {
+    let self_seqs = io::fasta::parse_seqs(&opts.self_dbg_fa);
     let self_dbg = dbg::DbgHash::from_seqs(&self_seqs, k);
 
-    let other_seqs = io::fasta::parse_seqs(&other_dbg_fa);
+    let other_seqs = io::fasta::parse_seqs(&opts.other_dbg_fa);
     let other_dbg = dbg::DbgHash::from_seqs(&other_seqs, k);
 
     let result = self_dbg.compare_dbg(&other_dbg);
@@ -265,20 +242,12 @@ pub fn compare(self_dbg_fa: String, other_dbg_fa: String, k: usize) {
     println!("{}", json);
 }
 
-pub fn sample(
-    dbg_fa: String,
-    length: u32,
-    n_reads: u32,
-    k: usize,
-    seed: u64,
-    param: PHMMParams,
-    start_from_head: bool,
-) {
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
+fn sample(opts: Sample, k: usize, param: PHMMParams) {
+    let seqs = io::fasta::parse_seqs(&opts.dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
     info!("{:?}", cdbg.as_degree_stats());
-    let from = if start_from_head {
+    let from = if opts.start_from_head {
         let head = cdbg
             .heads()
             .first()
@@ -294,12 +263,12 @@ pub fn sample(
     // println!("{}", d.dbg.as_dot());
     // let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
     let mut infos: Vec<hmm::sampler::SampleInfo> = Vec::new();
-    for i in 0..n_reads {
+    for i in 0..opts.n_reads {
         // let seed_for_a_read: u64 = rng.gen();
-        let seed_for_a_read = seed + i as u64;
-        let (seq, info) = phmm.sample(&param, length, seed_for_a_read, from);
+        let seed_for_a_read = opts.seed + i as u64;
+        let (seq, info) = phmm.sample(&param, opts.length, seed_for_a_read, from);
         // output fasta
-        let id = format!("{},{}", length, seed_for_a_read);
+        let id = format!("{},{}", opts.length, seed_for_a_read);
         io::fasta::dump_seq(&id, &seq, Some(&info.to_string()));
         // store info in vec
         infos.push(info);
@@ -307,14 +276,14 @@ pub fn sample(
     info!("{:?}", hmm::sampler::sum_sample_infos(&infos));
 }
 
-pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams, parallel: bool) {
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
+fn forward(opts: Forward, k: usize, param: PHMMParams) {
+    let seqs = io::fasta::parse_seqs(&opts.dbg_fa);
     let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
     let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
 
-    let reads = io::fasta::parse_seqs(&reads_fa);
+    let reads = io::fasta::parse_seqs(&opts.reads_fa);
 
-    if parallel {
+    if opts.parallel {
         let p_total: prob::Prob = reads
             .par_iter()
             .map(|read| phmm.forward_prob(&param, read))
@@ -338,26 +307,11 @@ pub fn forward(dbg_fa: String, reads_fa: String, k: usize, param: PHMMParams, pa
 /// 1. construct dbg from reads
 /// 2. determine (true) copy_nums from fa
 /// 3. optimize
-pub fn optimize_with_answer(
-    dbg_fa: String,
-    reads_fa: String,
-    k: usize,
-    param: PHMMParams,
-    init_temp: f64,
-    cooling_rate: f64,
-    n_iteration: u64,
-    ave_size: u32,
-    std_size: u32,
-    prior_only: bool,
-    start_from_true_copy_nums: bool,
-    dump_seqs: bool,
-    parallel: bool,
-    seed: u64,
-) {
-    let reads = io::fasta::parse_seqs(&reads_fa);
+fn optimize_with_answer(opts: Optimize, k: usize, param: PHMMParams) {
+    let reads = io::fasta::parse_seqs(&opts.reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
-    let seqs = io::fasta::parse_seqs(&dbg_fa);
+    let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa.unwrap());
     let copy_nums_true = cdbg
         .true_copy_nums_from_seqs(&seqs, k)
         .unwrap_or_else(|| panic!("True copy_nums is not in read cdbg"));
@@ -367,10 +321,10 @@ pub fn optimize_with_answer(
     let init_state = optimizer::cdbg::CDbgState::init(
         &cdbg,
         true_size,
-        std_size,
-        if prior_only { None } else { Some(&reads) },
+        opts.genome_size_std_var,
+        if opts.prior_only { None } else { Some(&reads) },
         param.clone(),
-        parallel,
+        opts.parallel,
     );
     let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
     let true_state = optimizer::cdbg::CDbgState::new(
@@ -378,19 +332,19 @@ pub fn optimize_with_answer(
         copy_nums_true.clone(),
         cycle_vec_true,
         true_size,
-        std_size,
-        if prior_only { None } else { Some(&reads) },
+        opts.genome_size_std_var,
+        if opts.prior_only { None } else { Some(&reads) },
         param.clone(),
-        parallel,
+        opts.parallel,
     );
 
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-    let a = optimizer::annealer::Annealer::new(init_temp, cooling_rate);
-    if start_from_true_copy_nums {
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(opts.seed);
+    let a = optimizer::annealer::Annealer::new(opts.init_temp, opts.cooling_rate);
+    if opts.start_from_true_copy_nums {
         // real run from true
-        let history = a.run_with_log(&mut rng, true_state, n_iteration);
+        let history = a.run_with_log(&mut rng, true_state, opts.n_iteration);
         let copy_nums_final = &history.last().unwrap().copy_nums;
-        if dump_seqs {
+        if opts.dump_seqs {
             for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
                 let id = format!("{}", i);
                 io::fasta::dump_seq(&id, &seq, None);
@@ -400,11 +354,11 @@ pub fn optimize_with_answer(
         // test run from true
         a.run_with_log(&mut rng, true_state, 1);
         // real run from zero
-        let history = a.run_with_log(&mut rng, init_state, n_iteration);
+        let history = a.run_with_log(&mut rng, init_state, opts.n_iteration);
         // println!("{:?}", history.last().unwrap().copy_nums);
         // println!("{:?}", copy_nums_true);
         let copy_nums_final = &history.last().unwrap().copy_nums;
-        if dump_seqs {
+        if opts.dump_seqs {
             for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
                 let id = format!("{}", i);
                 io::fasta::dump_seq(&id, &seq, None);
@@ -412,7 +366,7 @@ pub fn optimize_with_answer(
         }
     }
 
-    if dump_seqs {
+    if opts.dump_seqs {
         for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
             let id = format!("t{}", i);
             io::fasta::dump_seq(&id, &seq, None);
@@ -420,11 +374,11 @@ pub fn optimize_with_answer(
     }
 }
 
-pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
+fn optimize(opts: Optimize, k: usize, param: PHMMParams) {
     println!("not implemented!");
 }
 
-pub fn sandbox() {
+fn sandbox(opts: Sandbox) {
     let x: Vec<(i32, f32)> = vec![(1, 0.7), (2, 0.1), (3, 0.9), (4, f32::NAN)];
     println!("{:?}", x);
     let max = x
