@@ -148,9 +148,6 @@ pub fn optimize_with_answer(
     parallel: bool,
     seed: u64,
 ) {
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-    let a = optimizer::annealer::Annealer::new(init_temp, cooling_rate);
-
     let reads = io::fasta::parse_seqs(&reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
@@ -181,6 +178,8 @@ pub fn optimize_with_answer(
         parallel,
     );
 
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+    let a = optimizer::annealer::Annealer::new(init_temp, cooling_rate);
     if start_from_true_copy_nums {
         // real run from true
         let history = a.run_with_log(&mut rng, true_state, n_iteration);
@@ -220,7 +219,16 @@ pub fn optimize(reads_fa: String, k: usize, param: PHMMParams) {
 }
 
 pub fn sandbox() {
-    stats::test();
+    let x: Vec<(i32, f32)> = vec![(1, 0.7), (2, 0.1), (3, 0.9), (4, f32::NAN)];
+    println!("{:?}", x);
+    let max = x
+        .into_iter()
+        .filter(|(_, x)| !x.is_nan())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .unwrap();
+    println!("{:?}", max);
+
+    // stats::test();
     /*
     let mut reads: Vec<Vec<u8>> = Vec::new();
     // reads.push(b"ATCGATTCGATCGATTCGATAGATCG".to_vec());

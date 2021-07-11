@@ -1,5 +1,6 @@
 use super::annealer::{simple_run, Annealer, SAState};
 use super::base::ScoreableState;
+use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
@@ -191,6 +192,36 @@ impl<'a> SAState for CDbgState<'a> {
             forward_score_cache: None,
             parallel: self.parallel,
         }
+    }
+}
+
+impl<'a> GDState for CDbgState<'a> {
+    /// change for each basis into two (up/down) directions
+    fn neighbors(&self) -> Vec<CDbgState<'a>> {
+        let mut neighbors = Vec::new();
+
+        for cycle_id in 0..self.cdbg.n_cycles() {
+            for is_up in [true, false].iter() {
+                if self.cdbg.is_acceptable(&self.copy_nums, cycle_id, *is_up) {
+                    let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, *is_up);
+                    let cycle_vec =
+                        self.cdbg
+                            .update_cycle_vec_by_cycle(&self.cycle_vec, cycle_id, *is_up);
+
+                    let neighbor = CDbgState {
+                        copy_nums,
+                        cycle_vec,
+                        prior_score_cache: None,
+                        forward_score_cache: None,
+                        param: self.param.clone(),
+                        ..*self
+                    };
+                    neighbors.push(neighbor);
+                }
+            }
+        }
+
+        neighbors
     }
 }
 
