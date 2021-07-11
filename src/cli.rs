@@ -125,7 +125,6 @@ struct Benchmark {
     /// reads fasta file
     reads_fa: String,
     /// true dbg fasta file for validation
-    #[clap(long)]
     true_dbg_fa: String,
     /// std. dev. of genome size in prior distribution
     #[clap(short = 'V', long)]
@@ -195,7 +194,7 @@ struct Annealer {
 #[derive(Clap)]
 struct Grad {
     /// max iteration number
-    #[clap(short = 'I', long, default_value = "100")]
+    #[clap(short = 'I', long, default_value = "10")]
     max_iteration: u64,
 }
 
@@ -360,7 +359,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
 /// 3. optimize
 fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
     let reads = io::fasta::parse_seqs(&opts.reads_fa);
-    let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
+    let (cdbg, copy_nums_read) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
     let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa);
     let copy_nums_true = cdbg
@@ -429,8 +428,15 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 }
             }
         }
-        Optimizer::Grad(o) => {
-            println!("grad {}", o.max_iteration);
+        Optimizer::Grad(opts_grad) => {
+            let g = optimizer::grad::GradientDescent::new(opts_grad.max_iteration, true);
+            if opts.start_from_true_copy_nums {
+                // real run from true
+                let history = g.run(true_state);
+            } else {
+                // real run from true
+                let history = g.run(init_state);
+            }
         }
     }
 }

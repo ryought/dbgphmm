@@ -10,7 +10,7 @@ function from_zero () {
   I=1000
   # cooling rate
   R=0.95
-  ./target/release/dbgphmm -k 8 optimize data/r1.fa --true-dbg-fa data/d1.fa -M 10 -V 10 -T $T -I $I -R $R --parallel > data/r1_f0_T${T}_R${R}_I${I}.tsv
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 -T $T -I $I -R $R --parallel annealer > data/r1_f0_T${T}_R${R}_I${I}.tsv
 }
 
 function from_true () {
@@ -20,9 +20,14 @@ function from_true () {
   I=500
   # cooling rate
   R=1.0
-  # ./target/release/dbgphmm -k 8 optimize data/r1.fa --true-dbg-fa data/d1.fa -M 10 -V 10 -T $T -I $I -R $R --parallel --start-from-true-copy-nums > data/r1_ft_T${T}_R${R}_I${I}.tsv
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 -T $T -I $I -R $R --parallel --start-from-true-copy-nums annealer > data/r1_ft_T${T}_R${R}_I${I}.tsv
   python scripts/plotter.py data/r1_ft_T${T}_R${R}_I${I}.tsv data/r1.json
 }
 
+function grad () {
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --start-from-true-copy-nums --parallel grad > data/r1.grad.tsv
+}
+
 # from_true
-from_zero
+# from_zero
+grad
