@@ -15,6 +15,7 @@ use std::fmt::Write as FmtWrite;
 /// O(1) access to childs, parents, emissions of index
 /// back to kmer content if necessary
 /// and it stores indexed cycles
+#[derive(PartialEq, Debug)]
 pub struct CompressedDBG {
     k: usize,
     n_kmers: usize,
@@ -603,5 +604,23 @@ mod tests {
         assert_eq!(starting.len(), 1);
         // starting kmer is the first 7-mer
         assert_eq!(cdbg.kmer(&starting[0]).clone(), Kmer::from(b"NATCGATT"));
+    }
+
+    #[test]
+    fn equality() {
+        // same
+        let mut d = DbgHash::new();
+        d.add_seq(b"ATCGATTCGATCGATTCGATAGATCG", 8);
+        let cdbg1a = CompressedDBG::from(&d, 8);
+        let cdbg1b = CompressedDBG::from(&d, 8);
+        assert_eq!(cdbg1a.as_dot(), cdbg1b.as_dot());
+        assert_eq!(cdbg1a, cdbg1b);
+
+        // different
+        let mut d2 = DbgHash::new();
+        d2.add_seq(b"ATCGATTCTTTAGTATTCGATAGATCG", 8);
+        let cdbg2 = CompressedDBG::from(&d2, 8);
+        assert_ne!(cdbg1a.as_dot(), cdbg2.as_dot());
+        assert_ne!(cdbg1a, cdbg2);
     }
 }

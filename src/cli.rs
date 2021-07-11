@@ -376,11 +376,10 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
         param.clone(),
         opts.parallel,
     );
-    let cycle_vec_true = cdbg.cycle_vec_from_copy_nums(&copy_nums_true);
     let true_state = optimizer::cdbg::CDbgState::new(
         &cdbg,
         copy_nums_true.clone(),
-        cycle_vec_true,
+        cdbg.cycle_vec_from_copy_nums(&copy_nums_true),
         true_size,
         opts.genome_size_std_var,
         if opts.prior_only { None } else { Some(&reads) },

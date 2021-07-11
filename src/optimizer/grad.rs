@@ -10,6 +10,7 @@ use std::fmt::Write as FmtWrite;
 
 pub trait GDState: Clone + ScoreableState {
     fn neighbors(&self) -> Vec<Self>;
+    fn is_duplicate(&self, other: &Self) -> bool;
 }
 
 /// find local maximum score by gradient descent
@@ -20,6 +21,7 @@ pub trait GDState: Clone + ScoreableState {
 pub struct GradientDescent {
     max_iteration: u64,
     is_verbose: bool,
+    stop_when_loop: bool,
 }
 
 impl GradientDescent {
@@ -27,6 +29,7 @@ impl GradientDescent {
         GradientDescent {
             max_iteration,
             is_verbose,
+            stop_when_loop: true,
         }
     }
     /// one step of climbing
@@ -73,9 +76,20 @@ impl GradientDescent {
         let mut states = Vec::new();
         let mut now = init_state;
         now.fill_score();
+        states.push(now.clone());
+        if self.is_verbose {
+            println!("# INIT\t{:.32}\t{}", now.score(), now.as_string());
+        }
         for iteration in 0..self.max_iteration {
             match self.step(&now, iteration) {
                 Some(next) => {
+                    // loop check
+                    if self.stop_when_loop && states.iter().any(|s| now.is_duplicate(s)) {
+                        if self.is_verbose {
+                            println!("# LOOP\t{:.32}\t{}", next.score(), next.as_string());
+                        }
+                        break;
+                    }
                     if self.is_verbose {
                         println!("# MOVE\t{:.32}\t{}", next.score(), next.as_string());
                     }
@@ -83,7 +97,10 @@ impl GradientDescent {
                     now = next;
                 }
                 None => {
-                    println!("# STOP");
+                    if self.is_verbose {
+                        println!("# STOP");
+                    }
+                    break;
                 }
             }
         }

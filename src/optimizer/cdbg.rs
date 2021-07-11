@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use std::fmt::Write as FmtWrite;
 
 /// SAState for cdbg and cdbg-based phmm
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct CDbgState<'a> {
     cdbg: &'a CompressedDBG,
     pub copy_nums: Vec<u32>,
@@ -69,6 +69,10 @@ impl<'a> CDbgState<'a> {
             cdbg, copy_nums, cycle_vec, ave_size, std_size, reads, param, parall,
         )
     }
+    /*
+    /// state with random copy_numbers
+    pub fn random() -> CDbgState<'a> {}
+    */
     fn choose_cycle_and_direction<R: Rng>(&self, rng: &mut R) -> (usize, bool) {
         for _ in 0..100 {
             // 1. pick a cycle
@@ -222,6 +226,9 @@ impl<'a> GDState for CDbgState<'a> {
         }
 
         neighbors
+    }
+    fn is_duplicate(&self, other: &CDbgState) -> bool {
+        self.copy_nums == other.copy_nums
     }
 }
 
