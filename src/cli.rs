@@ -204,6 +204,12 @@ struct Grad {
     /// max iteration number
     #[clap(short = 'I', long, default_value = "10")]
     max_iteration: u64,
+    /// number of trial with different seeds
+    #[clap(short = 't', long, default_value = "1")]
+    n_trial: u32,
+    /// number of basis of random initial state
+    #[clap(short = 'b', long, default_value = "5")]
+    n_basis: u32,
 }
 
 /// Sandbox for debugging
@@ -456,6 +462,22 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         opts.parallel,
                     );
                     let history = g.run(init_state);
+                }
+                InitStateType::Random => {
+                    let mut rng = Xoshiro256PlusPlus::seed_from_u64(opts.seed);
+                    for _ in 0..opts_grad.n_trial {
+                        let init_state = optimizer::cdbg::CDbgState::random(
+                            &mut rng,
+                            opts_grad.n_basis,
+                            &cdbg,
+                            true_size,
+                            opts.genome_size_std_var,
+                            if opts.prior_only { None } else { Some(&reads) },
+                            param.clone(),
+                            opts.parallel,
+                        );
+                        g.run(init_state);
+                    }
                 }
                 _ => panic!("not implemented"),
             }
