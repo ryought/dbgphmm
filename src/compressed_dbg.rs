@@ -8,6 +8,7 @@ use crate::prob::Prob;
 use crate::stats;
 use fnv::FnvHashMap as HashMap;
 use histo::Histogram;
+use itertools::iproduct;
 use log::{debug, info, warn};
 use std::fmt::Write as FmtWrite;
 
@@ -300,6 +301,13 @@ impl CompressedDBG {
             assert!(self.is_consistent_copy_num(&new_a));
             assert!(self.is_consistent_copy_num(&new_b));
         }
+    }
+    pub fn cycle_and_direction_candidates(&self, copy_nums: &[u32]) -> Vec<(usize, bool)> {
+        let candidates: Vec<(usize, bool)> = iproduct!((0..self.n_cycles()), &[true, false])
+            .filter(|(cycle_id, &is_up)| self.is_acceptable(copy_nums, *cycle_id, is_up))
+            .map(|(cycle_id, is_up)| (cycle_id, *is_up))
+            .collect();
+        candidates
     }
     pub fn from_seqs(seqs: &[Vec<u8>], k: usize) -> (CompressedDBG, Vec<u32>) {
         let dbg = DbgHash::from_seqs(seqs, k);
@@ -622,5 +630,19 @@ mod tests {
         let cdbg2 = CompressedDBG::from(&d2, 8);
         assert_ne!(cdbg1a.as_dot(), cdbg2.as_dot());
         assert_ne!(cdbg1a, cdbg2);
+    }
+
+    #[test]
+    fn cycle_candidates() {
+        // sample data, loop less dbg
+        let seqs = vec![b"ATTCGATCGATTT".to_vec()];
+        let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 8);
+        let cn_double: Vec<u32> = cn.iter().map(|x| x * 2).collect();
+        let cn_zero: Vec<u32> = cn.iter().map(|_| 0).collect();
+
+        assert_eq!(cdbg.n_cycles(), 1);
+        assert_eq!(cdbg.cycle_and_direction_candidates(&cn).len(), 2);
+        assert_eq!(cdbg.cycle_and_direction_candidates(&cn_double).len(), 2);
+        assert_eq!(cdbg.cycle_and_direction_candidates(&cn_zero).len(), 1);
     }
 }

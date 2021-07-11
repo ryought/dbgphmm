@@ -69,10 +69,32 @@ impl<'a> CDbgState<'a> {
             cdbg, copy_nums, cycle_vec, ave_size, std_size, reads, param, parall,
         )
     }
-    /*
-    /// state with random copy_numbers
-    pub fn random() -> CDbgState<'a> {}
-    */
+    /// generate states randomly by adding random cycle basis
+    pub fn random<R: Rng>(
+        rng: &mut R,
+        n_basis: u32,
+        cdbg: &'a CompressedDBG,
+        ave_size: u32,
+        std_size: u32,
+        reads: Option<&'a [Vec<u8>]>,
+        param: PHMMParams,
+        parall: bool,
+    ) -> CDbgState<'a> {
+        let mut copy_nums = vec![0; cdbg.n_kmers()];
+        let mut cycle_vec = vec![0; cdbg.n_cycles()];
+        for _ in 0..n_basis {
+            let (cycle_id, is_up) = cdbg
+                .cycle_and_direction_candidates(&copy_nums)
+                .choose(rng)
+                .unwrap()
+                .clone();
+            copy_nums = cdbg.update_by_cycle(&copy_nums, cycle_id, is_up);
+            cycle_vec = cdbg.update_cycle_vec_by_cycle(&cycle_vec, cycle_id, is_up);
+        }
+        CDbgState::new(
+            cdbg, copy_nums, cycle_vec, ave_size, std_size, reads, param, parall,
+        )
+    }
     fn choose_cycle_and_direction<R: Rng>(&self, rng: &mut R) -> (usize, bool) {
         for _ in 0..100 {
             // 1. pick a cycle
@@ -244,4 +266,20 @@ pub fn test() {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
     let a = Annealer::new(1.0, 0.8);
     let history = a.run(&mut rng, init, 100);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn random_state() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(10);
+        let seqs = vec![b"ATTCGATCGATTT".to_vec()];
+        let (cdbg, copy_nums) = CompressedDBG::from_seqs(&seqs, 8);
+        let param = PHMMParams::default();
+
+        let s0 = CDbgState::random(&mut rng, 10, &cdbg, 10, 10, None, param, false);
+        assert!(cdbg.is_consistent_copy_num(&s0.copy_nums));
+    }
 }
