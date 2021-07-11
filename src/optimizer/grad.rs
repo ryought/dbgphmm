@@ -84,7 +84,7 @@ impl GradientDescent {
             match self.step(&now, iteration) {
                 Some(next) => {
                     // loop check
-                    if self.stop_when_loop && states.iter().any(|s| now.is_duplicate(s)) {
+                    if self.stop_when_loop && states.iter().any(|s| next.is_duplicate(s)) {
                         if self.is_verbose {
                             println!("# LOOP\t{:.32}\t{}", next.score(), next.as_string());
                         }
