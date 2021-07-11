@@ -48,6 +48,7 @@ enum SubCommand {
     Compare(Compare),
     Sample(Sample),
     Forward(Forward),
+    Benchmark(Benchmark),
     Optimize(Optimize),
     Sandbox(Sandbox),
 }
@@ -110,23 +111,49 @@ struct Forward {
     parallel: bool,
 }
 
-/// Optimize the model to fit the reads
 #[derive(Clap)]
-struct Optimize {
+enum Optimizer {
+    Annealer(Annealer),
+    Grad(Grad),
+}
+
+/// Benchmark optimizers of the model to fit the reads with true dbg file
+#[derive(Clap)]
+struct Benchmark {
+    #[clap(subcommand)]
+    optimizer: Optimizer,
     /// reads fasta file
     reads_fa: String,
     /// true dbg fasta file for validation
     #[clap(long)]
-    true_dbg_fa: Option<String>,
-    /// initial temperature in simulated annealing
-    #[clap(short = 'T', long, default_value = "1.0")]
-    init_temp: f64,
-    /// cooling rate in simulated annealing
-    #[clap(short = 'R', long, default_value = "0.8")]
-    cooling_rate: f64,
-    /// cooling rate in simulated annealing
-    #[clap(short = 'I', long, default_value = "100")]
-    n_iteration: u64,
+    true_dbg_fa: String,
+    /// std. dev. of genome size in prior distribution
+    #[clap(short = 'V', long)]
+    genome_size_std_var: u32,
+    /// Only uses prior score as a state score (not forward score)
+    #[clap(long)]
+    prior_only: bool,
+    /// Start from true copy numbers infered from true_dbg_fa
+    #[clap(long)]
+    start_from_true_copy_nums: bool,
+    /// Dump seqs as FASTA after optimizing
+    #[clap(long)]
+    dump_seqs: bool,
+    /// Use rayon to parallel calculation
+    #[clap(long)]
+    parallel: bool,
+    /// random seed
+    #[clap(short = 's', long, default_value = "11")]
+    seed: u64,
+}
+
+/// Optimize the model without answer
+#[derive(Clap)]
+struct Optimize {
+    #[clap(subcommand)]
+    optimizer: Optimizer,
+    /// reads fasta file
+    reads_fa: String,
     /// average of genome size in prior distribution
     #[clap(short = 'M', long)]
     genome_size_ave: u32,
@@ -148,6 +175,28 @@ struct Optimize {
     /// random seed
     #[clap(short = 's', long, default_value = "11")]
     seed: u64,
+}
+
+/// Optimize by simulated annealing
+#[derive(Clap)]
+struct Annealer {
+    /// initial temperature in simulated annealing
+    #[clap(short = 'T', long, default_value = "1.0")]
+    init_temp: f64,
+    /// cooling rate in simulated annealing
+    #[clap(short = 'R', long, default_value = "0.8")]
+    cooling_rate: f64,
+    /// cooling rate in simulated annealing
+    #[clap(short = 'I', long, default_value = "100")]
+    n_iteration: u64,
+}
+
+/// Optimize by gradient
+#[derive(Clap)]
+struct Grad {
+    /// max iteration number
+    #[clap(short = 'I', long, default_value = "100")]
+    max_iteration: u64,
 }
 
 /// Sandbox for debugging
@@ -182,10 +231,12 @@ pub fn main() {
         SubCommand::Forward(o) => {
             cli::forward(o, k, param);
         }
-        SubCommand::Optimize(o) => match o.true_dbg_fa {
-            Some(_) => cli::optimize_with_answer(o, k, param),
-            None => cli::optimize(o, k, param),
-        },
+        SubCommand::Benchmark(o) => {
+            cli::benchmark(o, k, param);
+        }
+        SubCommand::Optimize(o) => {
+            cli::optimize(o, k, param);
+        }
         SubCommand::Sandbox(o) => {
             cli::sandbox(o);
         }
@@ -307,11 +358,11 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
 /// 1. construct dbg from reads
 /// 2. determine (true) copy_nums from fa
 /// 3. optimize
-fn optimize_with_answer(opts: Optimize, k: usize, param: PHMMParams) {
+fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
     let reads = io::fasta::parse_seqs(&opts.reads_fa);
     let (cdbg, _) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
-    let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa.unwrap());
+    let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa);
     let copy_nums_true = cdbg
         .true_copy_nums_from_seqs(&seqs, k)
         .unwrap_or_else(|| panic!("True copy_nums is not in read cdbg"));
@@ -338,38 +389,48 @@ fn optimize_with_answer(opts: Optimize, k: usize, param: PHMMParams) {
         opts.parallel,
     );
 
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(opts.seed);
-    let a = optimizer::annealer::Annealer::new(opts.init_temp, opts.cooling_rate);
-    if opts.start_from_true_copy_nums {
-        // real run from true
-        let history = a.run_with_log(&mut rng, true_state, opts.n_iteration);
-        let copy_nums_final = &history.last().unwrap().copy_nums;
-        if opts.dump_seqs {
-            for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-                let id = format!("{}", i);
-                io::fasta::dump_seq(&id, &seq, None);
+    match opts.optimizer {
+        Optimizer::Annealer(opts_annealer) => {
+            let mut rng = Xoshiro256PlusPlus::seed_from_u64(opts.seed);
+            let a = optimizer::annealer::Annealer::new(
+                opts_annealer.init_temp,
+                opts_annealer.cooling_rate,
+            );
+            if opts.start_from_true_copy_nums {
+                // real run from true
+                let history = a.run_with_log(&mut rng, true_state, opts_annealer.n_iteration);
+                let copy_nums_final = &history.last().unwrap().copy_nums;
+                if opts.dump_seqs {
+                    for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                        let id = format!("{}", i);
+                        io::fasta::dump_seq(&id, &seq, None);
+                    }
+                }
+            } else {
+                // test run from true
+                a.run_with_log(&mut rng, true_state, 1);
+                // real run from zero
+                let history = a.run_with_log(&mut rng, init_state, opts_annealer.n_iteration);
+                // println!("{:?}", history.last().unwrap().copy_nums);
+                // println!("{:?}", copy_nums_true);
+                let copy_nums_final = &history.last().unwrap().copy_nums;
+                if opts.dump_seqs {
+                    for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
+                        let id = format!("{}", i);
+                        io::fasta::dump_seq(&id, &seq, None);
+                    }
+                }
             }
-        }
-    } else {
-        // test run from true
-        a.run_with_log(&mut rng, true_state, 1);
-        // real run from zero
-        let history = a.run_with_log(&mut rng, init_state, opts.n_iteration);
-        // println!("{:?}", history.last().unwrap().copy_nums);
-        // println!("{:?}", copy_nums_true);
-        let copy_nums_final = &history.last().unwrap().copy_nums;
-        if opts.dump_seqs {
-            for (i, seq) in cdbg.to_seqs(copy_nums_final).iter().enumerate() {
-                let id = format!("{}", i);
-                io::fasta::dump_seq(&id, &seq, None);
-            }
-        }
-    }
 
-    if opts.dump_seqs {
-        for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
-            let id = format!("t{}", i);
-            io::fasta::dump_seq(&id, &seq, None);
+            if opts.dump_seqs {
+                for (i, seq) in cdbg.to_seqs(&copy_nums_true).iter().enumerate() {
+                    let id = format!("t{}", i);
+                    io::fasta::dump_seq(&id, &seq, None);
+                }
+            }
+        }
+        Optimizer::Grad(o) => {
+            println!("grad {}", o.max_iteration);
         }
     }
 }
