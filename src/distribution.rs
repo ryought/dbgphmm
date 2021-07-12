@@ -1,6 +1,7 @@
 use crate::prob::Prob;
 use libm::{erf, sqrt};
 
+/// TODO should compute in log-space
 pub fn normal_cdf(x: u32, mu: u32, sigma: u32) -> Prob {
     let f_x = x as f64;
     let f_mu = mu as f64;
@@ -14,8 +15,21 @@ pub fn normal_bin(x: u32, mu: u32, sigma: u32) -> Prob {
     Prob::from_prob(p0.to_value() - p1.to_value())
 }
 
-pub fn test() {
-    for x in 0..100 {
-        println!("{}", normal_bin(x, 50, 10));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normal_distribution() {
+        // TODO WIP
+        // check the distribution
+        // check if no floating-point error happened
+        for x in 0..200 {
+            println!("{}", normal_bin(x, 100, 10));
+        }
+
+        // check if the sum is 1
+        let s: Prob = (0..200).map(|x| normal_bin(x, 100, 10)).sum();
+        println!("{}", s);
     }
 }

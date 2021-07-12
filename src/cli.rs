@@ -48,6 +48,7 @@ enum SubCommand {
     Compare(Compare),
     Sample(Sample),
     Forward(Forward),
+    KmerProb(KmerProb),
     Benchmark(Benchmark),
     Optimize(Optimize),
     Sandbox(Sandbox),
@@ -109,6 +110,15 @@ struct Forward {
     /// Use rayon to parallel calculation
     #[clap(long)]
     parallel: bool,
+}
+
+/// Calculate probability of each kmer when the model produces the reads
+#[derive(Clap)]
+struct KmerProb {
+    /// dbg fasta file
+    dbg_fa: String,
+    /// reads fasta file
+    reads_fa: String,
 }
 
 #[derive(Clap)]
@@ -244,6 +254,9 @@ pub fn main() {
         SubCommand::Forward(o) => {
             cli::forward(o, k, param);
         }
+        SubCommand::KmerProb(o) => {
+            cli::kmer_prob(o, k, param);
+        }
         SubCommand::Benchmark(o) => {
             cli::benchmark(o, k, param);
         }
@@ -365,6 +378,29 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
         let p_total: prob::Prob = ps.iter().product();
         println!("#total\t{}", p_total.to_log_value());
     }
+}
+
+fn kmer_prob(opts: KmerProb, k: usize, param: PHMMParams) {
+    let seqs = io::fasta::parse_seqs(&opts.dbg_fa);
+    let (cdbg, copy_nums) = compressed_dbg::CompressedDBG::from_seqs(&seqs, k);
+    let phmm = hmm::cdbg::CDbgPHMM::new(&cdbg, copy_nums);
+
+    let reads = io::fasta::parse_seqs(&opts.reads_fa);
+
+    let layers: Vec<hmm::base::PHMMLayer> = reads
+        .par_iter()
+        .map(|read| {
+            // phmm.forward_prob(&param, read))
+            let forward_layers = phmm.forward(&param, read);
+            let backward_layers = phmm.backward(&param, read);
+            let state_prob = phmm.state_prob(&forward_layers, &backward_layers);
+            let ret: hmm::base::PHMMLayer = state_prob.into_iter().sum();
+            ret
+        })
+        .collect();
+    let layer_sum: hmm::base::PHMMLayer = layers.into_iter().sum();
+    let kmer_probs = layer_sum.to_kmer_prob();
+    println!("{}", cdbg.as_dot_with_probs(&kmer_probs));
 }
 
 /// Experiments of optimizer

@@ -28,8 +28,12 @@ function grad () {
   # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --start-from-true-copy-nums --parallel grad > data/r1.grad.tsv
 
   # random
+  # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state random --parallel \
+  #   grad -I 10 --n-trial 10 --n-basis 3 > data/r1_fr_b3_t50.grad.tsv
+
+  # random
   ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state random --parallel \
-    grad -I 10 --n-trial 10 --n-basis 3 > data/r1_fr_b3_t50.grad.tsv
+    grad -I 10 --n-trial 50 --n-basis 10 > data/r1_fr_b10_t50.grad.tsv
 }
 
 # from_true

@@ -468,6 +468,23 @@ impl CompressedDBG {
         writeln!(&mut s, "}}");
         s
     }
+    /// dot with probability (score) on each node
+    pub fn as_dot_with_probs(&self, probs: &[Prob]) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "digraph cdbg {{");
+        for v in self.iter_nodes() {
+            // for node
+            let kmer = self.kmer(&v);
+            let prob = probs[v.0];
+            writeln!(&mut s, "\t{} [label=\"{} {}\"];", v.0, kmer, prob);
+            // for edges
+            for w in self.childs(&v).iter() {
+                writeln!(&mut s, "\t{} -> {};", v.0, w.0);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
     /// show a histogram of cycle length distribution
     pub fn as_cycle_histogram(&self) -> String {
         let mut s = String::new();
