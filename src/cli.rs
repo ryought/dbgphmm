@@ -515,6 +515,19 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         g.run(init_state);
                     }
                 }
+                InitStateType::ReadCount => {
+                    let read_state = optimizer::cdbg::CDbgState::new(
+                        &cdbg,
+                        copy_nums_read.clone(),
+                        cdbg.cycle_vec_from_copy_nums(&copy_nums_read),
+                        true_size,
+                        opts.genome_size_std_var,
+                        if opts.prior_only { None } else { Some(&reads) },
+                        param.clone(),
+                        opts.parallel,
+                    );
+                    let history = g.run(read_state);
+                }
                 _ => panic!("not implemented"),
             }
         }
