@@ -25,19 +25,20 @@ function from_true () {
 }
 
 function grad () {
+  # true
   # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --start-from-true-copy-nums --parallel grad > data/r1.grad.tsv
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state true --parallel grad -I 10 > data/r1_ft.grad.tsv
 
   # random
   # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state random --parallel \
   #   grad -I 10 --n-trial 10 --n-basis 3 > data/r1_fr_b3_t50.grad.tsv
 
-  # # random
-  # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state random --parallel \
-  #   grad -I 10 --n-trial 50 --n-basis 10 > data/r1_fr_b10_t50.grad.tsv
+  # random
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state random --parallel grad -I 20 --n-trial 50 --n-basis 10 > data/r1_fr_b10_t50.grad.tsv
 
-  # read
-  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 1000 --init-state read-count --parallel \
-    grad -I 10 > data/r1_frc.grad.tsv
+  # # read
+  # ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 1000 --init-state read-count --parallel \
+  #   grad -I 10 > data/r1_frc.grad.tsv
 }
 
 # from_true

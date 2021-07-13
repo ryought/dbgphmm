@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 @dataclass
 class OptimizeLog:
@@ -32,29 +33,51 @@ class OptimizeLog:
     next_size: int
     next_state: list
 
-def parse_logs(tsv_filename):
+@dataclass
+class GradComment:
+    type: str
+    score: float
+    score_prior: float
+    score_forward: float
+    size: int
+    state: list
+
+def parse_logs(tsv_filename, with_comments=False):
     with open(tsv_filename) as f:
         logs = []
+        comments = []
         reader = csv.reader(f, delimiter='\t')
         for row in reader:
-            log = OptimizeLog(
-                id=int(row[0]),
-                temp=float(row[1]),
-                now_score=float(row[2]),
-                next_score=float(row[3]),
-                p_accept=float(row[4]),
-                is_accepted=(row[5] == 'true'),
-                now_score_prior=float(row[6]),
-                now_score_forward=float(row[7]),
-                now_size=int(row[8]),
-                now_state=json.loads(row[9]),
-                next_score_prior=float(row[10]),
-                next_score_forward=float(row[11]),
-                next_size=int(row[12]),
-                next_state=json.loads(row[13]),
-            )
-            logs.append(log)
-    return logs
+            if row[0][0] == '#':
+                if with_comments:
+                    comment = GradComment(
+                        type=row[0][2:],
+                        score=float(row[1]),
+                        score_prior=float(row[2]),
+                        score_forward=float(row[3]),
+                        size=int(row[4]),
+                        state=json.loads(row[5]),
+                    )
+                    comments.append(comment)
+            else:
+                log = OptimizeLog(
+                    id=int(row[0]),
+                    temp=float(row[1]),
+                    now_score=float(row[2]),
+                    next_score=float(row[3]),
+                    p_accept=float(row[4]),
+                    is_accepted=(row[5] == 'true'),
+                    now_score_prior=float(row[6]),
+                    now_score_forward=float(row[7]),
+                    now_size=int(row[8]),
+                    now_state=json.loads(row[9]),
+                    next_score_prior=float(row[10]),
+                    next_score_forward=float(row[11]),
+                    next_size=int(row[12]),
+                    next_state=json.loads(row[13]),
+                )
+                logs.append(log)
+    return logs, comments
 
 def parse_stats(json_filename):
     with open(json_filename) as f:
@@ -123,6 +146,67 @@ def plot_projected(logs, stats, filename):
 
     plt.savefig(filename)
 
+def plot_grad_projected(logs, comments, stats, filename):
+    # pca = PCA(n_components=2)
+    tsne = TSNE(n_components=2, random_state = 0, perplexity = 30, n_iter = 400)
+    X = np.array([log.next_state for log in logs])
+    C = np.array([log.next_score for log in logs])
+    # pca.fit(X)
+    # Y = pca.transform(X)
+    print('TSNE')
+    Y = tsne.fit_transform(X)
+
+    x = np.array([log.now_state for log in logs])
+    c = np.array([log.now_score for log in logs])
+    # y = pca.transform(x)
+
+    plt.subplot(2, 1, 1)
+    plt.scatter(Y[:, 0], Y[:, 1], c=C, alpha=0.2)
+    # plt.scatter(y[:, 0], y[:, 1], marker='+', color='red')
+    plt.colorbar()
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+
+    plt.savefig(filename)
+
+def plot_grad_projected_with_true(logs, true_logs, stats, filename, method='pca'):
+    X = np.array(
+        [log.next_state for log in logs] + [log.next_state for log in true_logs]
+    )
+    C = np.array(
+        [log.next_score for log in logs] + [log.next_score for log in true_logs]
+    )
+    N = len(logs)
+    M = len(true_logs)
+
+    # Y <- X
+    if method == 'pca':
+        pca = PCA(n_components=2)
+        Y = pca.fit_transform(X)
+    elif method == 'tsne':
+        tsne = TSNE(n_components=2, random_state = 0, perplexity = 30, n_iter = 400)
+        Y = tsne.fit_transform(X)
+    else:
+        return
+
+    x = np.array([log.now_state for log in logs])
+    c = np.array([log.now_score for log in logs])
+    # y = pca.transform(x)
+
+    plt.subplot(2, 1, 1)
+
+    plt.scatter(Y[:, 0], Y[:, 1], c=C[:], alpha=0.2)
+
+    # plt.scatter(Y[:N, 0], Y[:N, 1], c=C[:N], alpha=0.2)
+    # plt.scatter(Y[N:N+M, 0], Y[N:N+M, 1], c=C[N:N+M], alpha=0.2, marker='+')
+
+    # plt.scatter(y[:, 0], y[:, 1], marker='+', color='red')
+    plt.colorbar()
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+
+    plt.savefig(filename)
+
 def plot_basis(logs, stats, filename):
     plt.figure(figsize=(10, 20))
     N = 6
@@ -171,18 +255,28 @@ def plot_basis(logs, stats, filename):
 
 def main():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('tsv_filename', type=str, help='tsv created by dbgphmm optimize')
     parser.add_argument('json_filename', type=str, help='json created by dbgphmm stats')
-    # parser.add_argument('--start-from-true-copy-nums', action='store_true', help='Bool flag( --debug or no )')
+    parser.add_argument('tsv_filename', type=str, help='tsv created by dbgphmm optimize')
+    parser.add_argument('--true_tsv_filename', type=str, help='true tsv created by dbgphmm optimize (from true)')
+    parser.add_argument('--optimize_mode', type=str, choices=['annealer', 'grad'], help='optimize method used by dbgphmm when producing tsv')
     args = parser.parse_args()
 
-    logs = parse_logs(args.tsv_filename)
+    # parse
     stats = parse_stats(args.json_filename)
+    logs, comments = parse_logs(args.tsv_filename, with_comments=False)
+    if args.true_tsv_filename:
+        true_logs, true_comments = parse_logs(args.true_tsv_filename, with_comments=False)
 
-    # if args.start_from_true_copy_nums:
-    plot_temp(logs, stats, args.tsv_filename + '.tempscore.png')
-    plot_projected(logs, stats, args.tsv_filename + '.projected.png')
-    plot_basis(logs, stats, args.tsv_filename + '.basis.png')
+    # plot
+    if args.optimize_mode == 'annealer':
+        plot_temp(logs, stats, args.tsv_filename + '.tempscore.png')
+        plot_projected(logs, stats, args.tsv_filename + '.projected.png')
+        plot_basis(logs, stats, args.tsv_filename + '.basis.png')
+    elif args.optimize_mode == 'grad':
+        if args.true_tsv_filename:
+            plot_grad_projected_with_true(logs, true_logs, stats, args.tsv_filename + '.projgrad.png', method='tsne')
+        else:
+            plot_grad_projected(logs, comments, stats, args.tsv_filename + '.projgrad.png')
 
 if __name__ == '__main__':
     main()
