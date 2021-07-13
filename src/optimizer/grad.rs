@@ -67,7 +67,14 @@ impl GradientDescent {
                 .filter(|(_, x)| !x.is_nan())
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
             match max_neighbor {
-                Some((neighbor, _)) => Some(neighbor),
+                Some((neighbor, score)) => {
+                    // new score is better than current score
+                    if score > now.score() {
+                        Some(neighbor)
+                    } else {
+                        None
+                    }
+                }
                 None => None,
             }
         }
