@@ -107,8 +107,8 @@ pub trait PHMM {
     fn parents(&self, v: &Node) -> &[Node];
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool;
     // hmm related values. each node has (copy_num, emission) attributes
-    fn copy_num(&self, v: &Node) -> u32;
-    fn total_copy_num(&self) -> u32 {
+    fn copy_num(&self, v: &Node) -> f64;
+    fn total_copy_num(&self) -> f64 {
         iter_nodes(self.n_nodes())
             .filter(|v| self.is_emitable(&v))
             .map(|v| self.copy_num(&v))
@@ -128,10 +128,11 @@ pub trait PHMM {
         if self.is_emitable(v) {
             let copy_num = self.copy_num(v);
             let total_copy_num = self.total_copy_num();
-            Prob::from_prob(f64::from(copy_num) / f64::from(total_copy_num))
-        } else {
-            Prob::from_prob(0.0)
+            if total_copy_num > 0.0 {
+                return Prob::from_prob(copy_num / total_copy_num);
+            }
         }
+        Prob::from_prob(0.0)
     }
     // forward prob
     fn fmi_init(&self) -> (Vec<Prob>, Vec<Prob>) {
