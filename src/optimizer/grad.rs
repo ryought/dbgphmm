@@ -105,7 +105,7 @@ impl GradientDescent {
                 }
                 None => {
                     if self.is_verbose {
-                        println!("# STOP");
+                        println!("# STOP\t{:.32}\t{}", now.score(), now.as_string());
                     }
                     break;
                 }
