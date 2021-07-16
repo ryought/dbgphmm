@@ -412,6 +412,46 @@ impl CompressedDBG {
     pub fn prior_score(&self, copy_nums: &[u32], ave_size: u32, std_size: u32) -> Prob {
         normal_bin(self.total_emitable_copy_num(copy_nums), ave_size, std_size)
     }
+
+    /// freqs -> trans_probs conversion function
+    /// useful to create PHMM
+    pub fn freq_to_trans_prob(&self, freqs: &[f64]) -> Vec<Vec<Prob>> {
+        assert_eq!(self.n_kmers(), freqs.len());
+        self.iter_nodes()
+            .map(|v| {
+                let fs: Vec<f64> = self
+                    .childs(&v)
+                    .iter()
+                    .map(|&w| {
+                        if self.is_emitable(&w) {
+                            freqs[w.0]
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                let total_f: f64 = fs.iter().sum();
+                fs.iter()
+                    .map(|&f| {
+                        if self.is_emitable(&v) && total_f > 0.0 {
+                            Prob::from_prob(f / total_f)
+                        } else {
+                            Prob::from_prob(0.0)
+                        }
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+    /// calc the sum of freqs
+    pub fn total_emitable_freq(&self, freqs: &[f64]) -> f64 {
+        (0..self.n_kmers())
+            .map(|i| Node(i))
+            .filter(|&v| self.is_emitable(&v))
+            .map(|v| freqs[v.0])
+            .sum()
+    }
+
     /// Graphviz dot format
     pub fn as_dot(&self) -> String {
         let mut s = String::new();

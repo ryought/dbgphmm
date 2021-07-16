@@ -30,6 +30,7 @@ impl<'a> CDbgPHMM<'a> {
         }
     }
     /// check if CDbgPHMM copy numbers (flows) are consistent or not
+    /// FIXME to be implemented
     pub fn is_consistent(&self) -> bool {
         true
     }
