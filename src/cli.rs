@@ -125,6 +125,7 @@ struct KmerProb {
 enum Optimizer {
     Annealer(Annealer),
     Grad(Grad),
+    FloatGrad(FloatGrad),
 }
 
 #[derive(ArgEnum, Debug)]
@@ -220,6 +221,20 @@ struct Grad {
     /// number of basis of random initial state
     #[clap(short = 'b', long, default_value = "5")]
     n_basis: u32,
+}
+
+/// Optimize by gradient with float frequencies
+#[derive(Clap)]
+struct FloatGrad {
+    /// max iteration number
+    #[clap(short = 'I', long, default_value = "10")]
+    max_iteration: u64,
+    /// number of trial with different seeds
+    #[clap(short = 't', long, default_value = "1")]
+    n_trial: u32,
+    /// delta of moving frequencies
+    #[clap(short = 'D', long, default_value = "0.001")]
+    delta: f64,
 }
 
 /// Sandbox for debugging
@@ -527,6 +542,22 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         opts.parallel,
                     );
                     let history = g.run(read_state);
+                }
+                _ => panic!("not implemented"),
+            }
+        }
+        Optimizer::FloatGrad(opts_float_grad) => {
+            let g = optimizer::grad::GradientDescent::new(opts_float_grad.max_iteration, true);
+            match opts.init_state {
+                InitStateType::Zero => {
+                    let init_state = optimizer::fdbg::FCDbgState::init(
+                        &cdbg,
+                        if opts.prior_only { None } else { Some(&reads) },
+                        param.clone(),
+                        opts.parallel,
+                        opts_float_grad.delta,
+                    );
+                    let history = g.run(init_state);
                 }
                 _ => panic!("not implemented"),
             }

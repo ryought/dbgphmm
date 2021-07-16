@@ -23,6 +23,7 @@ pub struct FCDbgState<'a> {
     param: PHMMParams,
     score_cache: Option<Prob>,
     parallel: bool,
+    delta: f64,
 }
 
 impl<'a> FCDbgState<'a> {
@@ -33,6 +34,7 @@ impl<'a> FCDbgState<'a> {
         reads: Option<&'a [Vec<u8>]>,
         param: PHMMParams,
         parallel: bool,
+        delta: f64,
     ) -> FCDbgState<'a> {
         FCDbgState {
             cdbg,
@@ -41,6 +43,7 @@ impl<'a> FCDbgState<'a> {
             param,
             score_cache: None,
             parallel,
+            delta,
         }
     }
     /// initial state with all-zero frequencies
@@ -49,9 +52,10 @@ impl<'a> FCDbgState<'a> {
         reads: Option<&'a [Vec<u8>]>,
         param: PHMMParams,
         parallel: bool,
+        delta: f64,
     ) -> FCDbgState<'a> {
         let freqs = vec![0.0; cdbg.n_kmers()];
-        FCDbgState::new(cdbg, freqs, reads, param, parallel)
+        FCDbgState::new(cdbg, freqs, reads, param, parallel, delta)
     }
     pub fn forward_score(&self) -> Prob {
         match self.reads {
@@ -125,15 +129,14 @@ impl<'a> GDState for FCDbgState<'a> {
     /// increase/decrease the freq of one k-mer
     fn neighbors(&self) -> Vec<FCDbgState<'a>> {
         let mut neighbors = Vec::new();
-        let eps = 0.001;
 
         for i in 0..self.cdbg.n_kmers() {
             for is_up in [true, false].iter() {
                 let mut new_freqs = self.freqs.to_vec();
                 if *is_up {
-                    new_freqs[i] += eps;
+                    new_freqs[i] += self.delta;
                 } else {
-                    new_freqs[i] -= eps;
+                    new_freqs[i] -= self.delta;
                 }
 
                 // accept if all freqs are above zero
@@ -167,7 +170,7 @@ mod tests {
 
         let freqs: Vec<f64> = copy_nums.iter().map(|&cn| cn as f64).collect();
         let param = PHMMParams::default();
-        let mut s = FCDbgState::new(&cdbg, freqs, Some(&seqs), param, true);
+        let mut s = FCDbgState::new(&cdbg, freqs, Some(&seqs), param, true, 0.1);
         let score = s.forward_score();
         println!("score={}", score);
         for n in s.neighbors() {
