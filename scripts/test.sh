@@ -41,6 +41,12 @@ function grad () {
   #   grad -I 10 > data/r1_frc.grad.tsv
 }
 
+function floatgrad() {
+  # zero
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel float-grad -D 0.1 -I 100 > data/r1_f0.floatgrad.tsv
+}
+
 # from_true
 # from_zero
-grad
+# grad
+floatgrad

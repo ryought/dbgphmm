@@ -1,6 +1,7 @@
 pub mod base;
 pub mod cdbg;
 pub mod dbg;
+pub mod fdbg;
 pub mod linear;
 pub mod params;
 pub mod sampler;

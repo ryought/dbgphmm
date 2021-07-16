@@ -116,7 +116,7 @@ impl<'a> CDbgState<'a> {
         self.cdbg
             .prior_score(&self.copy_nums, self.ave_size, self.std_size)
     }
-    fn forward_score(&self) -> Prob {
+    pub fn forward_score(&self) -> Prob {
         // TODO omit this cloning of copy_nums(Cdbgphmm does not have to real vec)
         match self.reads {
             Some(reads) => {

@@ -30,6 +30,7 @@ impl<'a> CDbgPHMM<'a> {
         }
     }
     /// check if CDbgPHMM copy numbers (flows) are consistent or not
+    /// FIXME to be implemented
     pub fn is_consistent(&self) -> bool {
         true
     }
@@ -48,11 +49,11 @@ impl<'a> PHMM for CDbgPHMM<'a> {
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool {
         self.cdbg.childs(v).iter().any(|&i| i == *w)
     }
-    fn copy_num(&self, v: &Node) -> u32 {
-        self.copy_nums[v.0]
+    fn copy_num(&self, v: &Node) -> f64 {
+        self.copy_nums[v.0] as f64
     }
-    fn total_copy_num(&self) -> u32 {
-        self.total_copy_num
+    fn total_copy_num(&self) -> f64 {
+        self.total_copy_num as f64
     }
     fn emission(&self, v: &Node) -> u8 {
         self.cdbg.emission(v)

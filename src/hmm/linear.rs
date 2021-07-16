@@ -38,11 +38,11 @@ impl PHMM for LinearPHMM {
     fn is_adjacent(&self, v: &Node, w: &Node) -> bool {
         v.0 + 1 == w.0
     }
-    fn copy_num(&self, v: &Node) -> u32 {
+    fn copy_num(&self, v: &Node) -> f64 {
         if v.0 < self.bases.len() {
-            1
+            1.0
         } else {
-            0
+            0.0
         }
     }
     fn emission(&self, v: &Node) -> u8 {
