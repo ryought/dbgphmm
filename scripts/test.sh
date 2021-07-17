@@ -46,7 +46,12 @@ function floatgrad() {
   ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel float-grad -D 0.1 -I 100 > data/r1_f0.floatgrad.tsv
 }
 
+function em() {
+  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em -I 100 > data/r1_frc.floatem.txt
+}
+
 # from_true
 # from_zero
 # grad
-floatgrad
+# floatgrad
+em

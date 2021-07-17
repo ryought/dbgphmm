@@ -126,6 +126,7 @@ enum Optimizer {
     Annealer(Annealer),
     Grad(Grad),
     FloatGrad(FloatGrad),
+    FloatEM(FloatEM),
 }
 
 #[derive(ArgEnum, Debug)]
@@ -235,6 +236,14 @@ struct FloatGrad {
     /// delta of moving frequencies
     #[clap(short = 'D', long, default_value = "0.001")]
     delta: f64,
+}
+
+/// Optimize by EM algorithm with float frequencies
+#[derive(Clap)]
+struct FloatEM {
+    /// max iteration number
+    #[clap(short = 'I', long, default_value = "10")]
+    max_iteration: u64,
 }
 
 /// Sandbox for debugging
@@ -562,6 +571,19 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 _ => panic!("not implemented"),
             }
         }
+        Optimizer::FloatEM(opts_float_em) => match opts.init_state {
+            InitStateType::ReadCount => {
+                let freqs_read = cdbg.copy_nums_to_freqs(&copy_nums_read);
+                optimizer::em::optimize_freq_by_em(
+                    &cdbg,
+                    &reads,
+                    param.clone(),
+                    &freqs_read,
+                    opts_float_em.max_iteration,
+                )
+            }
+            _ => panic!("not immplemmented"),
+        },
     }
 }
 

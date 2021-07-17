@@ -451,6 +451,9 @@ impl CompressedDBG {
             .map(|v| freqs[v.0])
             .sum()
     }
+    pub fn copy_nums_to_freqs(&self, freqs: &[u32]) -> Vec<f64> {
+        freqs.iter().map(|&f| f as f64).collect()
+    }
 
     /// Graphviz dot format
     pub fn as_dot(&self) -> String {

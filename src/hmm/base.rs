@@ -36,6 +36,12 @@ impl PHMMLayer {
             .map(|(&m, &i, &d)| m + i + d)
             .collect()
     }
+    pub fn to_freqs(&self) -> Vec<f64> {
+        self.to_kmer_prob()
+            .into_iter()
+            .map(|p| p.to_value())
+            .collect()
+    }
 }
 
 impl std::fmt::Display for PHMMLayer {
