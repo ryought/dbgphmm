@@ -50,8 +50,14 @@ function em() {
   ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em -I 100 > data/r1_frc.floatem.txt
 }
 
+function int_em() {
+  # cargo run -- -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em
+  cargo run -- -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state true --parallel float-em
+}
+
 # from_true
 # from_zero
 # grad
 # floatgrad
-em
+# em
+int_em

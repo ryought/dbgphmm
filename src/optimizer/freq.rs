@@ -25,6 +25,15 @@ pub struct FreqState<'a> {
 }
 
 impl<'a> FreqState<'a> {
+    pub fn new(cdbg: &'a CompressedDBG, freqs: &'a [f64], copy_nums: &'a [u32]) -> FreqState<'a> {
+        let cycle_vec = cdbg.cycle_vec_from_copy_nums(copy_nums);
+        FreqState {
+            cdbg,
+            freqs,
+            copy_nums: copy_nums.to_vec(),
+            cycle_vec,
+        }
+    }
     pub fn init(cdbg: &'a CompressedDBG, freqs: &'a [f64]) -> FreqState<'a> {
         let copy_nums = vec![0; cdbg.n_kmers()];
         let cycle_vec = vec![0; cdbg.n_cycles()];

@@ -572,7 +572,15 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             }
         }
         Optimizer::FloatEM(opts_float_em) => match opts.init_state {
+            InitStateType::True => optimizer::em::optimize_copy_nums_by_em_with_true(
+                &cdbg,
+                &reads,
+                param.clone(),
+                &copy_nums_true,
+                &copy_nums_read,
+            ),
             InitStateType::ReadCount => {
+                /*
                 let freqs_read = cdbg.copy_nums_to_freqs(&copy_nums_read);
                 optimizer::em::optimize_freq_by_em(
                     &cdbg,
@@ -580,6 +588,13 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                     param.clone(),
                     &freqs_read,
                     opts_float_em.max_iteration,
+                )
+                */
+                optimizer::em::optimize_copy_nums_by_em(
+                    &cdbg,
+                    &reads,
+                    param.clone(),
+                    &copy_nums_read,
                 )
             }
             _ => panic!("not immplemmented"),
