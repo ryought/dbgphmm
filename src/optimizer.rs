@@ -3,4 +3,5 @@ pub mod base;
 pub mod cdbg;
 pub mod em;
 pub mod fdbg;
+pub mod freq;
 pub mod grad;
