@@ -79,6 +79,7 @@ impl IndexedDiGraph {
     /// F[k][v] = (minimum weight path from source to v, with k edges)
     /// with backtraces
     /// B[k][v] = w  <=>  (min weight path F[k][v] ends with w -> v edge)
+    /// for all 0<=k<=n and v \in V
     /// this function returns their products, that is
     /// R[k][v] = (F[k][v], B[k][v])
     fn min_weight_paths(&self, source: &Node, weights: &[f64]) -> Vec<Vec<(f64, Option<Node>)>> {
@@ -96,7 +97,7 @@ impl IndexedDiGraph {
             .collect();
 
         // 2. step
-        for k in 1..self.n_nodes() {
+        for k in 1..=self.n_nodes() {
             let f_new = (0..self.n_nodes())
                 .map(|i| {
                     let v = Node(i);
@@ -127,10 +128,109 @@ impl IndexedDiGraph {
         fs.push(f);
         fs
     }
-    /*
+
+    /// compute minimizer pair `(k, v)` that satisfies
+    /// `(v*, k*) = argmin_v argmax_k (F[n][v] - F[k][v]) / (n-k)`
+    /// it fails when there are no cycles in the graph.
+    fn find_minimizer_pair(
+        &self,
+        source: &Node,
+        weights: &[f64],
+        paths: &[Vec<(f64, Option<Node>)>],
+    ) -> Option<(Node, usize, f64)> {
+        let n = self.n_nodes();
+        let maxs: Vec<Option<(usize, f64)>> = (0..n)
+            .map(|i| {
+                (0..n)
+                    .filter_map(|k| {
+                        let fnv = paths[n][i].0;
+                        let fkv = paths[k][i].0;
+                        println!("v={} k={} value={}", i, k, (fnv - fkv) / (n - k) as f64);
+                        if fnv != f64::INFINITY && fkv != f64::INFINITY {
+                            Some((k, (fnv - fkv) / (n - k) as f64))
+                        } else {
+                            None
+                        }
+                    })
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            })
+            .collect();
+        println!("maxs {:?}", maxs);
+
+        maxs.iter()
+            .enumerate()
+            .filter_map(|(i, max)| {
+                if max.is_some() {
+                    let (k, weight) = max.unwrap();
+                    Some((Node(i), k, weight))
+                } else {
+                    None
+                }
+            })
+            .min_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
+    }
+
+    fn traceback_paths(
+        &self,
+        start: &Node,
+        weights: &[f64],
+        paths: &[Vec<(f64, Option<Node>)>],
+    ) -> Vec<Node> {
+        // now: pointer to node
+        let mut now = *start;
+        // visited: (visited[node] = [i0, i1, ...]) means ()
+        let mut visited: Vec<Option<usize>> = vec![None; self.n_nodes()];
+        let mut nodes: Vec<Node> = Vec::new();
+
+        for i in (0..paths.len()).rev() {
+            // now in i-th node in cycle
+
+            // 1. compare with previous occurrences j
+            if let Some(j) = visited[now.0] {
+                // ((paths.len() - 1) - j)-th element in nodes
+                // corresponds to paths[j]
+                let cycle = nodes[(paths.len() - 1) - j..]
+                    .iter()
+                    .rev()
+                    .map(|&v| v)
+                    .collect();
+                return cycle;
+            }
+
+            // 2. mark as visited
+            visited[now.0] = Some(i);
+            nodes.push(now);
+
+            // 3. traceback
+            if i != 0 {
+                let (_, parent) = paths[i][now.0];
+                now = parent.unwrap();
+            }
+        }
+
+        panic!("traceback failed");
+    }
+
     /// Find the min mean(average) weight cycle
-    fn minimum_mean_weight_cycle(&self) -> Vec<Edge>;
-    */
+    /// -> Vec<Edge>
+    fn minimum_mean_weight_cycle(&self, source: &Node, weights: &[f64]) {
+        // 1. compute shortest-paths
+        let paths = self.min_weight_paths(source, weights);
+
+        // 2. find minimizer
+        let min = self.find_minimizer_pair(source, weights, &paths);
+
+        // 3. trackback to find the min-mean-weight cycle
+        match min {
+            Some((v, k, weight)) => {
+                println!("v={:?} k={} weight={}", v, k, weight);
+                let cycle = self.traceback_paths(&v, weights, &paths);
+            }
+            None => {
+                println!("no cycles");
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +279,40 @@ mod tests {
         assert_eq!(paths[1][2], (weights[1], Some(Node(0)))); // 0->2
         assert_eq!(paths[2][3], (weights[1] + weights[3], Some(Node(2)))); // 0->2->3
         assert_eq!(paths[2][4], (weights[1] + weights[4], Some(Node(2)))); // 0->2->4
+    }
+
+    #[test]
+    fn min_mean_weight_cycle_01() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(1), Node(2)),
+            (Node(2), Node(0)),
+            (Node(1), Node(3)),
+            (Node(3), Node(4)),
+            (Node(4), Node(5)),
+            (Node(5), Node(6)),
+            (Node(6), Node(1)),
+            (Node(3), Node(7)),
+            (Node(7), Node(4)),
+        ];
+        let g = IndexedDiGraph::from(v);
+        let weights = vec![1.0, 3.0, -1.0, 2.0, 1.0, -1.0, 2.0, 1.0, 1.0, 2.0];
+        g.minimum_mean_weight_cycle(&Node(0), &weights);
+    }
+
+    #[test]
+    fn min_mean_weight_cycle_02() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(1), Node(2)),
+            (Node(2), Node(0)),
+            (Node(1), Node(3)),
+            (Node(3), Node(4)),
+            (Node(4), Node(5)),
+            (Node(5), Node(1)),
+        ];
+        let g = IndexedDiGraph::from(v);
+        let weights = vec![1.0, 3.0, 1.0, 1.0, 2.0, 1.0, 1.0];
+        g.minimum_mean_weight_cycle(&Node(0), &weights);
     }
 }
