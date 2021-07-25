@@ -460,6 +460,9 @@ impl CompressedDBG {
     pub fn to_indexed_digraph(&self) -> IndexedDiGraph {
         // assign index to all prefix/suffix
         let mut nodes: HashMap<Kmer, Node> = HashMap::default();
+        // register NNNNN as Node(0), because it is useful as a start point
+        nodes.insert(null_kmer(self.k - 1), Node(0));
+        // register other k-1 mers
         for v in self.iter_nodes() {
             let kmer = self.kmer(&v);
             // add prefix
@@ -472,18 +475,19 @@ impl CompressedDBG {
         }
 
         // create edge for each kmer i.e. kmer -> (prefix, suffix)
+        // both direction will be added
         let edges: Vec<(Node, Node)> = self
             .iter_nodes()
-            .map(|v| {
+            .flat_map(|v| {
                 let kmer = self.kmer(&v);
-                (
-                    *nodes.get(&kmer.prefix()).unwrap(),
-                    *nodes.get(&kmer.suffix()).unwrap(),
-                )
+                let prefix = *nodes.get(&kmer.prefix()).unwrap();
+                let suffix = *nodes.get(&kmer.suffix()).unwrap();
+                vec![(prefix, suffix), (suffix, prefix)]
             })
             .collect();
 
         /*
+        println!("{:?}", edges);
         for (kmer, node) in nodes.iter() {
             println!("{} {:?}", kmer, node);
         }
@@ -750,6 +754,7 @@ mod tests {
     fn to_indexed_digraph() {
         let seqs = vec![b"ATTCGATCGATTT".to_vec()];
         let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 8);
-        cdbg.to_indexed_digraph();
+        let idg = cdbg.to_indexed_digraph();
+        assert_eq!(cdbg.n_kmers() * 2, idg.n_edges());
     }
 }

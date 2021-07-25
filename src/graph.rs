@@ -38,23 +38,23 @@ impl IndexedDiGraph {
             edges,
         }
     }
-    fn n_nodes(&self) -> usize {
+    pub fn n_nodes(&self) -> usize {
         self.n_nodes
     }
-    fn n_edges(&self) -> usize {
+    pub fn n_edges(&self) -> usize {
         self.n_edges
     }
-    fn in_edges(&self, v: &Node) -> &[Edge] {
+    pub fn in_edges(&self, v: &Node) -> &[Edge] {
         &self.in_edges[v.0]
     }
-    fn out_edges(&self, v: &Node) -> &[Edge] {
+    pub fn out_edges(&self, v: &Node) -> &[Edge] {
         &self.out_edges[v.0]
     }
-    fn node_pair(&self, e: &Edge) -> (Node, Node) {
+    pub fn node_pair(&self, e: &Edge) -> (Node, Node) {
         self.edges[e.0]
     }
 
-    fn childs(&self, v: &Node) -> Vec<Node> {
+    pub fn childs(&self, v: &Node) -> Vec<Node> {
         self.out_edges(v)
             .iter()
             .map(|e| {
@@ -64,7 +64,7 @@ impl IndexedDiGraph {
             })
             .collect()
     }
-    fn parents(&self, v: &Node) -> Vec<Node> {
+    pub fn parents(&self, v: &Node) -> Vec<Node> {
         self.in_edges(v)
             .iter()
             .map(|e| {
@@ -82,7 +82,7 @@ impl IndexedDiGraph {
     /// for all 0<=k<=n and v \in V
     /// this function returns their products, that is
     /// R[k][v] = (F[k][v], B[k][v])
-    fn min_weight_paths(
+    pub fn min_weight_paths(
         &self,
         source: &Node,
         weights: &[f64],
@@ -213,16 +213,16 @@ impl IndexedDiGraph {
         panic!("traceback failed");
     }
 
-    fn cycle_weight(&self, cycle: &[Edge], weights: &[f64]) -> f64 {
+    pub fn cycle_weight(&self, cycle: &[Edge], weights: &[f64]) -> f64 {
         cycle.iter().map(|e| weights[e.0]).sum()
     }
 
-    fn cycle_as_node_list(&self, cycle: &[Edge]) -> Vec<Node> {
+    pub fn cycle_as_node_list(&self, cycle: &[Edge]) -> Vec<Node> {
         cycle.iter().map(|e| self.node_pair(e).0).collect()
     }
 
     /// Find the min mean(average) weight cycle
-    fn minimum_mean_weight_cycle(&self, source: &Node, weights: &[f64]) -> Option<Vec<Edge>> {
+    pub fn minimum_mean_weight_cycle(&self, source: &Node, weights: &[f64]) -> Option<Vec<Edge>> {
         // 1. compute shortest-paths
         let paths = self.min_weight_paths(source, weights);
 

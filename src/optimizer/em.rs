@@ -6,6 +6,7 @@ use crate::hmm::fdbg::FCDbgPHMM;
 use crate::hmm::params::PHMMParams;
 use crate::optimizer::annealer::Annealer;
 use crate::optimizer::freq::FreqState;
+use crate::optimizer::grad::GradientDescent;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
@@ -89,9 +90,13 @@ pub fn optimize_copy_nums_by_em_with_true(
 
     // let s = FreqState::new(&cdbg, &freqs, copy_nums_true);
     let s = FreqState::init(&cdbg, &freqs);
+    /*
     let a = Annealer::new(1.0, 0.8);
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
     a.run_with_log(&mut rng, s, 100);
+    */
+    let g = GradientDescent::new(100, true);
+    g.run(s);
 }
 
 #[cfg(test)]
