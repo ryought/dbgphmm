@@ -11,6 +11,7 @@
 
 use super::annealer::{Annealer, SAState};
 use super::base::ScoreableState;
+use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -80,6 +81,37 @@ impl<'a> SAState for FreqState<'a> {
     /// - unbiased move
     /// - biased move
     fn next<R: Rng>(&self, rng: &mut R) -> FreqState<'a> {
+        /*
+        for (cycle_id, is_up) in self
+            .cdbg
+            .cycle_and_direction_candidates(&self.copy_nums)
+            .into_iter()
+        {
+            println!("{}\t{}", self.score(), s.as_string());
+        }
+        */
+        let candidates_with_score: Vec<((usize, bool), f64)> = self
+            .cdbg
+            .cycle_and_direction_candidates(&self.copy_nums)
+            .into_iter()
+            .map(|(cycle_id, is_up)| {
+                let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, is_up);
+                let cycle_vec =
+                    self.cdbg
+                        .update_cycle_vec_by_cycle(&self.cycle_vec, cycle_id, is_up);
+                let s = FreqState {
+                    cdbg: self.cdbg,
+                    freqs: self.freqs,
+                    copy_nums,
+                    cycle_vec,
+                };
+                ((cycle_id, is_up), s.score())
+            })
+            .collect();
+        for x in candidates_with_score.iter() {
+            println!("{} {} {}", x.0 .0, x.0 .1, x.1);
+        }
+
         let (cycle_id, is_up) = self.choose_cycle_and_direction(rng);
         let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, is_up);
         let cycle_vec = self
@@ -91,6 +123,36 @@ impl<'a> SAState for FreqState<'a> {
             copy_nums,
             cycle_vec,
         }
+    }
+}
+
+impl<'a> GDState for FreqState<'a> {
+    fn neighbors(&self) -> Vec<FreqState<'a>> {
+        let mut neighbors = Vec::new();
+
+        for cycle_id in 0..self.cdbg.n_cycles() {
+            for is_up in [true, false].iter() {
+                if self.cdbg.is_acceptable(&self.copy_nums, cycle_id, *is_up) {
+                    let copy_nums = self.cdbg.update_by_cycle(&self.copy_nums, cycle_id, *is_up);
+                    let cycle_vec =
+                        self.cdbg
+                            .update_cycle_vec_by_cycle(&self.cycle_vec, cycle_id, *is_up);
+
+                    let neighbor = FreqState {
+                        cdbg: self.cdbg,
+                        freqs: self.freqs,
+                        copy_nums,
+                        cycle_vec,
+                    };
+                    neighbors.push(neighbor);
+                }
+            }
+        }
+
+        neighbors
+    }
+    fn is_duplicate(&self, other: &FreqState) -> bool {
+        self.copy_nums == other.copy_nums
     }
 }
 
