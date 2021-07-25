@@ -75,6 +75,8 @@ pub struct TrueKmerStats {
     pub false_kmer_max_copy_num: u32,
     pub false_kmer_min_copy_num: u32,
     pub false_kmer_ave_copy_num: f32,
+    pub copy_nums: Vec<u32>,
+    pub copy_nums_true: Vec<u32>,
 }
 
 pub fn test() {

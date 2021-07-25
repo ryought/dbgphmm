@@ -273,6 +273,18 @@ struct FullEM {
     /// max iteration number
     #[clap(short = 'I', long, default_value = "10")]
     max_iteration: u64,
+    /// choice of depth scheduler
+    #[clap(long, arg_enum, default_value = "constant")]
+    depth_scheduler: DepthSchedulerType,
+    /// initial depth when using linear-gradient scheduler
+    #[clap(long, default_value = "1.0")]
+    init_depth: f64,
+}
+
+#[derive(ArgEnum, Debug)]
+pub enum DepthSchedulerType {
+    Constant,
+    LinearGradient,
 }
 
 /// Sandbox for debugging
@@ -675,21 +687,34 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 InitStateType::Uniform => &copy_nums_uniform,
                 _ => panic!("not implemented"),
             };
-            // let scheduler = optimizer::em::ConstantDepth::new(true_depth);
-            // let scheduler = optimizer::em::ConstantDepth::new(1.0);
-            let scheduler = optimizer::em::LinearGradientDepth::new(
-                1.0,
-                true_depth,
-                opts_full_em.max_iteration,
-            );
-            optimizer::em::optimize_copy_nums_by_em(
-                &cdbg,
-                &reads,
-                param.clone(),
-                copy_nums_init,
-                &scheduler,
-                opts_full_em.max_iteration,
-            );
+            match opts_full_em.depth_scheduler {
+                DepthSchedulerType::Constant => {
+                    let scheduler = optimizer::em::ConstantDepth::new(true_depth);
+                    optimizer::em::optimize_copy_nums_by_em(
+                        &cdbg,
+                        &reads,
+                        param.clone(),
+                        copy_nums_init,
+                        &scheduler,
+                        opts_full_em.max_iteration,
+                    );
+                }
+                DepthSchedulerType::LinearGradient => {
+                    let scheduler = optimizer::em::LinearGradientDepth::new(
+                        opts_full_em.init_depth,
+                        true_depth,
+                        opts_full_em.max_iteration,
+                    );
+                    optimizer::em::optimize_copy_nums_by_em(
+                        &cdbg,
+                        &reads,
+                        param.clone(),
+                        copy_nums_init,
+                        &scheduler,
+                        opts_full_em.max_iteration,
+                    );
+                }
+            };
 
             // (2) test run with true copy numbers
             optimizer::em::true_copy_nums_for_em(

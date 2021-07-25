@@ -74,7 +74,8 @@ function full_em() {
   # $RELEASE -k 24 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k24.fullem.tsv
   # $RELEASE -k 32 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k32.fullem.tsv
 
-  $RELEASE -k 32 benchmark data/r1_k32_n30.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 40 > data/r1_k32_n30_frc_k32.fullem.tsv
+  $RELEASE -k 32 benchmark data/r1_k32_n30.fa data/d1.fa -V 10 --init-state read-count --parallel full-em --depth-scheduler constant -I 40 > data/r1_k32_n30_frc_k32.fullem.const.tsv
+  $RELEASE -k 32 benchmark data/r1_k32_n30.fa data/d1.fa -V 10 --init-state read-count --parallel full-em --depth-scheduler linear-gradient -I 40 > data/r1_k32_n30_frc_k32.fullem.lingrad.tsv
 }
 
 # from_true

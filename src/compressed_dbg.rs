@@ -699,6 +699,9 @@ impl CompressedDBG {
         r.false_kmer_ave_copy_num =
             false_kmers.iter().map(|(cn, _)| cn).sum::<u32>() as f32 / r.n_false_kmer as f32;
 
+        r.copy_nums = copy_nums.to_vec();
+        r.copy_nums_true = copy_nums_true.to_vec();
+
         r
     }
 }

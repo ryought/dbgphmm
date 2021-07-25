@@ -8,6 +8,7 @@ use crate::optimizer::annealer::Annealer;
 use crate::optimizer::bestfreq::BestFreqState;
 use crate::optimizer::freq::FreqState;
 use crate::optimizer::grad::GradientDescent;
+use crate::prob::Prob;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
@@ -74,9 +75,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("{}\t{}\t{}\tnull\t{:?}", i, 1.0, "", freqs);
-
-        let phmm = FCDbgPHMM::new(cdbg, freqs);
+        let phmm = FCDbgPHMM::new(cdbg, freqs.clone());
         let layers: Vec<PHMMLayer> = reads
             .par_iter()
             .map(|read| {
@@ -88,6 +87,20 @@ pub fn optimize_freq_by_em(
             })
             .collect();
         let layer_sum: PHMMLayer = layers.into_iter().sum();
+        let p_total: Prob = reads
+            .par_iter()
+            .map(|read| phmm.forward_prob(&param, read))
+            .product();
+
+        println!(
+            "{}\t{:.16}\t{:.16}\t{}\tnull\t{:?}",
+            i,
+            1.0,
+            p_total.to_log_value(),
+            "",
+            freqs
+        );
+
         freqs = layer_sum.to_freqs();
     }
 }
@@ -125,11 +138,18 @@ pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
         // M-step: freqs -> copy_nums
         let copy_nums_new = freqs_to_copy_nums(cdbg, &freqs, &copy_nums, false);
 
+        // calc forward probability
+        let p_total: Prob = reads
+            .par_iter()
+            .map(|read| phmm.forward_prob(&param, read))
+            .product();
+
         // log out
         println!(
-            "{}\t{:.16}\t{}\t{:?}\t{:?}",
+            "{}\t{:.16}\t{:.16}\t{}\t{:?}\t{:?}",
             i,
             depth,
+            p_total.to_log_value(),
             cdbg.to_seqs_string(&copy_nums_new),
             copy_nums_new,
             freqs,
@@ -169,11 +189,18 @@ pub fn true_copy_nums_for_em(
     let layer_sum: PHMMLayer = layers.into_iter().sum();
     let freqs: Vec<f64> = layer_sum.to_freqs().iter().map(|f| f / depth).collect();
 
+    // calc forward probability
+    let p_total: Prob = reads
+        .par_iter()
+        .map(|read| phmm.forward_prob(&param, read))
+        .product();
+
     // log out
     println!(
-        "{}\t{:.16}\t{}\t{:?}\t{:?}",
+        "{}\t{:.16}\t{:.16}\t{}\t{:?}\t{:?}",
         "true",
         depth,
+        p_total.to_log_value(),
         cdbg.to_seqs_string(&true_copy_nums),
         true_copy_nums,
         freqs,
