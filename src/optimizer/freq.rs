@@ -71,7 +71,14 @@ impl<'a> ScoreableState for FreqState<'a> {
     }
     fn as_string(&self) -> String {
         let mut s = String::new();
-        write!(&mut s, "{}\t{:?}", self.score(), self.copy_nums);
+        write!(
+            &mut s,
+            "{}\t{}\t{}\t{:?}",
+            self.score(),
+            0.0,
+            self.cdbg.total_emitable_copy_num(&self.copy_nums),
+            self.copy_nums
+        );
         s
     }
 }
