@@ -53,14 +53,16 @@ function em() {
 }
 
 function freq_em() {
-  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0.freqem.tsv
-  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel freq-em > data/r1_frc.freqem.tsv
-  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state true --parallel freq-em > data/r1_ft.freqem.tsv
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0.freqem.tsv
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel freq-em > data/r1_frc.freqem.tsv
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state true --parallel freq-em > data/r1_ft.freqem.tsv
+
+  python scripts/plotter.py --optimize_mode freq-em data/r1.json data/r1_frc.freqem.tsv
 }
 
 # from_true
 # from_zero
 # grad
 # floatgrad
-em
-# freq_em
+# em
+freq_em

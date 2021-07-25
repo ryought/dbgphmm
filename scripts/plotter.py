@@ -253,17 +253,27 @@ def plot_basis(logs, stats, filename):
 
     plt.savefig(filename)
 
+def plot_freq_em_history(logs, comments, stats, filename):
+    ids = [log.id for log in logs]
+    scores = [log.now_score for log in logs]
+    true_score = [comment.score for comment in comments if comment.type == 'ONCE'][0]
+
+    plt.plot(ids, scores, label='optimize')
+    plt.plot(ids, np.ones(len(ids)) * true_score, label='true')
+    plt.legend()
+    plt.savefig(filename)
+
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('json_filename', type=str, help='json created by dbgphmm stats')
     parser.add_argument('tsv_filename', type=str, help='tsv created by dbgphmm optimize')
     parser.add_argument('--true_tsv_filename', type=str, help='true tsv created by dbgphmm optimize (from true)')
-    parser.add_argument('--optimize_mode', type=str, choices=['annealer', 'grad'], help='optimize method used by dbgphmm when producing tsv')
+    parser.add_argument('--optimize_mode', type=str, choices=['annealer', 'grad', 'freq-em'], help='optimize method used by dbgphmm when producing tsv')
     args = parser.parse_args()
 
     # parse
     stats = parse_stats(args.json_filename)
-    logs, comments = parse_logs(args.tsv_filename, with_comments=False)
+    logs, comments = parse_logs(args.tsv_filename, with_comments=True)
     if args.true_tsv_filename:
         true_logs, true_comments = parse_logs(args.true_tsv_filename, with_comments=False)
 
@@ -277,6 +287,8 @@ def main():
             plot_grad_projected_with_true(logs, true_logs, stats, args.tsv_filename + '.projgrad.png', method='tsne')
         else:
             plot_grad_projected(logs, comments, stats, args.tsv_filename + '.projgrad.png')
+    elif args.optimize_mode == 'freq-em':
+        plot_freq_em_history(logs, comments, stats, args.tsv_filename + '.projfreqem.png')
 
 if __name__ == '__main__':
     main()
