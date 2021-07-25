@@ -113,4 +113,9 @@ impl GradientDescent {
         }
         states
     }
+    pub fn run_once<T: GDState>(&self, mut state: T) -> T {
+        state.fill_score();
+        println!("# ONCE\t{:.32}\t{}", state.score(), state.as_string());
+        state
+    }
 }

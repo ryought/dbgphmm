@@ -236,7 +236,7 @@ impl IndexedDiGraph {
                 let mean_weight = self.cycle_weight(&cycle, weights) / cycle.len() as f64;
 
                 // check if this cycle has the desired mean_weight
-                assert_relative_eq!(mean_weight, expected_mean_weight);
+                // assert_abs_diff_eq!(mean_weight, expected_mean_weight);
 
                 Some(cycle)
             }

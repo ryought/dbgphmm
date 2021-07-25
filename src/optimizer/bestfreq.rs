@@ -19,7 +19,7 @@ pub struct BestFreqState<'a> {
     cdbg: &'a CompressedDBG,
     idg: &'a IndexedDiGraph,
     freqs: &'a [f64],
-    copy_nums: Vec<u32>,
+    pub copy_nums: Vec<u32>,
 }
 
 impl<'a> BestFreqState<'a> {

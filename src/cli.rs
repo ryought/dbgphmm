@@ -126,7 +126,8 @@ enum Optimizer {
     Annealer(Annealer),
     Grad(Grad),
     FloatGrad(FloatGrad),
-    FloatEM(FloatEM),
+    FreqEM(FreqEM),
+    FullEM(FullEM),
 }
 
 #[derive(ArgEnum, Debug)]
@@ -238,9 +239,17 @@ struct FloatGrad {
     delta: f64,
 }
 
-/// Optimize by EM algorithm with float frequencies
+/// Optimize by EM algorithm with only freq vs copy numbers fitting
 #[derive(Clap)]
-struct FloatEM {
+struct FreqEM {
+    /// max iteration number
+    #[clap(short = 'I', long, default_value = "10")]
+    max_iteration: u64,
+}
+
+/// Optimize by EM algorithm with full PHMM probability
+#[derive(Clap)]
+struct FullEM {
     /// max iteration number
     #[clap(short = 'I', long, default_value = "10")]
     max_iteration: u64,
@@ -440,7 +449,12 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
         .true_copy_nums_from_seqs(&seqs, k)
         .unwrap_or_else(|| panic!("True copy_nums is not in read cdbg"));
     let true_size = cdbg.total_emitable_copy_num(&copy_nums_true);
-    info!("true_size={}", true_size);
+    let read_size = cdbg.total_emitable_copy_num(&copy_nums_read);
+    let true_depth = read_size as f64 / true_size as f64;
+    info!(
+        "true_size={} read_size={} true_depth={}",
+        true_size, read_size, true_depth
+    );
 
     let true_state = optimizer::cdbg::CDbgState::new(
         &cdbg,
@@ -571,33 +585,34 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 _ => panic!("not implemented"),
             }
         }
-        Optimizer::FloatEM(opts_float_em) => match opts.init_state {
-            InitStateType::True => optimizer::em::optimize_copy_nums_by_em_with_true(
-                &cdbg,
-                &reads,
-                param.clone(),
-                &copy_nums_true,
-                &copy_nums_read,
-            ),
-            InitStateType::ReadCount => {
-                /*
-                let freqs_read = cdbg.copy_nums_to_freqs(&copy_nums_read);
-                optimizer::em::optimize_freq_by_em(
-                    &cdbg,
-                    &reads,
-                    param.clone(),
-                    &freqs_read,
-                    opts_float_em.max_iteration,
-                )
-                */
-                optimizer::em::optimize_copy_nums_by_em(
-                    &cdbg,
-                    &reads,
-                    param.clone(),
-                    &copy_nums_read,
-                )
-            }
-            _ => panic!("not immplemmented"),
+        Optimizer::FreqEM(opts_freq_em) => {
+            // target freqs
+            let freqs: Vec<f64> = copy_nums_read
+                .iter()
+                .map(|&cn| cn as f64 / true_depth as f64)
+                .collect();
+
+            // (1) start optimization from the init_state
+            match opts.init_state {
+                InitStateType::Zero => {
+                    let copy_nums_zero = vec![0; cdbg.n_kmers()];
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_zero);
+                }
+                InitStateType::True => {
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_true);
+                }
+                InitStateType::ReadCount => {
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_read);
+                }
+                // TODO implement random
+                _ => panic!("not implemented"),
+            };
+
+            // (2) test run with true copy numbers
+            optimizer::em::freqs_vs_true_copy_nums(&cdbg, &freqs, &copy_nums_true);
+        }
+        Optimizer::FullEM(opts_full_em) => match opts.init_state {
+            _ => panic!("full em not available"),
         },
     }
 }

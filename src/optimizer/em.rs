@@ -5,6 +5,7 @@ use crate::hmm::cdbg::CDbgPHMM;
 use crate::hmm::fdbg::FCDbgPHMM;
 use crate::hmm::params::PHMMParams;
 use crate::optimizer::annealer::Annealer;
+use crate::optimizer::bestfreq::BestFreqState;
 use crate::optimizer::freq::FreqState;
 use crate::optimizer::grad::GradientDescent;
 use rand::prelude::*;
@@ -74,29 +75,19 @@ pub fn optimize_copy_nums_by_em(
     a.run_with_log(&mut rng, s, 100);
 }
 
-///
-pub fn optimize_copy_nums_by_em_with_true(
-    cdbg: &CompressedDBG,
-    reads: &[Vec<u8>],
-    param: PHMMParams,
-    copy_nums_true: &[u32],
-    copy_nums_read: &[u32],
-) {
-    let freqs: Vec<f64> = copy_nums_read.iter().map(|&cn| cn as f64 / 20.0).collect();
-
-    println!("{:?}", copy_nums_true);
-    println!("{:?}", copy_nums_read);
-    println!("{:?}", freqs);
-
-    // let s = FreqState::new(&cdbg, &freqs, copy_nums_true);
-    let s = FreqState::init(&cdbg, &freqs);
-    /*
-    let a = Annealer::new(1.0, 0.8);
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
-    a.run_with_log(&mut rng, s, 100);
-    */
+pub fn freqs_to_copy_nums(cdbg: &CompressedDBG, freqs: &[f64], copy_nums_init: &[u32]) -> Vec<u32> {
+    let idg = cdbg.to_indexed_digraph();
+    let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, true);
-    g.run(s);
+    let mut history = g.run(s);
+    history.pop().unwrap().copy_nums
+}
+
+pub fn freqs_vs_true_copy_nums(cdbg: &CompressedDBG, freqs: &[f64], copy_nums_true: &[u32]) {
+    let idg = cdbg.to_indexed_digraph();
+    let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_true.to_vec());
+    let g = GradientDescent::new(1, true);
+    g.run_once(s);
 }
 
 #[cfg(test)]
