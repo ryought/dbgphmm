@@ -49,7 +49,7 @@ function floatgrad() {
 
 function em() {
   $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em -I 100 > data/r1_frc.floatem.txt
-  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state uniform --parallel float-em -I 100 > data/r1_fu.floatem.tsv
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state uniform --parallel float-em -I 100 > data/r1_fu.floatem.txt
 }
 
 function freq_em() {
@@ -60,9 +60,14 @@ function freq_em() {
   python scripts/plotter.py --optimize_mode freq-em data/r1.json data/r1_frc.freqem.tsv
 }
 
+function full_em() {
+  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc.fullem.tsv
+}
+
 # from_true
 # from_zero
 # grad
 # floatgrad
 # em
-freq_em
+# freq_em
+full_em

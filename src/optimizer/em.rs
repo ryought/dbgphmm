@@ -24,7 +24,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("{}\t{:?}", i, freqs);
+        println!("{}\t{:?}\tnull", i, freqs);
 
         let phmm = FCDbgPHMM::new(cdbg, freqs);
         let layers: Vec<PHMMLayer> = reads
@@ -42,43 +42,60 @@ pub fn optimize_freq_by_em(
     }
 }
 
-///
+/// EM iterative optimization on copy_nums space
+/// In E-step, freqs of kmers is computed with PHMM with given copy_nums
+/// Next in M-step, copy_nums is updated to that best fits with freqs
 pub fn optimize_copy_nums_by_em(
     cdbg: &CompressedDBG,
     reads: &[Vec<u8>],
     param: PHMMParams,
     init_copy_nums: &[u32],
+    depth: f64,
+    n_iter: u64,
 ) {
     let mut copy_nums = init_copy_nums.to_vec();
 
-    // E-step: copy_nums -> freqs
-    let phmm = CDbgPHMM::new(cdbg, copy_nums);
-    let layers: Vec<PHMMLayer> = reads
-        .par_iter()
-        .map(|read| {
-            let f = phmm.forward(&param, read);
-            let b = phmm.backward(&param, read);
-            let state_prob = phmm.state_prob(&f, &b);
-            let ret: PHMMLayer = state_prob.into_iter().sum();
-            ret
-        })
-        .collect();
-    let layer_sum: PHMMLayer = layers.into_iter().sum();
-    let freqs: Vec<f64> = layer_sum.to_freqs().iter().map(|f| f / 20.0).collect();
-    println!("E: freqs={:?}", freqs);
+    for i in 0..n_iter {
+        // E-step: copy_nums -> freqs
+        let phmm = CDbgPHMM::new(cdbg, copy_nums.clone());
+        let layers: Vec<PHMMLayer> = reads
+            .par_iter()
+            .map(|read| {
+                let f = phmm.forward(&param, read);
+                let b = phmm.backward(&param, read);
+                let state_prob = phmm.state_prob(&f, &b);
+                let ret: PHMMLayer = state_prob.into_iter().sum();
+                ret
+            })
+            .collect();
+        let layer_sum: PHMMLayer = layers.into_iter().sum();
+        let freqs: Vec<f64> = layer_sum.to_freqs().iter().map(|f| f / depth).collect();
 
-    // M-step: freqs -> copy_nums
-    let s = FreqState::init(&cdbg, &freqs);
-    let a = Annealer::new(1.0, 0.8);
-    let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
-    a.run_with_log(&mut rng, s, 100);
+        // M-step: freqs -> copy_nums
+        let copy_nums_new = freqs_to_copy_nums(cdbg, &freqs, &copy_nums, false);
+
+        // log out
+        println!("{}\t{:?}\t{:?}", i, freqs, copy_nums_new);
+
+        // difference check
+        if copy_nums_new == copy_nums {
+            break;
+        } else {
+            copy_nums = copy_nums_new;
+        }
+    }
 }
 
 /// freqs -> copy_nums function, by fitting with gradient descent and MMWC problem
-pub fn freqs_to_copy_nums(cdbg: &CompressedDBG, freqs: &[f64], copy_nums_init: &[u32]) -> Vec<u32> {
+pub fn freqs_to_copy_nums(
+    cdbg: &CompressedDBG,
+    freqs: &[f64],
+    copy_nums_init: &[u32],
+    is_verbose: bool,
+) -> Vec<u32> {
     let idg = cdbg.to_indexed_digraph();
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
-    let g = GradientDescent::new(100, true);
+    let g = GradientDescent::new(100, is_verbose);
     let mut history = g.run(s);
     history.pop().unwrap().copy_nums
 }

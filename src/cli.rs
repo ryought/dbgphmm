@@ -618,20 +618,20 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             // target freqs
             let freqs: Vec<f64> = copy_nums_read
                 .iter()
-                .map(|&cn| cn as f64 / true_depth as f64)
+                .map(|&cn| cn as f64 / true_depth)
                 .collect();
 
             // (1) start optimization from the init_state
             match opts.init_state {
                 InitStateType::Zero => {
                     let copy_nums_zero = vec![0; cdbg.n_kmers()];
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_zero);
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_zero, true);
                 }
                 InitStateType::True => {
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_true);
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_true, true);
                 }
                 InitStateType::ReadCount => {
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_read);
+                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_read, true);
                 }
                 // TODO implement random
                 _ => panic!("not implemented"),
@@ -640,9 +640,23 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             // (2) test run with true copy numbers
             optimizer::em::freqs_vs_true_copy_nums(&cdbg, &freqs, &copy_nums_true);
         }
-        Optimizer::FullEM(opts_full_em) => match opts.init_state {
-            _ => panic!("full em not available"),
-        },
+        Optimizer::FullEM(opts_full_em) => {
+            let copy_nums_uniform = vec![1; cdbg.n_kmers()];
+            let copy_nums_init = match opts.init_state {
+                InitStateType::True => &copy_nums_true,
+                InitStateType::ReadCount => &copy_nums_read,
+                InitStateType::Uniform => &copy_nums_uniform,
+                _ => panic!("not implemented"),
+            };
+            optimizer::em::optimize_copy_nums_by_em(
+                &cdbg,
+                &reads,
+                param.clone(),
+                copy_nums_init,
+                true_depth,
+                opts_full_em.max_iteration,
+            )
+        }
     }
 }
 
