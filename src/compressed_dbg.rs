@@ -666,6 +666,41 @@ impl CompressedDBG {
         r.cycles = Some(cycles);
         r
     }
+    pub fn as_true_kmer_stats(
+        &self,
+        copy_nums: &[u32],
+        copy_nums_true: &[u32],
+    ) -> stats::TrueKmerStats {
+        let mut r = stats::TrueKmerStats::default();
+        r.size = self.total_emitable_copy_num(&copy_nums);
+        r.true_size = self.total_emitable_copy_num(&copy_nums_true);
+        let true_kmers: Vec<(u32, u32)> = copy_nums
+            .iter()
+            .zip(copy_nums_true.iter())
+            .filter(|(&cn, &cnt)| cn > 0 && cnt > 0)
+            .map(|(&cn, &cnt)| (cn, cnt))
+            .collect();
+        let false_kmers: Vec<(u32, u32)> = copy_nums
+            .iter()
+            .zip(copy_nums_true.iter())
+            .filter(|(&cn, &cnt)| cn > 0 && cnt == 0)
+            .map(|(&cn, &cnt)| (cn, cnt))
+            .collect();
+        r.n_true_kmer = true_kmers.iter().count();
+        r.n_false_kmer = false_kmers.iter().count();
+
+        r.true_kmer_max_copy_num = *true_kmers.iter().map(|(cn, _)| cn).max().unwrap_or(&0);
+        r.true_kmer_min_copy_num = *true_kmers.iter().map(|(cn, _)| cn).min().unwrap_or(&0);
+        r.true_kmer_ave_copy_num =
+            true_kmers.iter().map(|(cn, _)| cn).sum::<u32>() as f32 / r.n_true_kmer as f32;
+
+        r.false_kmer_max_copy_num = *false_kmers.iter().map(|(cn, _)| cn).max().unwrap_or(&0);
+        r.false_kmer_min_copy_num = *false_kmers.iter().map(|(cn, _)| cn).min().unwrap_or(&0);
+        r.false_kmer_ave_copy_num =
+            false_kmers.iter().map(|(cn, _)| cn).sum::<u32>() as f32 / r.n_false_kmer as f32;
+
+        r
+    }
 }
 
 pub fn test() {

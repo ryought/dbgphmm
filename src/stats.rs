@@ -63,6 +63,20 @@ pub struct AllStats {
     pub cycles: Option<Vec<CycleStats>>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct TrueKmerStats {
+    pub size: u32,
+    pub true_size: u32,
+    pub n_true_kmer: usize,
+    pub n_false_kmer: usize,
+    pub true_kmer_max_copy_num: u32,
+    pub true_kmer_min_copy_num: u32,
+    pub true_kmer_ave_copy_num: f32,
+    pub false_kmer_max_copy_num: u32,
+    pub false_kmer_min_copy_num: u32,
+    pub false_kmer_ave_copy_num: f32,
+}
+
 pub fn test() {
     let point = DbgStats::default();
     let serialized = serde_json::to_string_pretty(&point).unwrap();

@@ -46,6 +46,7 @@ enum SubCommand {
     Generate(Generate),
     Stat(Stat),
     Compare(Compare),
+    ReadStat(ReadStat),
     Sample(Sample),
     Forward(Forward),
     KmerProb(KmerProb),
@@ -79,6 +80,15 @@ struct Compare {
     self_dbg_fa: String,
     /// other dbg fasta (e.g. reads fasta)
     other_dbg_fa: String,
+}
+
+/// Show de bruijn graph copy numbers statistics given true copy numbers
+#[derive(Clap)]
+struct ReadStat {
+    /// reads fasta file
+    reads_fa: String,
+    /// dbg fasta file
+    true_dbg_fa: String,
 }
 
 /// Sample reads from the model
@@ -291,6 +301,9 @@ pub fn main() {
         SubCommand::Compare(o) => {
             cli::compare(o, k);
         }
+        SubCommand::ReadStat(o) => {
+            cli::read_stat(o, k);
+        }
         SubCommand::Sample(o) => {
             cli::sample(o, k, param);
         }
@@ -359,6 +372,19 @@ fn compare(opts: Compare, k: usize) {
 
     let result = self_dbg.compare_dbg(&other_dbg);
     let json = serde_json::to_string_pretty(&result).unwrap();
+    println!("{}", json);
+}
+
+fn read_stat(opts: ReadStat, k: usize) {
+    let reads = io::fasta::parse_seqs(&opts.reads_fa);
+    let (cdbg, copy_nums_read) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
+    let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa);
+    let copy_nums_true = cdbg
+        .true_copy_nums_from_seqs(&seqs, k)
+        .unwrap_or_else(|| panic!("True copy_nums is not in read cdbg"));
+
+    let stat = cdbg.as_true_kmer_stats(&copy_nums_read, &copy_nums_true);
+    let json = serde_json::to_string_pretty(&stat).unwrap();
     println!("{}", json);
 }
 
