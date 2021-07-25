@@ -9,6 +9,7 @@ use super::base::ScoreableState;
 use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
 use crate::graph::{Edge, IndexedDiGraph, Node};
+use crate::optimizer::grad::GradientDescent;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
@@ -115,9 +116,19 @@ impl<'a> GDState for BestFreqState<'a> {
     /// by min-mean-weight-cycle.
     /// The number of neighbors is always 0-or-1.
     fn neighbors(&self) -> Vec<BestFreqState<'a>> {
-        let mut neighbors = Vec::new();
-
-        neighbors
+        match self.best_updated_copy_nums() {
+            // if it can be updated, create new BestFreqState
+            Some(copy_nums) => {
+                vec![BestFreqState {
+                    cdbg: self.cdbg,
+                    idg: self.idg,
+                    freqs: self.freqs,
+                    copy_nums,
+                }]
+            }
+            // if no updates, return empty vector
+            None => Vec::new(),
+        }
     }
     fn is_duplicate(&self, other: &BestFreqState) -> bool {
         self.copy_nums == other.copy_nums
@@ -138,6 +149,7 @@ mod tests {
 
         // start from [0,0,0,....]
         let s = BestFreqState::new(&cdbg, &idg, &freqs, vec![0; cdbg.n_kmers()]);
+        assert_eq!(s.score(), -20.0);
         for (i, w) in s.weights().into_iter().enumerate() {
             if i % 2 == 0 {
                 assert_eq!(w, -1.0);
@@ -147,5 +159,21 @@ mod tests {
         }
         let copy_nums_new = s.best_updated_copy_nums();
         assert_eq!(copy_nums_new, Some(vec![1; cdbg.n_kmers()]));
+
+        let neighbors = s.neighbors();
+        assert_eq!(neighbors.len(), 1);
+        assert_eq!(neighbors[0].score(), 0.0);
+    }
+
+    #[test]
+    fn simple_best_freq_grad() {
+        let seqs = vec![b"ATTCGATCGATTT".to_vec()];
+        let (cdbg, copy_nums) = CompressedDBG::from_seqs(&seqs, 8);
+        let freqs = cdbg.copy_nums_to_freqs(&copy_nums);
+        let idg = cdbg.to_indexed_digraph();
+        let s = BestFreqState::new(&cdbg, &idg, &freqs, vec![0; cdbg.n_kmers()]);
+
+        let g = GradientDescent::new(100, true);
+        g.run(s);
     }
 }
