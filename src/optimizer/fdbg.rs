@@ -105,18 +105,20 @@ impl<'a> ScoreableState for FCDbgState<'a> {
             Some(score) => {
                 write!(
                     &mut s,
-                    "{}\t{}\t{}\t{:?}",
+                    "{}\t{}\t{}\t{}\t{:?}",
                     0.0,
                     score.to_log_value(),
                     self.cdbg.total_emitable_freq(&self.freqs),
+                    "",
                     self.freqs,
                 );
             }
             _ => {
                 write!(
                     &mut s,
-                    "0\tDefered\t{}\t{:?}",
+                    "0\tDefered\t{}\t{}\t{:?}",
                     self.cdbg.total_emitable_freq(&self.freqs),
+                    "",
                     self.freqs,
                 );
             }

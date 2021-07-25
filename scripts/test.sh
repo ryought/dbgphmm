@@ -53,15 +53,18 @@ function em() {
 }
 
 function freq_em() {
-  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0.freqem.tsv
+  # $RELEASE -k 6 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0_k6.freqem.tsv
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0_k8.freqem.tsv
+  # $RELEASE -k 16 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0_k16.freqem.tsv
+  # $RELEASE -k 32 benchmark data/r1.fa data/d1.fa -V 10 --init-state zero --parallel freq-em > data/r1_f0_k32.freqem.tsv
   # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel freq-em > data/r1_frc.freqem.tsv
   # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state true --parallel freq-em > data/r1_ft.freqem.tsv
 
-  python scripts/plotter.py --optimize_mode freq-em data/r1.json data/r1_frc.freqem.tsv
+  python scripts/plotter.py --optimize_mode freq-em data/r1.json data/r1_f0_k16.freqem.tsv
 }
 
 function full_em() {
-  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc.fullem.tsv
+  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k8.fullem.tsv
 }
 
 # from_true
@@ -69,5 +72,5 @@ function full_em() {
 # grad
 # floatgrad
 # em
-# freq_em
-full_em
+freq_em
+# full_em

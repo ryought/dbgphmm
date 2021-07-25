@@ -24,7 +24,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("{}\t{:?}\tnull", i, freqs);
+        println!("{}\t{}\t{:?}\tnull", i, "", freqs);
 
         let phmm = FCDbgPHMM::new(cdbg, freqs);
         let layers: Vec<PHMMLayer> = reads
@@ -75,7 +75,13 @@ pub fn optimize_copy_nums_by_em(
         let copy_nums_new = freqs_to_copy_nums(cdbg, &freqs, &copy_nums, false);
 
         // log out
-        println!("{}\t{:?}\t{:?}", i, freqs, copy_nums_new);
+        println!(
+            "{}\t{}\t{:?}\t{:?}",
+            i,
+            cdbg.to_seqs_string(&copy_nums_new),
+            freqs,
+            copy_nums_new
+        );
 
         // difference check
         if copy_nums_new == copy_nums {

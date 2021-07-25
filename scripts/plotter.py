@@ -27,10 +27,12 @@ class OptimizeLog:
     now_score_prior: float
     now_score_forward: float
     now_size: int
+    now_seq: str
     now_state: list
     next_score_prior: float
     next_score_forward: float
     next_size: int
+    next_seq: str
     next_state: list
 
 @dataclass
@@ -40,6 +42,7 @@ class GradComment:
     score_prior: float
     score_forward: float
     size: int
+    seq: str
     state: list
 
 def parse_logs(tsv_filename, with_comments=False):
@@ -56,7 +59,8 @@ def parse_logs(tsv_filename, with_comments=False):
                         score_prior=float(row[2]),
                         score_forward=float(row[3]),
                         size=int(row[4]),
-                        state=json.loads(row[5]),
+                        seq=row[5],
+                        state=json.loads(row[6]),
                     )
                     comments.append(comment)
             else:
@@ -70,11 +74,13 @@ def parse_logs(tsv_filename, with_comments=False):
                     now_score_prior=float(row[6]),
                     now_score_forward=float(row[7]),
                     now_size=int(row[8]),
-                    now_state=json.loads(row[9]),
-                    next_score_prior=float(row[10]),
-                    next_score_forward=float(row[11]),
-                    next_size=int(row[12]),
-                    next_state=json.loads(row[13]),
+                    now_seq=row[9],
+                    now_state=json.loads(row[10]),
+                    next_score_prior=float(row[11]),
+                    next_score_forward=float(row[12]),
+                    next_size=int(row[13]),
+                    next_seq=row[14],
+                    next_state=json.loads(row[15]),
                 )
                 logs.append(log)
     return logs, comments

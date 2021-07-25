@@ -370,6 +370,15 @@ impl CompressedDBG {
         debug!("is_zero: {}", is_zero);
         seqs
     }
+    /// Generates string representation of this cdbg
+    pub fn to_seqs_string(&self, copy_nums: &[u32]) -> String {
+        let seqs_string: Vec<String> = self
+            .to_seqs(copy_nums)
+            .iter()
+            .map(|seq| seq.iter().map(|&s| s as char).collect::<String>())
+            .collect();
+        seqs_string.join(",")
+    }
     fn travarse_kmers(&self, from: &Node, counts: &mut [u32]) -> Vec<u8> {
         debug!("start: {}", self.kmer(from));
         // add from (first kmer)

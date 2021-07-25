@@ -172,18 +172,20 @@ impl<'a> ScoreableState for CDbgState<'a> {
             (Some(prior_score), Some(forward_score)) => {
                 write!(
                     &mut s,
-                    "{}\t{}\t{}\t{:?}",
+                    "{}\t{}\t{}\t{}\t{:?}",
                     prior_score.to_log_value(),
                     forward_score.to_log_value(),
                     self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cdbg.to_seqs_string(&self.copy_nums),
                     self.cycle_vec,
                 );
             }
             _ => {
                 write!(
                     &mut s,
-                    "Defered\tDefered\t{}\t{:?}",
+                    "Defered\tDefered\t{}\t{}\t{:?}",
                     self.cdbg.total_emitable_copy_num(&self.copy_nums),
+                    self.cdbg.to_seqs_string(&self.copy_nums),
                     self.cycle_vec,
                 );
             }
