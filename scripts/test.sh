@@ -48,7 +48,8 @@ function floatgrad() {
 }
 
 function em() {
-  ./target/release/dbgphmm -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em -I 100 > data/r1_frc.floatem.txt
+  $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel float-em -I 100 > data/r1_frc.floatem.txt
+  # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state uniform --parallel float-em -I 100 > data/r1_fu.floatem.tsv
 }
 
 function freq_em() {
@@ -61,5 +62,5 @@ function freq_em() {
 # from_zero
 # grad
 # floatgrad
-# em
-freq_em
+em
+# freq_em

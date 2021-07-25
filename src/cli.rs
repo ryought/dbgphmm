@@ -126,6 +126,7 @@ enum Optimizer {
     Annealer(Annealer),
     Grad(Grad),
     FloatGrad(FloatGrad),
+    FloatEM(FloatEM),
     FreqEM(FreqEM),
     FullEM(FullEM),
 }
@@ -136,6 +137,7 @@ pub enum InitStateType {
     True,
     ReadCount,
     Random,
+    Uniform,
 }
 
 /// Benchmark optimizers of the model to fit the reads with true dbg file
@@ -237,6 +239,14 @@ struct FloatGrad {
     /// delta of moving frequencies
     #[clap(short = 'D', long, default_value = "0.001")]
     delta: f64,
+}
+
+/// Optimize by EM algorithm on freq state space
+#[derive(Clap)]
+struct FloatEM {
+    /// max iteration number
+    #[clap(short = 'I', long, default_value = "10")]
+    max_iteration: u64,
 }
 
 /// Optimize by EM algorithm with only freq vs copy numbers fitting
@@ -584,6 +594,25 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 }
                 _ => panic!("not implemented"),
             }
+        }
+        Optimizer::FloatEM(opts_float_em) => {
+            let freqs = match opts.init_state {
+                InitStateType::True => cdbg.copy_nums_to_freqs(&copy_nums_true),
+                InitStateType::ReadCount => cdbg.copy_nums_to_freqs(&copy_nums_read),
+                InitStateType::Uniform => {
+                    let copy_nums_uniform = vec![1; cdbg.n_kmers()];
+                    cdbg.copy_nums_to_freqs(&copy_nums_uniform)
+                }
+                InitStateType::Zero => panic!("float em cannot start from all zero freqs"),
+                _ => panic!("not implemented"),
+            };
+            optimizer::em::optimize_freq_by_em(
+                &cdbg,
+                &reads,
+                param.clone(),
+                &freqs,
+                opts_float_em.max_iteration,
+            );
         }
         Optimizer::FreqEM(opts_freq_em) => {
             // target freqs

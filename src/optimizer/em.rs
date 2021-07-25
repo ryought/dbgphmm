@@ -12,9 +12,8 @@ use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
 
-/// EM optimization with
-/// start from initial state
-/// -> run forward algorithm to
+/// EM iterative optimization on freq f64 space.
+/// experimental function
 pub fn optimize_freq_by_em(
     cdbg: &CompressedDBG,
     reads: &[Vec<u8>],
@@ -25,7 +24,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("freqs={:?}", freqs);
+        println!("{}\t{:?}", i, freqs);
 
         let phmm = FCDbgPHMM::new(cdbg, freqs);
         let layers: Vec<PHMMLayer> = reads
@@ -75,6 +74,7 @@ pub fn optimize_copy_nums_by_em(
     a.run_with_log(&mut rng, s, 100);
 }
 
+/// freqs -> copy_nums function, by fitting with gradient descent and MMWC problem
 pub fn freqs_to_copy_nums(cdbg: &CompressedDBG, freqs: &[f64], copy_nums_init: &[u32]) -> Vec<u32> {
     let idg = cdbg.to_indexed_digraph();
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
