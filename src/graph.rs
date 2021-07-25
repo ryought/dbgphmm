@@ -82,10 +82,14 @@ impl IndexedDiGraph {
     /// for all 0<=k<=n and v \in V
     /// this function returns their products, that is
     /// R[k][v] = (F[k][v], B[k][v])
-    fn min_weight_paths(&self, source: &Node, weights: &[f64]) -> Vec<Vec<(f64, Option<Node>)>> {
+    fn min_weight_paths(
+        &self,
+        source: &Node,
+        weights: &[f64],
+    ) -> Vec<Vec<(f64, Option<(Node, Edge)>)>> {
         let mut fs = Vec::new();
         // 1. initialize
-        let mut f: Vec<(f64, Option<Node>)> = (0..self.n_nodes())
+        let mut f: Vec<(f64, Option<(Node, Edge)>)> = (0..self.n_nodes())
             .map(|i| {
                 let v = Node(i);
                 if v == *source {
@@ -106,13 +110,13 @@ impl IndexedDiGraph {
                     } else {
                         self.in_edges(&v)
                             .iter()
-                            .map(|e| {
-                                let (w, _) = self.node_pair(e);
+                            .map(|&e| {
+                                let (w, _) = self.node_pair(&e);
                                 let weight = weights[e.0] + f[w.0].0;
                                 if weight == f64::INFINITY {
                                     (weight, None)
                                 } else {
-                                    (weight, Some(w))
+                                    (weight, Some((w, e)))
                                 }
                             })
                             .min_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
@@ -136,7 +140,7 @@ impl IndexedDiGraph {
         &self,
         source: &Node,
         weights: &[f64],
-        paths: &[Vec<(f64, Option<Node>)>],
+        paths: &[Vec<(f64, Option<(Node, Edge)>)>],
     ) -> Option<(Node, usize, f64)> {
         let n = self.n_nodes();
         let maxs: Vec<Option<(usize, f64)>> = (0..n)
@@ -145,7 +149,6 @@ impl IndexedDiGraph {
                     .filter_map(|k| {
                         let fnv = paths[n][i].0;
                         let fkv = paths[k][i].0;
-                        println!("v={} k={} value={}", i, k, (fnv - fkv) / (n - k) as f64);
                         if fnv != f64::INFINITY && fkv != f64::INFINITY {
                             Some((k, (fnv - fkv) / (n - k) as f64))
                         } else {
@@ -155,7 +158,6 @@ impl IndexedDiGraph {
                     .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             })
             .collect();
-        println!("maxs {:?}", maxs);
 
         maxs.iter()
             .enumerate()
@@ -174,13 +176,13 @@ impl IndexedDiGraph {
         &self,
         start: &Node,
         weights: &[f64],
-        paths: &[Vec<(f64, Option<Node>)>],
-    ) -> Vec<Node> {
+        paths: &[Vec<(f64, Option<(Node, Edge)>)>],
+    ) -> Vec<Edge> {
         // now: pointer to node
         let mut now = *start;
         // visited: (visited[node] = [i0, i1, ...]) means ()
         let mut visited: Vec<Option<usize>> = vec![None; self.n_nodes()];
-        let mut nodes: Vec<Node> = Vec::new();
+        let mut edges: Vec<Edge> = Vec::new();
 
         for i in (0..paths.len()).rev() {
             // now in i-th node in cycle
@@ -189,7 +191,7 @@ impl IndexedDiGraph {
             if let Some(j) = visited[now.0] {
                 // ((paths.len() - 1) - j)-th element in nodes
                 // corresponds to paths[j]
-                let cycle = nodes[(paths.len() - 1) - j..]
+                let cycle = edges[(paths.len() - 1) - j..]
                     .iter()
                     .rev()
                     .map(|&v| v)
@@ -199,21 +201,28 @@ impl IndexedDiGraph {
 
             // 2. mark as visited
             visited[now.0] = Some(i);
-            nodes.push(now);
 
             // 3. traceback
             if i != 0 {
                 let (_, parent) = paths[i][now.0];
-                now = parent.unwrap();
+                now = parent.unwrap().0;
+                edges.push(parent.unwrap().1);
             }
         }
 
         panic!("traceback failed");
     }
 
+    fn cycle_weight(&self, cycle: &[Edge], weights: &[f64]) -> f64 {
+        cycle.iter().map(|e| weights[e.0]).sum()
+    }
+
+    fn cycle_as_node_list(&self, cycle: &[Edge]) -> Vec<Node> {
+        cycle.iter().map(|e| self.node_pair(e).0).collect()
+    }
+
     /// Find the min mean(average) weight cycle
-    /// -> Vec<Edge>
-    fn minimum_mean_weight_cycle(&self, source: &Node, weights: &[f64]) {
+    fn minimum_mean_weight_cycle(&self, source: &Node, weights: &[f64]) -> Option<Vec<Edge>> {
         // 1. compute shortest-paths
         let paths = self.min_weight_paths(source, weights);
 
@@ -222,12 +231,18 @@ impl IndexedDiGraph {
 
         // 3. trackback to find the min-mean-weight cycle
         match min {
-            Some((v, k, weight)) => {
-                println!("v={:?} k={} weight={}", v, k, weight);
+            Some((v, k, expected_mean_weight)) => {
                 let cycle = self.traceback_paths(&v, weights, &paths);
+                let mean_weight = self.cycle_weight(&cycle, weights) / cycle.len() as f64;
+
+                // check if this cycle has the desired mean_weight
+                assert_relative_eq!(mean_weight, expected_mean_weight);
+
+                Some(cycle)
             }
             None => {
-                println!("no cycles");
+                // no cycles
+                None
             }
         }
     }
@@ -262,6 +277,12 @@ mod tests {
         assert_eq!(g.childs(&Node(4)), vec![]);
     }
 
+    /// Example graph 1
+    /// 0 ---> 1 --+
+    /// |          |
+    /// +--> 2 ----+--> 3
+    ///      |
+    ///      +--> 4
     #[test]
     fn min_weight_paths() {
         let v = vec![
@@ -274,13 +295,19 @@ mod tests {
         let g = IndexedDiGraph::from(v);
         let weights = vec![1.0, 1.0, 2.0, 1.0, 2.0];
         let paths = g.min_weight_paths(&Node(0), &weights);
-        // println!("{:?}", paths);
-        assert_eq!(paths[1][1], (weights[0], Some(Node(0)))); // 0->1
-        assert_eq!(paths[1][2], (weights[1], Some(Node(0)))); // 0->2
-        assert_eq!(paths[2][3], (weights[1] + weights[3], Some(Node(2)))); // 0->2->3
-        assert_eq!(paths[2][4], (weights[1] + weights[4], Some(Node(2)))); // 0->2->4
+        assert_eq!(paths[1][1], (weights[0], Some((Node(0), Edge(0))))); // 0->1
+        assert_eq!(paths[1][2], (weights[1], Some((Node(0), Edge(1))))); // 0->2
+        assert_eq!(
+            paths[2][3],
+            (weights[1] + weights[3], Some((Node(2), Edge(3))))
+        ); // 0->2->3
+        assert_eq!(
+            paths[2][4],
+            (weights[1] + weights[4], Some((Node(2), Edge(4))))
+        ); // 0->2->4
     }
 
+    /// counterexample in 'A note on finding minimum mean cycle' (Chaturvedi, 2017)
     #[test]
     fn min_mean_weight_cycle_01() {
         let v = vec![
@@ -297,9 +324,17 @@ mod tests {
         ];
         let g = IndexedDiGraph::from(v);
         let weights = vec![1.0, 3.0, -1.0, 2.0, 1.0, -1.0, 2.0, 1.0, 1.0, 2.0];
-        g.minimum_mean_weight_cycle(&Node(0), &weights);
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(3), Edge(4), Edge(5), Edge(6), Edge(7)]);
     }
 
+    /// more simple graph with two cycles
+    ///         3 ----> 4
+    ///         ^       |
+    ///         |       V
+    /// 0 ----> 1 <---- 5
+    /// ^       |
+    /// +-- 2 <-+
     #[test]
     fn min_mean_weight_cycle_02() {
         let v = vec![
@@ -313,6 +348,117 @@ mod tests {
         ];
         let g = IndexedDiGraph::from(v);
         let weights = vec![1.0, 3.0, 1.0, 1.0, 2.0, 1.0, 1.0];
-        g.minimum_mean_weight_cycle(&Node(0), &weights);
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(3), Edge(4), Edge(5), Edge(6)]);
+        assert_eq!(
+            g.cycle_as_node_list(&cycle),
+            vec![Node(1), Node(3), Node(4), Node(5)]
+        );
+    }
+
+    /// Example with no loops
+    /// 0 ---> 1 -----------+
+    /// |                   |
+    /// +--> 2 -------> 3 <-+
+    ///      |
+    ///      +--> 4
+    /// There should be no cycles
+    #[test]
+    fn min_mean_weight_cycle_03() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(0), Node(2)),
+            (Node(1), Node(3)),
+            (Node(2), Node(3)),
+            (Node(2), Node(4)),
+        ];
+        let g = IndexedDiGraph::from(v);
+        let weights = vec![1.0, 1.0, 2.0, 1.0, 2.0];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights);
+        assert!(cycle.is_none());
+    }
+
+    /// example graph with parallel edges
+    ///     +----->
+    /// +-> 0 ----> 1 -----> 3
+    /// |           |        |
+    /// +----- 2 <--+        |
+    ///        ^             |
+    ///        +-------------+
+    #[test]
+    fn min_mean_weight_cycle_04_parallel_edges() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(0), Node(1)),
+            (Node(1), Node(2)),
+            (Node(2), Node(0)),
+            (Node(1), Node(3)),
+            (Node(3), Node(2)),
+        ];
+        let g = IndexedDiGraph::from(v);
+
+        let weights = vec![3.0, 1.0, 1.0, 1.0, 1.0, 4.0];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(2), Edge(3), Edge(1)]);
+        assert_eq!(
+            g.cycle_as_node_list(&cycle),
+            vec![Node(1), Node(2), Node(0)]
+        );
+    }
+
+    /// +---------+
+    /// |         V
+    /// 0 <------ 1
+    /// ^         |
+    /// +--- 2 <--+
+    #[test]
+    fn min_mean_weight_cycle_05_small_loop() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(1), Node(0)),
+            (Node(1), Node(2)),
+            (Node(2), Node(0)),
+        ];
+        let g = IndexedDiGraph::from(v);
+
+        let weights = vec![1.0, 1.0, 2.0, 3.0];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(1), Edge(0)]);
+        assert_eq!(g.cycle_as_node_list(&cycle), vec![Node(1), Node(0)]);
+
+        let weights = vec![1.0, 1000.0, 2.0, 3.0];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(0), Edge(2), Edge(3)]);
+        assert_eq!(
+            g.cycle_as_node_list(&cycle),
+            vec![Node(0), Node(1), Node(2)]
+        );
+    }
+
+    /// graph with self loop
+    #[test]
+    fn min_mean_weight_cycle_06_self_loop() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(1), Node(2)),
+            (Node(2), Node(0)),
+            (Node(1), Node(1)),
+        ];
+        let g = IndexedDiGraph::from(v);
+
+        // weight A
+        let weights = vec![1.0, 1.0, 1.0, 0.1];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(3)]);
+        assert_eq!(g.cycle_as_node_list(&cycle), vec![Node(1)]);
+
+        // weight B
+        let weights = vec![-1.0, -1.0, -1.0, 0.1];
+        let cycle = g.minimum_mean_weight_cycle(&Node(0), &weights).unwrap();
+        assert_eq!(cycle, vec![Edge(0), Edge(1), Edge(2)]);
+        assert_eq!(
+            g.cycle_as_node_list(&cycle),
+            vec![Node(0), Node(1), Node(2)]
+        );
     }
 }
