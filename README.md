@@ -47,3 +47,14 @@ cargo watch --ignore scripts/ -x 'build --release'
 ```
 
 ### benchmark
+
+
+## Datasets
+```sh
+data/L${LEN}_N${N_HAP}_S${SEED}/genome.fa
+
+data/L${LEN}_N${N_HAP}_S${SEED}/E${ERROR_RATE}_D${DEPTH}/reads.fa
+
+data/L${LEN}_N${N_HAP}_S${SEED}/E${ERROR_RATE}_D${DEPTH}/stats.json
+data/L${LEN}_N${N_HAP}_S${SEED}/E${ERROR_RATE}_D${DEPTH}/grad.tsv
+```
