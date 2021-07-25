@@ -641,6 +641,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             optimizer::em::freqs_vs_true_copy_nums(&cdbg, &freqs, &copy_nums_true);
         }
         Optimizer::FullEM(opts_full_em) => {
+            // (1) start optimization from the init_state
             let copy_nums_uniform = vec![1; cdbg.n_kmers()];
             let copy_nums_init = match opts.init_state {
                 InitStateType::True => &copy_nums_true,
@@ -655,7 +656,16 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 copy_nums_init,
                 true_depth,
                 opts_full_em.max_iteration,
-            )
+            );
+
+            // (2) test run with true copy numbers
+            optimizer::em::true_copy_nums_for_em(
+                &cdbg,
+                &reads,
+                param.clone(),
+                &copy_nums_true,
+                true_depth,
+            );
         }
     }
 }

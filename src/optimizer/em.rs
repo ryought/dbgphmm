@@ -24,7 +24,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("{}\t{}\t{:?}\tnull", i, "", freqs);
+        println!("{}\t{}\tnull\t{:?}", i, "", freqs);
 
         let phmm = FCDbgPHMM::new(cdbg, freqs);
         let layers: Vec<PHMMLayer> = reads
@@ -79,8 +79,8 @@ pub fn optimize_copy_nums_by_em(
             "{}\t{}\t{:?}\t{:?}",
             i,
             cdbg.to_seqs_string(&copy_nums_new),
+            copy_nums_new,
             freqs,
-            copy_nums_new
         );
 
         // difference check
@@ -90,6 +90,38 @@ pub fn optimize_copy_nums_by_em(
             copy_nums = copy_nums_new;
         }
     }
+}
+
+pub fn true_copy_nums_for_em(
+    cdbg: &CompressedDBG,
+    reads: &[Vec<u8>],
+    param: PHMMParams,
+    true_copy_nums: &[u32],
+    depth: f64,
+) {
+    // E-step: copy_nums -> freqs
+    let phmm = CDbgPHMM::new(cdbg, true_copy_nums.to_vec());
+    let layers: Vec<PHMMLayer> = reads
+        .par_iter()
+        .map(|read| {
+            let f = phmm.forward(&param, read);
+            let b = phmm.backward(&param, read);
+            let state_prob = phmm.state_prob(&f, &b);
+            let ret: PHMMLayer = state_prob.into_iter().sum();
+            ret
+        })
+        .collect();
+    let layer_sum: PHMMLayer = layers.into_iter().sum();
+    let freqs: Vec<f64> = layer_sum.to_freqs().iter().map(|f| f / depth).collect();
+
+    // log out
+    println!(
+        "{}\t{}\t{:?}\t{:?}",
+        "true",
+        cdbg.to_seqs_string(&true_copy_nums),
+        true_copy_nums,
+        freqs,
+    );
 }
 
 /// freqs -> copy_nums function, by fitting with gradient descent and MMWC problem
