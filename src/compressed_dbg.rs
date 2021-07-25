@@ -2,11 +2,12 @@ use crate::cycles;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
-use crate::graph::Node;
+use crate::graph::{IndexedDiGraph, Node};
 use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
 use crate::stats;
 use fnv::FnvHashMap as HashMap;
+use fnv::FnvHashSet as HashSet;
 use histo::Histogram;
 use itertools::iproduct;
 use log::{debug, info, warn};
@@ -455,6 +456,45 @@ impl CompressedDBG {
         freqs.iter().map(|&f| f as f64).collect()
     }
 
+    /// collect prefix/suffix as node, and assign the index
+    pub fn to_indexed_digraph(&self) -> IndexedDiGraph {
+        // assign index to all prefix/suffix
+        let mut nodes: HashMap<Kmer, Node> = HashMap::default();
+        for v in self.iter_nodes() {
+            let kmer = self.kmer(&v);
+            // add prefix
+            let v = Node(nodes.len());
+            nodes.entry(kmer.prefix()).or_insert(v);
+
+            // add suffix
+            let v = Node(nodes.len());
+            nodes.entry(kmer.suffix()).or_insert(v);
+        }
+
+        // create edge for each kmer i.e. kmer -> (prefix, suffix)
+        let edges: Vec<(Node, Node)> = self
+            .iter_nodes()
+            .map(|v| {
+                let kmer = self.kmer(&v);
+                (
+                    *nodes.get(&kmer.prefix()).unwrap(),
+                    *nodes.get(&kmer.suffix()).unwrap(),
+                )
+            })
+            .collect();
+
+        /*
+        for (kmer, node) in nodes.iter() {
+            println!("{} {:?}", kmer, node);
+        }
+        for (e, v) in edges.iter().zip(self.iter_nodes()) {
+            println!("{:?} {}", e, self.kmer(&v));
+        }
+        */
+
+        IndexedDiGraph::from(edges)
+    }
+
     /// Graphviz dot format
     pub fn as_dot(&self) -> String {
         let mut s = String::new();
@@ -704,5 +744,12 @@ mod tests {
         assert_eq!(cdbg.cycle_and_direction_candidates(&cn).len(), 2);
         assert_eq!(cdbg.cycle_and_direction_candidates(&cn_double).len(), 2);
         assert_eq!(cdbg.cycle_and_direction_candidates(&cn_zero).len(), 1);
+    }
+
+    #[test]
+    fn to_indexed_digraph() {
+        let seqs = vec![b"ATTCGATCGATTT".to_vec()];
+        let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 8);
+        cdbg.to_indexed_digraph();
     }
 }

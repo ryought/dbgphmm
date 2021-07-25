@@ -14,7 +14,7 @@ pub struct IndexedDiGraph {
 }
 
 impl IndexedDiGraph {
-    fn from(edges: Vec<(Node, Node)>) -> IndexedDiGraph {
+    pub fn from(edges: Vec<(Node, Node)>) -> IndexedDiGraph {
         // check the consistency
         let n_edges = edges.len();
         let n_nodes = edges.iter().map(|(v, w)| v.0.max(w.0)).max().unwrap() + 1;
