@@ -675,12 +675,19 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 InitStateType::Uniform => &copy_nums_uniform,
                 _ => panic!("not implemented"),
             };
+            // let scheduler = optimizer::em::ConstantDepth::new(true_depth);
+            // let scheduler = optimizer::em::ConstantDepth::new(1.0);
+            let scheduler = optimizer::em::LinearGradientDepth::new(
+                1.0,
+                true_depth,
+                opts_full_em.max_iteration,
+            );
             optimizer::em::optimize_copy_nums_by_em(
                 &cdbg,
                 &reads,
                 param.clone(),
                 copy_nums_init,
-                true_depth,
+                &scheduler,
                 opts_full_em.max_iteration,
             );
 

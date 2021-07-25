@@ -69,10 +69,12 @@ function freq_em() {
 function full_em() {
   # echo hoge
   # $RELEASE -k 8 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k8.fullem.tsv
-  $RELEASE -k 12 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k12.fullem.tsv2
+  # $RELEASE -k 32 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 40 > data/r1_frc_k32.fullem.tsv3
   # $RELEASE -k 16 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k16.fullem.tsv
   # $RELEASE -k 24 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k24.fullem.tsv
   # $RELEASE -k 32 benchmark data/r1.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 5 > data/r1_frc_k32.fullem.tsv
+
+  $RELEASE -k 32 benchmark data/r1_k32_n30.fa data/d1.fa -V 10 --init-state read-count --parallel full-em -I 40 > data/r1_k32_n30_frc_k32.fullem.tsv
 }
 
 # from_true

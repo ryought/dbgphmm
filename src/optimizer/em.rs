@@ -12,6 +12,56 @@ use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
 
+/*
+ * schedulers
+ */
+pub trait DepthScheduler {
+    fn depth(&self, iteration: u64) -> f64;
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstantDepth {
+    depth: f64,
+}
+
+impl ConstantDepth {
+    pub fn new(depth: f64) -> ConstantDepth {
+        ConstantDepth { depth }
+    }
+}
+
+impl DepthScheduler for ConstantDepth {
+    fn depth(&self, _: u64) -> f64 {
+        self.depth
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LinearGradientDepth {
+    init_depth: f64,
+    final_depth: f64,
+    n_iter: u64,
+}
+
+impl LinearGradientDepth {
+    pub fn new(init_depth: f64, final_depth: f64, n_iter: u64) -> LinearGradientDepth {
+        LinearGradientDepth {
+            init_depth,
+            final_depth,
+            n_iter,
+        }
+    }
+}
+
+impl DepthScheduler for LinearGradientDepth {
+    fn depth(&self, iteration: u64) -> f64 {
+        let d0 = self.init_depth as f64;
+        let d = self.final_depth as f64;
+        let t = iteration as f64 / (self.n_iter as f64 - 1.0);
+        d0 + ((d - d0) * t)
+    }
+}
+
 /// EM iterative optimization on freq f64 space.
 /// experimental function
 pub fn optimize_freq_by_em(
@@ -24,7 +74,7 @@ pub fn optimize_freq_by_em(
     let mut freqs = init_freqs.to_vec();
 
     for i in 0..n_iter {
-        println!("{}\t{}\tnull\t{:?}", i, "", freqs);
+        println!("{}\t{}\t{}\tnull\t{:?}", i, 1.0, "", freqs);
 
         let phmm = FCDbgPHMM::new(cdbg, freqs);
         let layers: Vec<PHMMLayer> = reads
@@ -45,12 +95,12 @@ pub fn optimize_freq_by_em(
 /// EM iterative optimization on copy_nums space
 /// In E-step, freqs of kmers is computed with PHMM with given copy_nums
 /// Next in M-step, copy_nums is updated to that best fits with freqs
-pub fn optimize_copy_nums_by_em(
+pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
     cdbg: &CompressedDBG,
     reads: &[Vec<u8>],
     param: PHMMParams,
     init_copy_nums: &[u32],
-    depth: f64,
+    depth_scheduler: &T,
     n_iter: u64,
 ) {
     let mut copy_nums = init_copy_nums.to_vec();
@@ -69,6 +119,7 @@ pub fn optimize_copy_nums_by_em(
             })
             .collect();
         let layer_sum: PHMMLayer = layers.into_iter().sum();
+        let depth = depth_scheduler.depth(i);
         let freqs: Vec<f64> = layer_sum.to_freqs().iter().map(|f| f / depth).collect();
 
         // M-step: freqs -> copy_nums
@@ -76,19 +127,23 @@ pub fn optimize_copy_nums_by_em(
 
         // log out
         println!(
-            "{}\t{}\t{:?}\t{:?}",
+            "{}\t{:.16}\t{}\t{:?}\t{:?}",
             i,
+            depth,
             cdbg.to_seqs_string(&copy_nums_new),
             copy_nums_new,
             freqs,
         );
 
+        /*
         // difference check
         if copy_nums_new == copy_nums {
             break;
         } else {
             copy_nums = copy_nums_new;
         }
+        */
+        copy_nums = copy_nums_new;
     }
 }
 
@@ -116,8 +171,9 @@ pub fn true_copy_nums_for_em(
 
     // log out
     println!(
-        "{}\t{}\t{:?}\t{:?}",
+        "{}\t{:.16}\t{}\t{:?}\t{:?}",
         "true",
+        depth,
         cdbg.to_seqs_string(&true_copy_nums),
         true_copy_nums,
         freqs,
