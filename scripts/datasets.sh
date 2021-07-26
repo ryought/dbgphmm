@@ -37,13 +37,23 @@ function create_reads () {
   $RELEASE -k 32 $ERROR_FLAGS sample $GENOME --length 10000 --n-reads $DEPTH --start-from-head > $READS
 }
 
-# create_genome 100 1 0
-  create_reads  100 1 0 0.00 10
+function main () {
+  for L in 50 100 500
+  do
+    for S in 0 1 2
+    do
+      create_genome $L 1 $S
 
-  create_reads  100 1 0 0.01 10
-  create_reads  100 1 0 0.01 20
-  create_reads  100 1 0 0.01 50
-  create_reads  100 1 0 0.01 100
+      for E in 0.01 0.02 0.05
+      do
+        for D in 10 50 100
+        do
+          echo $L $S $E $D
+          create_reads  $L 1 $S $E $D
+        done
+      done
+    done
+  done
+}
 
-  create_reads  100 1 0 0.02 10
-# create_genome 100 1 1
+main
