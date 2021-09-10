@@ -83,7 +83,6 @@ impl GradientDescent {
         let mut states = Vec::new();
         let mut now = init_state;
         now.fill_score();
-        states.push(now.clone());
         if self.is_verbose {
             println!("# INIT\t{:.32}\t{}", now.score(), now.as_string());
         }
@@ -107,6 +106,7 @@ impl GradientDescent {
                     if self.is_verbose {
                         println!("# STOP\t{:.32}\t{}", now.score(), now.as_string());
                     }
+                    states.push(now);
                     break;
                 }
             }

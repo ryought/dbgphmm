@@ -9,6 +9,7 @@ use crate::optimizer::bestfreq::BestFreqState;
 use crate::optimizer::freq::FreqState;
 use crate::optimizer::grad::GradientDescent;
 use crate::prob::Prob;
+use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
@@ -218,6 +219,12 @@ pub fn freqs_to_copy_nums(
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, is_verbose);
     let mut history = g.run(s);
+
+    // DEBUG
+    for (i, h) in history.iter().enumerate() {
+        info!("{} {:?}", i, h.copy_nums);
+    }
+
     history.pop().unwrap().copy_nums
 }
 
