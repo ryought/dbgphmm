@@ -105,14 +105,20 @@ impl<'a> ScoreableState for BestFreqState<'a> {
     }
     fn as_string(&self) -> String {
         let mut s = String::new();
+        let freq_strs: Vec<_> = self
+            .freqs
+            .iter()
+            .map(|freq| format!("{:.2}", freq))
+            .collect();
         write!(
             &mut s,
-            "{}\t{}\t{}\t{}\t{:?}",
+            "{}\t{}\t{}\t{}\n{:?}\t[{}]",
             self.score(),
             0.0,
             self.cdbg.total_emitable_copy_num(&self.copy_nums),
             self.cdbg.to_seqs_string(&self.copy_nums),
-            self.copy_nums
+            self.copy_nums,
+            freq_strs.join(", "),
         );
         s
     }

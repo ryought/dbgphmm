@@ -499,7 +499,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
     let true_size = cdbg.total_emitable_copy_num(&copy_nums_true);
     let read_size = cdbg.total_emitable_copy_num(&copy_nums_read);
     let true_depth = read_size as f64 / true_size as f64;
-    info!(
+    warn!(
         "true_size={} read_size={} true_depth={}",
         true_size, read_size, true_depth
     );
