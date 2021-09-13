@@ -146,14 +146,16 @@ pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
             .product();
 
         // log out
+        let copy_nums_strs: Vec<_> = copy_nums_new.iter().map(|cn| format!("{:4}", cn)).collect();
+        let freqs_strs: Vec<_> = freqs.iter().map(|cn| format!("{:.2}", cn)).collect();
         println!(
-            "{}\t{:.16}\t{:.16}\t{}\t{:?}\t{:?}",
+            "@{}\t{:.16}\t{:.16}\t{}\n[{}]\n[{}]",
             i,
             depth,
             p_total.to_log_value(),
             cdbg.to_seqs_string(&copy_nums_new),
-            copy_nums_new,
-            freqs,
+            copy_nums_strs.join(", "),
+            freqs_strs.join(", "),
         );
 
         /*

@@ -55,6 +55,11 @@ impl<'a> BestFreqState<'a> {
                 let dist_inc = (freq - (copy_num as f64 + 1.0)).powi(2);
                 let dist_dec = (freq - (copy_num as f64 - 1.0)).powi(2);
 
+                if !self.cdbg.is_emitable(&Node(i)) {
+                    // do not care score of non-emittable nodes
+                    return vec![0.0, 0.0];
+                }
+
                 // if copy_num == 0, the kmer is not down-movable
                 if copy_num > 0 {
                     vec![dist_inc - dist_now, dist_dec - dist_now]
@@ -95,6 +100,9 @@ impl<'a> ScoreableState for BestFreqState<'a> {
             .copy_nums
             .iter()
             .zip(self.freqs.iter())
+            .enumerate()
+            .filter(|&(i, _)| self.cdbg.is_emitable(&Node(i)))
+            .map(|(_, x)| x)
             .map(|(&cn, &f)| (cn as f64 - f).powi(2))
             .sum();
         diff * -1f64
