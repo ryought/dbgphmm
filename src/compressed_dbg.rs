@@ -2,7 +2,7 @@ use crate::cycles;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
-use crate::graph::{IndexedDiGraph, Node};
+use crate::graph::{Edge, IndexedDiGraph, Node, Pos};
 use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
 use crate::stats;
@@ -703,6 +703,30 @@ impl CompressedDBG {
         r.copy_nums_true = copy_nums_true.to_vec();
 
         r
+    }
+    pub fn layout_2d(&self) -> Vec<(Kmer, Pos)> {
+        let idg = self.to_indexed_digraph();
+        let positions = idg.layout_by_force_atlas2();
+        let is_used: Vec<bool> = vec![false; idg.n_nodes()];
+        let mut layout = Vec::new();
+        for v in self.iter_nodes() {
+            let kmer = self.kmer(&v);
+            let (v, w) = idg.node_pair(&Edge(v.0));
+            // add v
+            if !is_used[v.0] {
+                layout.push((kmer.prefix(), positions[v.0]))
+            }
+            // add w
+            if !is_used[w.0] {
+                layout.push((kmer.suffix(), positions[w.0]))
+            }
+        }
+        layout
+    }
+    pub fn dump_layout_2d(&self) {
+        for (km1mer, pos) in self.layout_2d().iter() {
+            println!("{}\t{}\t{}", km1mer, pos.0, pos.1);
+        }
     }
 }
 

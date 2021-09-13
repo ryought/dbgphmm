@@ -1,3 +1,6 @@
+use forceatlas2;
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Node(pub usize);
 
@@ -12,6 +15,9 @@ pub struct IndexedDiGraph {
     out_edges: Vec<Vec<Edge>>,
     edges: Vec<(Node, Node)>,
 }
+
+#[derive(Debug, Copy, Clone, Serialize)]
+pub struct Pos(pub f32, pub f32);
 
 impl IndexedDiGraph {
     pub fn from(edges: Vec<(Node, Node)>) -> IndexedDiGraph {
@@ -246,6 +252,37 @@ impl IndexedDiGraph {
             }
         }
     }
+
+    /// calculate 2d layout
+    pub fn layout_by_force_atlas2(&self) -> Vec<Pos> {
+        const ITERATIONS: u32 = 2000;
+        let edges: Vec<(usize, usize)> = self.edges.iter().map(|(v, w)| (v.0, w.0)).collect();
+        let mut layout = forceatlas2::Layout::<f32>::from_graph(
+            edges,
+            forceatlas2::Nodes::Degree(self.n_nodes),
+            None,
+            forceatlas2::Settings {
+                chunk_size: None,
+                dimensions: 2,
+                dissuade_hubs: false,
+                ka: 0.01,
+                kg: 0.001,
+                kr: 0.002,
+                lin_log: false,
+                speed: 1.0,
+                prevent_overlapping: None,
+                strong_gravity: false,
+            },
+        );
+        for _ in 0..ITERATIONS {
+            layout.iteration();
+        }
+        layout
+            .points
+            .iter()
+            .map(|pos| Pos(pos[0], pos[1]))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -460,5 +497,19 @@ mod tests {
             g.cycle_as_node_list(&cycle),
             vec![Node(0), Node(1), Node(2)]
         );
+    }
+
+    #[test]
+    fn layout_output() {
+        let v = vec![
+            (Node(0), Node(1)),
+            (Node(0), Node(2)),
+            (Node(1), Node(3)),
+            (Node(2), Node(3)),
+            (Node(2), Node(4)),
+        ];
+        let g = IndexedDiGraph::from(v);
+        let positions = g.layoutByForceAtlas2();
+        println!("{:?}", positions)
     }
 }

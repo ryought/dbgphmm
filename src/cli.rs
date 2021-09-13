@@ -45,6 +45,7 @@ struct Opts {
 enum SubCommand {
     Generate(Generate),
     Stat(Stat),
+    Visualize(Visualize),
     Compare(Compare),
     ReadStat(ReadStat),
     Sample(Sample),
@@ -69,6 +70,13 @@ struct Generate {
 /// Show de bruijn graph statistics
 #[derive(Clap)]
 struct Stat {
+    /// dbg fasta file
+    dbg_fa: String,
+}
+
+/// Visualize de bruijn graph
+#[derive(Clap)]
+struct Visualize {
     /// dbg fasta file
     dbg_fa: String,
 }
@@ -310,6 +318,9 @@ pub fn main() {
         SubCommand::Stat(o) => {
             cli::stat(o, k);
         }
+        SubCommand::Visualize(o) => {
+            cli::visualize(o, k);
+        }
         SubCommand::Compare(o) => {
             cli::compare(o, k);
         }
@@ -373,6 +384,20 @@ fn stat(opts: Stat, k: usize) {
     let json = serde_json::to_string_pretty(&all_stats).unwrap();
     // info!("{:#?}", cdbg.as_all_stats(&copy_nums_true));
     println!("{}", json);
+}
+
+fn visualize(opts: Visualize, k: usize) {
+    let seqs = io::fasta::parse_seqs(&opts.dbg_fa);
+    let d = dbg::DbgHash::from_seqs(&seqs, k);
+    let cdbg = compressed_dbg::CompressedDBG::from(&d, k);
+    let copy_nums_true: Vec<u32> = cdbg
+        .iter_nodes()
+        .map(|v| {
+            let kmer = cdbg.kmer(&v);
+            d.find(kmer)
+        })
+        .collect();
+    cdbg.dump_layout_2d();
 }
 
 fn compare(opts: Compare, k: usize) {
