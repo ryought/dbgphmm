@@ -185,6 +185,9 @@ struct Benchmark {
     /// random seed
     #[clap(short = 's', long, default_value = "11")]
     seed: u64,
+    /// Output history as cytoscape-loadable json
+    #[clap(long)]
+    dump_json: bool,
 }
 
 /// Optimize the model without answer
@@ -672,12 +675,14 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 InitStateType::Zero => panic!("float em cannot start from all zero freqs"),
                 _ => panic!("not implemented"),
             };
+            let config = optimizer::em::EMOptimizerConfig { verbose: true };
             optimizer::em::optimize_freq_by_em(
                 &cdbg,
                 &reads,
                 param.clone(),
                 &freqs,
                 opts_float_em.max_iteration,
+                config,
             );
         }
         Optimizer::FreqEM(opts_freq_em) => {
@@ -715,7 +720,10 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 InitStateType::Uniform => &copy_nums_uniform,
                 _ => panic!("not implemented"),
             };
-            match opts_full_em.depth_scheduler {
+            let config = optimizer::em::EMOptimizerConfig {
+                verbose: !opts.dump_json,
+            };
+            let history = match opts_full_em.depth_scheduler {
                 DepthSchedulerType::Constant => {
                     let scheduler = optimizer::em::ConstantDepth::new(true_depth);
                     optimizer::em::optimize_copy_nums_by_em(
@@ -725,7 +733,8 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         copy_nums_init,
                         &scheduler,
                         opts_full_em.max_iteration,
-                    );
+                        config,
+                    )
                 }
                 DepthSchedulerType::LinearGradient => {
                     let scheduler = optimizer::em::LinearGradientDepth::new(
@@ -740,18 +749,26 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         copy_nums_init,
                         &scheduler,
                         opts_full_em.max_iteration,
-                    );
+                        config,
+                    )
                 }
             };
 
             // (2) test run with true copy numbers
-            optimizer::em::true_copy_nums_for_em(
-                &cdbg,
-                &reads,
-                param.clone(),
-                &copy_nums_true,
-                true_depth,
-            );
+            if !opts.dump_json {
+                optimizer::em::true_copy_nums_for_em(
+                    &cdbg,
+                    &reads,
+                    param.clone(),
+                    &copy_nums_true,
+                    true_depth,
+                );
+            }
+
+            // (3) dump history
+            if opts.dump_json {
+                println!("{}", cdbg.to_cytoscape_json(&history));
+            }
         }
     }
 }

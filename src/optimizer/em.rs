@@ -64,6 +64,11 @@ impl DepthScheduler for LinearGradientDepth {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EMOptimizerConfig {
+    pub verbose: bool,
+}
+
 /// EM iterative optimization on freq f64 space.
 /// experimental function
 pub fn optimize_freq_by_em(
@@ -72,6 +77,7 @@ pub fn optimize_freq_by_em(
     param: PHMMParams,
     init_freqs: &[f64],
     n_iter: u64,
+    config: EMOptimizerConfig,
 ) {
     let mut freqs = init_freqs.to_vec();
 
@@ -93,14 +99,16 @@ pub fn optimize_freq_by_em(
             .map(|read| phmm.forward_prob(&param, read))
             .product();
 
-        println!(
-            "{}\t{:.16}\t{:.16}\t{}\tnull\t{:?}",
-            i,
-            1.0,
-            p_total.to_log_value(),
-            "",
-            freqs
-        );
+        if config.verbose {
+            println!(
+                "{}\t{:.16}\t{:.16}\t{}\tnull\t{:?}",
+                i,
+                1.0,
+                p_total.to_log_value(),
+                "",
+                freqs
+            );
+        }
 
         freqs = layer_sum.to_freqs();
     }
@@ -116,7 +124,9 @@ pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
     init_copy_nums: &[u32],
     depth_scheduler: &T,
     n_iter: u64,
-) {
+    config: EMOptimizerConfig,
+) -> Vec<Vec<u32>> {
+    let mut history = Vec::new();
     let mut copy_nums = init_copy_nums.to_vec();
 
     for i in 0..n_iter {
@@ -146,17 +156,20 @@ pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
             .product();
 
         // log out
-        let copy_nums_strs: Vec<_> = copy_nums_new.iter().map(|cn| format!("{:4}", cn)).collect();
-        let freqs_strs: Vec<_> = freqs.iter().map(|cn| format!("{:.2}", cn)).collect();
-        println!(
-            "@{}\t{:.16}\t{:.16}\t{}\n[{}]\n[{}]",
-            i,
-            depth,
-            p_total.to_log_value(),
-            cdbg.to_seqs_string(&copy_nums_new),
-            copy_nums_strs.join(", "),
-            freqs_strs.join(", "),
-        );
+        if config.verbose {
+            let copy_nums_strs: Vec<_> =
+                copy_nums_new.iter().map(|cn| format!("{:4}", cn)).collect();
+            let freqs_strs: Vec<_> = freqs.iter().map(|cn| format!("{:.2}", cn)).collect();
+            println!(
+                "@{}\t{:.16}\t{:.16}\t{}\n[{}]\n[{}]",
+                i,
+                depth,
+                p_total.to_log_value(),
+                cdbg.to_seqs_string(&copy_nums_new),
+                copy_nums_strs.join(", "),
+                freqs_strs.join(", "),
+            );
+        }
 
         /*
         // difference check
@@ -166,8 +179,11 @@ pub fn optimize_copy_nums_by_em<T: DepthScheduler>(
             copy_nums = copy_nums_new;
         }
         */
+        history.push(copy_nums);
         copy_nums = copy_nums_new;
     }
+    history.push(copy_nums);
+    history
 }
 
 pub fn true_copy_nums_for_em(

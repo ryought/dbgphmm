@@ -51,20 +51,18 @@ var gui = new dat.GUI({name: 'My GUI'})
 gui.add({name: 'sam'}, 'name')
 
 
-var i = 0
-
-const run = () => {
-  /*
-  cy.getElementById('n0').data('label', 'new label')
-  cy.getElementById('e0').style('width', '20px')
-  */
-  index = (index + 1) % 3
-  console.log('run')
-
-  cy.nodes()
-    .style('width', function (e) { return e.data('sizes')[index] })
-    .style('height', function (e) { return e.data('sizes')[index] })
-
+const updateWidth = () => {
+  cy.edges()
+    .style('width', function (e) {
+      const widths = e.data('widths')
+      if (params.time < widths.length) {
+        return widths[params.time] * 5
+      } else {
+        return 0
+      }
+    })
+}
+const updateGraph = () => {
   /*
   cy.add({
     group: 'nodes',
@@ -86,17 +84,18 @@ const run = () => {
   */
 }
 
-const MAX_TIME = 100
-gui.add(params, 'time', 0, MAX_TIME)
+const MAX_TIME = 10
+gui.add(params, 'time', 0, MAX_TIME, 1)
   .listen()
   .onChange(() => {
-    console.log('changed!')
+    updateWidth()
   })
 let timer = null;
 const animate = () => {
   if (timer === null) {
     // start animation
     timer = setInterval(() => {
+      updateWidth()
       params.time = (params.time + 1) % MAX_TIME
     }, 100)
   } else {
