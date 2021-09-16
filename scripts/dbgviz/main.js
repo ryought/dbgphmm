@@ -1,4 +1,11 @@
+/**
+ * parameters
+ */
 var index = 0
+var params = {
+  target: '',
+  time: 0,
+}
 
 var cy = window.cy = cytoscape({
   container: document.getElementById('cy'),
@@ -30,28 +37,19 @@ var cy = window.cy = cytoscape({
     .then(function (json) { console.log('json', json); return json }),
   layout: {
     name: 'cola',
-    maxSimulationTime: 10000000,
+    maxSimulationTime: 1000,
   },
 });
 
-const layout = cy.layout({
-  name: 'cola',
-  randomize: true,
-  // maxSimulationTime: 40000000,
-  fit: true,
-  infinity: true,
-  // convergenceThreshold: 0.000000001,
-  // edgeLength: function(edge){ return edge.data('length') / 10; },
-})
 
 cy.on('click', 'node', function(e){
-  console.log('clicked', e)
+  const node = e.target;
+  params.target = node.id();
 })
 
 var gui = new dat.GUI({name: 'My GUI'})
 gui.add({name: 'sam'}, 'name')
 
-layout.run()
 
 var i = 0
 
@@ -87,5 +85,43 @@ const run = () => {
   layout.run()
   */
 }
-gui.add({ run }, 'run')
 
+const MAX_TIME = 100
+gui.add(params, 'time', 0, MAX_TIME)
+  .listen()
+  .onChange(() => {
+    console.log('changed!')
+  })
+let timer = null;
+const animate = () => {
+  if (timer === null) {
+    // start animation
+    timer = setInterval(() => {
+      params.time = (params.time + 1) % MAX_TIME
+    }, 100)
+  } else {
+    // stop animation
+    clearInterval(timer)
+    timer = null
+  }
+}
+gui.add({ animate }, 'animate')
+gui.add(params, 'target').listen()
+
+
+/**
+ * layouts
+ */
+var layout
+const start = () => {
+  layout = cy.layout({
+    name: 'cola',
+    maxSimulationTime: 40000000,
+  })
+  layout.run()
+}
+const stop = () => {
+  layout.stop()
+}
+gui.add({ start }, 'start')
+gui.add({ stop }, 'stop')
