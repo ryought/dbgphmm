@@ -499,14 +499,20 @@ impl CompressedDBG {
     /// collect prefix/suffix as node, and assign the index
     /// graph with forward and backward edge
     pub fn to_indexed_digraph(&self) -> IndexedDiGraph {
-        let (_, mut edges) = self.to_edge_centric_graph();
+        let (_, edges_forward) = self.to_edge_centric_graph();
 
         // reverse edges will be added
-        let edges_reverse: Vec<(Node, Node)> = edges
+        let edges_reverse: Vec<(Node, Node)> = edges_forward
             .iter()
             .map(|&(prefix, suffix)| (suffix, prefix))
             .collect();
-        edges.extend(edges_reverse);
+
+        let edges: Vec<_> = edges_forward
+            .into_iter()
+            .zip(edges_reverse.into_iter())
+            .map(|(ef, er)| vec![ef, er])
+            .flatten()
+            .collect();
 
         IndexedDiGraph::from(edges)
     }
