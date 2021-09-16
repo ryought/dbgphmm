@@ -42,11 +42,11 @@ function main () {
     do
       for K in 8 16 24 32
       do
-        run $L 1 $S $E $D $K '--init-state zero freq-em' 'freqem'
-        run $L 1 $S $E $D $K '--init-state read-count full-em --depth-scheduler linear-gradient -I 20' 'fullemlingrad'
-        run $L 1 $S $E $D $K '--init-state read-count full-em --depth-scheduler constant -I 20' 'fullemconst'
-        run $L 1 $S $E $D $K '--init-state zero grad -I 10' 'grad_f0_I10'
-        run $L 1 $S $E $D $K '--init-state true grad -I 10' 'grad_ft_I10'
+        run $L 1 $S $E $D $K '--init-state zero freq-em' 'freqem2'
+        run $L 1 $S $E $D $K '--init-state read-count full-em --depth-scheduler linear-gradient -I 20' 'fullemlingrad2'
+        run $L 1 $S $E $D $K '--init-state read-count full-em --depth-scheduler constant -I 20' 'fullemconst2'
+        # run $L 1 $S $E $D $K '--init-state zero grad -I 10' 'grad_f0_I10'
+        # run $L 1 $S $E $D $K '--init-state true grad -I 10' 'grad_ft_I10'
       done
     done
   done

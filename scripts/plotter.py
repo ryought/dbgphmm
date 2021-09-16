@@ -6,9 +6,6 @@ visualize training log
 python3 plotter.py hoge.csv hoge.json
 """
 import argparse
-import json
-import csv
-from dataclasses import dataclass
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -16,79 +13,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
-@dataclass
-class OptimizeLog:
-    id: int
-    temp: float
-    now_score: float
-    next_score: float
-    p_accept: float
-    is_accepted: bool
-    now_score_prior: float
-    now_score_forward: float
-    now_size: int
-    now_seq: str
-    now_state: list
-    next_score_prior: float
-    next_score_forward: float
-    next_size: int
-    next_seq: str
-    next_state: list
-
-@dataclass
-class GradComment:
-    type: str
-    score: float
-    score_prior: float
-    score_forward: float
-    size: int
-    seq: str
-    state: list
-
-def parse_logs(tsv_filename, with_comments=False):
-    with open(tsv_filename) as f:
-        logs = []
-        comments = []
-        reader = csv.reader(f, delimiter='\t')
-        for row in reader:
-            if row[0][0] == '#':
-                if with_comments:
-                    comment = GradComment(
-                        type=row[0][2:],
-                        score=float(row[1]),
-                        score_prior=float(row[2]),
-                        score_forward=float(row[3]),
-                        size=int(row[4]),
-                        seq=row[5],
-                        state=json.loads(row[6]),
-                    )
-                    comments.append(comment)
-            else:
-                log = OptimizeLog(
-                    id=int(row[0]),
-                    temp=float(row[1]),
-                    now_score=float(row[2]),
-                    next_score=float(row[3]),
-                    p_accept=float(row[4]),
-                    is_accepted=(row[5] == 'true'),
-                    now_score_prior=float(row[6]),
-                    now_score_forward=float(row[7]),
-                    now_size=int(row[8]),
-                    now_seq=row[9],
-                    now_state=json.loads(row[10]),
-                    next_score_prior=float(row[11]),
-                    next_score_forward=float(row[12]),
-                    next_size=int(row[13]),
-                    next_seq=row[14],
-                    next_state=json.loads(row[15]),
-                )
-                logs.append(log)
-    return logs, comments
-
-def parse_stats(json_filename):
-    with open(json_filename) as f:
-        stats = json.load(f)
-    return stats
+from parsers import *
 
 def dist(state_a, state_b):
     return np.linalg.norm(np.array(state_a) - np.array(state_b))
@@ -213,6 +138,15 @@ def plot_grad_projected_with_true(logs, true_logs, stats, filename, method='pca'
 
     plt.savefig(filename)
 
+def plot_grad_history(logs, true_logs, comments, true_comments, stats, filename):
+    true_score = true_comments[0].score
+    x = [comment.score - true_score for comment in comments]
+    plt.plot(x)
+    plt.xlabel('iteration')
+    plt.ylabel('score - true_score')
+    plt.tight_layout()
+    plt.savefig(filename)
+
 def plot_basis(logs, stats, filename):
     plt.figure(figsize=(10, 20))
     N = 6
@@ -281,7 +215,7 @@ def main():
     stats = parse_stats(args.json_filename)
     logs, comments = parse_logs(args.tsv_filename, with_comments=True)
     if args.true_tsv_filename:
-        true_logs, true_comments = parse_logs(args.true_tsv_filename, with_comments=False)
+        true_logs, true_comments = parse_logs(args.true_tsv_filename, with_comments=True)
 
     # plot
     if args.optimize_mode == 'annealer':
@@ -290,7 +224,8 @@ def main():
         plot_basis(logs, stats, args.tsv_filename + '.basis.png')
     elif args.optimize_mode == 'grad':
         if args.true_tsv_filename:
-            plot_grad_projected_with_true(logs, true_logs, stats, args.tsv_filename + '.projgrad.png', method='tsne')
+            # plot_grad_projected_with_true(logs, true_logs, stats, args.tsv_filename + '.projgrad.png', method='tsne')
+            plot_grad_history(logs, true_logs, comments, true_comments, stats, args.tsv_filename + '.history.png')
         else:
             plot_grad_projected(logs, comments, stats, args.tsv_filename + '.projgrad.png')
     elif args.optimize_mode == 'freq-em':
