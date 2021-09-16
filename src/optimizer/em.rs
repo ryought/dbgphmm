@@ -237,13 +237,19 @@ pub fn freqs_to_copy_nums(
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, is_verbose);
     let mut history = g.run(s);
-
-    // DEBUG
-    for (i, h) in history.iter().enumerate() {
-        info!("{} {:?}", i, h.copy_nums);
-    }
-
     history.pop().unwrap().copy_nums
+}
+
+pub fn freqs_to_copy_nums_full_history(
+    cdbg: &CompressedDBG,
+    freqs: &[f64],
+    copy_nums_init: &[u32],
+) -> Vec<Vec<u32>> {
+    let idg = cdbg.to_indexed_digraph();
+    let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
+    let g = GradientDescent::new(100, false);
+    let mut history = g.run(s);
+    history.into_iter().map(|h| h.copy_nums).collect()
 }
 
 pub fn freqs_vs_true_copy_nums(cdbg: &CompressedDBG, freqs: &[f64], copy_nums_true: &[u32]) {

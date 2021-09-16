@@ -693,23 +693,26 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 .collect();
 
             // (1) start optimization from the init_state
-            match opts.init_state {
+            let copy_nums_init = match opts.init_state {
                 InitStateType::Zero => {
                     let copy_nums_zero = vec![0; cdbg.n_kmers()];
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_zero, true);
+                    copy_nums_zero
                 }
-                InitStateType::True => {
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_true, true);
-                }
-                InitStateType::ReadCount => {
-                    optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_read, true);
-                }
+                InitStateType::True => copy_nums_true.clone(),
+                InitStateType::ReadCount => copy_nums_read,
                 // TODO implement random
                 _ => panic!("not implemented"),
             };
 
-            // (2) test run with true copy numbers
-            optimizer::em::freqs_vs_true_copy_nums(&cdbg, &freqs, &copy_nums_true);
+            if !opts.dump_json {
+                // log output
+                optimizer::em::freqs_to_copy_nums(&cdbg, &freqs, &copy_nums_init, true);
+                optimizer::em::freqs_vs_true_copy_nums(&cdbg, &freqs, &copy_nums_true);
+            } else {
+                let history =
+                    optimizer::em::freqs_to_copy_nums_full_history(&cdbg, &freqs, &copy_nums_init);
+                println!("{}", cdbg.to_cytoscape_json(&history));
+            }
         }
         Optimizer::FullEM(opts_full_em) => {
             // (1) start optimization from the init_state
