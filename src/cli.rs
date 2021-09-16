@@ -397,7 +397,7 @@ fn visualize(opts: Visualize, k: usize) {
             d.find(kmer)
         })
         .collect();
-    cdbg.dump_layout_2d();
+    println!("{}", cdbg.to_cytoscape_json());
 }
 
 fn compare(opts: Compare, k: usize) {
@@ -514,9 +514,11 @@ fn kmer_prob(opts: KmerProb, k: usize, param: PHMMParams) {
 /// 2. determine (true) copy_nums from fa
 /// 3. optimize
 fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
+    info!("loading reads_fa ...");
     let reads = io::fasta::parse_seqs(&opts.reads_fa);
     let (cdbg, copy_nums_read) = compressed_dbg::CompressedDBG::from_seqs(&reads, k);
 
+    info!("loading true_dbg_fa ...");
     let seqs = io::fasta::parse_seqs(&opts.true_dbg_fa);
     let copy_nums_true = cdbg
         .true_copy_nums_from_seqs(&seqs, k)

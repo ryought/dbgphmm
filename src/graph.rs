@@ -1,4 +1,5 @@
 use forceatlas2;
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
@@ -255,8 +256,9 @@ impl IndexedDiGraph {
 
     /// calculate 2d layout
     pub fn layout_by_force_atlas2(&self) -> Vec<Pos> {
-        const ITERATIONS: u32 = 2000;
+        const ITERATIONS: u32 = 5000;
         let edges: Vec<(usize, usize)> = self.edges.iter().map(|(v, w)| (v.0, w.0)).collect();
+        info!("n_edges={}", edges.len());
         let mut layout = forceatlas2::Layout::<f32>::from_graph(
             edges,
             forceatlas2::Nodes::Degree(self.n_nodes),
@@ -268,15 +270,17 @@ impl IndexedDiGraph {
                 ka: 0.01,
                 kg: 0.001,
                 kr: 0.002,
-                lin_log: false,
+                lin_log: true,
                 speed: 1.0,
                 prevent_overlapping: None,
                 strong_gravity: false,
             },
         );
+        info!("determining layout by forceatlas2...");
         for _ in 0..ITERATIONS {
             layout.iteration();
         }
+        info!("n_nodes={}", layout.points.points.len());
         layout
             .points
             .iter()
@@ -509,7 +513,7 @@ mod tests {
             (Node(2), Node(4)),
         ];
         let g = IndexedDiGraph::from(v);
-        let positions = g.layoutByForceAtlas2();
+        let positions = g.layout_by_force_atlas2();
         println!("{:?}", positions)
     }
 }

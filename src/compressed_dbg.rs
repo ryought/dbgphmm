@@ -3,6 +3,7 @@ use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
 use crate::graph::{Edge, IndexedDiGraph, Node, Pos};
+use crate::io::cytoscape::Element;
 use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
 use crate::stats;
@@ -465,8 +466,7 @@ impl CompressedDBG {
         freqs.iter().map(|&f| f as f64).collect()
     }
 
-    /// collect prefix/suffix as node, and assign the index
-    pub fn to_indexed_digraph(&self) -> IndexedDiGraph {
+    pub fn to_edge_centric_graph(&self) -> (HashMap<Kmer, Node>, Vec<(Node, Node)>) {
         // assign index to all prefix/suffix
         let mut nodes: HashMap<Kmer, Node> = HashMap::default();
         // register NNNNN as Node(0), because it is useful as a start point
@@ -484,26 +484,29 @@ impl CompressedDBG {
         }
 
         // create edge for each kmer i.e. kmer -> (prefix, suffix)
-        // both direction will be added
         let edges: Vec<(Node, Node)> = self
             .iter_nodes()
-            .flat_map(|v| {
+            .map(|v| {
                 let kmer = self.kmer(&v);
                 let prefix = *nodes.get(&kmer.prefix()).unwrap();
                 let suffix = *nodes.get(&kmer.suffix()).unwrap();
-                vec![(prefix, suffix), (suffix, prefix)]
+                (prefix, suffix)
             })
             .collect();
 
-        /*
-        println!("{:?}", edges);
-        for (kmer, node) in nodes.iter() {
-            println!("{} {:?}", kmer, node);
-        }
-        for (e, v) in edges.iter().zip(self.iter_nodes()) {
-            println!("{:?} {}", e, self.kmer(&v));
-        }
-        */
+        (nodes, edges)
+    }
+    /// collect prefix/suffix as node, and assign the index
+    /// graph with forward and backward edge
+    pub fn to_indexed_digraph(&self) -> IndexedDiGraph {
+        let (_, mut edges) = self.to_edge_centric_graph();
+
+        // reverse edges will be added
+        let edges_reverse: Vec<(Node, Node)> = edges
+            .iter()
+            .map(|&(prefix, suffix)| (suffix, prefix))
+            .collect();
+        edges.extend(edges_reverse);
 
         IndexedDiGraph::from(edges)
     }
@@ -725,8 +728,53 @@ impl CompressedDBG {
     }
     pub fn dump_layout_2d(&self) {
         for (km1mer, pos) in self.layout_2d().iter() {
-            println!("{}\t{}\t{}", km1mer, pos.0, pos.1);
+            println!("N\t{}\t{}\t{}", km1mer, pos.0, pos.1);
         }
+    }
+    pub fn dump_edge_list(&self, copy_nums: &[u32]) {
+        for v in self.iter_nodes() {
+            println!("E\t{}\t{}", self.kmer(&v), copy_nums[v.0]);
+        }
+    }
+    /// Create json to feed cytoscape.js graph
+    /// format is array of either:
+    ///   { group: 'nodes', data: { id } }
+    /// or
+    ///   { group: 'edges', data: { id, source, target, widths } }
+    pub fn to_cytoscape_elements(&self) -> Vec<Element> {
+        let (nodes, edges) = self.to_edge_centric_graph();
+        let mut elements = Vec::new();
+
+        // nodes
+        let n_nodes = nodes.len();
+        for (kmer, node) in nodes.into_iter() {
+            elements.push(Element::Node {
+                id: node.0,
+                label: kmer,
+            });
+        }
+
+        // edges
+        for (i, &(v, w)) in edges.iter().enumerate() {
+            elements.push(Element::Edge {
+                id: i + n_nodes, // element id should be unique, over both nodes and edges
+                source: v.0,
+                target: w.0,
+                label: self.kmer(&Node(i)).clone(),
+                widths: vec![],
+            });
+        }
+
+        elements
+    }
+    pub fn to_cytoscape_json(&self) -> String {
+        let elements = self.to_cytoscape_elements();
+        // serde_json::to_string_pretty(&elements).unwrap()
+        serde_json::to_string(&elements).unwrap()
+    }
+    pub fn to_gexf(&self) -> String {
+        let mut s = String::new();
+        s
     }
 }
 
@@ -827,5 +875,15 @@ mod tests {
         let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 8);
         let idg = cdbg.to_indexed_digraph();
         assert_eq!(cdbg.n_kmers() * 2, idg.n_edges());
+    }
+
+    #[test]
+    fn to_cytoscape_json() {
+        let seqs = vec![b"ATTCGAC".to_vec()];
+        let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 3);
+        assert_eq!(
+            cdbg.to_cytoscape_json(),
+            r#"[{"group":"nodes","data":{"id":7,"label":"NA"}},{"group":"nodes","data":{"id":6,"label":"CG"}},{"group":"nodes","data":{"id":5,"label":"AT"}},{"group":"nodes","data":{"id":3,"label":"AC"}},{"group":"nodes","data":{"id":8,"label":"GA"}},{"group":"nodes","data":{"id":4,"label":"CN"}},{"group":"nodes","data":{"id":1,"label":"TT"}},{"group":"nodes","data":{"id":2,"label":"TC"}},{"group":"nodes","data":{"id":0,"label":"NN"}},{"group":"edges","data":{"id":0,"source":1,"target":2,"label":"TTC","widths":[]}},{"group":"edges","data":{"id":1,"source":3,"target":4,"label":"ACN","widths":[]}},{"group":"edges","data":{"id":2,"source":5,"target":1,"label":"ATT","widths":[]}},{"group":"edges","data":{"id":3,"source":4,"target":0,"label":"CNN","widths":[]}},{"group":"edges","data":{"id":4,"source":2,"target":6,"label":"TCG","widths":[]}},{"group":"edges","data":{"id":5,"source":0,"target":7,"label":"NNA","widths":[]}},{"group":"edges","data":{"id":6,"source":6,"target":8,"label":"CGA","widths":[]}},{"group":"edges","data":{"id":7,"source":7,"target":5,"label":"NAT","widths":[]}},{"group":"edges","data":{"id":8,"source":8,"target":3,"label":"GAC","widths":[]}}]"#
+        )
     }
 }
