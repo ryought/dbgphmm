@@ -5,7 +5,9 @@ var index = 0
 var params = {
   target: '',
   time: 0,
+  depth: 10,
 }
+var gui = new dat.GUI({name: 'My GUI'})
 
 var cy = window.cy = cytoscape({
   container: document.getElementById('cy'),
@@ -14,18 +16,12 @@ var cy = window.cy = cytoscape({
       selector: 'node',
       style: {
         shape: 'ellipse',
-        label: function (e) { return e.data('label') },
-        /*
-        'width': function (e) { return e.data('sizes')[index] },
-        'height': function (e) { return e.data('sizes')[index] },
-        */
+        // label: function (e) { return e.data('label') },
       }
     },
     {
       selector: 'edge',
       style: {
-        // 'line-color': '#f92411',
-        // 'width': '5px',
         label: function (e) { return e.data('label') },
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
@@ -42,15 +38,37 @@ var cy = window.cy = cytoscape({
 });
 
 
+/**
+ * node selection
+ */
+const select = (root, k) => {
+  let depth = {}
+  cy.elements().bfs({
+    roots: cy.getElementById(root),
+    visit: function(v, e, u, i, d) {
+      depth[v.id()] = d
+    },
+    directed: false,
+  })
+  cy.nodes().style('display', 'none');
+  cy.nodes().filter((v) => depth[v.id()] < k).neighborhood().style('display', '');
+}
+const unselect = () => {
+  cy.nodes().style('display', '');
+}
 cy.on('click', 'node', function(e){
   const node = e.target;
   params.target = node.id();
+  select(node.id(), params.depth);
 })
+gui.add(params, 'target').listen()
+gui.add(params, 'depth', 1, 20, 1).listen()
+gui.add({ unselect }, 'unselect')
 
-var gui = new dat.GUI({name: 'My GUI'})
-gui.add({name: 'sam'}, 'name')
 
-
+/**
+ * edge width history
+ */
 const updateWidth = () => {
   cy.edges()
     .style('width', function (e) {
@@ -62,28 +80,6 @@ const updateWidth = () => {
       }
     })
 }
-const updateGraph = () => {
-  /*
-  cy.add({
-    group: 'nodes',
-    data: { id: i, label: i },
-  })
-  cy.add({
-    group: 'edges',
-    data: { id: i, source: i, target: 'n1', length: 1000 },
-  })
-  cy.add({
-    group: 'edges',
-    data: { id: i, source: i, target: 'n2', length: 1000 },
-  })
-  i += 1
-  const layout = cy.layout({
-    name: 'cola',
-  })
-  layout.run()
-  */
-}
-
 const MAX_TIME = 10
 gui.add(params, 'time', 0, MAX_TIME, 1)
   .listen()
@@ -105,22 +101,27 @@ const animate = () => {
   }
 }
 gui.add({ animate }, 'animate')
-gui.add(params, 'target').listen()
 
 
 /**
  * layouts
  */
-var layout
+let layout = null
 const start = () => {
-  layout = cy.layout({
-    name: 'cola',
-    maxSimulationTime: 40000000,
-  })
-  layout.run()
+  if (layout === null) {
+    const target = cy.elements().filter((element) => element.style('display') !== 'none')
+    layout = target.layout({
+      name: 'cola',
+      maxSimulationTime: 40000000,
+    })
+    layout.run()
+  }
 }
 const stop = () => {
-  layout.stop()
+  if (layout !== null) {
+    layout.stop()
+    layout = null
+  }
 }
 gui.add({ start }, 'start')
 gui.add({ stop }, 'stop')
