@@ -741,7 +741,7 @@ impl CompressedDBG {
     ///   { group: 'nodes', data: { id } }
     /// or
     ///   { group: 'edges', data: { id, source, target, widths } }
-    pub fn to_cytoscape_elements(&self) -> Vec<Element> {
+    pub fn to_cytoscape_elements(&self, copy_nums_list: &[Vec<u32>]) -> Vec<Element> {
         let (nodes, edges) = self.to_edge_centric_graph();
         let mut elements = Vec::new();
 
@@ -761,14 +761,17 @@ impl CompressedDBG {
                 source: v.0,
                 target: w.0,
                 label: self.kmer(&Node(i)).clone(),
-                widths: vec![],
+                widths: copy_nums_list
+                    .iter()
+                    .map(|copy_nums| copy_nums[i])
+                    .collect(),
             });
         }
 
         elements
     }
-    pub fn to_cytoscape_json(&self) -> String {
-        let elements = self.to_cytoscape_elements();
+    pub fn to_cytoscape_json(&self, copy_nums_list: &[Vec<u32>]) -> String {
+        let elements = self.to_cytoscape_elements(copy_nums_list);
         // serde_json::to_string_pretty(&elements).unwrap()
         serde_json::to_string(&elements).unwrap()
     }
@@ -882,8 +885,8 @@ mod tests {
         let seqs = vec![b"ATTCGAC".to_vec()];
         let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 3);
         assert_eq!(
-            cdbg.to_cytoscape_json(),
-            r#"[{"group":"nodes","data":{"id":7,"label":"NA"}},{"group":"nodes","data":{"id":6,"label":"CG"}},{"group":"nodes","data":{"id":5,"label":"AT"}},{"group":"nodes","data":{"id":3,"label":"AC"}},{"group":"nodes","data":{"id":8,"label":"GA"}},{"group":"nodes","data":{"id":4,"label":"CN"}},{"group":"nodes","data":{"id":1,"label":"TT"}},{"group":"nodes","data":{"id":2,"label":"TC"}},{"group":"nodes","data":{"id":0,"label":"NN"}},{"group":"edges","data":{"id":0,"source":1,"target":2,"label":"TTC","widths":[]}},{"group":"edges","data":{"id":1,"source":3,"target":4,"label":"ACN","widths":[]}},{"group":"edges","data":{"id":2,"source":5,"target":1,"label":"ATT","widths":[]}},{"group":"edges","data":{"id":3,"source":4,"target":0,"label":"CNN","widths":[]}},{"group":"edges","data":{"id":4,"source":2,"target":6,"label":"TCG","widths":[]}},{"group":"edges","data":{"id":5,"source":0,"target":7,"label":"NNA","widths":[]}},{"group":"edges","data":{"id":6,"source":6,"target":8,"label":"CGA","widths":[]}},{"group":"edges","data":{"id":7,"source":7,"target":5,"label":"NAT","widths":[]}},{"group":"edges","data":{"id":8,"source":8,"target":3,"label":"GAC","widths":[]}}]"#
+            cdbg.to_cytoscape_json(&[]),
+            r#"[{"group":"nodes","data":{"id":7,"label":"NA"}},{"group":"nodes","data":{"id":6,"label":"CG"}},{"group":"nodes","data":{"id":5,"label":"AT"}},{"group":"nodes","data":{"id":3,"label":"AC"}},{"group":"nodes","data":{"id":8,"label":"GA"}},{"group":"nodes","data":{"id":4,"label":"CN"}},{"group":"nodes","data":{"id":1,"label":"TT"}},{"group":"nodes","data":{"id":2,"label":"TC"}},{"group":"nodes","data":{"id":0,"label":"NN"}},{"group":"edges","data":{"id":9,"source":1,"target":2,"label":"TTC","widths":[]}},{"group":"edges","data":{"id":10,"source":3,"target":4,"label":"ACN","widths":[]}},{"group":"edges","data":{"id":11,"source":5,"target":1,"label":"ATT","widths":[]}},{"group":"edges","data":{"id":12,"source":4,"target":0,"label":"CNN","widths":[]}},{"group":"edges","data":{"id":13,"source":2,"target":6,"label":"TCG","widths":[]}},{"group":"edges","data":{"id":14,"source":0,"target":7,"label":"NNA","widths":[]}},{"group":"edges","data":{"id":15,"source":6,"target":8,"label":"CGA","widths":[]}},{"group":"edges","data":{"id":16,"source":7,"target":5,"label":"NAT","widths":[]}},{"group":"edges","data":{"id":17,"source":8,"target":3,"label":"GAC","widths":[]}}]"#
         )
     }
 }

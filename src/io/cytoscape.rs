@@ -19,7 +19,7 @@ pub enum Element {
         target: usize,
         #[serde_as(as = "DisplayFromStr")]
         label: Kmer,
-        widths: Vec<usize>,
+        widths: Vec<u32>,
     },
 }
 

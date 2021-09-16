@@ -397,7 +397,8 @@ fn visualize(opts: Visualize, k: usize) {
             d.find(kmer)
         })
         .collect();
-    println!("{}", cdbg.to_cytoscape_json());
+    // dump with no copy_num informations
+    println!("{}", cdbg.to_cytoscape_json(&[]));
 }
 
 fn compare(opts: Compare, k: usize) {
