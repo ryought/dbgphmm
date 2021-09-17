@@ -13,6 +13,7 @@ use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
+use serde::ser::{SerializeSeq, Serializer};
 
 /*
  * schedulers
@@ -249,6 +250,7 @@ pub fn freqs_to_copy_nums_full_history(
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, false);
     let mut history = g.run(s);
+
     history.into_iter().map(|h| h.copy_nums).collect()
 }
 
@@ -269,6 +271,19 @@ mod tests {
         let (cdbg, copy_nums) = CompressedDBG::from_seqs(&seqs, 8);
         let freqs = cdbg.copy_nums_to_freqs(&copy_nums);
         let param = PHMMParams::default();
-        optimize_freq_by_em(&cdbg, &seqs, param, &freqs, 10);
+        let config = EMOptimizerConfig { verbose: true };
+        optimize_freq_by_em(&cdbg, &seqs, param, &freqs, 10, config);
+    }
+    #[test]
+    fn json_dump_as_stream() {
+        // ref: https://github.com/serde-rs/json/issues/345#issuecomment-636215611
+        let rows: Vec<u32> = vec![1, 2, 3, 4, 5];
+        let out = std::io::stdout();
+        let mut ser = serde_json::Serializer::pretty(out);
+        let mut seq = ser.serialize_seq(None).unwrap();
+        for row in rows.iter() {
+            seq.serialize_element(&row).unwrap();
+        }
+        seq.end();
     }
 }
