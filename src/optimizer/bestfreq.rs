@@ -57,7 +57,11 @@ impl<'a> BestFreqState<'a> {
 
                 if !self.cdbg.is_emitable(&Node(i)) {
                     // do not care score of non-emittable nodes
-                    return vec![0.0, 0.0];
+                    if copy_num > 0 {
+                        return vec![0.0, 0.0];
+                    } else {
+                        return vec![0.0, f64::INFINITY];
+                    }
                 }
 
                 // if copy_num == 0, the kmer is not down-movable
