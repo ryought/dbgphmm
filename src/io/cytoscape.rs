@@ -20,6 +20,7 @@ pub enum Element {
         #[serde_as(as = "DisplayFromStr")]
         label: Kmer,
         widths: Vec<u32>,
+        true_width: Option<u32>,
     },
 }
 
@@ -40,6 +41,7 @@ mod tests {
             target: 1,
             label: Kmer::from(b"ATCGAT"),
             widths: vec![0, 1, 2],
+            true_width: None,
         });
         let serialized = serde_json::to_string_pretty(&elements).unwrap();
         println!("{}", serialized);

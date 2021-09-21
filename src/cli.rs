@@ -400,8 +400,10 @@ fn visualize(opts: Visualize, k: usize) {
             d.find(kmer)
         })
         .collect();
-    // dump with no copy_num informations
-    println!("{}", cdbg.to_cytoscape_json(&[]));
+    println!(
+        "{}",
+        cdbg.to_cytoscape_json_with_true(&[], Some(&copy_nums_true))
+    );
 }
 
 fn compare(opts: Compare, k: usize) {
@@ -711,7 +713,10 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             } else {
                 let history =
                     optimizer::em::freqs_to_copy_nums_full_history(&cdbg, &freqs, &copy_nums_init);
-                println!("{}", cdbg.to_cytoscape_json(&history));
+                println!(
+                    "{}",
+                    cdbg.to_cytoscape_json_with_true(&history, Some(&copy_nums_true))
+                );
             }
         }
         Optimizer::FullEM(opts_full_em) => {
@@ -770,7 +775,10 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
 
             // (3) dump history
             if opts.dump_json {
-                println!("{}", cdbg.to_cytoscape_json(&history));
+                println!(
+                    "{}",
+                    cdbg.to_cytoscape_json_with_true(&history, Some(&copy_nums_true))
+                );
             }
         }
     }
