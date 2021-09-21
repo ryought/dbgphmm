@@ -25,6 +25,8 @@ var cy = window.cy = cytoscape({
         label: function (e) { return e.data('label') },
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
+        'line-color': function (e) { return e.data('true_width') ? 'red' : 'black' },
+        'target-arrow-color': function (e) { return e.data('true_width') ? 'red' : 'black' },
       }
     }
   ],
@@ -32,7 +34,8 @@ var cy = window.cy = cytoscape({
     .then(function (res) { return res.json() })
     .then(function (json) { console.log('json', json); return json }),
   layout: {
-    name: 'cola',
+    // name: 'cola',
+    name: 'random',
     maxSimulationTime: 1000,
   },
 });
