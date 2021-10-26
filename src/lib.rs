@@ -1,3 +1,6 @@
+#![feature(test)]
+
+pub mod bench_test;
 pub mod benchmark;
 pub mod cli;
 pub mod compressed_dbg;
@@ -16,6 +19,7 @@ pub mod prob;
 pub mod random_seq;
 pub mod ref_test;
 pub mod sleeper;
+pub mod sparse;
 pub mod stats;
 pub mod test_struct;
 pub mod vec_of_vec;
@@ -23,3 +27,4 @@ pub mod vec_of_vec;
 #[macro_use]
 extern crate approx;
 extern crate arrayvec;
+extern crate test;

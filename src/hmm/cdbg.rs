@@ -95,3 +95,13 @@ pub fn test() {
     // println!("{}", old_model.as_dot());
     println!("{}", old_model.forward_prob(&param, read));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+    #[bench]
+    fn bench_test(b: &mut Bencher) {
+        b.iter(|| {});
+    }
+}
