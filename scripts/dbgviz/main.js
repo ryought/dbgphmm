@@ -22,7 +22,7 @@ var cy = window.cy = cytoscape({
     {
       selector: 'edge',
       style: {
-        label: function (e) { return e.data('label') },
+        label: function (e) { return `${e.data('label')} (x${e.data('true_width')})` },
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
         'line-color': function (e) { return e.data('true_width') ? 'red' : 'black' },
@@ -46,15 +46,18 @@ var cy = window.cy = cytoscape({
  */
 const select = (root, k) => {
   let depth = {}
-  cy.elements().bfs({
-    roots: cy.getElementById(root),
-    visit: function(v, e, u, i, d) {
-      depth[v.id()] = d
-    },
-    directed: false,
-  })
-  cy.nodes().style('display', 'none');
-  cy.nodes().filter((v) => depth[v.id()] < k).neighborhood().style('display', '');
+  const elem = cy.getElementById(root)
+  if (elem) {
+    cy.elements().bfs({
+      roots: elem,
+      visit: function(v, e, u, i, d) {
+        depth[v.id()] = d
+      },
+      directed: false,
+    })
+    cy.nodes().style('display', 'none');
+    cy.nodes().filter((v) => depth[v.id()] < k).neighborhood().style('display', '');
+  }
 }
 const unselect = () => {
   cy.nodes().style('display', '');
@@ -64,7 +67,11 @@ cy.on('click', 'node', function(e){
   params.target = node.id();
   select(node.id(), params.depth);
 })
-gui.add(params, 'target').listen()
+gui.add(params, 'target')
+  .listen()
+  .onChange(() => {
+    select(params.target, params.depth);
+  })
 gui.add(params, 'depth', 1, 20, 1).listen()
 gui.add({ unselect }, 'unselect')
 
