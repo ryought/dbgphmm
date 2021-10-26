@@ -33,6 +33,7 @@ impl<T: Copy> SparseVec<T> {
     }
 }
 
+/*
 impl<T> Index<usize> for SparseVec<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
@@ -43,6 +44,7 @@ impl<T> Index<usize> for SparseVec<T> {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
