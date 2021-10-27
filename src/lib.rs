@@ -1,6 +1,5 @@
 #![feature(test)]
-
-pub mod benchmark;
+#![feature(min_const_generics)]
 pub mod cli;
 pub mod compressed_dbg;
 pub mod cycles;
@@ -15,6 +14,7 @@ pub mod prob;
 pub mod random_seq;
 pub mod sparse;
 pub mod stats;
+pub mod veclike;
 
 #[macro_use]
 extern crate approx;

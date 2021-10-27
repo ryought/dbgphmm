@@ -1,6 +1,7 @@
 use crate::prob::Prob;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(non_snake_case)]
 pub struct PHMMParams {
     pub p_mismatch: Prob,
     pub p_match: Prob,
