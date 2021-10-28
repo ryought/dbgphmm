@@ -14,6 +14,7 @@ use std::ops::{Index, IndexMut};
 /// to the index (0 <= index < self.size)
 /// with predefined size (it does not support std::vec dynamic sizing)
 pub trait VecLike<T: Copy> {
+    fn new(size: usize, value: T) -> Self;
     fn size(&self) -> usize;
     fn get(&self, index: usize) -> T;
     fn set(&mut self, index: usize, value: T);
@@ -35,8 +36,8 @@ pub struct SparseVec<T: Copy> {
     value: ArrayVec<T, 10>,
 }
 
-/// Constructor for SparseVec
-impl<T: Copy> SparseVec<T> {
+/// storing (index, value) in vector for SparseVec
+impl<T: Copy> VecLike<T> for SparseVec<T> {
     fn new(size: usize, value: T) -> SparseVec<T> {
         SparseVec {
             size,
@@ -45,10 +46,6 @@ impl<T: Copy> SparseVec<T> {
             value: ArrayVec::<T, 10>::new(),
         }
     }
-}
-
-/// storing (index, value) in vector for SparseVec
-impl<T: Copy> VecLike<T> for SparseVec<T> {
     fn size(&self) -> usize {
         self.size
     }
@@ -83,15 +80,11 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
 #[derive(Debug, Clone)]
 pub struct DenseVec<T: Copy>(Vec<T>);
 
-/// Constructor for DenseVec
-impl<T: Copy> DenseVec<T> {
+/// use default std::vec index access for DenseVec
+impl<T: Copy> VecLike<T> for DenseVec<T> {
     fn new(size: usize, value: T) -> DenseVec<T> {
         DenseVec(vec![value; size])
     }
-}
-
-/// use default std::vec index access for DenseVec
-impl<T: Copy> VecLike<T> for DenseVec<T> {
     fn size(&self) -> usize {
         self.0.len()
     }
