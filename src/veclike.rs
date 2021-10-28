@@ -11,11 +11,11 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 
 /// VecLike trait abstracts vector-like element access by getter and setter
-/// to the index (0 <= index < self.size)
+/// to the index (0 <= index < self.len)
 /// with predefined size (it does not support std::vec dynamic sizing)
 pub trait VecLike<T: Copy>: Sized {
-    fn new(size: usize, value: T) -> Self;
-    fn size(&self) -> usize;
+    fn new(len: usize, value: T) -> Self;
+    fn len(&self) -> usize;
     fn get(&self, index: usize) -> T;
     fn set(&mut self, index: usize, value: T);
     fn iter<'a>(&'a self) -> VecLikeIter<'a, T, Self> {
@@ -41,7 +41,7 @@ pub struct VecLikeIter<'a, T: Copy, V: VecLike<T>> {
 impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.vec.size() {
+        if self.index < self.vec.len() {
             let value = self.vec.get(self.index);
             self.index += 1;
             Some(value)
@@ -61,7 +61,7 @@ impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
 /// When getting non-set index, default_value: T will be returned.
 #[derive(Debug, Clone)]
 pub struct SparseVec<T: Copy> {
-    size: usize,
+    len: usize,
     default_value: T,
     index: ArrayVec<usize, 10>,
     value: ArrayVec<T, 10>,
@@ -69,16 +69,16 @@ pub struct SparseVec<T: Copy> {
 
 /// storing (index, value) in vector for SparseVec
 impl<T: Copy> VecLike<T> for SparseVec<T> {
-    fn new(size: usize, value: T) -> SparseVec<T> {
+    fn new(len: usize, value: T) -> SparseVec<T> {
         SparseVec {
-            size,
+            len,
             default_value: value,
             index: ArrayVec::<usize, 10>::new(),
             value: ArrayVec::<T, 10>::new(),
         }
     }
-    fn size(&self) -> usize {
-        self.size
+    fn len(&self) -> usize {
+        self.len
     }
     fn get(&self, index: usize) -> T {
         for i in 0..self.index.len() {
@@ -107,16 +107,16 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
 }
 
 /// Dense vector, a wrapper of std::vec
-/// It will use original get, set, size
+/// It will use original get, set, len
 #[derive(Debug, Clone)]
 pub struct DenseVec<T: Copy>(Vec<T>);
 
 /// use default std::vec index access for DenseVec
 impl<T: Copy> VecLike<T> for DenseVec<T> {
-    fn new(size: usize, value: T) -> DenseVec<T> {
-        DenseVec(vec![value; size])
+    fn new(len: usize, value: T) -> DenseVec<T> {
+        DenseVec(vec![value; len])
     }
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         self.0.len()
     }
     fn get(&self, index: usize) -> T {
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn veclike_sparse_head() {
         let mut v: SparseVec<usize> = SparseVec::new(10, 0);
-        assert_eq!(v.size(), 10);
+        assert_eq!(v.len(), 10);
         assert_eq!(v.get(5), 0);
         v.set(5, 101);
         assert_eq!(v.get(5), 101);
@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn veclike_dense_head() {
         let mut v: DenseVec<usize> = DenseVec::new(10, 0);
-        assert_eq!(v.size(), 10);
+        assert_eq!(v.len(), 10);
         assert_eq!(v.get(5), 0);
         v.set(5, 101);
         assert_eq!(v.get(5), 101);
