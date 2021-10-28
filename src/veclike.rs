@@ -13,11 +13,42 @@ use std::ops::{Index, IndexMut};
 /// VecLike trait abstracts vector-like element access by getter and setter
 /// to the index (0 <= index < self.size)
 /// with predefined size (it does not support std::vec dynamic sizing)
-pub trait VecLike<T: Copy> {
+pub trait VecLike<T: Copy>: Sized {
     fn new(size: usize, value: T) -> Self;
     fn size(&self) -> usize;
     fn get(&self, index: usize) -> T;
     fn set(&mut self, index: usize, value: T);
+    fn iter<'a>(&'a self) -> VecLikeIter<'a, T, Self> {
+        // VecLike should be Sized in order to pass self here
+        VecLikeIter {
+            vec: self,
+            index: 0,
+            phantom: std::marker::PhantomData::<T>,
+        }
+    }
+}
+
+/// Iterator interface
+/// This can be created from `VecLike<T>.iter()`
+pub struct VecLikeIter<'a, T: Copy, V: VecLike<T>> {
+    vec: &'a V,
+    index: usize,
+    // phantom data has no actual space in VecLikeIter object,
+    // but it is necessary for type checking because T should be used somewhere in struct
+    phantom: std::marker::PhantomData<T>,
+}
+
+impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.vec.size() {
+            let value = self.vec.get(self.index);
+            self.index += 1;
+            Some(value)
+        } else {
+            None
+        }
+    }
 }
 
 /// Sparsely storeing vector
@@ -126,5 +157,16 @@ mod tests {
         assert_eq!(head(&v), 0);
         v.set(0, 1111);
         assert_eq!(head(&v), 1111);
+    }
+
+    #[test]
+    fn veclike_sparse_iter() {
+        let mut v: SparseVec<usize> = SparseVec::new(10, 0);
+        v.set(5, 101);
+        v.set(0, 1111);
+        v.set(3, 11);
+        v.set(7, 89);
+        let w: Vec<usize> = v.iter().collect();
+        assert_eq!(w, vec![1111, 0, 0, 11, 0, 101, 0, 89, 0, 0]);
     }
 }
