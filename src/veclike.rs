@@ -8,6 +8,7 @@
 //! Vector that
 //!
 use arrayvec::ArrayVec;
+use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 
 /// VecLike trait abstracts vector-like element access by getter and setter
@@ -127,6 +128,13 @@ impl<T: Copy> VecLike<T> for DenseVec<T> {
     }
 }
 
+impl<T: Copy> FromIterator<T> for DenseVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let vec: Vec<T> = iter.into_iter().collect();
+        DenseVec(vec)
+    }
+}
+
 fn head<T: Copy, V: VecLike<T>>(v: &V) -> T {
     v.get(0)
 }
@@ -168,5 +176,12 @@ mod tests {
         v.set(7, 89);
         let w: Vec<usize> = v.iter().collect();
         assert_eq!(w, vec![1111, 0, 0, 11, 0, 101, 0, 89, 0, 0]);
+    }
+
+    #[test]
+    fn veclike_dense_from_iter() {
+        let v: Vec<i32> = vec![2, 3, 4, -1, 1, 2, 3];
+        let w: DenseVec<i32> = v.into_iter().filter(|&x| x > 0).collect();
+        assert_eq!(w.0, vec![2, 3, 4, 1, 2, 3]);
     }
 }
