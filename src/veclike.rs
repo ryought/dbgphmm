@@ -110,7 +110,7 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
 /// Dense vector, a wrapper of std::vec
 /// It will use original get, set, len
 #[derive(Debug, Clone)]
-pub struct DenseVec<T: Copy>(Vec<T>);
+pub struct DenseVec<T: Copy>(pub Vec<T>);
 
 /// use default std::vec index access for DenseVec
 impl<T: Copy> VecLike<T> for DenseVec<T> {

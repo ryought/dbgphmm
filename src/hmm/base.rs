@@ -1,11 +1,14 @@
 #![allow(non_snake_case)]
-pub use super::layer::PHMMLayer;
+use super::layer::PHMMLayer as PHMMLayerRaw;
 use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
+use crate::veclike::{DenseVec, VecLike};
 use arrayvec::ArrayVec;
 use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
+
+pub type PHMMLayer = PHMMLayerRaw<DenseVec<Prob>>;
 
 pub fn iter_nodes(n_nodes: usize) -> impl std::iter::Iterator<Item = Node> {
     (0..n_nodes).map(|i| Node(i))
@@ -51,12 +54,12 @@ pub trait PHMM {
         (fM, fI)
     }
     /// calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
-    fn fmi_from_fmid(
+    fn fmi_from_fmid<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        fm: &[Prob],
-        fi: &[Prob],
-        fd: &[Prob],
+        fm: &V,
+        fi: &V,
+        fd: &V,
         fmb: Prob,
         fib: Prob,
         emission: u8,
@@ -75,7 +78,9 @@ pub trait PHMM {
                 .iter()
                 .map(|w| {
                     self.trans_prob(w, &v)
-                        * (param.p_MM * fm[w.0] + param.p_IM * fi[w.0] + param.p_DM * fd[w.0])
+                        * (param.p_MM * fm.get(w.0)
+                            + param.p_IM * fi.get(w.0)
+                            + param.p_DM * fd.get(w.0))
                 })
                 .sum();
             let from_begin: Prob = self.init_prob(&v) * (param.p_MM * fmb + param.p_IM * fib);
@@ -84,7 +89,7 @@ pub trait PHMM {
             // I state
             let emission_prob_I: Prob = param.p_random;
             let from_normal: Prob =
-                param.p_MI * fm[v.0] + param.p_II * fi[v.0] + param.p_DI * fd[v.0];
+                param.p_MI * fm.get(v.0) + param.p_II * fi.get(v.0) + param.p_DI * fd.get(v.0);
             fI[v.0] = emission_prob_I * from_normal;
         }
         (fM, fI)
@@ -158,9 +163,9 @@ pub trait PHMM {
         let fE = self.fe_init();
         let fD = self.fd_from_fmi(param, &fM, &fI, fMB, fIB);
         PHMMLayer {
-            pM: fM,
-            pI: fI,
-            pD: fD,
+            pM: DenseVec(fM),
+            pI: DenseVec(fI),
+            pD: DenseVec(fD),
             pMB: fMB,
             pIB: fIB,
             pE: fE,
@@ -180,9 +185,9 @@ pub trait PHMM {
         let (fMB, fIB) = self.fb_from_fb(param, prev_layer.pMB, prev_layer.pIB);
         let fE = self.fe_from_fmid(param, &fM, &fI, &fD);
         PHMMLayer {
-            pM: fM,
-            pI: fI,
-            pD: fD,
+            pM: DenseVec(fM),
+            pI: DenseVec(fI),
+            pD: DenseVec(fD),
             pMB: fMB,
             pIB: fIB,
             pE: fE,
@@ -214,11 +219,11 @@ pub trait PHMM {
     }
 
     // backward
-    fn bd_from_bmi(
+    fn bd_from_bmi<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        bm1: &[Prob],
-        bi1: &[Prob],
+        bm1: &V,
+        bi1: &V,
         emission: u8,
     ) -> Vec<Prob> {
         let mut bDs: Vec<Vec<Prob>> = Vec::new();
@@ -234,11 +239,11 @@ pub trait PHMM {
                     } else {
                         param.p_mismatch
                     };
-                    self.trans_prob(&v, w) * param.p_DM * bm1[w.0] * emission_prob_M
+                    self.trans_prob(&v, w) * param.p_DM * bm1.get(w.0) * emission_prob_M
                 })
                 .sum();
             let emission_prob_I: Prob = param.p_random;
-            let to_i = param.p_DI * emission_prob_I * bi1[v.0];
+            let to_i = param.p_DI * emission_prob_I * bi1.get(v.0);
             bD0[v.0] = to_m + to_i;
         }
         bDs.push(bD0);
@@ -260,12 +265,12 @@ pub trait PHMM {
             .collect();
         bD
     }
-    fn bmi_from_bmid(
+    fn bmi_from_bmid<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        bm1: &[Prob],
-        bi1: &[Prob],
-        bd0: &[Prob],
+        bm1: &V,
+        bi1: &V,
+        bd0: &V,
         emission: u8,
     ) -> (Vec<Prob>, Vec<Prob>) {
         let mut bm0: Vec<Prob> = vec![Prob::from_prob(0.0); self.n_nodes()];
@@ -282,11 +287,11 @@ pub trait PHMM {
                         param.p_mismatch
                     };
                     self.trans_prob(&v, w)
-                        * (param.p_MM * emission_prob_M * bm1[w.0] + param.p_MD * bd0[w.0])
+                        * (param.p_MM * emission_prob_M * bm1.get(w.0) + param.p_MD * bd0.get(w.0))
                 })
                 .sum();
             let emission_prob_I: Prob = param.p_random;
-            let to_i = param.p_MI * emission_prob_I * bi1[v.0];
+            let to_i = param.p_MI * emission_prob_I * bi1.get(v.0);
             bm0[v.0] = to_md + to_i;
 
             // fill bi0
@@ -300,20 +305,20 @@ pub trait PHMM {
                         param.p_mismatch
                     };
                     self.trans_prob(&v, w)
-                        * (param.p_IM * emission_prob_M * bm1[w.0] + param.p_ID * bd0[w.0])
+                        * (param.p_IM * emission_prob_M * bm1.get(w.0) + param.p_ID * bd0.get(w.0))
                 })
                 .sum();
             let emission_prob_I: Prob = param.p_random;
-            let to_i = param.p_II * emission_prob_I * bi1[v.0];
+            let to_i = param.p_II * emission_prob_I * bi1.get(v.0);
             bi0[v.0] = to_md + to_i;
         }
         (bm0, bi0)
     }
-    fn bb_from_bmd(
+    fn bb_from_bmd<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        bm1: &[Prob],
-        bd0: &[Prob],
+        bm1: &V,
+        bd0: &V,
         bib1: Prob,
         emission: u8,
     ) -> (Prob, Prob) {
@@ -326,7 +331,7 @@ pub trait PHMM {
                     param.p_mismatch
                 };
                 self.init_prob(&v)
-                    * (param.p_MM * emission_prob_M * bm1[v.0] + param.p_MD * bd0[v.0])
+                    * (param.p_MM * emission_prob_M * bm1.get(v.0) + param.p_MD * bd0.get(v.0))
             })
             .sum();
         let emission_prob_I: Prob = param.p_random;
@@ -342,7 +347,7 @@ pub trait PHMM {
                     param.p_mismatch
                 };
                 self.init_prob(&v)
-                    * (param.p_IM * emission_prob_M * bm1[v.0] + param.p_ID * bd0[v.0])
+                    * (param.p_IM * emission_prob_M * bm1.get(v.0) + param.p_ID * bd0.get(v.0))
             })
             .sum();
         let emission_prob_I: Prob = param.p_random;
@@ -356,9 +361,9 @@ pub trait PHMM {
         let mut bI: Vec<Prob> = vec![param.p_end; self.n_nodes()];
         let mut bD: Vec<Prob> = vec![param.p_end; self.n_nodes()];
         PHMMLayer {
-            pM: bM,
-            pI: bI,
-            pD: bD,
+            pM: DenseVec(bM),
+            pI: DenseVec(bI),
+            pD: DenseVec(bD),
             pMB: Prob::from_prob(0.0),
             pIB: Prob::from_prob(0.0),
             pE: Prob::from_prob(0.0),
@@ -366,12 +371,13 @@ pub trait PHMM {
     }
     fn b_step(&self, param: &PHMMParams, prev_layer: &PHMMLayer, emission: u8) -> PHMMLayer {
         // emission: x[i+1]
-        let bD = self.bd_from_bmi(param, &prev_layer.pM, &prev_layer.pI, emission);
+        let _bD = self.bd_from_bmi(param, &prev_layer.pM, &prev_layer.pI, emission);
+        let bD = DenseVec(_bD);
         let (bM, bI) = self.bmi_from_bmid(param, &prev_layer.pM, &prev_layer.pI, &bD, emission);
         let (bMB, bIB) = self.bb_from_bmd(param, &prev_layer.pM, &bD, prev_layer.pIB, emission);
         PHMMLayer {
-            pM: bM,
-            pI: bI,
+            pM: DenseVec(bM),
+            pI: DenseVec(bI),
             pD: bD,
             pMB: bMB,
             pIB: bIB,
@@ -415,19 +421,19 @@ pub trait PHMM {
                     .pM
                     .iter()
                     .zip(bl.pM.iter())
-                    .map(|(&f, &b)| f * b / p)
+                    .map(|(f, b)| f * b / p)
                     .collect(),
                 pI: fl
                     .pI
                     .iter()
                     .zip(bl.pI.iter())
-                    .map(|(&f, &b)| f * b / p)
+                    .map(|(f, b)| f * b / p)
                     .collect(),
                 pD: fl
                     .pD
                     .iter()
                     .zip(bl.pD.iter())
-                    .map(|(&f, &b)| f * b / p)
+                    .map(|(f, b)| f * b / p)
                     .collect(),
                 pMB: fl.pMB * bl.pMB / p,
                 pIB: fl.pIB * bl.pIB / p,
