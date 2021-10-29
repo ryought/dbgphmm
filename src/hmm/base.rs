@@ -489,15 +489,4 @@ pub trait PHMM {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn layer() {
-        let mut l1 = PHMMLayer::new(5);
-        l1.pI[3] = Prob::from_prob(0.5);
-        let mut l2 = PHMMLayer::new(5);
-        l2.pM[1] = Prob::from_prob(0.5);
-        let l3 = &l1 + &l2;
-        assert_eq!(l1.pI[3], l3.pI[3]);
-        assert_eq!(l2.pM[1], l3.pM[1]);
-    }
 }

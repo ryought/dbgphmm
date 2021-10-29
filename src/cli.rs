@@ -479,16 +479,27 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             .product();
         println!("#total\t{}", p_total.to_log_value());
     } else {
-        let mut ps: Vec<prob::Prob> = Vec::new();
+        // let mut ps: Vec<prob::Prob> = Vec::new();
         for (i, read) in reads.iter().enumerate() {
-            let p = phmm.forward_prob(&param, read);
-            println!("{}\t{}", i, p.to_log_value());
-            ps.push(p);
+            let layers = phmm.forward(&param, read);
+            // println!("{}\t{}", i, p.to_log_value());
+            // ps.push(p);
             // let p = phmm.backward_prob(&param, read);
             // println!("backward prob : {}", p);
+            let kmer_probs: Vec<Vec<Prob>> =
+                layers.iter().map(|layer| layer.to_kmer_prob()).collect();
+            for (i, v) in cdbg.iter_nodes().enumerate() {
+                print!("{:?}={}", v, cdbg.kmer(&v));
+                for j in 0..kmer_probs.len() {
+                    print!("\t{}", kmer_probs[j][i].to_log_value());
+                }
+                print!("\n");
+            }
+            // println!("-----")
+            break;
         }
-        let p_total: prob::Prob = ps.iter().product();
-        println!("#total\t{}", p_total.to_log_value());
+        // let p_total: prob::Prob = ps.iter().product();
+        // println!("#total\t{}", p_total.to_log_value());
     }
 }
 
