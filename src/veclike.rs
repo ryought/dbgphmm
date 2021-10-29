@@ -52,6 +52,9 @@ impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
     }
 }
 
+/// SparseVec max index size parameter
+const SIZE: usize = 10;
+
 /// Sparsely storeing vector
 /// Space-efficient if there are few non-zero elements in the vector
 ///
@@ -64,8 +67,8 @@ impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
 pub struct SparseVec<T: Copy> {
     len: usize,
     default_value: T,
-    index: ArrayVec<usize, 10>,
-    value: ArrayVec<T, 10>,
+    index: ArrayVec<usize, SIZE>,
+    value: ArrayVec<T, SIZE>,
 }
 
 /// storing (index, value) in vector for SparseVec
@@ -74,13 +77,15 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
         SparseVec {
             len,
             default_value: value,
-            index: ArrayVec::<usize, 10>::new(),
-            value: ArrayVec::<T, 10>::new(),
+            index: ArrayVec::<usize, SIZE>::new(),
+            value: ArrayVec::<T, SIZE>::new(),
         }
     }
+    #[inline(always)]
     fn len(&self) -> usize {
         self.len
     }
+    #[inline(always)]
     fn get(&self, index: usize) -> T {
         for i in 0..self.index.len() {
             if self.index[i] == index {
@@ -92,6 +97,7 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
         }
         return self.default_value;
     }
+    #[inline(always)]
     fn set(&mut self, index: usize, value: T) {
         for i in 0..self.index.len() {
             if self.index[i] == index {
@@ -117,12 +123,15 @@ impl<T: Copy> VecLike<T> for DenseVec<T> {
     fn new(len: usize, value: T) -> DenseVec<T> {
         DenseVec(vec![value; len])
     }
+    #[inline(always)]
     fn len(&self) -> usize {
         self.0.len()
     }
+    #[inline(always)]
     fn get(&self, index: usize) -> T {
         self.0[index]
     }
+    #[inline(always)]
     fn set(&mut self, index: usize, value: T) {
         self.0[index] = value
     }
