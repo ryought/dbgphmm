@@ -1,20 +1,30 @@
+use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
 use itertools::izip;
 
+/// maximum consecutive deletion within 1-base
+/// phmm model allow up to MAX_DEL in a row
+pub const MAX_DEL: usize = 5;
+
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct PHMMLayer<V: VecLike<Prob>> {
     pub pM: V,
     pub pI: V,
     pub pD: V,
+    // pub pDx: [V; MAX_DEL], // TODO?
     // Begin
     pub pMB: Prob,
     pub pIB: Prob,
     // End
     pub pE: Prob,
+    // active node list
+    pub active_nodes: Option<Vec<Node>>,
 }
 
 impl<V: VecLike<Prob>> PHMMLayer<V> {
+    /// all zero PHMMLayer
     pub fn new(n_kmers: usize) -> Self {
         PHMMLayer {
             pM: V::new(n_kmers, Prob::from_prob(0.0)),
@@ -23,6 +33,19 @@ impl<V: VecLike<Prob>> PHMMLayer<V> {
             pMB: Prob::from_prob(0.0),
             pIB: Prob::from_prob(0.0),
             pE: Prob::from_prob(0.0),
+            active_nodes: None,
+        }
+    }
+    /// initial PHMMLayer
+    pub fn f_init(n_kmers: usize) -> Self {
+        PHMMLayer {
+            pM: V::new(n_kmers, Prob::from_prob(0.0)),
+            pI: V::new(n_kmers, Prob::from_prob(0.0)),
+            pD: V::new(n_kmers, Prob::from_prob(0.0)),
+            pMB: Prob::from_prob(1.0),
+            pIB: Prob::from_prob(0.0),
+            pE: Prob::from_prob(0.0),
+            active_nodes: None,
         }
     }
     /// p[i][j] = (e[i] is emitted from j-th kmer)
@@ -91,6 +114,7 @@ impl<'a, 'b> std::ops::Add<&'b PHMMLayer<DenseVec<Prob>>> for &'a PHMMLayer<Dens
             pMB: self.pMB + other.pMB,
             pIB: self.pIB + other.pIB,
             pE: self.pE + other.pE,
+            active_nodes: None,
         }
     }
 }

@@ -37,10 +37,14 @@ def main():
         probs[:, y] = probs[:, y] - logsumexp(probs[:, y])
 
     plt.figure(figsize=(30, 8))
+    plt.subplot(2, 1, 1)
     plt.imshow(np.exp(probs.T))
+    plt.subplot(2, 1, 2)
+    plt.imshow(probs.T)
     # plt.imshow(probs.T)
 
     plt.savefig(args.tsv_filename + '.png', dpi=200)
+    # plt.show()
 
 if __name__ == '__main__':
     main()

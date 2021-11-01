@@ -36,6 +36,15 @@ struct Opts {
     /// number of consecutive dels to consider
     #[clap(long, default_value = "3")]
     n_max_gaps: u32,
+    /// restrict forward calculation to only the highly scored nodes
+    #[clap(long)]
+    only_active_nodes: bool,
+    /// max number of active nodes in each bases
+    #[clap(long, default_value = "8")]
+    n_max_active_nodes: usize,
+    /// use full calculation for the first n bases. usually this should be equal to kmer size
+    #[clap(long, default_value = "8")]
+    n_ignore_active_nodes_first: usize,
     /// Print debug info
     #[clap(short, long)]
     debug: bool,
@@ -311,6 +320,9 @@ pub fn main() {
         prob::Prob::from_prob(opts.p_gap_ext),
         prob::Prob::from_prob(opts.p_end),
         opts.n_max_gaps,
+        opts.only_active_nodes,
+        opts.n_max_active_nodes,
+        opts.n_ignore_active_nodes_first,
     );
     let k = opts.kmer_size;
 

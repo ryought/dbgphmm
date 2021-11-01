@@ -64,6 +64,9 @@ impl<'a> PHMM for CDbgPHMM<'a> {
             None => Prob::from_prob(0.0),
         }
     }
+    fn label(&self, v: &Node) -> String {
+        self.cdbg.kmer(v).to_string()
+    }
 }
 
 impl<'a> PHMMSampler for CDbgPHMM<'a> {}

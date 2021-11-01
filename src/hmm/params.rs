@@ -1,3 +1,4 @@
+use super::layer::MAX_DEL;
 use crate::prob::Prob;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,6 +20,9 @@ pub struct PHMMParams {
     pub p_ID: Prob,
     pub p_DD: Prob,
     pub n_max_gaps: u32,
+    pub only_active_nodes: bool,
+    pub n_max_active_nodes: usize,
+    pub n_ignore_active_nodes_first: usize,
 }
 
 impl PHMMParams {
@@ -28,7 +32,11 @@ impl PHMMParams {
         p_gap_ext: Prob,
         p_end: Prob,
         n_max_gaps: u32,
+        only_active_nodes: bool,
+        n_max_active_nodes: usize,
+        n_ignore_active_nodes_first: usize,
     ) -> PHMMParams {
+        assert!(n_max_gaps <= MAX_DEL as u32);
         PHMMParams {
             p_mismatch,
             p_gap_open,
@@ -53,6 +61,9 @@ impl PHMMParams {
             p_match: Prob::from_prob(1.0 - p_mismatch.to_value()),
             p_random: Prob::from_prob(0.25),
             n_max_gaps,
+            only_active_nodes,
+            n_max_active_nodes,
+            n_ignore_active_nodes_first,
         }
     }
     pub fn default() -> PHMMParams {
@@ -62,6 +73,9 @@ impl PHMMParams {
             Prob::from_prob(0.01),    // gap_ext
             Prob::from_prob(0.00001), // end
             3,
+            false,
+            0,
+            0,
         )
     }
 }
@@ -83,6 +97,13 @@ impl std::fmt::Display for PHMMParams {
         writeln!(f, "p_ID: {}", self.p_ID);
         writeln!(f, "p_DD: {}", self.p_DD);
         writeln!(f, "n_max_gaps: {}", self.n_max_gaps);
+        writeln!(f, "only_active_nodes: {}", self.only_active_nodes);
+        writeln!(f, "n_max_active_nodes: {}", self.n_max_active_nodes);
+        writeln!(
+            f,
+            "n_ignore_active_nodes_first: {}",
+            self.n_ignore_active_nodes_first
+        );
         Ok(())
     }
 }
