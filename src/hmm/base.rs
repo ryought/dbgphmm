@@ -3,7 +3,7 @@ use super::layer::PHMMLayer as PHMMLayerRaw;
 use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
-use crate::veclike::{DenseVec, VecLike};
+use crate::veclike::{DenseVec, SparseVec, VecLike};
 use arrayvec::ArrayVec;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
@@ -69,11 +69,11 @@ pub trait PHMM {
         (fM, fI)
     }
     /// calc (FM[i-1], FI[i-1], FD[i-1]) -> FM[i], FI[i]
-    fn fmi_from_fmid(
+    fn fmi_from_fmid<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        layer_t_1: &PHMMLayer,
-        layer_t: &mut PHMMLayer,
+        layer_t_1: &PHMMLayerRaw<V>,
+        layer_t: &mut PHMMLayerRaw<V>,
         emission: u8,
     ) {
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
@@ -113,11 +113,11 @@ pub trait PHMM {
             layer_t.pI.set(v.0, emission_prob_I * from_normal);
         }
     }
-    fn fd_from_fmi(&self, param: &PHMMParams, layer_t: &mut PHMMLayer) {
+    fn fd_from_fmi<V: VecLike<Prob>>(&self, param: &PHMMParams, layer_t: &mut PHMMLayerRaw<V>) {
         // calc (FM[i], FI[i]) -> FD[i]
-        let mut fDs: Vec<DenseVec<Prob>> = Vec::new();
+        let mut fDs: Vec<V> = Vec::new();
         // 0
-        let mut fD0 = DenseVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut fD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
@@ -141,7 +141,7 @@ pub trait PHMM {
         fDs.push(fD0);
         // >0
         for x in 1..param.n_max_gaps {
-            let mut fD = DenseVec::new(self.n_nodes(), Prob::from_prob(0.0));
+            let mut fD = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let fD_prev = fDs.last().unwrap();
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
                 if let Some(active_nodes) = &layer_t.active_nodes {
@@ -160,11 +160,16 @@ pub trait PHMM {
             }
             fDs.push(fD);
         }
-        let fD: DenseVec<Prob> = iter_nodes(self.n_nodes())
-            .map(|v| fDs.iter().map(|fD| fD.get(v.0)).sum())
-            .collect();
-        for v in iter_nodes(self.n_nodes()) {
-            layer_t.pD.set(v.0, fD.get(v.0));
+
+        // collect
+        let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
+            if let Some(active_nodes) = &layer_t.active_nodes {
+                Box::new(active_nodes.iter().map(|&v| v))
+            } else {
+                Box::new(iter_nodes(self.n_nodes()))
+            };
+        for v in iterator {
+            layer_t.pD.set(v.0, fDs.iter().map(|fD| fD.get(v.0)).sum());
         }
     }
     fn fb_init(&self) -> (Prob, Prob) {
@@ -172,7 +177,12 @@ pub trait PHMM {
         let fIB = Prob::from_prob(0.0);
         (fMB, fIB)
     }
-    fn fb_from_fb(&self, param: &PHMMParams, layer_t_1: &PHMMLayer, layer_t: &mut PHMMLayer) {
+    fn fb_from_fb<V: VecLike<Prob>>(
+        &self,
+        param: &PHMMParams,
+        layer_t_1: &PHMMLayerRaw<V>,
+        layer_t: &mut PHMMLayerRaw<V>,
+    ) {
         layer_t.pMB = Prob::from_prob(0.0);
         let emission_prob: Prob = Prob::from_prob(0.25);
         layer_t.pIB = emission_prob * (param.p_MI * layer_t_1.pMB + param.p_II * layer_t_1.pIB);
@@ -181,16 +191,22 @@ pub trait PHMM {
         let fE = Prob::from_prob(0.0);
         fE
     }
-    fn fe_from_fmid(&self, param: &PHMMParams, layer_t: &mut PHMMLayer) {
-        layer_t.pE = iter_nodes(self.n_nodes())
+    fn fe_from_fmid<V: VecLike<Prob>>(&self, param: &PHMMParams, layer_t: &mut PHMMLayerRaw<V>) {
+        let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
+            if let Some(active_nodes) = &layer_t.active_nodes {
+                Box::new(active_nodes.iter().map(|&v| v))
+            } else {
+                Box::new(iter_nodes(self.n_nodes()))
+            };
+        layer_t.pE = iterator
             .map(|v| {
                 param.p_end * (layer_t.pM.get(v.0) + layer_t.pI.get(v.0) + layer_t.pD.get(v.0))
             })
             .sum();
     }
     // prob calculation
-    fn f_init(&self, param: &PHMMParams) -> PHMMLayer {
-        let mut layer = PHMMLayer::f_init(self.n_nodes());
+    fn f_init<V: VecLike<Prob>>(&self, param: &PHMMParams) -> PHMMLayerRaw<V> {
+        let mut layer = PHMMLayerRaw::f_init(self.n_nodes());
         self.fd_from_fmi(param, &mut layer);
         layer
     }
@@ -207,7 +223,10 @@ pub trait PHMM {
     /// given a list of previously active nodes,
     /// calculates the all candidates of next active nodes
     /// that is all childrens of prev active nodes
-    fn upconvert_active_nodes(&self, prev_layer: &PHMMLayer) -> Option<Vec<Node>> {
+    fn upconvert_active_nodes<V: VecLike<Prob>>(
+        &self,
+        prev_layer: &PHMMLayerRaw<V>,
+    ) -> Option<Vec<Node>> {
         if let Some(nodes) = &prev_layer.active_nodes {
             let next_active_nodes = self.get_next_active_nodes(nodes);
             let labels: Vec<String> = next_active_nodes.iter().map(|v| self.label(v)).collect();
@@ -220,7 +239,11 @@ pub trait PHMM {
     }
     /// given a current PHMMLayer and its active nodes,
     /// compute a list of the prominent active nodes
-    fn refine_active_nodes(&self, layer: &PHMMLayer, max_active_nodes: usize) -> Option<Vec<Node>> {
+    fn refine_active_nodes<V: VecLike<Prob>>(
+        &self,
+        layer: &PHMMLayerRaw<V>,
+        max_active_nodes: usize,
+    ) -> Option<Vec<Node>> {
         // calculate layer kmer probabilities
         let mut scores: Vec<(usize, f64)> = layer
             .to_kmer_prob()
@@ -241,14 +264,14 @@ pub trait PHMM {
                 .collect(),
         )
     }
-    fn f_step(
+    fn f_step<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
-        prev_layer: &PHMMLayer,
+        prev_layer: &PHMMLayerRaw<V>,
         emission: u8,
         index: usize,
-    ) -> PHMMLayer {
-        let mut next_layer = PHMMLayer::new(self.n_nodes());
+    ) -> PHMMLayerRaw<V> {
+        let mut next_layer = PHMMLayerRaw::new(self.n_nodes());
         // compute candidate active_nodes from prev_layer and store it in next_layer
         if param.only_active_nodes && index > param.n_ignore_active_nodes_first {
             next_layer.active_nodes = self.upconvert_active_nodes(&prev_layer);
@@ -276,7 +299,7 @@ pub trait PHMM {
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
         trace!("start forward!");
         let mut layers = Vec::new();
-        let layer = self.f_init(&param);
+        let layer = self.f_init::<DenseVec<Prob>>(&param);
         info!("l0:{}", layer.pM.len());
         trace!("l0:\n{}", layer);
         layers.push(layer);
@@ -284,6 +307,22 @@ pub trait PHMM {
             trace!("l{} emission={}", i, emission as char);
             let layer = self.f_step(&param, &layers[i], emission, i);
             trace!("l{}:\n{}", i, layer);
+            info!("pE({})={}", i, layer.pE);
+            layers.push(layer);
+        }
+        layers
+    }
+    fn forward_sparse(
+        &self,
+        param: &PHMMParams,
+        emissions: &[u8],
+    ) -> Vec<PHMMLayerRaw<SparseVec<Prob>>> {
+        let mut layers = Vec::new();
+        let layer = self.f_init::<SparseVec<Prob>>(&param);
+        info!("l0:{}", layer.pM.len());
+        layers.push(layer);
+        for (i, &emission) in emissions.iter().enumerate() {
+            let layer = self.f_step(&param, &layers[i], emission, i);
             info!("pE({})={}", i, layer.pE);
             layers.push(layer);
         }

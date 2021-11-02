@@ -10,6 +10,7 @@ use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
+use std::time::Instant;
 
 /// de bruijn graph + profile HMM optimization package
 #[derive(Clap)]
@@ -493,7 +494,15 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
     } else {
         // let mut ps: Vec<prob::Prob> = Vec::new();
         for (i, read) in reads.iter().enumerate() {
-            let layers = phmm.forward(&param, read);
+            // start time measurement
+            let start = Instant::now();
+            // forward
+            // let layers = phmm.forward(&param, read);
+            let layers = phmm.forward_sparse(&param, read);
+            //
+            // end measurement
+            let end = start.elapsed();
+            info!("time={}", end.as_nanos());
             // println!("{}\t{}", i, p.to_log_value());
             // ps.push(p);
             // let p = phmm.backward_prob(&param, read);

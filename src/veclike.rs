@@ -53,7 +53,7 @@ impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
 }
 
 /// SparseVec max index size parameter
-const SIZE: usize = 10;
+const SIZE: usize = 50;
 
 /// Sparsely storeing vector
 /// Space-efficient if there are few non-zero elements in the vector
