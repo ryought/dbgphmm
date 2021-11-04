@@ -144,6 +144,34 @@ impl<T: Copy> FromIterator<T> for DenseVec<T> {
     }
 }
 
+/// conversion method for DenseVec -> SparseVec
+impl<T: Copy + Ord> DenseVec<T> {
+    fn to_sparse(&self, default_value: T) -> SparseVec<T> {
+        let mut vec = SparseVec::new(self.len(), default_value);
+
+        // sort the vector
+        let mut tmp: Vec<(usize, T)> = self.0.iter().copied().enumerate().collect();
+        tmp.sort_by(|(_, a), (_, b)| b.cmp(a));
+
+        // store the top SIZE elements to the sparsevec
+        for i in 0..SIZE {
+            let (index, value) = tmp[i];
+            vec.set(index, value);
+        }
+        vec
+    }
+}
+
+impl<T: Copy> SparseVec<T> {
+    fn to_dense(&self) -> DenseVec<T> {
+        let mut vec = DenseVec::new(self.len(), self.default_value);
+        for (&i, &x) in self.index.iter().zip(self.value.iter()) {
+            vec.set(i, x);
+        }
+        vec
+    }
+}
+
 fn head<T: Copy, V: VecLike<T>>(v: &V) -> T {
     v.get(0)
 }

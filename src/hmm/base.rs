@@ -8,6 +8,7 @@ use arrayvec::ArrayVec;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
+use std::time::Instant;
 
 pub type PHMMLayer = PHMMLayerRaw<DenseVec<Prob>>;
 
@@ -229,8 +230,10 @@ pub trait PHMM {
     ) -> Option<Vec<Node>> {
         if let Some(nodes) = &prev_layer.active_nodes {
             let next_active_nodes = self.get_next_active_nodes(nodes);
+            /*
             let labels: Vec<String> = next_active_nodes.iter().map(|v| self.label(v)).collect();
             info!("upconvert={:?}", labels);
+            */
             Some(next_active_nodes)
         } else {
             info!("upconvert=None");
@@ -245,6 +248,7 @@ pub trait PHMM {
         max_active_nodes: usize,
     ) -> Option<Vec<Node>> {
         // calculate layer kmer probabilities
+        // get Vec<(index: usize, p: Prob)>
         let mut scores: Vec<(usize, f64)> = layer
             .to_kmer_prob()
             .into_iter()
@@ -252,6 +256,7 @@ pub trait PHMM {
             .enumerate()
             .collect();
         // sort descending(from largest to smallest) order
+        // TODO sort the vector implement Ord for Prob
         scores.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
         for (i, p) in scores.iter().take(max_active_nodes * 2) {
             info!("refine i={} label={} p={}", i, self.label(&Node(*i)), p);
@@ -264,6 +269,26 @@ pub trait PHMM {
                 .collect(),
         )
     }
+    fn to_sparse_layer(
+        &self,
+        param: &PHMMParams,
+        dense_layer: &PHMMLayerRaw<DenseVec<Prob>>,
+    ) -> PHMMLayerRaw<SparseVec<Prob>> {
+        let active_nodes = self
+            .refine_active_nodes(dense_layer, param.n_max_active_nodes)
+            .unwrap();
+        let mut layer = PHMMLayerRaw::<SparseVec<Prob>>::new(self.n_nodes());
+        for v in &active_nodes {
+            layer.pM.set(v.0, dense_layer.pM.get(v.0));
+            layer.pI.set(v.0, dense_layer.pI.get(v.0));
+            layer.pD.set(v.0, dense_layer.pD.get(v.0));
+        }
+        layer.pMB = dense_layer.pMB;
+        layer.pIB = dense_layer.pIB;
+        layer.pE = dense_layer.pE;
+        layer.active_nodes = Some(active_nodes);
+        layer
+    }
     fn f_step<V: VecLike<Prob>>(
         &self,
         param: &PHMMParams,
@@ -271,25 +296,41 @@ pub trait PHMM {
         emission: u8,
         index: usize,
     ) -> PHMMLayerRaw<V> {
+        let start = Instant::now();
         let mut next_layer = PHMMLayerRaw::new(self.n_nodes());
+        warn!("1={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         // compute candidate active_nodes from prev_layer and store it in next_layer
-        if param.only_active_nodes && index > param.n_ignore_active_nodes_first {
+        if param.only_active_nodes && index >= param.n_ignore_active_nodes_first {
             next_layer.active_nodes = self.upconvert_active_nodes(&prev_layer);
             info!(
                 "f_step({}) upconverted {:?}",
                 index, next_layer.active_nodes
             );
+        } else {
+            info!("f_step({}) skipped upconvert", index);
         }
+        warn!("2={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         self.fmi_from_fmid(param, &prev_layer, &mut next_layer, emission);
+        warn!("3={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         self.fb_from_fb(param, &prev_layer, &mut next_layer);
+        warn!("4={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         self.fd_from_fmi(param, &mut next_layer);
+        warn!("5={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         self.fe_from_fmid(param, &mut next_layer);
+        warn!("6={}", start.elapsed().as_nanos());
+        let start = Instant::now();
         // reduce active nodes
-        if param.only_active_nodes && index > param.n_ignore_active_nodes_first {
+        if param.only_active_nodes && index >= param.n_ignore_active_nodes_first {
             next_layer.active_nodes =
                 self.refine_active_nodes(&next_layer, param.n_max_active_nodes);
             info!("f_step({}) refined {:?}", index, next_layer.active_nodes);
         }
+        warn!("7={}", start.elapsed().as_nanos());
         next_layer
     }
     ///
@@ -304,6 +345,7 @@ pub trait PHMM {
         trace!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
+            warn!("dense i={}", i);
             trace!("l{} emission={}", i, emission as char);
             let layer = self.f_step(&param, &layers[i], emission, i);
             trace!("l{}:\n{}", i, layer);
@@ -317,13 +359,24 @@ pub trait PHMM {
         param: &PHMMParams,
         emissions: &[u8],
     ) -> Vec<PHMMLayerRaw<SparseVec<Prob>>> {
-        let mut layers = Vec::new();
-        let layer = self.f_init::<SparseVec<Prob>>(&param);
+        let mut layer = self.f_init::<DenseVec<Prob>>(&param);
+        let mut iter = emissions.iter().enumerate();
+        for (i, &emission) in iter.by_ref().take(param.n_ignore_active_nodes_first) {
+            warn!("dense i={}", i);
+            layer = self.f_step(&param, &layer, emission, i);
+        }
+        let mut layers: Vec<PHMMLayerRaw<SparseVec<Prob>>> = Vec::new();
+        layers.push(self.to_sparse_layer(param, &layer));
         info!("l0:{}", layer.pM.len());
-        layers.push(layer);
-        for (i, &emission) in emissions.iter().enumerate() {
-            let layer = self.f_step(&param, &layers[i], emission, i);
-            info!("pE({})={}", i, layer.pE);
+        for (i, &emission) in iter {
+            warn!("sparse i={}", i);
+            let layer = self.f_step(
+                &param,
+                &layers[i - param.n_ignore_active_nodes_first],
+                emission,
+                i,
+            );
+            warn!("pE({})={}", i, layer.pE);
             layers.push(layer);
         }
         layers

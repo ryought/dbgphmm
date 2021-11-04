@@ -497,8 +497,9 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             // start time measurement
             let start = Instant::now();
             // forward
-            // let layers = phmm.forward(&param, read);
-            let layers = phmm.forward_sparse(&param, read);
+            info!("sparse");
+            let layers = phmm.forward(&param, read);
+            // let layers = phmm.forward_sparse(&param, read);
             //
             // end measurement
             let end = start.elapsed();
