@@ -508,6 +508,8 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             // ps.push(p);
             // let p = phmm.backward_prob(&param, read);
             // println!("backward prob : {}", p);
+
+            // output
             let kmer_probs: Vec<Vec<Prob>> =
                 layers.iter().map(|layer| layer.to_kmer_prob()).collect();
             for (i, v) in cdbg.iter_nodes().enumerate() {
@@ -517,6 +519,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
                 }
                 print!("\n");
             }
+
             // println!("-----")
             break;
         }

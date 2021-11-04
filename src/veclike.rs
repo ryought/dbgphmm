@@ -27,6 +27,13 @@ pub trait VecLike<T: Copy>: Sized {
             phantom: std::marker::PhantomData::<T>,
         }
     }
+    fn iter_sparse<'a>(&'a self) -> VecLikeIterSparse<'a, T, Self> {
+        VecLikeIterSparse {
+            vec: self,
+            index: 0,
+            phantom: std::marker::PhantomData::<T>,
+        }
+    }
 }
 
 /// Iterator interface
@@ -46,6 +53,43 @@ impl<'a, T: Copy, V: VecLike<T>> Iterator for VecLikeIter<'a, T, V> {
             let value = self.vec.get(self.index);
             self.index += 1;
             Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+/// sparse vector iterator (that iterates over registered elements)
+/// it returns (usize, T), and it can be used as an alternative of
+/// .iter().enumerate()
+pub struct VecLikeIterSparse<'a, T: Copy, V: VecLike<T>> {
+    vec: &'a V,
+    index: usize,
+    phantom: std::marker::PhantomData<T>,
+}
+
+impl<'a, T: Copy> Iterator for VecLikeIterSparse<'a, T, SparseVec<T>> {
+    type Item = (usize, T);
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.vec.index.len() {
+            let i = self.vec.index[self.index];
+            let x = self.vec.value[self.index];
+            self.index += 1;
+            Some((i, x))
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T: Copy> Iterator for VecLikeIterSparse<'a, T, DenseVec<T>> {
+    type Item = (usize, T);
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.vec.len() {
+            let index = self.index;
+            self.index += 1;
+            let value = self.vec.get(index);
+            Some((index, value))
         } else {
             None
         }

@@ -249,12 +249,21 @@ pub trait PHMM {
     ) -> Option<Vec<Node>> {
         // calculate layer kmer probabilities
         // get Vec<(index: usize, p: Prob)>
-        let mut scores: Vec<(usize, f64)> = layer
-            .to_kmer_prob()
-            .into_iter()
-            .map(|p| p.to_log_value())
-            .enumerate()
-            .collect();
+        let mut scores: Vec<(usize, f64)> = match &layer.active_nodes {
+            Some(nodes) => nodes
+                .iter()
+                .map(|v| {
+                    let p = layer.pM.get(v.0) + layer.pI.get(v.0) + layer.pD.get(v.0);
+                    (v.0, p.to_log_value())
+                })
+                .collect(),
+            None => layer
+                .to_kmer_prob()
+                .into_iter()
+                .map(|p| p.to_log_value())
+                .enumerate()
+                .collect(),
+        };
         // sort descending(from largest to smallest) order
         // TODO sort the vector implement Ord for Prob
         scores.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
