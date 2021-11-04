@@ -498,8 +498,8 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             let start = Instant::now();
             // forward
             info!("sparse");
-            let layers = phmm.forward(&param, read);
-            // let layers = phmm.forward_sparse(&param, read);
+            // let layers = phmm.forward(&param, read);
+            let layers = phmm.forward_sparse(&param, read);
             //
             // end measurement
             let end = start.elapsed();
@@ -509,6 +509,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             // let p = phmm.backward_prob(&param, read);
             // println!("backward prob : {}", p);
 
+            /*
             // output
             let kmer_probs: Vec<Vec<Prob>> =
                 layers.iter().map(|layer| layer.to_kmer_prob()).collect();
@@ -519,6 +520,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
                 }
                 print!("\n");
             }
+            */
 
             // println!("-----")
             break;

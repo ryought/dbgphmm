@@ -16,6 +16,10 @@ pub mod sparse;
 pub mod stats;
 pub mod veclike;
 
+extern crate jemallocator;
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 #[macro_use]
 extern crate approx;
 extern crate arrayvec;

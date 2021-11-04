@@ -116,9 +116,9 @@ pub trait PHMM {
     }
     fn fd_from_fmi<V: VecLike<Prob>>(&self, param: &PHMMParams, layer_t: &mut PHMMLayerRaw<V>) {
         // calc (FM[i], FI[i]) -> FD[i]
-        let mut fDs: Vec<V> = Vec::new();
         // 0
         let mut fD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
@@ -134,16 +134,16 @@ pub trait PHMM {
                         * (param.p_MD * layer_t.pM.get(w.0) + param.p_ID * layer_t.pI.get(w.0))
                 })
                 .sum();
-            // TODO correct?
             let from_begin: Prob =
                 self.init_prob(&v) * (param.p_MD * layer_t.pMB + param.p_ID * layer_t.pIB);
-            fD0.set(v.0, from_normal + from_begin);
+            let fD0v = from_normal + from_begin;
+            fD0.set(v.0, fD0v);
+            layer_t.pD.set(v.0, fD0v);
         }
-        fDs.push(fD0);
         // >0
         for x in 1..param.n_max_gaps {
-            let mut fD = V::new(self.n_nodes(), Prob::from_prob(0.0));
-            let fD_prev = fDs.last().unwrap();
+            // calculate new fD1 from fD0
+            fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
                 if let Some(active_nodes) = &layer_t.active_nodes {
                     Box::new(active_nodes.iter().map(|&v| v))
@@ -151,26 +151,15 @@ pub trait PHMM {
                     Box::new(iter_nodes(self.n_nodes()))
                 };
             for v in iterator {
-                fD.set(
-                    v.0,
-                    self.parents(&v)
-                        .iter()
-                        .map(|w| self.trans_prob(w, &v) * (param.p_DD * fD_prev.get(w.0)))
-                        .sum(),
-                );
+                let fD1v = self
+                    .parents(&v)
+                    .iter()
+                    .map(|w| self.trans_prob(w, &v) * (param.p_DD * fD0.get(w.0)))
+                    .sum();
+                fD1.set(v.0, fD1v);
+                layer_t.pD.set(v.0, layer_t.pD.get(v.0) + fD1v);
             }
-            fDs.push(fD);
-        }
-
-        // collect
-        let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
-            if let Some(active_nodes) = &layer_t.active_nodes {
-                Box::new(active_nodes.iter().map(|&v| v))
-            } else {
-                Box::new(iter_nodes(self.n_nodes()))
-            };
-        for v in iterator {
-            layer_t.pD.set(v.0, fDs.iter().map(|fD| fD.get(v.0)).sum());
+            fD0 = fD1;
         }
     }
     fn fb_init(&self) -> (Prob, Prob) {

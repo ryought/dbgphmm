@@ -19,6 +19,7 @@ pub trait VecLike<T: Copy>: Sized {
     fn len(&self) -> usize;
     fn get(&self, index: usize) -> T;
     fn set(&mut self, index: usize, value: T);
+    fn fill(&mut self, value: T);
     fn iter<'a>(&'a self) -> VecLikeIter<'a, T, Self> {
         // VecLike should be Sized in order to pass self here
         VecLikeIter {
@@ -155,6 +156,12 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
         self.index.push(index);
         self.value.push(value);
     }
+    #[inline(always)]
+    fn fill(&mut self, value: T) {
+        self.index.clear();
+        self.value.clear();
+        self.default_value = value;
+    }
 }
 
 /// Dense vector, a wrapper of std::vec
@@ -177,7 +184,11 @@ impl<T: Copy> VecLike<T> for DenseVec<T> {
     }
     #[inline(always)]
     fn set(&mut self, index: usize, value: T) {
-        self.0[index] = value
+        self.0[index] = value;
+    }
+    #[inline(always)]
+    fn fill(&mut self, value: T) {
+        self.0.fill(value);
     }
 }
 
