@@ -36,13 +36,25 @@ impl<V: VecLike<Prob>> PHMMLayer<V> {
             active_nodes: None,
         }
     }
-    /// initial PHMMLayer
+    /// initial PHMMLayer for forward
     pub fn f_init(n_kmers: usize) -> Self {
         PHMMLayer {
             pM: V::new(n_kmers, Prob::from_prob(0.0)),
             pI: V::new(n_kmers, Prob::from_prob(0.0)),
             pD: V::new(n_kmers, Prob::from_prob(0.0)),
             pMB: Prob::from_prob(1.0),
+            pIB: Prob::from_prob(0.0),
+            pE: Prob::from_prob(0.0),
+            active_nodes: None,
+        }
+    }
+    /// initial PHMMLayer for backward
+    pub fn b_init(n_kmers: usize, p_end: Prob) -> Self {
+        PHMMLayer {
+            pM: V::new(n_kmers, p_end),
+            pI: V::new(n_kmers, p_end),
+            pD: V::new(n_kmers, p_end),
+            pMB: Prob::from_prob(0.0),
             pIB: Prob::from_prob(0.0),
             pE: Prob::from_prob(0.0),
             active_nodes: None,

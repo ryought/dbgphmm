@@ -495,6 +495,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
         // let mut ps: Vec<prob::Prob> = Vec::new();
         for (i, read) in reads.iter().enumerate() {
             // start time measurement
+            /*
             let start = Instant::now();
             // forward
             info!("sparse");
@@ -504,12 +505,26 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             // end measurement
             let end = start.elapsed();
             info!("time={}", end.as_nanos());
+            */
             // println!("{}\t{}", i, p.to_log_value());
             // ps.push(p);
             // let p = phmm.backward_prob(&param, read);
             // println!("backward prob : {}", p);
 
-            /*
+            // println!("-----")
+
+            /*** backward ***/
+            // start time measurement
+            let start = Instant::now();
+            // forward
+            info!("backward");
+            // let layers = phmm.forward(&param, read);
+            let layers = phmm.backward(&param, read);
+
+            // end measurement
+            let end = start.elapsed();
+            info!("time={}", end.as_nanos());
+
             // output
             let kmer_probs: Vec<Vec<Prob>> =
                 layers.iter().map(|layer| layer.to_kmer_prob()).collect();
@@ -520,9 +535,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
                 }
                 print!("\n");
             }
-            */
 
-            // println!("-----")
             break;
         }
         // let p_total: prob::Prob = ps.iter().product();
