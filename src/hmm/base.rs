@@ -214,6 +214,8 @@ pub trait PHMM {
         active_nodes
             .iter()
             .flat_map(|v| self.parents(v))
+            // TODO should include active_nodes?
+            // .chain(active_nodes.iter())
             .map(|&w| w)
             .unique()
             .collect()
@@ -592,7 +594,10 @@ pub trait PHMM {
             next_layer.active_nodes =
                 self.refine_active_nodes(&next_layer, param.n_max_active_nodes);
             info!("b_step({}) refined {:?}", index, next_layer.active_nodes);
+            // FIXME
+            next_layer.active_nodes = None
         }
+        // check the cache miss rate
         next_layer
     }
     /// Backward probability

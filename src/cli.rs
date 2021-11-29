@@ -41,7 +41,7 @@ struct Opts {
     #[clap(long)]
     only_active_nodes: bool,
     /// max number of active nodes in each bases
-    #[clap(long, default_value = "8")]
+    #[clap(long, default_value = "40")]
     n_max_active_nodes: usize,
     /// use full calculation for the first n bases. usually this should be equal to kmer size
     #[clap(long, default_value = "8")]

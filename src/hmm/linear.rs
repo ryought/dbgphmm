@@ -55,6 +55,33 @@ impl PHMM for LinearPHMM {
             Prob::from_prob(0.0)
         }
     }
+    fn label(&self, v: &Node) -> String {
+        format!("{}", self.emission(v) as char)
+    }
 }
 
 impl PHMMSampler for LinearPHMM {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn linear_forward() {
+        // generate random seq
+        let model = LinearPHMM::from(b"ATCGATTCGATTAGCT");
+        let param = crate::hmm::params::PHMMParams::default();
+        // let s = b"TTCGGATT";
+        let s = b"TTCGATT";
+        // let layers = model.forward(&param, s);
+        let layers = model.backward(&param, s);
+
+        let kmer_probs: Vec<Vec<Prob>> = layers.iter().map(|layer| layer.to_kmer_prob()).collect();
+        for (i, v) in model.nodes.iter().enumerate() {
+            print!("{:?}={}", v, model.label(&v));
+            for j in 0..kmer_probs.len() {
+                print!("\t{}", kmer_probs[j][i].to_log_value());
+            }
+            print!("\n");
+        }
+    }
+}

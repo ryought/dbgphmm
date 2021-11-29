@@ -98,7 +98,7 @@ impl<'a, T: Copy> Iterator for VecLikeIterSparse<'a, T, DenseVec<T>> {
 }
 
 /// SparseVec max index size parameter
-const SIZE: usize = 50;
+const SIZE: usize = 200;
 
 /// Sparsely storeing vector
 /// Space-efficient if there are few non-zero elements in the vector
