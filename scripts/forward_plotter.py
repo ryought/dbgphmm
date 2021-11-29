@@ -6,12 +6,18 @@ import argparse
 import json
 import csv
 from dataclasses import dataclass
+from enum import Enum
 import numpy as np
 import matplotlib
 # matplotlib.use("TkAgg")
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.special import logsumexp
+
+class PlotMode(Enum):
+    Matrix = 1
+    InitProbDistribution = 2
+    ActiveNodeRatio = 3
 
 def parse_matrix(tsv_filename):
     kmers = []
@@ -36,14 +42,39 @@ def main():
     for y in range(n_bases):
         probs[:, y] = probs[:, y] - logsumexp(probs[:, y])
 
-    plt.figure(figsize=(30, 8))
-    plt.subplot(2, 1, 1)
-    plt.imshow(np.exp(probs.T))
-    plt.subplot(2, 1, 2)
-    plt.imshow(probs.T)
-    # plt.imshow(probs.T)
+    mode = PlotMode.ActiveNodeRatio
 
-    plt.savefig(args.tsv_filename + '.png', dpi=200)
+    if mode == PlotMode.InitProbDistribution:
+        for i in range(1, 10):
+            plt.plot(probs[:, i])
+            plt.savefig(args.tsv_filename + '.p{}.png'.format(i), dpi=200)
+            plt.clf()
+            plt.close()
+    elif mode == PlotMode.Matrix:
+        # for y in range(n_bases):
+        #     print(y, np.exp(np.max(probs[:, y])))
+        plt.figure(figsize=(30, 8))
+        plt.subplot(2, 1, 1)
+        plt.imshow(np.exp(probs.T), vmin=0, vmax=0.3)
+        plt.colorbar()
+        plt.subplot(2, 1, 2)
+        plt.imshow(probs.T, vmin=-50, vmax=0)
+        # plt.imshow(probs.T)
+        plt.colorbar()
+        plt.savefig(args.tsv_filename + '.png', dpi=200)
+    elif mode == PlotMode.ActiveNodeRatio:
+        n_active_nodes_choice = [2, 5, 10, 20, 40, 80]
+        plt.figure(figsize=(30, 8))
+        ratio = np.zeros((len(n_active_nodes_choice), n_bases))
+        for t, n_active_nodes in enumerate(n_active_nodes_choice):
+            for i in range(n_bases):
+                ratio[t, i] = np.exp(logsumexp(np.sort(probs[:, i])[::-1][:n_active_nodes]))
+                # print(ratio[i])
+            plt.plot(ratio[t], label='n={}'.format(n_active_nodes))
+        plt.grid(axis='y')
+        plt.ylim(0, 1.1)
+        plt.legend()
+        plt.savefig(args.tsv_filename + '.activenoderatio.png', dpi=200)
     # plt.show()
 
 if __name__ == '__main__':
