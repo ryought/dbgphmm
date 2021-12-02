@@ -517,13 +517,12 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
             // start time measurement
             let start = Instant::now();
             // forward
-            info!("backward");
             // let layers = phmm.forward(&param, read);
-            let layers = phmm.backward(&param, read);
+            let (_, layers) = phmm.forward_sparse(&param, read);
 
             // end measurement
             let end = start.elapsed();
-            info!("time={}", end.as_nanos());
+            info!("forward_sparse time={}", end.as_nanos());
 
             // output
             let kmer_probs: Vec<Vec<Prob>> =

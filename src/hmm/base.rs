@@ -311,10 +311,7 @@ pub trait PHMM {
         emission: u8,
         index: usize,
     ) -> PHMMLayerRaw<V> {
-        let start = Instant::now();
         let mut next_layer = PHMMLayerRaw::new(self.n_nodes());
-        warn!("1={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         // compute candidate active_nodes from prev_layer and store it in next_layer
         if param.only_active_nodes && index >= param.n_ignore_active_nodes_first {
             next_layer.active_nodes = self.f_upconvert_active_nodes(&prev_layer);
@@ -325,27 +322,16 @@ pub trait PHMM {
         } else {
             info!("f_step({}) skipped upconvert", index);
         }
-        warn!("2={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         self.fmi_from_fmid(param, &prev_layer, &mut next_layer, emission);
-        warn!("3={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         self.fb_from_fb(param, &prev_layer, &mut next_layer);
-        warn!("4={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         self.fd_from_fmi(param, &mut next_layer);
-        warn!("5={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         self.fe_from_fmid(param, &mut next_layer);
-        warn!("6={}", start.elapsed().as_nanos());
-        let start = Instant::now();
         // reduce active nodes
         if param.only_active_nodes && index >= param.n_ignore_active_nodes_first {
             next_layer.active_nodes =
                 self.refine_active_nodes(&next_layer, param.n_max_active_nodes);
             info!("f_step({}) refined {:?}", index, next_layer.active_nodes);
         }
-        warn!("7={}", start.elapsed().as_nanos());
         next_layer
     }
     ///
@@ -353,18 +339,11 @@ pub trait PHMM {
     /// layers[i] = P(x[0..i], end with a state)
     ///
     fn forward(&self, param: &PHMMParams, emissions: &[u8]) -> Vec<PHMMLayer> {
-        trace!("start forward!");
         let mut layers = Vec::new();
         let layer = self.f_init::<DenseVec<Prob>>(&param);
-        info!("l0:{}", layer.pM.len());
-        trace!("l0:\n{}", layer);
         layers.push(layer);
         for (i, &emission) in emissions.iter().enumerate() {
-            warn!("dense i={}", i);
-            trace!("l{} emission={}", i, emission as char);
             let layer = self.f_step(&param, &layers[i], emission, i);
-            trace!("l{}:\n{}", i, layer);
-            info!("pE({})={}", i, layer.pE);
             layers.push(layer);
         }
         layers
@@ -373,16 +352,24 @@ pub trait PHMM {
         &self,
         param: &PHMMParams,
         emissions: &[u8],
-    ) -> Vec<PHMMLayerRaw<SparseVec<Prob>>> {
-        let mut layer = self.f_init::<DenseVec<Prob>>(&param);
+    ) -> (
+        Vec<PHMMLayerRaw<DenseVec<Prob>>>,
+        Vec<PHMMLayerRaw<SparseVec<Prob>>>,
+    ) {
+        // dense calculation
+        let mut layers_first: Vec<PHMMLayerRaw<DenseVec<Prob>>> = Vec::new();
+        let layer = self.f_init::<DenseVec<Prob>>(&param);
+        layers_first.push(layer);
         let mut iter = emissions.iter().enumerate();
         for (i, &emission) in iter.by_ref().take(param.n_ignore_active_nodes_first) {
             warn!("dense i={}", i);
-            layer = self.f_step(&param, &layer, emission, i);
+            let layer = self.f_step(&param, &layers_first[i], emission, i);
+            layers_first.push(layer);
         }
+
+        // sparse calculation
         let mut layers: Vec<PHMMLayerRaw<SparseVec<Prob>>> = Vec::new();
-        layers.push(self.to_sparse_layer(param, &layer));
-        info!("l0:{}", layer.pM.len());
+        layers.push(self.to_sparse_layer(param, &layers_first[layers_first.len() - 1]));
         for (i, &emission) in iter {
             warn!("sparse i={}", i);
             let layer = self.f_step(
@@ -394,8 +381,13 @@ pub trait PHMM {
             warn!("pE({})={}", i, layer.pE);
             layers.push(layer);
         }
-        layers
+        // remove first element
+        layers.remove(0);
+
+        (layers_first, layers)
     }
+    /// calculate P(X) i.e. the probability that the PHMM produces the emissions
+    /// TODO should be equal to backward_prob
     fn forward_prob(&self, param: &PHMMParams, emissions: &[u8]) -> Prob {
         let layers = self.forward(param, emissions);
         let last_layer = layers.last().unwrap();
@@ -595,7 +587,7 @@ pub trait PHMM {
                 self.refine_active_nodes(&next_layer, param.n_max_active_nodes);
             info!("b_step({}) refined {:?}", index, next_layer.active_nodes);
             // FIXME
-            next_layer.active_nodes = None
+            // next_layer.active_nodes = None
         }
         // check the cache miss rate
         next_layer
@@ -618,6 +610,49 @@ pub trait PHMM {
         layers.reverse();
         layers
     }
+    fn backward_sparse(
+        &self,
+        param: &PHMMParams,
+        emissions: &[u8],
+    ) -> (
+        Vec<PHMMLayerRaw<SparseVec<Prob>>>,
+        Vec<PHMMLayerRaw<DenseVec<Prob>>>,
+    ) {
+        // dense
+        let mut layers_last: Vec<PHMMLayerRaw<DenseVec<Prob>>> = Vec::new();
+        let layer = self.b_init::<DenseVec<Prob>>(&param);
+        layers_last.push(layer);
+        let mut iter = emissions.iter().rev().enumerate();
+        for (i, &emission) in iter.by_ref().take(param.n_ignore_active_nodes_first) {
+            warn!("dense i={}", i);
+            let layer = self.b_step(&param, &layers_last[i], emission, i);
+            layers_last.push(layer);
+        }
+
+        // sparse
+        let mut layers: Vec<PHMMLayerRaw<SparseVec<Prob>>> = Vec::new();
+        layers.push(self.to_sparse_layer(param, &layers_last[layers_last.len() - 1]));
+        for (i, &emission) in iter {
+            warn!("sparse i={}", i);
+            let layer = self.b_step(
+                &param,
+                &layers[i - param.n_ignore_active_nodes_first],
+                emission,
+                i,
+            );
+            layers.push(layer);
+        }
+        // remove first element
+        layers.remove(0);
+
+        // reverse the vector
+        layers.reverse();
+        layers_last.reverse();
+
+        (layers, layers_last)
+    }
+    /// calculate P(X) i.e. the probability that the PHMM produces the emissions
+    /// TODO should be equal to forward_prob
     fn backward_prob(&self, param: &PHMMParams, emissions: &[u8]) -> Prob {
         let layers = self.backward(param, emissions);
         let first_layer = layers.first().unwrap();
