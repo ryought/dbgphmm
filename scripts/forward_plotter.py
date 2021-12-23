@@ -18,6 +18,7 @@ class PlotMode(Enum):
     Matrix = 1
     InitProbDistribution = 2
     ActiveNodeRatio = 3
+    SortedDistribution = 4
 
 def parse_matrix(tsv_filename):
     kmers = []
@@ -42,7 +43,7 @@ def main():
     for y in range(n_bases):
         probs[:, y] = probs[:, y] - logsumexp(probs[:, y])
 
-    mode = PlotMode.ActiveNodeRatio
+    mode = PlotMode.SortedDistribution
 
     if mode == PlotMode.InitProbDistribution:
         for i in range(1, 10):
@@ -63,7 +64,8 @@ def main():
         plt.colorbar()
         plt.savefig(args.tsv_filename + '.png', dpi=200)
     elif mode == PlotMode.ActiveNodeRatio:
-        n_active_nodes_choice = [2, 5, 10, 20, 40, 80]
+        # n_active_nodes_choice = [2, 8, 32, 128]
+        n_active_nodes_choice = [2, 10, 50, 250]
         plt.figure(figsize=(30, 8))
         ratio = np.zeros((len(n_active_nodes_choice), n_bases))
         for t, n_active_nodes in enumerate(n_active_nodes_choice):
@@ -75,6 +77,19 @@ def main():
         plt.ylim(0, 1.1)
         plt.legend()
         plt.savefig(args.tsv_filename + '.activenoderatio.png', dpi=200)
+    elif mode == PlotMode.SortedDistribution:
+        plt.figure(figsize=(30, 8))
+        is_log = False
+        n_ignore_start = 16
+        if is_log:
+            plt.ylim(-100, 0)
+            for i in range(n_ignore_start, n_bases):
+                plt.plot(np.sort(probs[:, i])[::-1])
+        else:
+            plt.ylim(0 - 0.1, 1 + 0.1)
+            for i in range(n_ignore_start, n_bases):
+                plt.plot(np.exp(np.sort(probs[:, i])[::-1]))
+        plt.savefig(args.tsv_filename + '.sorteddist.png', dpi=200)
     # plt.show()
 
 if __name__ == '__main__':
