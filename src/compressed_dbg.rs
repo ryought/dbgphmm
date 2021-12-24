@@ -91,6 +91,9 @@ impl CompressedDBG {
     pub fn n_kmers(&self) -> usize {
         self.n_kmers
     }
+    pub fn is_valid_node(&self, v: &Node) -> bool {
+        0 <= v.0 && v.0 < self.n_kmers
+    }
     pub fn iter_nodes(&self) -> impl std::iter::Iterator<Item = Node> {
         (0..self.n_kmers).map(|i| Node(i))
     }

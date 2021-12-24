@@ -1,5 +1,5 @@
 use super::base::{Node, PHMM};
-use crate::copy_nums::{Ecdbg, Ncdbg};
+use crate::copy_nums::{CopyNums, Ecdbg, Ncdbg};
 use crate::prob::Prob;
 
 impl<'a> PHMM for Ncdbg<'a> {
@@ -16,10 +16,10 @@ impl<'a> PHMM for Ncdbg<'a> {
         self.cdbg.childs(v).iter().any(|&i| i == *w)
     }
     fn copy_num(&self, v: &Node) -> f64 {
-        self.copy_nums[v.0] as f64
+        self.copy_num(v) as f64
     }
     fn total_copy_num(&self) -> f64 {
-        let total_copy_num = self.cdbg.total_emitable_copy_num(&self.copy_nums);
+        let total_copy_num = self.cdbg.total_emitable_copy_num(&self.copy_nums.0);
         total_copy_num as f64
     }
     fn emission(&self, v: &Node) -> u8 {
@@ -33,13 +33,13 @@ impl<'a> PHMM for Ncdbg<'a> {
             .iter()
             .map(|&w| {
                 if self.cdbg.is_emitable(&w) {
-                    self.copy_nums[w.0]
+                    self.copy_num(&w)
                 } else {
                     0
                 }
             })
             .sum();
-        let cn_of_child = self.copy_nums[w.0];
+        let cn_of_child = self.copy_num(w);
 
         if self.is_emitable(&v) && total_cn_of_childs > 0 {
             Prob::from_prob(f64::from(cn_of_child) / f64::from(total_cn_of_childs))
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn ncdbg_hmm_0() {
         let (cdbg, copy_nums) = test_cdbg_01();
-        let ncdbg = Ncdbg::new(&cdbg, copy_nums);
+        let ncdbg = Ncdbg::new(&cdbg, CopyNums(copy_nums));
         println!("{}", ncdbg.as_dot());
     }
 }

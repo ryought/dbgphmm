@@ -6,6 +6,12 @@ use serde::{Deserialize, Serialize};
 pub struct Node(pub usize);
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
+pub struct Edgep {
+    pub source: Node,
+    pub target: Node,
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Edge(pub usize);
 
 #[derive(Debug, Clone)]
