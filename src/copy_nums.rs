@@ -1,15 +1,46 @@
 //! copy_nums structs
 //! copy_nums should be stored with reference to the cdbg
 use crate::compressed_dbg::CompressedDBG;
-use crate::graph::{Edgep, Node};
+use crate::graph::{Edgei, Node};
 use std::ops::Index;
 
+/// CopyNums stores
+/// simple wrapper of copy_nums vector Vec<u32> etc
+/// it allows index access by &Node
+///
+/// ```
+/// use dbgphmm::copy_nums::CopyNums;
+/// use dbgphmm::graph::Node;
+/// let c = CopyNums(vec![55, 22, 33]);
+/// assert_eq!(c[&Node(1)], 22);
+/// assert_eq!(c[&Node(2)], 33);
+/// ```
 pub struct CopyNums(pub Vec<u32>);
-pub struct EdgeCopyNums(pub Vec<Vec<u32>>);
 impl Index<&Node> for CopyNums {
     type Output = u32;
     fn index(&self, v: &Node) -> &Self::Output {
         &self.0[v.0]
+    }
+}
+
+/// EdgeCopyNums stores
+/// simple wrapper of edge_copy_nums vector Vec<Vec<u32>> etc
+/// it has same shape of cdbg.childs, so it can access by
+/// &Edgei { source: Node, child_index: usize }
+///
+/// ```
+/// use dbgphmm::copy_nums::EdgeCopyNums;
+/// use dbgphmm::graph::{Node, Edgei};
+/// let e = EdgeCopyNums(vec![vec![11, 33], vec![55], vec![99, 12]]);
+/// assert_eq!(e[&Edgei::new(Node(0), 0)], 11);
+/// assert_eq!(e[&Edgei::new(Node(0), 1)], 33);
+/// assert_eq!(e[&Edgei::new(Node(2), 1)], 12);
+/// ```
+pub struct EdgeCopyNums(pub Vec<Vec<u32>>);
+impl Index<&Edgei> for EdgeCopyNums {
+    type Output = u32;
+    fn index(&self, e: &Edgei) -> &Self::Output {
+        &self.0[e.source.0][e.child_index]
     }
 }
 

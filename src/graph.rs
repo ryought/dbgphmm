@@ -12,6 +12,20 @@ pub struct Edgep {
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
+pub struct Edgei {
+    pub source: Node,
+    pub child_index: usize,
+}
+impl Edgei {
+    pub fn new(source: Node, child_index: usize) -> Edgei {
+        Edgei {
+            source,
+            child_index,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Edge(pub usize);
 
 #[derive(Debug, Clone)]
