@@ -10,6 +10,11 @@ pub struct Edgep {
     pub source: Node,
     pub target: Node,
 }
+impl Edgep {
+    pub fn new(source: Node, target: Node) -> Edgep {
+        Edgep { source, target }
+    }
+}
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Edgei {

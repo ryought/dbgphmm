@@ -2,7 +2,7 @@ use crate::cycles;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
-use crate::graph::{Edge, IndexedDiGraph, Node, Pos};
+use crate::graph::{Edge, Edgei, Edgep, IndexedDiGraph, Node, Pos};
 use crate::io::cytoscape::Element;
 use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
 use crate::prob::Prob;
@@ -123,6 +123,12 @@ impl CompressedDBG {
             Some(&v) => Some(v),
             None => None,
         }
+    }
+    pub fn edgep_to_edgei(&self, e: &Edgep) -> Edgei {
+        let v = e.source;
+        let w = e.target;
+        let i = self.childs(&v).iter().position(|u| u == &w).unwrap();
+        Edgei::new(v, i)
     }
     pub fn n_cycles(&self) -> usize {
         self.cycles.len()

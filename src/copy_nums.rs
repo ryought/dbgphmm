@@ -1,7 +1,7 @@
 //! copy_nums structs
 //! copy_nums should be stored with reference to the cdbg
 use crate::compressed_dbg::CompressedDBG;
-use crate::graph::{Edgei, Node};
+use crate::graph::{Edgei, Edgep, Node};
 use crate::kmer::kmer::linear_seq_to_kmers;
 use itertools::Itertools;
 use log::warn;
@@ -104,22 +104,25 @@ impl EdgeCopyNums {
         EdgeCopyNums(edge_copy_nums)
     }
     /// constructor from seqs
-    pub fn from_seqs(cdbg: &CompressedDBG, seqs: &[Vec<u8>]) {
+    pub fn from_seqs(cdbg: &CompressedDBG, seqs: &[Vec<u8>]) -> Option<EdgeCopyNums> {
         // let mut copy_nums: Vec<u32> = vec![0; cdbg.n_kmers()];
+        let mut c = EdgeCopyNums::zero(cdbg);
         for seq in seqs.iter() {
             for (k0, k1) in linear_seq_to_kmers(seq, cdbg.k()).tuple_windows() {
                 match (cdbg.id(&k0), cdbg.id(&k1)) {
                     (Some(v0), Some(v1)) => {
-                        println!("k0={}({:?}) k1={}({:?})", k0, v0, k1, v1);
+                        let ei = cdbg.edgep_to_edgei(&Edgep::new(v0, v1));
+                        c[&ei] += 1
                     }
                     _ => {
                         warn!("true kmer {} or {} not found in cdbg", k0, k1);
-                        // return None;
+                        return None;
                     }
                 }
             }
         }
-        // Some(CopyNums(copy_nums))
+        // TODO should the last to first AACNNN -> NNNATG edge be added?
+        Some(c)
     }
 }
 
@@ -174,8 +177,9 @@ impl<'a> Ecdbg<'a> {
         if !self.cdbg.is_adjacent(v, w) {
             panic!("edge (v,w) = ({:?},{:?}) is not in cdbg", v, w);
         } else {
-            let i = self.cdbg.childs(v).iter().position(|u| u == w).unwrap();
-            self.edge_copy_nums[&Edgei::new(*v, i)]
+            // convert to child id notation
+            let e = self.cdbg.edgep_to_edgei(&Edgep::new(*v, *w));
+            self.edge_copy_nums[&e]
         }
     }
     fn is_node_consistent(&self) -> bool {
