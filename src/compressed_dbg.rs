@@ -91,6 +91,9 @@ impl CompressedDBG {
     pub fn n_kmers(&self) -> usize {
         self.n_kmers
     }
+    pub fn k(&self) -> usize {
+        self.k
+    }
     pub fn is_valid_node(&self, v: &Node) -> bool {
         0 <= v.0 && v.0 < self.n_kmers
     }
@@ -114,6 +117,12 @@ impl CompressedDBG {
     }
     pub fn kmer(&self, v: &Node) -> &Kmer {
         &self.kmers[v.0]
+    }
+    pub fn id(&self, kmer: &Kmer) -> Option<Node> {
+        match self.ids.get(kmer) {
+            Some(&v) => Some(v),
+            None => None,
+        }
     }
     pub fn n_cycles(&self) -> usize {
         self.cycles.len()

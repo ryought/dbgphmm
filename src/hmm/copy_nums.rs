@@ -1,5 +1,5 @@
 use super::base::{Node, PHMM};
-use crate::copy_nums::{CopyNums, Ecdbg, Ncdbg};
+use crate::copy_nums::{Ecdbg, Ncdbg};
 use crate::prob::Prob;
 
 impl<'a> PHMM for Ncdbg<'a> {

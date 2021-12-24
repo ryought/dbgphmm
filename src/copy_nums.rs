@@ -2,7 +2,10 @@
 //! copy_nums should be stored with reference to the cdbg
 use crate::compressed_dbg::CompressedDBG;
 use crate::graph::{Edgei, Node};
-use std::ops::Index;
+use crate::kmer::kmer::linear_seq_to_kmers;
+use itertools::Itertools;
+use log::warn;
+use std::ops::{Index, IndexMut};
 
 /// CopyNums stores
 /// simple wrapper of copy_nums vector Vec<u32> etc
@@ -11,15 +14,51 @@ use std::ops::Index;
 /// ```
 /// use dbgphmm::copy_nums::CopyNums;
 /// use dbgphmm::graph::Node;
+/// // immutable
 /// let c = CopyNums(vec![55, 22, 33]);
 /// assert_eq!(c[&Node(1)], 22);
 /// assert_eq!(c[&Node(2)], 33);
+///
+/// // mutable
+/// let mut c2 = CopyNums(vec![55, 22, 33]);
+/// c2[&Node(1)] = 2222;
+/// assert_eq!(c2[&Node(1)], 2222);
 /// ```
 pub struct CopyNums(pub Vec<u32>);
+
 impl Index<&Node> for CopyNums {
     type Output = u32;
     fn index(&self, v: &Node) -> &Self::Output {
         &self.0[v.0]
+    }
+}
+
+impl IndexMut<&Node> for CopyNums {
+    fn index_mut(&mut self, v: &Node) -> &mut Self::Output {
+        &mut self.0[v.0]
+    }
+}
+
+/// CopyNums constructors
+impl CopyNums {
+    pub fn zero(cdbg: &CompressedDBG) -> CopyNums {
+        CopyNums(vec![0; cdbg.n_kmers()])
+    }
+    /// constructor from seqs
+    pub fn from_seqs(cdbg: &CompressedDBG, seqs: &[Vec<u8>]) -> Option<CopyNums> {
+        let mut c = CopyNums::zero(cdbg);
+        for seq in seqs.iter() {
+            for kmer in linear_seq_to_kmers(seq, cdbg.k()) {
+                match cdbg.id(&kmer) {
+                    Some(v) => c[&v] += 1,
+                    None => {
+                        warn!("true kmer {} not found in cdbg", kmer);
+                        return None;
+                    }
+                }
+            }
+        }
+        Some(c)
     }
 }
 
@@ -35,12 +74,52 @@ impl Index<&Node> for CopyNums {
 /// assert_eq!(e[&Edgei::new(Node(0), 0)], 11);
 /// assert_eq!(e[&Edgei::new(Node(0), 1)], 33);
 /// assert_eq!(e[&Edgei::new(Node(2), 1)], 12);
+///
+/// let mut e2 = EdgeCopyNums(vec![vec![11, 33], vec![55], vec![99, 12]]);
+/// e2[&Edgei::new(Node(0), 0)] = 11111;
+/// assert_eq!(e2[&Edgei::new(Node(0), 0)], 11111);
 /// ```
 pub struct EdgeCopyNums(pub Vec<Vec<u32>>);
+
 impl Index<&Edgei> for EdgeCopyNums {
     type Output = u32;
     fn index(&self, e: &Edgei) -> &Self::Output {
         &self.0[e.source.0][e.child_index]
+    }
+}
+
+impl IndexMut<&Edgei> for EdgeCopyNums {
+    fn index_mut(&mut self, e: &Edgei) -> &mut Self::Output {
+        &mut self.0[e.source.0][e.child_index]
+    }
+}
+
+/// EdgeCopyNums constructors
+impl EdgeCopyNums {
+    pub fn zero(cdbg: &CompressedDBG) -> EdgeCopyNums {
+        let edge_copy_nums: Vec<Vec<u32>> = cdbg
+            .iter_nodes()
+            .map(|v| vec![0; cdbg.childs(&v).len()])
+            .collect();
+        EdgeCopyNums(edge_copy_nums)
+    }
+    /// constructor from seqs
+    pub fn from_seqs(cdbg: &CompressedDBG, seqs: &[Vec<u8>]) {
+        // let mut copy_nums: Vec<u32> = vec![0; cdbg.n_kmers()];
+        for seq in seqs.iter() {
+            for (k0, k1) in linear_seq_to_kmers(seq, cdbg.k()).tuple_windows() {
+                match (cdbg.id(&k0), cdbg.id(&k1)) {
+                    (Some(v0), Some(v1)) => {
+                        println!("k0={}({:?}) k1={}({:?})", k0, v0, k1, v1);
+                    }
+                    _ => {
+                        warn!("true kmer {} or {} not found in cdbg", k0, k1);
+                        // return None;
+                    }
+                }
+            }
+        }
+        // Some(CopyNums(copy_nums))
     }
 }
 
@@ -150,5 +229,11 @@ mod tests {
         let ecdbg = Ecdbg::new(&cdbg, cn, ecn);
         assert!(ecdbg.is_node_consistent());
         assert!(ecdbg.is_edge_consistent());
+    }
+    #[test]
+    fn edgecopynums_fromseqs() {
+        let seqs: Vec<Vec<u8>> = vec![b"ATTCGATCGATTT".to_vec()];
+        let (cdbg, cn, ecn) = test_cdbg_01();
+        EdgeCopyNums::from_seqs(&cdbg, &seqs);
     }
 }
