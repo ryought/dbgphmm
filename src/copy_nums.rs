@@ -67,15 +67,15 @@ impl<'a> Ncdbg<'a> {
 // edge copy-num labeled
 pub struct Ecdbg<'a> {
     pub cdbg: &'a CompressedDBG,
-    pub node_copy_nums: Vec<u32>,
-    pub edge_copy_nums: Vec<Vec<u32>>,
+    pub node_copy_nums: CopyNums,
+    pub edge_copy_nums: EdgeCopyNums,
 }
 
 impl<'a> Ecdbg<'a> {
     pub fn new(
         cdbg: &CompressedDBG,
-        node_copy_nums: Vec<u32>,
-        edge_copy_nums: Vec<Vec<u32>>,
+        node_copy_nums: CopyNums,
+        edge_copy_nums: EdgeCopyNums,
     ) -> Ecdbg {
         assert!(Ecdbg::is_node_consistent(cdbg, &node_copy_nums));
         assert!(Ecdbg::is_edge_consistent(
@@ -89,15 +89,15 @@ impl<'a> Ecdbg<'a> {
             edge_copy_nums,
         }
     }
-    fn is_node_consistent(cdbg: &CompressedDBG, node_copy_nums: &[u32]) -> bool {
-        cdbg.is_consistent_copy_num(node_copy_nums)
+    fn is_node_consistent(cdbg: &CompressedDBG, node_copy_nums: &CopyNums) -> bool {
+        cdbg.is_consistent_copy_num(&node_copy_nums.0)
     }
-    fn is_edge_consistent(_: &CompressedDBG, _: &[u32], _: &[Vec<u32>]) -> bool {
+    fn is_edge_consistent(_: &CompressedDBG, _: &CopyNums, _: &EdgeCopyNums) -> bool {
         // TODO
         true
     }
     fn copy_num(&self, v: &Node) -> u32 {
-        self.node_copy_nums[v.0]
+        self.node_copy_nums[v]
     }
     /*
     fn edge_copy_num(&self, v: &Node, w: &Node) -> u32 {
