@@ -19,17 +19,33 @@ impl<'a> PHMM for Ncdbg<'a> {
         self.copy_nums[v.0] as f64
     }
     fn total_copy_num(&self) -> f64 {
-        // FIXME
-        // self.copy_nums.iter().sum::<f64>()
-        0f64
+        let total_copy_num = self.cdbg.total_emitable_copy_num(&self.copy_nums);
+        total_copy_num as f64
     }
     fn emission(&self, v: &Node) -> u8 {
         self.cdbg.emission(v)
     }
     /// a_vw = c_w / sum of c_w' for w' in childs of v
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob {
-        // FIXME
-        Prob::from_prob(0.0)
+        let total_cn_of_childs: u32 = self
+            .cdbg
+            .childs(&v)
+            .iter()
+            .map(|&w| {
+                if self.cdbg.is_emitable(&w) {
+                    self.copy_nums[w.0]
+                } else {
+                    0
+                }
+            })
+            .sum();
+        let cn_of_child = self.copy_nums[w.0];
+
+        if self.is_emitable(&v) && total_cn_of_childs > 0 {
+            Prob::from_prob(f64::from(cn_of_child) / f64::from(total_cn_of_childs))
+        } else {
+            Prob::from_prob(0.0)
+        }
     }
     fn label(&self, v: &Node) -> String {
         self.cdbg.kmer(v).to_string()
@@ -46,6 +62,11 @@ impl<'a> PHMM for Ecdbg<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mocks::test_cdbg_01;
     #[test]
-    fn ncdbg_hmm_0() {}
+    fn ncdbg_hmm_0() {
+        let (cdbg, copy_nums) = test_cdbg_01();
+        let ncdbg = Ncdbg::new(&cdbg, copy_nums);
+        println!("{}", ncdbg.as_dot());
+    }
 }

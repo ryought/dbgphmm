@@ -698,19 +698,22 @@ pub trait PHMM {
     // output
     fn as_dot(&self) -> String {
         let mut s = String::new();
-        writeln!(&mut s, "digraph dbgphmm {{");
+        writeln!(&mut s, "digraph dbgphmm {{\nnode [style=\"filled\"]");
         for v in iter_nodes(self.n_nodes()) {
             // for node
             let emission = self.emission(&v);
             let copy_num = self.copy_num(&v);
             let init_prob = self.init_prob(&v);
+            let label = self.label(&v);
+            let color = if self.is_emitable(&v) {
+                "orange"
+            } else {
+                "white"
+            };
             writeln!(
                 &mut s,
-                "\t{} [label=\"{} x{}\"];",
-                v.0,
-                emission as char,
-                copy_num // "\t{} [label=\"{} x{} {}\"];",
-                         // v.0, emission as char, copy_num, init_prob
+                "\t{} [label=\"{}({}) x{}\" fillcolor=\"{}\"];",
+                v.0, emission as char, label, copy_num, color,
             );
             // for edges
             for w in self.childs(&v).iter() {
