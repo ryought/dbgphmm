@@ -85,13 +85,13 @@ impl<'a> Ecdbg<'a> {
             edge_copy_nums,
         }
     }
-    fn copy_num(&self, v: &Node) -> u32 {
+    pub fn copy_num(&self, v: &Node) -> u32 {
         if !self.cdbg.is_valid_node(v) {
             panic!("node {:?} is not in cdbg", v);
         }
         self.node_copy_nums[v]
     }
-    fn edge_copy_num(&self, v: &Node, w: &Node) -> u32 {
+    pub fn edge_copy_num(&self, v: &Node, w: &Node) -> u32 {
         if !self.cdbg.is_adjacent(v, w) {
             panic!("edge (v,w) = ({:?},{:?}) is not in cdbg", v, w);
         } else {
@@ -140,21 +140,15 @@ mod tests {
     use crate::mocks::test_cdbg_01;
     #[test]
     fn ncdbg_0() {
-        let (cdbg, copy_nums) = test_cdbg_01();
-        println!("n={}, c={}", cdbg.n_kmers(), cdbg.n_cycles());
-        let ncdbg = Ncdbg::new(&cdbg, CopyNums(copy_nums));
+        let (cdbg, cn, _) = test_cdbg_01();
+        let ncdbg = Ncdbg::new(&cdbg, cn);
         println!("{}", ncdbg.copy_num(&Node(0)));
     }
     #[test]
     fn ecdbg_0() {
-        let (cdbg, copy_nums) = test_cdbg_01();
-        // TODO separate this creation for random some valid edge weights
-        let edge_copy_nums: Vec<Vec<u32>> = cdbg
-            .iter_nodes()
-            .map(|v| cdbg.childs(&v).iter().map(|_| 1).collect())
-            .collect();
-        let ecdbg = Ecdbg::new(&cdbg, CopyNums(copy_nums), EdgeCopyNums(edge_copy_nums));
-        println!("{}", ecdbg.is_node_consistent());
-        println!("{}", ecdbg.is_edge_consistent());
+        let (cdbg, cn, ecn) = test_cdbg_01();
+        let ecdbg = Ecdbg::new(&cdbg, cn, ecn);
+        assert!(ecdbg.is_node_consistent());
+        assert!(ecdbg.is_edge_consistent());
     }
 }
