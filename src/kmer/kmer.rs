@@ -18,31 +18,55 @@ impl Kmer {
     pub fn to_vec(&self) -> Vec<u8> {
         self.0.to_vec()
     }
-    pub fn len(&self) -> usize {
+}
+
+pub trait KmerLike {
+    fn len(&self) -> usize;
+    fn adjacent(&self, other: &Kmer) -> bool;
+    fn first(&self) -> u8;
+    fn last(&self) -> u8;
+    fn prefix(&self) -> Kmer;
+    fn suffix(&self) -> Kmer;
+    fn childs(&self) -> Vec<Kmer>;
+    fn parents(&self) -> Vec<Kmer>;
+    fn neighbors(&self) -> Vec<Kmer>;
+    fn preds(&self) -> Vec<Kmer>;
+    fn succs(&self) -> Vec<Kmer>;
+    fn extend_first(&self, first_base: u8) -> Kmer;
+    fn extend_last(&self, last_base: u8) -> Kmer;
+    fn join(&self, other: &Kmer) -> Kmer;
+    fn is_head(&self) -> bool;
+    fn is_tail(&self) -> bool;
+    fn is_emitable(&self) -> bool;
+    fn is_starting(&self) -> bool;
+}
+
+impl KmerLike for Kmer {
+    fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn adjacent(&self, other: &Kmer) -> bool {
+    fn adjacent(&self, other: &Kmer) -> bool {
         let (_, a_suffix) = self.0.split_first().expect("k should be >1");
         let (_, b_prefix) = other.0.split_last().expect("k should be >1");
         a_suffix == b_prefix
     }
-    pub fn first(&self) -> u8 {
+    fn first(&self) -> u8 {
         let (first, _) = self.0.split_first().expect("k should be >=1");
         *first
     }
-    pub fn last(&self) -> u8 {
+    fn last(&self) -> u8 {
         let (last, _) = self.0.split_last().expect("k should be >=1");
         *last
     }
-    pub fn prefix(&self) -> Kmer {
+    fn prefix(&self) -> Kmer {
         let (_, prefix) = self.0.split_last().expect("k should be >1");
         Kmer(prefix.to_vec())
     }
-    pub fn suffix(&self) -> Kmer {
+    fn suffix(&self) -> Kmer {
         let (_, suffix) = self.0.split_first().expect("k should be >1");
         Kmer(suffix.to_vec())
     }
-    pub fn childs(&self) -> Vec<Kmer> {
+    fn childs(&self) -> Vec<Kmer> {
         let (_, suffix) = self.0.split_first().unwrap();
         let childs = [b'A', b'C', b'G', b'T', b'N']
             .iter()
@@ -54,7 +78,7 @@ impl Kmer {
             .collect();
         childs
     }
-    pub fn parents(&self) -> Vec<Kmer> {
+    fn parents(&self) -> Vec<Kmer> {
         let (_, prefix) = self.0.split_last().unwrap();
         let parents = [b'A', b'C', b'G', b'T', b'N']
             .iter()
@@ -67,7 +91,7 @@ impl Kmer {
         parents
     }
     /// return k+1mer {ACGT}<Kmer> and <Kmer>{ACGT} vector
-    pub fn neighbors(&self) -> Vec<Kmer> {
+    fn neighbors(&self) -> Vec<Kmer> {
         let bases = [b'A', b'C', b'G', b'T'];
         let neighbors: Vec<Kmer> = bases
             .iter()
@@ -87,7 +111,7 @@ impl Kmer {
         neighbors
     }
     /// kmer XXXXX -> k+1kmer {ACGT}XXXXX
-    pub fn preds(&self) -> Vec<Kmer> {
+    fn preds(&self) -> Vec<Kmer> {
         let bases = [b'A', b'C', b'G', b'T'];
         bases
             .iter()
@@ -95,26 +119,26 @@ impl Kmer {
             .collect()
     }
     /// kmer XXXXX -> k+1kmer XXXXX{ACGT}
-    pub fn succs(&self) -> Vec<Kmer> {
+    fn succs(&self) -> Vec<Kmer> {
         let bases = [b'A', b'C', b'G', b'T'];
         bases
             .iter()
             .map(|&last_base| self.extend_last(last_base))
             .collect()
     }
-    pub fn extend_first(&self, first_base: u8) -> Kmer {
+    fn extend_first(&self, first_base: u8) -> Kmer {
         let mut v = Vec::new();
         v.push(first_base);
         v.extend_from_slice(&self.0);
         Kmer::from_vec(v)
     }
-    pub fn extend_last(&self, last_base: u8) -> Kmer {
+    fn extend_last(&self, last_base: u8) -> Kmer {
         let mut v = Vec::new();
         v.extend_from_slice(&self.0);
         v.push(last_base);
         Kmer::from_vec(v)
     }
-    pub fn join(&self, other: &Kmer) -> Kmer {
+    fn join(&self, other: &Kmer) -> Kmer {
         if self.adjacent(other) {
             // self --> other
             self.extend_last(other.last())
@@ -126,20 +150,20 @@ impl Kmer {
         }
     }
     /// check if NNNNNX
-    pub fn is_head(&self) -> bool {
+    fn is_head(&self) -> bool {
         let k = self.0.len();
         self.0[..k - 1].iter().all(|&x| x == b'N')
     }
     /// check if XNNNNN
-    pub fn is_tail(&self) -> bool {
+    fn is_tail(&self) -> bool {
         self.0[1..].iter().all(|&x| x == b'N')
     }
     /// check if not XXXXXN
-    pub fn is_emitable(&self) -> bool {
+    fn is_emitable(&self) -> bool {
         *self.0.last().unwrap() != b'N'
     }
     /// check if NXXXXX
-    pub fn is_starting(&self) -> bool {
+    fn is_starting(&self) -> bool {
         let k = self.0.len();
         self.0[0] == b'N' && self.0[1..].iter().all(|&x| x != b'N')
     }

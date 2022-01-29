@@ -1,4 +1,4 @@
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
 

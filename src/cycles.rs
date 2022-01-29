@@ -1,5 +1,5 @@
 use crate::dbg::{DbgHash, DBG};
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use fnv::FnvHashSet as HashSet;
 use log::{debug, info, warn};

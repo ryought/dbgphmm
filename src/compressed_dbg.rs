@@ -4,7 +4,7 @@ use crate::dbg::{DbgHash, DBG};
 use crate::distribution::normal_bin;
 use crate::graph::{Edge, IndexedDiGraph, Node, Pos};
 use crate::io::cytoscape::Element;
-use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer};
+use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer, KmerLike};
 use crate::prob::Prob;
 use crate::stats;
 use fnv::FnvHashMap as HashMap;
