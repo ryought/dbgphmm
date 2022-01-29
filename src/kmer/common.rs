@@ -34,8 +34,7 @@ pub trait KmerLike: std::marker::Sized {
 /// Most fundamental k-mer trait
 ///
 trait KmerBase {
-    // TODO should we support k+1 upgrade?
-    // type Kp1mer;
+    type Kp1mer;
     type Km1mer;
     fn k(&self) -> usize;
     fn prefix(&self) -> Self::Km1mer;
@@ -56,6 +55,7 @@ impl VecKmer {
 }
 
 impl KmerBase for VecKmer {
+    type Kp1mer = VecKmer;
     type Km1mer = VecKmer;
     fn k(&self) -> usize {
         self.0.len()
@@ -158,7 +158,9 @@ impl<const K: usize> TinyKmer<K> {
 impl<const K: usize> KmerBase for TinyKmer<K>
 where
     [(); K - 1]: ,
+    [(); K + 1]: ,
 {
+    type Kp1mer = TinyKmer<{ K + 1 }>;
     type Km1mer = TinyKmer<{ K - 1 }>;
     fn k(&self) -> usize {
         K
