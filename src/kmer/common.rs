@@ -10,8 +10,6 @@ trait Kmer: std::marker::Sized {
     // construction
     fn from(bases: &[u8]) -> Self;
     fn to_vec(&self) -> Vec<u8>;
-    // fn to_veckmer(&self) -> VecKmer;
-    // fn to_tinykmer(&self) -> TinyKmer;
     // adjacency
     fn is_adjacent<T: Kmer>(&self, other: &T) -> bool;
     // parts
@@ -101,8 +99,30 @@ impl<const K: usize> TinyKmer<K> {
             .rev()
             .collect()
     }
+    fn head(&self) -> u8 {
+        decode_base((self.bases >> (2 * (K - 1))) % 4)
+    }
+    fn tail(&self) -> u8 {
+        decode_base(self.bases % 4)
+    }
     fn prefix(&self) -> TinyKmer<{ K - 1 }> {
-        TinyKmer::<{ K - 1 }> { bases: 0 }
+        TinyKmer {
+            bases: self.bases >> 2,
+        }
+    }
+    fn suffix(&self) -> TinyKmer<{ K - 1 }> {
+        TinyKmer {
+            bases: self.bases & !(3 << (2 * K)),
+        }
+    }
+    fn is_adjacent(&self, other: &TinyKmer<K>) -> bool
+    where
+        [(); K - 1]: ,
+    {
+        // for the detail of this bound, see
+        // https://github.com/rust-lang/rust/issues/76560
+        // this uses nightly feature generic_const_exprs
+        self.suffix() == other.prefix()
     }
 }
 
@@ -146,5 +166,10 @@ mod tests {
         assert_eq!(a.to_vec(), va);
         assert_eq!(b.to_vec(), vb);
         assert_eq!(c.to_vec(), vc);
+        println!("{:?}", vb);
+        assert_eq!(b.head(), b'A');
+        assert_eq!(b.tail(), b'G');
+        println!("{}", b.prefix());
+        println!("{}", b.suffix());
     }
 }
