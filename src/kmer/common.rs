@@ -43,6 +43,16 @@ impl Kmer for VecKmer {
     }
 }
 
+impl std::fmt::Display for VecKmer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // iter returns reference
+        for &b in self.0.iter() {
+            write!(f, "{}", b as char)?;
+        }
+        Ok(())
+    }
+}
+
 ///
 /// Kmer for k <= 32
 /// It can store without heap-allocations
@@ -52,13 +62,44 @@ struct TinyKmer<const K: usize> {
     bases: u64,
 }
 
-impl<const K: usize> TinyKmer<K> {
-    fn new() -> TinyKmer<K> {
-        TinyKmer { bases: 1 }
+fn encode_base(base: u8) -> u64 {
+    match base {
+        b'A' | b'a' => 0,
+        b'C' | b'c' => 1,
+        b'G' | b'g' => 2,
+        b'T' | b't' => 3,
+        _ => panic!(),
     }
+}
+fn decode_base(code: u64) -> u8 {
+    match code {
+        0 => b'A',
+        1 => b'C',
+        2 => b'G',
+        3 => b'T',
+        _ => panic!(),
+    }
+}
+
+impl<const K: usize> TinyKmer<K> {
     fn from(bases: &[u8]) -> TinyKmer<K> {
         assert_eq!(bases.len(), K);
-        TinyKmer { bases: 10 }
+        assert!(K <= 32);
+        let code = bases
+            .iter()
+            .map(|&base| encode_base(base))
+            .fold(0, |acc, code| acc * 4 + code);
+        TinyKmer { bases: code }
+    }
+    fn to_vec(&self) -> Vec<u8> {
+        let bases = self.bases;
+        (0..K)
+            .map(|i| {
+                let code = (bases >> (2 * i)) % 4;
+                decode_base(code)
+            })
+            .rev()
+            .collect()
     }
     fn prefix(&self) -> TinyKmer<{ K - 1 }> {
         TinyKmer::<{ K - 1 }> { bases: 0 }
@@ -80,13 +121,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tinykmer() {
-        let kmer1: TinyKmer<10> = TinyKmer::new();
-        println!("{:?}", kmer1);
-        println!("{}", kmer1.k());
+    fn veckmer() {
+        let a = VecKmer::from(b"ATCGATTAG");
+        println!("{} {}", a, a.k());
+    }
 
-        let kmer2 = kmer1.prefix();
-        println!("{:?}", kmer2);
-        println!("{}", kmer2.k());
+    #[test]
+    fn tinykmer() {
+        let va = b"AAAA".to_vec();
+        let vb = b"ATCG".to_vec();
+        let vc = b"GTACGTA".to_vec();
+        let a: TinyKmer<4> = TinyKmer::from(&va);
+        let b: TinyKmer<4> = TinyKmer::from(&vb);
+        let c: TinyKmer<7> = TinyKmer::from(&vc);
+        assert_eq!(a.to_vec(), va);
+        assert_eq!(b.to_vec(), vb);
+        assert_eq!(c.to_vec(), vc);
     }
 }
