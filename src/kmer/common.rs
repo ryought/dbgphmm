@@ -1,9 +1,13 @@
 //!
 //! Kmer definitions
 //!
+use super::kmer::Kmer;
 
-pub trait KmerLike {
+pub trait KmerLike: std::marker::Sized {
     fn len(&self) -> usize;
+    fn k(&self) -> usize {
+        self.len()
+    }
     fn adjacent(&self, other: &Kmer) -> bool;
     fn first(&self) -> u8;
     fn last(&self) -> u8;
@@ -21,26 +25,13 @@ pub trait KmerLike {
     fn is_tail(&self) -> bool;
     fn is_emitable(&self) -> bool;
     fn is_starting(&self) -> bool;
+    // construction
+    // fn from(bases: &[u8]) -> Self;
+    // fn to_vec(&self) -> Vec<u8>;
 }
 
-// traits
-trait Kmer: std::marker::Sized {
-    // basic
+trait KmerV2 {
     fn k(&self) -> usize;
-    /*
-    // construction
-    fn from(bases: &[u8]) -> Self;
-    fn to_vec(&self) -> Vec<u8>;
-    // adjacency
-    fn is_adjacent<T: Kmer>(&self, other: &T) -> bool;
-    // parts
-    fn first(&self) -> u8;
-    fn last(&self) -> u8;
-    fn prefix(&self) -> Self;
-    fn suffix(&self) -> Self;
-    fn childs(&self) -> Vec<Self>;
-    fn parents(&self) -> Vec<Self>;
-    */
 }
 
 ///
@@ -56,7 +47,7 @@ impl VecKmer {
     }
 }
 
-impl Kmer for VecKmer {
+impl KmerV2 for VecKmer {
     fn k(&self) -> usize {
         self.0.len()
     }
@@ -147,7 +138,7 @@ impl<const K: usize> TinyKmer<K> {
     }
 }
 
-impl<const K: usize> Kmer for TinyKmer<K> {
+impl<const K: usize> KmerV2 for TinyKmer<K> {
     fn k(&self) -> usize {
         K
     }
