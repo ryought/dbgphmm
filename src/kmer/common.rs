@@ -25,7 +25,7 @@ trait Kmer: std::marker::Sized {
 }
 
 ///
-/// Kmer for k > 32
+/// Kmer for any k
 ///
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 struct VecKmer(Vec<u8>);
@@ -54,7 +54,7 @@ impl std::fmt::Display for VecKmer {
 }
 
 ///
-/// Kmer for k <= 32
+/// Kmer for small k <= 32
 /// It can store without heap-allocations
 ///
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
@@ -109,6 +109,15 @@ impl<const K: usize> TinyKmer<K> {
 impl<const K: usize> Kmer for TinyKmer<K> {
     fn k(&self) -> usize {
         K
+    }
+}
+
+impl<const K: usize> std::fmt::Display for TinyKmer<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for &b in self.to_vec().iter() {
+            write!(f, "{}", b as char)?;
+        }
+        Ok(())
     }
 }
 
