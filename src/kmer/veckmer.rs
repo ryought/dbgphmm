@@ -156,18 +156,8 @@ impl KmerLike for VecKmer {
 }
 
 impl KmerBase for VecKmer {
-    type Kp1mer = VecKmer;
-    type Km1mer = VecKmer;
     fn k(&self) -> usize {
         self.0.len()
-    }
-    fn prefix(&self) -> VecKmer {
-        let (_, prefix) = self.0.split_last().unwrap();
-        VecKmer(prefix.to_vec())
-    }
-    fn suffix(&self) -> VecKmer {
-        let (_, suffix) = self.0.split_first().unwrap();
-        VecKmer(suffix.to_vec())
     }
 }
 
@@ -194,6 +184,6 @@ mod tests {
     fn veckmer() {
         let a = VecKmer::from(b"ATCGATTAG");
         a.is_emitable();
-        println!("{} {}", a, a.k());
+        println!("{} {}", a, a.len());
     }
 }

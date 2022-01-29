@@ -99,13 +99,10 @@ pub trait KmerLike: std::marker::Sized {
 
 ///
 /// Most fundamental k-mer trait
+/// TODO
 ///
 pub trait KmerBase {
-    type Kp1mer;
-    type Km1mer;
     fn k(&self) -> usize;
-    fn prefix(&self) -> Self::Km1mer;
-    fn suffix(&self) -> Self::Km1mer;
 }
 
 //
