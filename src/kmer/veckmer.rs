@@ -2,7 +2,7 @@
 use super::common::{KmerBase, KmerLike};
 
 ///
-/// Kmer for any k
+/// Kmer for any k, by using Vec<u8> as a internal struct
 ///
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 pub struct VecKmer(pub Vec<u8>);
@@ -183,6 +183,7 @@ impl std::fmt::Display for VecKmer {
 
 //
 // Tests
+// TODO add test for variable k-mer length
 //
 
 #[cfg(test)]
