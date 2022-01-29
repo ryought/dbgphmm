@@ -4,6 +4,10 @@
 use super::kmer::Kmer;
 
 pub trait KmerLike: std::marker::Sized {
+    /// type of k+1-mer
+    type Kp1mer;
+    /// type of k-1-mer
+    type Km1mer;
     ///
     /// k of the k-mer
     ///
@@ -27,28 +31,28 @@ pub trait KmerLike: std::marker::Sized {
     /// prefix of the kmer
     /// AAAAB -> AAAA
     ///
-    fn prefix(&self) -> Kmer;
+    fn prefix(&self) -> Self::Km1mer;
     ///
     /// suffix of the kmer
     /// ABBBB -> BBBB
     ///
-    fn suffix(&self) -> Kmer;
+    fn suffix(&self) -> Self::Km1mer;
     ///
     /// ABBBB and BBBBC is adjacent
     ///
-    fn adjacent(&self, other: &Kmer) -> bool;
+    fn adjacent(&self, other: &Self) -> bool;
     // TODO default implementation
-    // fn adjacent(&self, other: &Kmer) -> bool {
+    // fn adjacent(&self, other: &Self) -> bool {
     //     self.suffix() == other.prefix()
     // }
     ///
     /// XYYYY -> [YYYYA, YYYYC, YYYYG, YYYYT]
     ///
-    fn childs(&self) -> Vec<Kmer>;
+    fn childs(&self) -> Vec<Self>;
     ///
     /// YYYYZ -> [AYYYY, CYYYY, GYYYY, TYYYY]
     ///
-    fn parents(&self) -> Vec<Kmer>;
+    fn parents(&self) -> Vec<Self>;
     ///
     /// union of childs and parents
     /// XYYYZ -> [
@@ -56,19 +60,19 @@ pub trait KmerLike: std::marker::Sized {
     ///            AXYYY, CXYYY, GXYYY, TXYYY  (parents)
     ///          ]
     ///
-    fn neighbors(&self) -> Vec<Kmer>;
+    fn neighbors(&self) -> Vec<Self>;
     ///
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
     ///
-    fn preds(&self) -> Vec<Kmer>;
+    fn preds(&self) -> Vec<Self::Kp1mer>;
     ///
     /// XX (k mer) -> [XXA, XXC, XXG, XXT] (k+1 mer)
     ///
-    fn succs(&self) -> Vec<Kmer>;
+    fn succs(&self) -> Vec<Self::Kp1mer>;
     ///
     /// (XYYY, YYYZ) (two k mers) -> XYYYZ (k+1 mer)
     ///
-    fn join(&self, other: &Kmer) -> Kmer;
+    fn join(&self, other: &Self) -> Self::Kp1mer;
     ///
     /// head <==> NNNNX
     ///
@@ -86,8 +90,8 @@ pub trait KmerLike: std::marker::Sized {
     ///
     fn is_starting(&self) -> bool;
     // internal functions
-    fn extend_first(&self, first_base: u8) -> Kmer;
-    fn extend_last(&self, last_base: u8) -> Kmer;
+    fn extend_first(&self, first_base: u8) -> Self::Kp1mer;
+    fn extend_last(&self, last_base: u8) -> Self::Kp1mer;
     // construction
     // fn from(bases: &[u8]) -> Self;
     // fn to_vec(&self) -> Vec<u8>;

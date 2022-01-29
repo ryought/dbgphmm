@@ -26,6 +26,8 @@ impl VecKmer {
 }
 
 impl KmerLike for VecKmer {
+    type Kp1mer = VecKmer;
+    type Km1mer = VecKmer;
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -190,6 +192,7 @@ mod tests {
     #[test]
     fn veckmer() {
         let a = VecKmer::from(b"ATCGATTAG");
+        a.is_emitable();
         println!("{} {}", a, a.k());
     }
 }
