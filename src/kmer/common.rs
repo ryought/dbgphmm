@@ -30,8 +30,16 @@ pub trait KmerLike: std::marker::Sized {
     // fn to_vec(&self) -> Vec<u8>;
 }
 
-trait KmerV2 {
+///
+/// Most fundamental k-mer trait
+///
+trait KmerBase {
+    // TODO should we support k+1 upgrade?
+    // type Kp1mer;
+    type Km1mer;
     fn k(&self) -> usize;
+    fn prefix(&self) -> Self::Km1mer;
+    fn suffix(&self) -> Self::Km1mer;
 }
 
 ///
@@ -47,9 +55,18 @@ impl VecKmer {
     }
 }
 
-impl KmerV2 for VecKmer {
+impl KmerBase for VecKmer {
+    type Km1mer = VecKmer;
     fn k(&self) -> usize {
         self.0.len()
+    }
+    fn prefix(&self) -> VecKmer {
+        let (_, prefix) = self.0.split_last().unwrap();
+        VecKmer(prefix.to_vec())
+    }
+    fn suffix(&self) -> VecKmer {
+        let (_, suffix) = self.0.split_first().unwrap();
+        VecKmer(suffix.to_vec())
     }
 }
 
@@ -117,12 +134,12 @@ impl<const K: usize> TinyKmer<K> {
     fn tail(&self) -> u8 {
         decode_base(self.bases % 4)
     }
-    fn prefix(&self) -> TinyKmer<{ K - 1 }> {
+    fn _prefix(&self) -> TinyKmer<{ K - 1 }> {
         TinyKmer {
             bases: self.bases >> 2,
         }
     }
-    fn suffix(&self) -> TinyKmer<{ K - 1 }> {
+    fn _suffix(&self) -> TinyKmer<{ K - 1 }> {
         TinyKmer {
             bases: self.bases & !(3 << (2 * K)),
         }
@@ -134,13 +151,23 @@ impl<const K: usize> TinyKmer<K> {
         // for the detail of this bound, see
         // https://github.com/rust-lang/rust/issues/76560
         // this uses nightly feature generic_const_exprs
-        self.suffix() == other.prefix()
+        self._suffix() == other._prefix()
     }
 }
 
-impl<const K: usize> KmerV2 for TinyKmer<K> {
+impl<const K: usize> KmerBase for TinyKmer<K>
+where
+    [(); K - 1]: ,
+{
+    type Km1mer = TinyKmer<{ K - 1 }>;
     fn k(&self) -> usize {
         K
+    }
+    fn prefix(&self) -> TinyKmer<{ K - 1 }> {
+        self._prefix()
+    }
+    fn suffix(&self) -> TinyKmer<{ K - 1 }> {
+        self._suffix()
     }
 }
 
