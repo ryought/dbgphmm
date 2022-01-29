@@ -2,6 +2,27 @@
 //! Kmer definitions
 //!
 
+pub trait KmerLike {
+    fn len(&self) -> usize;
+    fn adjacent(&self, other: &Kmer) -> bool;
+    fn first(&self) -> u8;
+    fn last(&self) -> u8;
+    fn prefix(&self) -> Kmer;
+    fn suffix(&self) -> Kmer;
+    fn childs(&self) -> Vec<Kmer>;
+    fn parents(&self) -> Vec<Kmer>;
+    fn neighbors(&self) -> Vec<Kmer>;
+    fn preds(&self) -> Vec<Kmer>;
+    fn succs(&self) -> Vec<Kmer>;
+    fn extend_first(&self, first_base: u8) -> Kmer;
+    fn extend_last(&self, last_base: u8) -> Kmer;
+    fn join(&self, other: &Kmer) -> Kmer;
+    fn is_head(&self) -> bool;
+    fn is_tail(&self) -> bool;
+    fn is_emitable(&self) -> bool;
+    fn is_starting(&self) -> bool;
+}
+
 // traits
 trait Kmer: std::marker::Sized {
     // basic
