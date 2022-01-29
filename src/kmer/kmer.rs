@@ -13,9 +13,6 @@ impl Kmer {
         // assert items in v is a,c,g,t,n
         Kmer(v)
     }
-    pub fn from_vec(v: Vec<u8>) -> Kmer {
-        Kmer(v)
-    }
     pub fn to_vec(&self) -> Vec<u8> {
         self.0.to_vec()
     }
@@ -53,7 +50,7 @@ impl KmerLike for Kmer {
             .map(|last_base| {
                 let mut v = suffix.to_vec();
                 v.push(*last_base);
-                Kmer::from_vec(v)
+                Kmer(v)
             })
             .collect();
         childs
@@ -65,7 +62,7 @@ impl KmerLike for Kmer {
             .map(|first_base| {
                 let mut v = prefix.to_vec();
                 v.insert(0, *first_base);
-                Kmer::from_vec(v)
+                Kmer(v)
             })
             .collect();
         parents
@@ -79,13 +76,13 @@ impl KmerLike for Kmer {
                 let mut v = Vec::new();
                 v.push(first_base);
                 v.extend_from_slice(&self.0);
-                Kmer::from_vec(v)
+                Kmer(v)
             })
             .chain(bases.iter().map(|&last_base| {
                 let mut v = Vec::new();
                 v.extend_from_slice(&self.0);
                 v.push(last_base);
-                Kmer::from_vec(v)
+                Kmer(v)
             }))
             .collect();
         neighbors
@@ -110,13 +107,13 @@ impl KmerLike for Kmer {
         let mut v = Vec::new();
         v.push(first_base);
         v.extend_from_slice(&self.0);
-        Kmer::from_vec(v)
+        Kmer(v)
     }
     fn extend_last(&self, last_base: u8) -> Kmer {
         let mut v = Vec::new();
         v.extend_from_slice(&self.0);
         v.push(last_base);
-        Kmer::from_vec(v)
+        Kmer(v)
     }
     fn join(&self, other: &Kmer) -> Kmer {
         if self.adjacent(other) {
@@ -182,7 +179,7 @@ pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
 /// return N*k
 pub fn null_kmer(k: usize) -> Kmer {
     let v = vec![b'N'; k];
-    Kmer::from_vec(v)
+    Kmer(v)
 }
 
 /// ATTC -> [NNNA, NNAT, NATT]
@@ -190,7 +187,7 @@ pub fn starting_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
     let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
     let heads: Vec<Kmer> = (1..k)
-        .map(|i| Kmer::from_vec([&blanks[i..], &kmer.0[..i]].concat()))
+        .map(|i| Kmer([&blanks[i..], &kmer.0[..i]].concat()))
         .collect();
     heads
 }
@@ -200,7 +197,7 @@ pub fn ending_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
     let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
     let tails: Vec<Kmer> = (1..k)
-        .map(|i| Kmer::from_vec([&kmer.0[i..], &blanks[..i]].concat()))
+        .map(|i| Kmer([&kmer.0[i..], &blanks[..i]].concat()))
         .collect();
     tails
 }

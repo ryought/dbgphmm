@@ -8,6 +8,10 @@ use super::common::{KmerBase, KmerLike};
 struct VecKmer(Vec<u8>);
 
 impl VecKmer {
+    ///
+    /// Constructor from slices of u8
+    /// (that is slices of DNA bases vector)
+    ///
     fn from(bases: &[u8]) -> VecKmer {
         let v = bases.to_vec();
         VecKmer(v)
