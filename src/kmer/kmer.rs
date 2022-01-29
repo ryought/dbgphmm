@@ -179,14 +179,6 @@ pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
     h
 }
 
-pub fn test() {
-    let a = Kmer::from(b"ATCGATTAG");
-    let b = Kmer::from(b"TCGATTAGT");
-    let x = a.adjacent(&b);
-    let y = a.last();
-    println!("{} {} {} {} {}", a, b, a == b, x, y);
-}
-
 /// return N*k
 pub fn null_kmer(k: usize) -> Kmer {
     let v = vec![b'N'; k];
