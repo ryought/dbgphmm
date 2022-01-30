@@ -65,19 +65,32 @@ pub trait KmerLike: std::marker::Sized + PartialEq + NullableKmer {
     ///            AXYYY, CXYYY, GXYYY, TXYYY  (parents)
     ///          ]
     ///
-    fn neighbors(&self) -> Vec<Self>;
+    fn neighbors(&self) -> Vec<Self> {
+        let mut childs = self.childs();
+        let parents = self.parents();
+        childs.extend(parents);
+        childs
+    }
     ///
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
     ///
-    fn preds(&self) -> Vec<Self::Kp1mer>;
+    fn preds(&self) -> Vec<Self::Kp1mer> {
+        let bases = [b'A', b'C', b'G', b'T'];
+        bases
+            .iter()
+            .map(|&first_base| self.extend_first(first_base))
+            .collect()
+    }
     ///
     /// XX (k mer) -> [XXA, XXC, XXG, XXT] (k+1 mer)
     ///
-    fn succs(&self) -> Vec<Self::Kp1mer>;
-    ///
-    /// (XYYY, YYYZ) (two k mers) -> XYYYZ (k+1 mer)
-    ///
-    fn join(&self, other: &Self) -> Self::Kp1mer;
+    fn succs(&self) -> Vec<Self::Kp1mer> {
+        let bases = [b'A', b'C', b'G', b'T'];
+        bases
+            .iter()
+            .map(|&last_base| self.extend_last(last_base))
+            .collect()
+    }
     ///
     /// head <==> NNNNX
     ///
@@ -103,9 +116,23 @@ pub trait KmerLike: std::marker::Sized + PartialEq + NullableKmer {
     fn is_starting(&self) -> bool {
         self.first() == b'N'
     }
-    // internal functions
+    ///
+    /// (YYY, X) -> XYYY
+    ///
     fn extend_first(&self, first_base: u8) -> Self::Kp1mer;
+    ///
+    /// (YYY, Z) -> YYYZ
+    ///
     fn extend_last(&self, last_base: u8) -> Self::Kp1mer;
+    ///
+    /// (XYYY, YYYZ) (two k mers) -> XYYYZ (k+1 mer)
+    ///
+    fn join(&self, other: &Self) -> Self::Kp1mer {
+        if !self.adjacent(other) {
+            panic!();
+        }
+        self.extend_last(other.last())
+    }
     // construction
     // fn from(bases: &[u8]) -> Self;
     // fn to_vec(&self) -> Vec<u8>;

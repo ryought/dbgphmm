@@ -103,22 +103,6 @@ impl KmerLike for VecKmer {
             .collect();
         neighbors
     }
-    /// kmer XXXXX -> k+1kmer {ACGT}XXXXX
-    fn preds(&self) -> Vec<VecKmer> {
-        let bases = [b'A', b'C', b'G', b'T'];
-        bases
-            .iter()
-            .map(|&first_base| self.extend_first(first_base))
-            .collect()
-    }
-    /// kmer XXXXX -> k+1kmer XXXXX{ACGT}
-    fn succs(&self) -> Vec<VecKmer> {
-        let bases = [b'A', b'C', b'G', b'T'];
-        bases
-            .iter()
-            .map(|&last_base| self.extend_last(last_base))
-            .collect()
-    }
     fn extend_first(&self, first_base: u8) -> VecKmer {
         let mut v = Vec::new();
         v.push(first_base);

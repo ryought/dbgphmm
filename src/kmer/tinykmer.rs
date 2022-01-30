@@ -200,34 +200,23 @@ where
         self.suffix() == other.prefix()
     }
     fn childs(&self) -> Vec<TinyKmer<K>> {
+        /*
+        let suffix = self.suffix();
+        [b'A', b'C', b'G', b'T', b'N']
+            .iter()
+            .map(|last_base| suffix.append(last_base))
+            .collect()
+        */
         unimplemented!();
     }
     fn parents(&self) -> Vec<TinyKmer<K>> {
         unimplemented!();
     }
-    fn neighbors(&self) -> Vec<TinyKmer<K>> {
-        unimplemented!();
-    }
-    fn preds(&self) -> Vec<TinyKmer<{ K + 1 }>> {
-        unimplemented!();
-    }
-    fn succs(&self) -> Vec<TinyKmer<{ K + 1 }>> {
-        unimplemented!();
-    }
-    fn join(&self, other: &Self) -> TinyKmer<{ K + 1 }> {
-        unimplemented!();
-    }
-    fn is_head(&self) -> bool {
-        unimplemented!();
-    }
-    fn is_tail(&self) -> bool {
-        unimplemented!();
-    }
     fn extend_first(&self, first_base: u8) -> Self::Kp1mer {
-        unimplemented!();
+        self.prepend(first_base)
     }
     fn extend_last(&self, last_base: u8) -> Self::Kp1mer {
-        unimplemented!();
+        self.append(last_base)
     }
 }
 
