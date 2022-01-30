@@ -200,14 +200,15 @@ where
         self.suffix() == other.prefix()
     }
     fn childs(&self) -> Vec<TinyKmer<K>> {
-        /*
-        let suffix = self.suffix();
         [b'A', b'C', b'G', b'T', b'N']
             .iter()
-            .map(|last_base| suffix.append(last_base))
+            .map(|last_base| {
+                let mut child = self.clone();
+                // TODO
+                child.set(0, b'A');
+                child
+            })
             .collect()
-        */
-        unimplemented!();
     }
     fn parents(&self) -> Vec<TinyKmer<K>> {
         unimplemented!();
@@ -286,6 +287,16 @@ mod tests {
         assert_eq!(b.to_vec(), vb);
         assert_eq!(c.to_vec(), vc);
         assert_eq!(d.to_vec(), vd);
+    }
+
+    #[test]
+    fn tinykmer_recursive() {
+        let va = b"ATCGT".to_vec();
+        let a: TinyKmer<5> = TinyKmer::from(&va);
+        let b = a.suffix();
+        println!("a={}", a);
+        println!("b={}", b);
+        println!("{}", b.prepend(b'A'));
     }
 
     /*
