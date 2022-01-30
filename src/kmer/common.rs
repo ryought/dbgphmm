@@ -3,11 +3,18 @@
 //!
 use super::kmer::Kmer;
 
-pub trait KmerLike: std::marker::Sized + PartialEq {
+pub trait NullableKmer {
+    ///
+    /// null <==> NNNNN
+    ///
+    fn is_null(&self) -> bool;
+}
+
+pub trait KmerLike: std::marker::Sized + PartialEq + NullableKmer {
     /// type of k+1-mer
-    type Kp1mer: PartialEq;
+    type Kp1mer: PartialEq + NullableKmer;
     /// type of k-1-mer
-    type Km1mer: PartialEq;
+    type Km1mer: PartialEq + NullableKmer;
     ///
     /// k of the k-mer
     ///
@@ -72,17 +79,17 @@ pub trait KmerLike: std::marker::Sized + PartialEq {
     ///
     fn join(&self, other: &Self) -> Self::Kp1mer;
     ///
-    /// null <==> NNNNN
-    ///
-    fn is_null(&self) -> bool;
-    ///
     /// head <==> NNNNX
     ///
-    fn is_head(&self) -> bool;
+    fn is_head(&self) -> bool {
+        self.prefix().is_null()
+    }
     ///
     /// tail <==> XNNNN
     ///
-    fn is_tail(&self) -> bool;
+    fn is_tail(&self) -> bool {
+        self.suffix().is_null()
+    }
     ///
     /// last base is not N
     ///
@@ -91,6 +98,7 @@ pub trait KmerLike: std::marker::Sized + PartialEq {
     }
     ///
     /// first base is N
+    /// TODO check that the rest is not N
     ///
     fn is_starting(&self) -> bool {
         self.first() == b'N'

@@ -1,5 +1,5 @@
 //! TinyKmer definitions
-use super::common::{KmerBase, KmerLike};
+use super::common::{KmerBase, KmerLike, NullableKmer};
 use super::quadarray::QuadArray;
 
 ///
@@ -160,6 +160,12 @@ where
     }
 }
 
+impl<const K: usize> NullableKmer for TinyKmer<K> {
+    fn is_null(&self) -> bool {
+        true
+    }
+}
+
 impl<const K: usize> KmerLike for TinyKmer<K>
 where
     [(); K - 1]: ,
@@ -209,9 +215,6 @@ where
         unimplemented!();
     }
     fn join(&self, other: &Self) -> TinyKmer<{ K + 1 }> {
-        unimplemented!();
-    }
-    fn is_null(&self) -> bool {
         unimplemented!();
     }
     fn is_head(&self) -> bool {
