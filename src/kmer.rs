@@ -1,6 +1,7 @@
 pub mod common;
 pub mod counter;
 pub mod kmer;
+pub mod quadarray;
 pub mod segment;
 pub mod tinykmer;
 pub mod veckmer;
