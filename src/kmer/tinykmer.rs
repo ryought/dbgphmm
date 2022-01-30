@@ -1,18 +1,15 @@
 //! TinyKmer definitions
 use super::common::{KmerBase, KmerLike};
+use super::quadarray::QuadArray;
 
 ///
 /// Kmer for small k <= 32
 /// It can store without heap-allocations
 ///
-#[derive(PartialEq, PartialOrd, Eq, Hash, Clone)]
+#[derive(PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
 struct TinyKmer<const K: usize> {
-    /// For example,
-    ///   s = [s[0]=A, s[1]=C, s[2]=G]
-    /// then
-    ///   bases = s[0]*(4^2) + s[1]*(4^1) + s[2]*(4^0)
-    bases: u64,
-    kinds: u64,
+    codes: QuadArray,
+    kinds: QuadArray,
 }
 
 fn encode_base(base: u8) -> (u64, u64) {
@@ -47,26 +44,37 @@ impl TinyKmer<0> {
 
 impl<const K: usize> TinyKmer<K> {
     fn new(bases: u64) -> TinyKmer<K> {
-        TinyKmer { bases, kinds: 0 }
+        TinyKmer {
+            codes: QuadArray::empty(),
+            kinds: QuadArray::empty(),
+        }
+    }
+    fn empty() -> TinyKmer<K> {
+        TinyKmer {
+            codes: QuadArray::empty(),
+            kinds: QuadArray::empty(),
+        }
     }
     fn from(bases: &[u8]) -> TinyKmer<K> {
         assert_eq!(bases.len(), K);
         assert!(K <= 32);
-        let code = bases
-            .iter()
-            .map(|&base| encode_base(base).0)
-            .fold(0, |acc, code| acc * 4 + code);
-        TinyKmer::new(code)
+        let mut kmer = TinyKmer::empty();
+        for i in 0..K {
+            let (code, kind) = encode_base(bases[i]);
+            kmer.codes.set(i, code);
+            kmer.kinds.set(i, kind);
+        }
+        kmer
     }
     fn to_vec(&self) -> Vec<u8> {
-        let bases = self.bases;
-        (0..K)
-            .map(|i| {
-                let code = (bases >> (2 * i)) % 4;
-                decode_base(code, 0)
-            })
-            .rev()
-            .collect()
+        let mut bases = vec![0; K];
+        for i in 0..K {
+            let code = self.codes.get(i);
+            let kind = self.kinds.get(i);
+            let base = decode_base(code, kind);
+            bases[i] = base;
+        }
+        bases
     }
 }
 
@@ -80,10 +88,17 @@ where
     ///
     fn prepend(&self, base: u8) -> TinyKmer<{ K + 1 }> {
         let (code, kind) = encode_base(base);
-        TinyKmer {
-            bases: self.bases + (code << (2 * K)),
-            kinds: self.kinds + (kind << (2 * K)),
-        }
+        // copy to new kmer that will be returned
+        // with the same content, but different type
+        let mut kmer: TinyKmer<{ K + 1 }> = TinyKmer {
+            codes: self.codes,
+            kinds: self.kinds,
+        };
+        kmer.codes.shift_back();
+        kmer.codes.set(0, code);
+        kmer.kinds.shift_back();
+        kmer.kinds.set(0, kind);
+        kmer
     }
     ///
     /// add base in the last
@@ -91,10 +106,15 @@ where
     ///
     fn append(&self, base: u8) -> TinyKmer<{ K + 1 }> {
         let (code, kind) = encode_base(base);
-        TinyKmer {
-            bases: (self.bases << 2) + code,
-            kinds: (self.kinds << 2) + kind,
-        }
+        // copy to new kmer that will be returned
+        // with the same content, but different type
+        let mut kmer: TinyKmer<{ K + 1 }> = TinyKmer {
+            codes: self.codes,
+            kinds: self.kinds,
+        };
+        kmer.codes.set(K, code);
+        kmer.kinds.set(K, kind);
+        kmer
     }
 }
 
@@ -104,30 +124,36 @@ where
 {
     /// ABCD -> (ABC, D)
     fn pop_last(&self) -> (TinyKmer<{ K - 1 }>, u8) {
-        let code = self.bases & 0b11u64;
-        let kind = self.kinds & 0b11u64;
-        let kmer = TinyKmer {
-            bases: self.bases >> 2,
-            kinds: self.kinds >> 2,
-        };
+        // get the last element
+        let code = self.codes.get(K - 1);
+        let kind = self.kinds.get(K - 1);
         let base = decode_base(code, kind);
+        let mut kmer: TinyKmer<{ K - 1 }> = TinyKmer {
+            codes: self.codes,
+            kinds: self.kinds,
+        };
+        // delete the last element
+        kmer.codes.set(K - 1, 0);
+        kmer.kinds.set(K - 1, 0);
         (kmer, base)
     }
     /// ABCD -> (BCD, A)
     fn pop_first(&self) -> (TinyKmer<{ K - 1 }>, u8) {
-        let code = self.bases & (0b11u64 << (2 * K - 2));
-        let kind = self.kinds & (0b11u64 << (2 * K - 2));
-        let kmer = TinyKmer {
-            bases: self.bases - code,
-            kinds: self.kinds - kind,
-        };
-        let code = code >> (2 * K - 2);
-        let kind = kind >> (2 * K - 2);
+        let code = self.codes.get(0);
+        let kind = self.kinds.get(0);
         let base = decode_base(code, kind);
+        let mut kmer: TinyKmer<{ K - 1 }> = TinyKmer {
+            codes: self.codes,
+            kinds: self.kinds,
+        };
+        // move all elements toward front
+        kmer.codes.shift_front();
+        kmer.kinds.shift_front();
         (kmer, base)
     }
 }
 
+/*
 impl<const K: usize> KmerLike for TinyKmer<K>
 where
     [(); K - 1]: ,
@@ -138,9 +164,7 @@ where
     fn len(&self) -> usize {
         K
     }
-    fn first(&self) -> u8 {
-        decode_base((self.bases >> (2 * (K - 1))) % 4, 0)
-    }
+    fn first(&self) -> u8 {}
     fn last(&self) -> u8 {
         decode_base(self.bases % 4, 0)
     }
@@ -196,14 +220,15 @@ where
         unimplemented!();
     }
 }
+*/
 
 impl<const K: usize> std::fmt::Debug for TinyKmer<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for &b in self.to_vec().iter() {
             write!(f, "{}", b as char)?;
         }
-        write!(f, "\nbases={:0>1$b}", self.bases, 64)?;
-        write!(f, "\nkinds={:0>1$b}", self.kinds, 64)?;
+        write!(f, "\ncodes={:0>1$b}", self.codes.0, 64)?;
+        write!(f, "\nkinds={:0>1$b}", self.kinds.0, 64)?;
         Ok(())
     }
 }
@@ -230,16 +255,25 @@ mod tests {
         let m2 = m1.prepend(b'C'); // 'C'
         let m3 = m2.prepend(b'T'); // 'TC'
         let m4 = m3.append(b'G'); // 'TCG'
-        println!("{:?}", m1);
-        println!("{:?}", m2);
-        println!("{:?}", m3);
-        println!("{:?}", m4);
-        let (m5, b) = m4.pop_first();
-        println!("{:?} {}", m5, b as char);
-        let (m6, b) = m4.pop_last();
-        println!("{:?} {}", m6, b as char);
+        let (m5, b5) = m4.pop_first();
+        let (m6, b6) = m4.pop_last();
+
+        assert_eq!(m1, TinyKmer::from(b""));
+        assert_eq!(m2, TinyKmer::from(b"C"));
+        assert_eq!(m3, TinyKmer::from(b"TC"));
+        assert_eq!(m4, TinyKmer::from(b"TCG"));
+        assert_eq!(m5, TinyKmer::from(b"CG"));
+        assert_eq!(b5, b'T');
+        assert_eq!(m6, TinyKmer::from(b"TC"));
+        assert_eq!(b6, b'G');
+
+        let m7 = m4.append(b'N');
+        assert_eq!(m7, TinyKmer::from(b"TCGN"));
+        let (m8, b8) = m7.pop_last();
+        assert_eq!(m8, m4);
     }
 
+    /*
     #[test]
     fn tinykmer_normal() {
         let va = b"AAAA".to_vec();
@@ -274,4 +308,5 @@ mod tests {
     fn tinykmer_with_n() {
         let ve = b"GTACNN".to_vec();
     }
+    */
 }

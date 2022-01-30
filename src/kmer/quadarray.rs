@@ -5,18 +5,24 @@
 
 /// u64 as [u2; 32]
 /// u2 is a pseudo-type with 4-values
-struct QuadArray(u64);
+#[derive(PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
+pub struct QuadArray(pub u64);
 
 impl QuadArray {
-    fn new() -> QuadArray {
+    pub fn new() -> QuadArray {
         QuadArray(0)
     }
-    fn get(&self, index: usize) -> u64 {
+    pub fn empty() -> QuadArray {
+        QuadArray(0)
+    }
+    /// get QuadArray[index]
+    pub fn get(&self, index: usize) -> u64 {
         assert!(index >= 0);
         assert!(index < 32);
         (self.0 >> (index * 2)) & 0b11u64
     }
-    fn set(&mut self, index: usize, value: usize) {
+    /// set QuadArray[index]
+    pub fn set(&mut self, index: usize, value: u64) {
         assert!(index >= 0);
         assert!(index < 32);
         assert!(value >= 0);
@@ -24,9 +30,17 @@ impl QuadArray {
         let shift = index * 2;
         self.0 = self.0 & !(0b11u64 << shift) | ((value as u64) << shift)
     }
-    fn shift(&mut self) {
+    /// shift all elements to front
+    /// [0,3,2,3,1] -> [3,2,3,1,0]
+    pub fn shift_front(&mut self) {
         self.0 = self.0 >> 2
     }
+    /// shift all elements to end
+    /// [0,3,2,3,1] -> [0,0,3,2,3]
+    pub fn shift_back(&mut self) {
+        self.0 = self.0 << 2
+    }
+    /// Convert to [u8; 32]
     fn to_array(&self) -> [u8; 32] {
         let mut arr = [0; 32];
         for i in 0..32 {
@@ -65,7 +79,7 @@ mod tests {
                 0, 0, 0, 0
             ]
         );
-        q.shift();
+        q.shift_front();
         assert_eq!(q.get(0), 0b11);
         assert_eq!(q.get(1), 0b00);
         assert_eq!(q.get(2), 0b11);
