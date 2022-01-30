@@ -3,11 +3,11 @@
 //!
 use super::kmer::Kmer;
 
-pub trait KmerLike: std::marker::Sized {
+pub trait KmerLike: std::marker::Sized + PartialEq {
     /// type of k+1-mer
-    type Kp1mer;
+    type Kp1mer: PartialEq;
     /// type of k-1-mer
-    type Km1mer;
+    type Km1mer: PartialEq;
     ///
     /// k of the k-mer
     ///
@@ -40,11 +40,9 @@ pub trait KmerLike: std::marker::Sized {
     ///
     /// ABBBB and BBBBC is adjacent
     ///
-    fn adjacent(&self, other: &Self) -> bool;
-    // TODO default implementation
-    // fn adjacent(&self, other: &Self) -> bool {
-    //     self.suffix() == other.prefix()
-    // }
+    fn adjacent(&self, other: &Self) -> bool {
+        self.suffix() == other.prefix()
+    }
     ///
     /// XYYYY -> [YYYYA, YYYYC, YYYYG, YYYYT]
     ///
@@ -74,6 +72,10 @@ pub trait KmerLike: std::marker::Sized {
     ///
     fn join(&self, other: &Self) -> Self::Kp1mer;
     ///
+    /// null <==> NNNNN
+    ///
+    fn is_null(&self) -> bool;
+    ///
     /// head <==> NNNNX
     ///
     fn is_head(&self) -> bool;
@@ -84,11 +86,15 @@ pub trait KmerLike: std::marker::Sized {
     ///
     /// last base is not N
     ///
-    fn is_emitable(&self) -> bool;
+    fn is_emitable(&self) -> bool {
+        self.last() != b'N'
+    }
     ///
     /// first base is N
     ///
-    fn is_starting(&self) -> bool;
+    fn is_starting(&self) -> bool {
+        self.first() == b'N'
+    }
     // internal functions
     fn extend_first(&self, first_base: u8) -> Self::Kp1mer;
     fn extend_last(&self, last_base: u8) -> Self::Kp1mer;

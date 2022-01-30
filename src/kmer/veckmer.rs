@@ -135,6 +135,10 @@ impl KmerLike for VecKmer {
             panic!("cannot join")
         }
     }
+    /// check if NNNNNN
+    fn is_null(&self) -> bool {
+        self.0.iter().all(|&x| x == b'N')
+    }
     /// check if NNNNNX
     fn is_head(&self) -> bool {
         let k = self.0.len();

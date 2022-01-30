@@ -165,6 +165,9 @@ where
     [(); K - 1]: ,
     [(); K + 1]: ,
 {
+    // for the detail of this bound in where, see
+    // https://github.com/rust-lang/rust/issues/76560
+    // this uses nightly feature generic_const_exprs
     type Kp1mer = TinyKmer<{ K + 1 }>;
     type Km1mer = TinyKmer<{ K - 1 }>;
     fn len(&self) -> usize {
@@ -187,13 +190,7 @@ where
         let (kmer, _) = self.pop_first();
         kmer
     }
-    fn adjacent(&self, other: &TinyKmer<K>) -> bool
-    where
-        [(); K - 1]: ,
-    {
-        // for the detail of this bound, see
-        // https://github.com/rust-lang/rust/issues/76560
-        // this uses nightly feature generic_const_exprs
+    fn adjacent(&self, other: &TinyKmer<K>) -> bool {
         self.suffix() == other.prefix()
     }
     fn childs(&self) -> Vec<TinyKmer<K>> {
@@ -214,16 +211,13 @@ where
     fn join(&self, other: &Self) -> TinyKmer<{ K + 1 }> {
         unimplemented!();
     }
+    fn is_null(&self) -> bool {
+        unimplemented!();
+    }
     fn is_head(&self) -> bool {
         unimplemented!();
     }
     fn is_tail(&self) -> bool {
-        unimplemented!();
-    }
-    fn is_emitable(&self) -> bool {
-        unimplemented!();
-    }
-    fn is_starting(&self) -> bool {
         unimplemented!();
     }
     fn extend_first(&self, first_base: u8) -> Self::Kp1mer {
