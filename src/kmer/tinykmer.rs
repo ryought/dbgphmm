@@ -43,6 +43,7 @@ impl TinyKmer<0> {
 }
 
 impl<const K: usize> TinyKmer<K> {
+    // constructors
     fn new(bases: u64) -> TinyKmer<K> {
         TinyKmer {
             codes: QuadArray::empty(),
@@ -60,21 +61,27 @@ impl<const K: usize> TinyKmer<K> {
         assert!(K <= 32);
         let mut kmer = TinyKmer::empty();
         for i in 0..K {
-            let (code, kind) = encode_base(bases[i]);
-            kmer.codes.set(i, code);
-            kmer.kinds.set(i, kind);
+            kmer.set(i, bases[i]);
         }
         kmer
     }
     fn to_vec(&self) -> Vec<u8> {
         let mut bases = vec![0; K];
         for i in 0..K {
-            let code = self.codes.get(i);
-            let kind = self.kinds.get(i);
-            let base = decode_base(code, kind);
-            bases[i] = base;
+            bases[i] = self.get(i);
         }
         bases
+    }
+    // element-wise functions
+    fn get(&self, index: usize) -> u8 {
+        let code = self.codes.get(index);
+        let kind = self.kinds.get(index);
+        decode_base(code, kind)
+    }
+    fn set(&mut self, index: usize, base: u8) {
+        let (code, kind) = encode_base(base);
+        self.codes.set(index, code);
+        self.kinds.set(index, kind);
     }
 }
 
@@ -153,7 +160,6 @@ where
     }
 }
 
-/*
 impl<const K: usize> KmerLike for TinyKmer<K>
 where
     [(); K - 1]: ,
@@ -164,15 +170,22 @@ where
     fn len(&self) -> usize {
         K
     }
-    fn first(&self) -> u8 {}
+    fn k(&self) -> usize {
+        K
+    }
+    fn first(&self) -> u8 {
+        self.get(0)
+    }
     fn last(&self) -> u8 {
-        decode_base(self.bases % 4, 0)
+        self.get(K - 1)
     }
     fn prefix(&self) -> TinyKmer<{ K - 1 }> {
-        TinyKmer::new(self.bases >> 2)
+        let (kmer, _) = self.pop_last();
+        kmer
     }
     fn suffix(&self) -> TinyKmer<{ K - 1 }> {
-        TinyKmer::new(self.bases & !(3 << (2 * K)))
+        let (kmer, _) = self.pop_first();
+        kmer
     }
     fn adjacent(&self, other: &TinyKmer<K>) -> bool
     where
@@ -220,7 +233,6 @@ where
         unimplemented!();
     }
 }
-*/
 
 impl<const K: usize> std::fmt::Debug for TinyKmer<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -273,7 +285,6 @@ mod tests {
         assert_eq!(m8, m4);
     }
 
-    /*
     #[test]
     fn tinykmer_normal() {
         let va = b"AAAA".to_vec();
@@ -284,13 +295,16 @@ mod tests {
         let b: TinyKmer<4> = TinyKmer::from(&vb);
         let c: TinyKmer<7> = TinyKmer::from(&vc);
         let d: TinyKmer<7> = TinyKmer::from(&vd);
-
         // convert back
         assert_eq!(a.to_vec(), va);
         assert_eq!(b.to_vec(), vb);
         assert_eq!(c.to_vec(), vc);
         assert_eq!(d.to_vec(), vd);
+    }
 
+    /*
+    #[test]
+    fn tinykmer_as_kmerlike() {
         // parts
         assert_eq!(b.first(), b'A');
         assert_eq!(b.last(), b'G');
@@ -303,7 +317,6 @@ mod tests {
         println!("{} {} {} {}", c, d, c.adjacent(&d), d.adjacent(&c));
         // assert_eq!(c.adjacent(&d), true);
     }
-
     #[test]
     fn tinykmer_with_n() {
         let ve = b"GTACNN".to_vec();
