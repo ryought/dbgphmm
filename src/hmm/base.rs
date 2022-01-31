@@ -116,7 +116,7 @@ pub trait PHMM {
         // calc (FM[i], FI[i]) -> FD[i]
         // 0
         let mut fD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
-        let mut fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut fD1;
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
@@ -402,7 +402,7 @@ pub trait PHMM {
         emission: u8,
     ) {
         let mut bD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
-        let mut bD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut bD1;
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t_1.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
