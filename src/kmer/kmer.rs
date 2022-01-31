@@ -3,7 +3,6 @@
 //!
 pub use super::common::KmerLike;
 pub use super::veckmer::VecKmer as Kmer;
-use log::{debug, info, warn};
 use std::collections::HashMap;
 pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
     let mut h: HashMap<Kmer, usize> = HashMap::new();

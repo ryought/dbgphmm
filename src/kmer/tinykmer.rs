@@ -1,5 +1,5 @@
 //! TinyKmer definitions
-use super::common::{KmerBase, KmerLike, NullableKmer};
+use super::common::{KmerLike, NullableKmer};
 use super::quadarray::QuadArray;
 
 ///

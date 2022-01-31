@@ -4,7 +4,6 @@
 extern crate rand;
 use bio::io::fasta;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
 
 pub struct Config {
     pub filename: String,

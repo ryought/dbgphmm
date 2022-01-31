@@ -8,10 +8,7 @@
 use super::base::ScoreableState;
 use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
-use crate::graph::{Edge, IndexedDiGraph, Node};
-use crate::optimizer::grad::GradientDescent;
-use rand::prelude::*;
-use rand_xoshiro::Xoshiro256PlusPlus;
+use crate::graph::{IndexedDiGraph, Node};
 use std::fmt::Write as FmtWrite;
 
 #[derive(Clone)]

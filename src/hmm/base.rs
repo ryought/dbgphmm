@@ -4,11 +4,9 @@ use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, SparseVec, VecLike};
-use arrayvec::ArrayVec;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
-use std::time::Instant;
 
 pub type PHMMLayer = PHMMLayerRaw<DenseVec<Prob>>;
 

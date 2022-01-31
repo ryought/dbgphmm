@@ -8,10 +8,9 @@ use crate::kmer::kmer::{linear_seq_to_kmers, null_kmer, Kmer, KmerLike};
 use crate::prob::Prob;
 use crate::stats;
 use fnv::FnvHashMap as HashMap;
-use fnv::FnvHashSet as HashSet;
 use histo::Histogram;
 use itertools::iproduct;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use std::fmt::Write as FmtWrite;
 
 /// indexed and compressed dbg

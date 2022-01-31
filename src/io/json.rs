@@ -1,6 +1,5 @@
-use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use serde_json::ser::{Formatter, PrettyFormatter};
+use serde_json::ser::Formatter;
 use std::io::{self, Write};
 
 /// CustomFormatter (1): EscapeSlashes

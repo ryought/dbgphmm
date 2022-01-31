@@ -9,7 +9,6 @@
 //!
 use arrayvec::ArrayVec;
 use std::iter::FromIterator;
-use std::ops::{Index, IndexMut};
 
 /// VecLike trait abstracts vector-like element access by getter and setter
 /// to the index (0 <= index < self.len)

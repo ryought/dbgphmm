@@ -1,5 +1,4 @@
 use arrayvec::ArrayVec;
-use std::ops::{Index, IndexMut};
 
 #[derive(Debug)]
 pub struct SparseVec<T: Copy> {
@@ -34,6 +33,7 @@ impl<T: Copy> SparseVec<T> {
 }
 
 /*
+use std::ops::Index;
 impl<T> Index<usize> for SparseVec<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {

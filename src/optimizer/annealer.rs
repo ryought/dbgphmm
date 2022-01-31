@@ -2,10 +2,9 @@
 //!
 
 use super::base::ScoreableState;
-use log::{debug, info, warn};
+use log::debug;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use std::fmt::Write as FmtWrite;
 
 pub trait SAState: Clone + ScoreableState {
     /// get a randomly-picked neighbor state (using rng)

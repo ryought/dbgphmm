@@ -25,7 +25,7 @@ fn main() {
     for _ in 0..ITERATIONS {
         layout.iteration();
     }
-    for (i, pos) in layout.points.iter().enumerate() {
+    for (_, pos) in layout.points.iter().enumerate() {
         println!("x={} y={}", pos[0], pos[1]);
     }
 }

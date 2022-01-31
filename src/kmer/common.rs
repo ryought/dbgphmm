@@ -1,7 +1,6 @@
 //!
 //! Kmer definitions
 //!
-use super::kmer::Kmer;
 
 pub trait NullableKmer {
     ///

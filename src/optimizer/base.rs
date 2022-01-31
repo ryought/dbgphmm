@@ -1,7 +1,6 @@
 //! score maximization module
 
 use super::annealer::{Annealer, SAState};
-use log::{debug, info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;

@@ -2,7 +2,6 @@ use crate::dbg::DBG;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::hmm::sampler::PHMMSampler;
-use crate::kmer::kmer::Kmer;
 use crate::prob::Prob;
 use crate::*;
 use clap::{AppSettings, ArgEnum, Clap};

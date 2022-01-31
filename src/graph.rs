@@ -1,6 +1,6 @@
 use forceatlas2;
-use log::{info, warn};
-use serde::{Deserialize, Serialize};
+use log::info;
+use serde::Serialize;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Node(pub usize);
