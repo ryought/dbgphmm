@@ -1,5 +1,5 @@
 use crate::dbg::DBG;
-use crate::hmm::base::PHMM;
+use crate::hmm::base::PHMMForward;
 use crate::hmm::params::PHMMParams;
 use crate::hmm::sampler::PHMMSampler;
 use crate::prob::Prob;

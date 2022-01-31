@@ -1,6 +1,6 @@
 //! EM algorithm
 use crate::compressed_dbg::CompressedDBG;
-use crate::hmm::base::{PHMMLayer, PHMM};
+use crate::hmm::base::{PHMMForward, PHMMLayer};
 use crate::hmm::cdbg::CDbgPHMM;
 use crate::hmm::fdbg::FCDbgPHMM;
 use crate::hmm::params::PHMMParams;

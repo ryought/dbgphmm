@@ -1,4 +1,4 @@
-use super::base::{Node, PHMM};
+use super::base::{Node, PHMMForward, PHMM};
 use super::sampler::PHMMSampler;
 use crate::prob::Prob;
 
@@ -59,6 +59,7 @@ impl PHMM for LinearPHMM {
     }
 }
 
+impl PHMMForward for LinearPHMM {}
 impl PHMMSampler for LinearPHMM {}
 
 #[cfg(test)]
