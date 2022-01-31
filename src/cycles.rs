@@ -205,6 +205,7 @@ impl DbgTree {
                 .collect();
         path
     }
+    #[allow(unused_must_use)]
     pub fn as_stats(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#LoopEdge: {}", self.loop_edges.len());

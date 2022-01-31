@@ -186,6 +186,7 @@ pub trait DBG {
     /// digraph dbg {
     ///   AATAT -> ATTTAT;
     /// }
+    #[allow(unused_must_use)]
     fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph dbg {{");

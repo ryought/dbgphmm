@@ -29,10 +29,12 @@ impl RowsFormatter {
 }
 
 impl Formatter for RowsFormatter {
+    #[allow(unused_must_use)]
     fn begin_array<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
         self.depth += 1;
         w.write_all(b"[")
     }
+    #[allow(unused_must_use)]
     fn end_array<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
         self.depth -= 1;
         if self.depth == 0 {
@@ -40,6 +42,7 @@ impl Formatter for RowsFormatter {
         }
         w.write_all(b"]")
     }
+    #[allow(unused_must_use)]
     fn begin_array_value<W: ?Sized + Write>(&mut self, w: &mut W, first: bool) -> io::Result<()> {
         if !first {
             w.write_all(b",");

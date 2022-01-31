@@ -17,15 +17,12 @@ impl QuadArray {
     }
     /// get QuadArray[index]
     pub fn get(&self, index: usize) -> u64 {
-        assert!(index >= 0);
         assert!(index < 32);
         (self.0 >> (index * 2)) & 0b11u64
     }
     /// set QuadArray[index]
     pub fn set(&mut self, index: usize, value: u64) {
-        assert!(index >= 0);
         assert!(index < 32);
-        assert!(value >= 0);
         assert!(value < 4);
         let shift = index * 2;
         self.0 = self.0 & !(0b11u64 << shift) | ((value as u64) << shift)

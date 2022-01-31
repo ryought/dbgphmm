@@ -517,6 +517,7 @@ impl CompressedDBG {
     }
 
     /// Graphviz dot format
+    #[allow(unused_must_use)]
     pub fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph cdbg {{");
@@ -534,6 +535,7 @@ impl CompressedDBG {
         s
     }
     /// Graphviz dot format
+    #[allow(unused_must_use)]
     pub fn as_dot_with_cycle(&self, cycle_id: usize) -> String {
         let cycle = self.cycle_components(cycle_id);
         let mut s = String::new();
@@ -556,6 +558,7 @@ impl CompressedDBG {
         s
     }
     /// dot with copy_number info on nodes
+    #[allow(unused_must_use)]
     pub fn as_dot_with_copy_nums(&self, copy_nums: &[u32]) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph cdbg {{");
@@ -573,6 +576,7 @@ impl CompressedDBG {
         s
     }
     /// dot with probability (score) on each node
+    #[allow(unused_must_use)]
     pub fn as_dot_with_probs(&self, probs: &[Prob]) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph cdbg {{");
@@ -590,6 +594,7 @@ impl CompressedDBG {
         s
     }
     /// show a histogram of cycle length distribution
+    #[allow(unused_must_use)]
     pub fn as_cycle_histogram(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#cycles={}", self.n_cycles());

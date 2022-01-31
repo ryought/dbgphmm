@@ -694,6 +694,7 @@ pub trait PHMM {
         prob_layers
     }
     // output
+    #[allow(unused_must_use)]
     fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph dbgphmm {{");
@@ -719,6 +720,7 @@ pub trait PHMM {
         writeln!(&mut s, "}}");
         s
     }
+    #[allow(unused_must_use)]
     fn as_node_list(&self) -> String {
         let mut s = String::new();
         for v in iter_nodes(self.n_nodes()) {
