@@ -3,7 +3,7 @@ use super::params::PHMMParams;
 use super::sampler::PHMMSampler;
 use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
 use log::{info, warn};

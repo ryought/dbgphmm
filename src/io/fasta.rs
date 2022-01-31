@@ -1,5 +1,5 @@
 use crate::dbg::{DbgHash, DBG};
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use bio::io::fasta;
 use log::warn;
 use std::io;

@@ -1,5 +1,5 @@
 use crate::hmm::base::Node;
-use crate::kmer::kmer::{ending_kmers, starting_kmers, Kmer};
+use crate::kmer::kmer::{ending_kmers, starting_kmers, Kmer, KmerLike};
 use crate::prob::Prob;
 use crate::stats;
 use arrayvec::ArrayVec;
