@@ -1,5 +1,6 @@
 pub mod base;
 pub mod cdbg;
+pub mod common;
 pub mod dbg;
 pub mod fdbg;
 pub mod layer;

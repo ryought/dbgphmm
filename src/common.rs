@@ -1,0 +1,5 @@
+//!
+//!
+//!
+
+pub type CopyNum = usize;

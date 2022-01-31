@@ -2,6 +2,7 @@
 #![feature(min_const_generics)]
 #![feature(generic_const_exprs)]
 pub mod cli;
+pub mod common;
 pub mod compressed_dbg;
 pub mod cycles;
 pub mod dbg;
