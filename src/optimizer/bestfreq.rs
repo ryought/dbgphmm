@@ -112,6 +112,7 @@ impl<'a> ScoreableState for BestFreqState<'a> {
         // not using a cache, so simply returns score()
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         let freq_strs: Vec<_> = self

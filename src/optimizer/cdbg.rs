@@ -165,6 +165,7 @@ impl<'a> ScoreableState for CDbgState<'a> {
         self.calc_score();
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         match (self.prior_score_cache, self.forward_score_cache) {

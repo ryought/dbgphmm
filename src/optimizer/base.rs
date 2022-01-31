@@ -36,6 +36,7 @@ impl ScoreableState for TestState {
     fn fill_score(&mut self) -> f64 {
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "{:?}", self.bits);

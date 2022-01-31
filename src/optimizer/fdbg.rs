@@ -94,6 +94,7 @@ impl<'a> ScoreableState for FCDbgState<'a> {
         self.calc_score();
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         match self.score_cache {
