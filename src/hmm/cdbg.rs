@@ -1,4 +1,4 @@
-use super::base::{Node, PHMM};
+use super::base::{Node, PHMMForward, PHMM};
 use super::params::PHMMParams;
 use super::sampler::PHMMSampler;
 use crate::compressed_dbg::CompressedDBG;
@@ -65,6 +65,7 @@ impl<'a> PHMM for CDbgPHMM<'a> {
     }
 }
 
+impl<'a> PHMMForward for CDbgPHMM<'a> {}
 impl<'a> PHMMSampler for CDbgPHMM<'a> {}
 
 pub fn test() {

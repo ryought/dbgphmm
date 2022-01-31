@@ -14,20 +14,6 @@ pub fn iter_nodes(n_nodes: usize) -> impl std::iter::Iterator<Item = Node> {
     (0..n_nodes).map(|i| Node(i))
 }
 
-/*
-// TODO
-pub fn iter_active_nodes(
-    n_nodes: usize,
-    active_nodes: &Option<Vec<Node>>,
-) -> Box<dyn std::iter::Iterator<Item = Node>> {
-    if let Some(nodes) = active_nodes {
-        Box::new(nodes.into_iter())
-    } else {
-        Box::new(iter_nodes(n_nodes))
-    }
-}
-*/
-
 pub trait PHMM {
     /// return a number of nodes
     fn n_nodes(&self) -> usize;
@@ -61,6 +47,52 @@ pub trait PHMM {
         }
         Prob::from_prob(0.0)
     }
+    // output
+    #[allow(unused_must_use)]
+    fn as_dot(&self) -> String {
+        let mut s = String::new();
+        writeln!(&mut s, "digraph dbgphmm {{");
+        for v in iter_nodes(self.n_nodes()) {
+            // for node
+            let emission = self.emission(&v);
+            let copy_num = self.copy_num(&v);
+            let _init_prob = self.init_prob(&v);
+            writeln!(
+                &mut s,
+                "\t{} [label=\"{} x{}\"];",
+                v.0,
+                emission as char,
+                copy_num // "\t{} [label=\"{} x{} {}\"];",
+                         // v.0, emission as char, copy_num, init_prob
+            );
+            // for edges
+            for w in self.childs(&v).iter() {
+                let p = self.trans_prob(&v, &w);
+                writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0, p);
+            }
+        }
+        writeln!(&mut s, "}}");
+        s
+    }
+    #[allow(unused_must_use)]
+    fn as_node_list(&self) -> String {
+        let mut s = String::new();
+        for v in iter_nodes(self.n_nodes()) {
+            writeln!(
+                &mut s,
+                "{:?} {:?} {:?} {} {:?}",
+                v,
+                self.childs(&v),
+                self.parents(&v),
+                self.copy_num(&v),
+                self.emission(&v) as char,
+            );
+        }
+        s
+    }
+}
+
+pub trait PHMMForward: PHMM {
     // forward prob
     fn fmi_init<V: VecLike<Prob>>(&self) -> (V, V) {
         let fM = V::new(self.n_nodes(), Prob::from_prob(0.0));
@@ -692,49 +724,6 @@ pub trait PHMM {
             prob_layers.push(pl);
         }
         prob_layers
-    }
-    // output
-    #[allow(unused_must_use)]
-    fn as_dot(&self) -> String {
-        let mut s = String::new();
-        writeln!(&mut s, "digraph dbgphmm {{");
-        for v in iter_nodes(self.n_nodes()) {
-            // for node
-            let emission = self.emission(&v);
-            let copy_num = self.copy_num(&v);
-            let _init_prob = self.init_prob(&v);
-            writeln!(
-                &mut s,
-                "\t{} [label=\"{} x{}\"];",
-                v.0,
-                emission as char,
-                copy_num // "\t{} [label=\"{} x{} {}\"];",
-                         // v.0, emission as char, copy_num, init_prob
-            );
-            // for edges
-            for w in self.childs(&v).iter() {
-                let p = self.trans_prob(&v, &w);
-                writeln!(&mut s, "\t{} -> {} [label=\"{}\"];", v.0, w.0, p);
-            }
-        }
-        writeln!(&mut s, "}}");
-        s
-    }
-    #[allow(unused_must_use)]
-    fn as_node_list(&self) -> String {
-        let mut s = String::new();
-        for v in iter_nodes(self.n_nodes()) {
-            writeln!(
-                &mut s,
-                "{:?} {:?} {:?} {} {:?}",
-                v,
-                self.childs(&v),
-                self.parents(&v),
-                self.copy_num(&v),
-                self.emission(&v) as char,
-            );
-        }
-        s
     }
 }
 

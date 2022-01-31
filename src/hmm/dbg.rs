@@ -1,4 +1,4 @@
-use super::base::{Node, PHMM};
+use super::base::{Node, PHMMForward, PHMM};
 use super::sampler::PHMMSampler;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{Kmer, KmerLike};
@@ -93,6 +93,7 @@ impl PHMM for DbgPHMM {
     }
 }
 
+impl PHMMForward for DbgPHMM {}
 impl PHMMSampler for DbgPHMM {}
 
 pub fn test() {

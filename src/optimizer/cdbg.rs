@@ -4,7 +4,7 @@ use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
 use crate::dbg::{DbgHash, DBG};
 use crate::hmm;
-use crate::hmm::base::PHMM;
+use crate::hmm::base::PHMMForward;
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 use log::{info, warn};
