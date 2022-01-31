@@ -7,7 +7,7 @@ use super::quadarray::QuadArray;
 /// It can store without heap-allocations
 ///
 #[derive(PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
-struct TinyKmer<const K: usize> {
+pub struct TinyKmer<const K: usize> {
     pub codes: QuadArray,
     pub kinds: QuadArray,
 }
@@ -56,7 +56,7 @@ impl<const K: usize> TinyKmer<K> {
             kinds: QuadArray::empty(),
         }
     }
-    fn from(bases: &[u8]) -> TinyKmer<K> {
+    pub fn from(bases: &[u8]) -> TinyKmer<K> {
         assert_eq!(bases.len(), K);
         assert!(K <= 32);
         let mut kmer = TinyKmer::empty();
