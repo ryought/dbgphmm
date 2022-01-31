@@ -8,8 +8,8 @@ use super::quadarray::QuadArray;
 ///
 #[derive(PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
 struct TinyKmer<const K: usize> {
-    codes: QuadArray,
-    kinds: QuadArray,
+    pub codes: QuadArray,
+    pub kinds: QuadArray,
 }
 
 fn encode_base(base: u8) -> (u64, u64) {
@@ -83,6 +83,14 @@ impl<const K: usize> TinyKmer<K> {
         self.codes.set(index, code);
         self.kinds.set(index, kind);
     }
+    fn shift_back(&mut self) {
+        self.codes.shift_back();
+        self.kinds.shift_back();
+    }
+    fn shift_front(&mut self) {
+        self.codes.shift_front();
+        self.kinds.shift_front();
+    }
 }
 
 impl<const K: usize> TinyKmer<K>
@@ -94,17 +102,14 @@ where
     /// (BCD, A) -> ABCD
     ///
     fn prepend(&self, base: u8) -> TinyKmer<{ K + 1 }> {
-        let (code, kind) = encode_base(base);
         // copy to new kmer that will be returned
         // with the same content, but different type
         let mut kmer: TinyKmer<{ K + 1 }> = TinyKmer {
             codes: self.codes,
             kinds: self.kinds,
         };
-        kmer.codes.shift_back();
-        kmer.codes.set(0, code);
-        kmer.kinds.shift_back();
-        kmer.kinds.set(0, kind);
+        kmer.shift_back();
+        kmer.set(0, base);
         kmer
     }
     ///
@@ -112,15 +117,13 @@ where
     /// (ABC, D) -> ABCD
     ///
     fn append(&self, base: u8) -> TinyKmer<{ K + 1 }> {
-        let (code, kind) = encode_base(base);
         // copy to new kmer that will be returned
         // with the same content, but different type
         let mut kmer: TinyKmer<{ K + 1 }> = TinyKmer {
             codes: self.codes,
             kinds: self.kinds,
         };
-        kmer.codes.set(K, code);
-        kmer.kinds.set(K, kind);
+        kmer.set(K, base);
         kmer
     }
 }
@@ -200,18 +203,31 @@ where
         self.suffix() == other.prefix()
     }
     fn childs(&self) -> Vec<TinyKmer<K>> {
+        let suffix = self.suffix();
         [b'A', b'C', b'G', b'T', b'N']
             .iter()
-            .map(|last_base| {
-                let mut child = self.clone();
-                // TODO
-                child.set(0, b'A');
+            .map(|&last_base| {
+                let mut child: TinyKmer<K> = TinyKmer::empty();
+                child.codes = suffix.codes;
+                child.kinds = suffix.kinds;
+                child.set(K - 1, last_base);
                 child
             })
             .collect()
     }
     fn parents(&self) -> Vec<TinyKmer<K>> {
-        unimplemented!();
+        let prefix = self.prefix();
+        [b'A', b'C', b'G', b'T', b'N']
+            .iter()
+            .map(|&first_base| {
+                let mut parent: TinyKmer<K> = TinyKmer::empty();
+                parent.codes = prefix.codes;
+                parent.kinds = prefix.kinds;
+                parent.shift_back();
+                parent.set(0, first_base);
+                parent
+            })
+            .collect()
     }
     fn extend_first(&self, first_base: u8) -> Self::Kp1mer {
         self.prepend(first_base)
