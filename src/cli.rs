@@ -2,7 +2,6 @@ use crate::dbg::DBG;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::hmm::sampler::PHMMSampler;
-use crate::kmer::kmer::Kmer;
 use crate::prob::Prob;
 use crate::*;
 use clap::{AppSettings, ArgEnum, Clap};
@@ -48,6 +47,7 @@ struct Opts {
     n_ignore_active_nodes_first: usize,
     /// Print debug info
     #[clap(short, long)]
+    #[allow(dead_code)]
     debug: bool,
 }
 
@@ -204,29 +204,38 @@ struct Benchmark {
 #[derive(Clap)]
 struct Optimize {
     #[clap(subcommand)]
+    #[allow(dead_code)]
     optimizer: Optimizer,
     /// reads fasta file
+    #[allow(dead_code)]
     reads_fa: String,
     /// average of genome size in prior distribution
     #[clap(short = 'M', long)]
+    #[allow(dead_code)]
     genome_size_ave: u32,
     /// std. dev. of genome size in prior distribution
     #[clap(short = 'V', long)]
+    #[allow(dead_code)]
     genome_size_std_var: u32,
     /// Only uses prior score as a state score (not forward score)
     #[clap(long)]
+    #[allow(dead_code)]
     prior_only: bool,
     /// Start from true copy numbers infered from true_dbg_fa
     #[clap(long)]
+    #[allow(dead_code)]
     start_from_true_copy_nums: bool,
     /// Dump seqs as FASTA after optimizing
     #[clap(long)]
+    #[allow(dead_code)]
     dump_seqs: bool,
     /// Use rayon to parallel calculation
     #[clap(long)]
+    #[allow(dead_code)]
     parallel: bool,
     /// random seed
     #[clap(short = 's', long, default_value = "11")]
+    #[allow(dead_code)]
     seed: u64,
 }
 
@@ -266,6 +275,7 @@ struct FloatGrad {
     max_iteration: u64,
     /// number of trial with different seeds
     #[clap(short = 't', long, default_value = "1")]
+    #[allow(dead_code)]
     n_trial: u32,
     /// delta of moving frequencies
     #[clap(short = 'D', long, default_value = "0.001")]
@@ -285,6 +295,7 @@ struct FloatEM {
 struct FreqEM {
     /// max iteration number
     #[clap(short = 'I', long, default_value = "10")]
+    #[allow(dead_code)]
     max_iteration: u64,
 }
 
@@ -493,7 +504,7 @@ fn forward(opts: Forward, k: usize, param: PHMMParams) {
         println!("#total\t{}", p_total.to_log_value());
     } else {
         // let mut ps: Vec<prob::Prob> = Vec::new();
-        for (i, read) in reads.iter().enumerate() {
+        for (_i, read) in reads.iter().enumerate() {
             // start time measurement
             /*
             let start = Instant::now();
@@ -655,7 +666,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
             let g = optimizer::grad::GradientDescent::new(opts_grad.max_iteration, true);
             match opts.init_state {
                 InitStateType::True => {
-                    let history = g.run(true_state);
+                    let _history = g.run(true_state);
                 }
                 InitStateType::Zero => {
                     let init_state = optimizer::cdbg::CDbgState::init(
@@ -666,7 +677,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         param.clone(),
                         opts.parallel,
                     );
-                    let history = g.run(init_state);
+                    let _history = g.run(init_state);
                 }
                 InitStateType::Random => {
                     let mut rng = Xoshiro256PlusPlus::seed_from_u64(opts.seed);
@@ -695,7 +706,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         param.clone(),
                         opts.parallel,
                     );
-                    let history = g.run(read_state);
+                    let _history = g.run(read_state);
                 }
                 _ => panic!("not implemented"),
             }
@@ -711,7 +722,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                         opts.parallel,
                         opts_float_grad.delta,
                     );
-                    let history = g.run(init_state);
+                    let _history = g.run(init_state);
                 }
                 _ => panic!("not implemented"),
             }
@@ -737,7 +748,7 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
                 config,
             );
         }
-        Optimizer::FreqEM(opts_freq_em) => {
+        Optimizer::FreqEM(_opts_freq_em) => {
             // target freqs
             let freqs: Vec<f64> = copy_nums_read
                 .iter()
@@ -834,11 +845,11 @@ fn benchmark(opts: Benchmark, k: usize, param: PHMMParams) {
     }
 }
 
-fn optimize(opts: Optimize, k: usize, param: PHMMParams) {
+fn optimize(_opts: Optimize, _k: usize, _param: PHMMParams) {
     println!("not implemented!");
 }
 
-fn sandbox(opts: Sandbox) {
+fn sandbox(_opts: Sandbox) {
     let x: Vec<(i32, f32)> = vec![(1, 0.7), (2, 0.1), (3, 0.9), (4, f32::NAN)];
     println!("{:?}", x);
     let max = x

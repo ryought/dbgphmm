@@ -4,11 +4,9 @@ use super::params::PHMMParams;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, SparseVec, VecLike};
-use arrayvec::ArrayVec;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use std::fmt::Write as FmtWrite;
-use std::time::Instant;
 
 pub type PHMMLayer = PHMMLayerRaw<DenseVec<Prob>>;
 
@@ -49,7 +47,7 @@ pub trait PHMM {
         self.emission(v) != b'N'
     }
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob;
-    fn label(&self, v: &Node) -> String {
+    fn label(&self, _: &Node) -> String {
         let label = String::new();
         label
     }
@@ -118,7 +116,7 @@ pub trait PHMM {
         // calc (FM[i], FI[i]) -> FD[i]
         // 0
         let mut fD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
-        let mut fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut fD1;
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
@@ -141,7 +139,7 @@ pub trait PHMM {
             layer_t.pD.set(v.0, fD0v);
         }
         // >0
-        for x in 1..param.n_max_gaps {
+        for _x in 1..param.n_max_gaps {
             // calculate new fD1 from fD0
             fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
@@ -404,7 +402,7 @@ pub trait PHMM {
         emission: u8,
     ) {
         let mut bD0 = V::new(self.n_nodes(), Prob::from_prob(0.0));
-        let mut bD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
+        let mut bD1;
         let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
             if let Some(active_nodes) = &layer_t_1.active_nodes {
                 Box::new(active_nodes.iter().map(|&v| v))
@@ -431,7 +429,7 @@ pub trait PHMM {
             layer_t_1.pD.set(v.0, bD0v);
         }
         // >0
-        for x in 1..param.n_max_gaps {
+        for _x in 1..param.n_max_gaps {
             bD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
                 if let Some(active_nodes) = &layer_t_1.active_nodes {
@@ -696,6 +694,7 @@ pub trait PHMM {
         prob_layers
     }
     // output
+    #[allow(unused_must_use)]
     fn as_dot(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "digraph dbgphmm {{");
@@ -703,7 +702,7 @@ pub trait PHMM {
             // for node
             let emission = self.emission(&v);
             let copy_num = self.copy_num(&v);
-            let init_prob = self.init_prob(&v);
+            let _init_prob = self.init_prob(&v);
             writeln!(
                 &mut s,
                 "\t{} [label=\"{} x{}\"];",
@@ -721,6 +720,7 @@ pub trait PHMM {
         writeln!(&mut s, "}}");
         s
     }
+    #[allow(unused_must_use)]
     fn as_node_list(&self) -> String {
         let mut s = String::new();
         for v in iter_nodes(self.n_nodes()) {

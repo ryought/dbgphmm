@@ -9,7 +9,6 @@
 //!
 use arrayvec::ArrayVec;
 use std::iter::FromIterator;
-use std::ops::{Index, IndexMut};
 
 /// VecLike trait abstracts vector-like element access by getter and setter
 /// to the index (0 <= index < self.len)
@@ -201,6 +200,7 @@ impl<T: Copy> FromIterator<T> for DenseVec<T> {
 
 /// conversion method for DenseVec -> SparseVec
 impl<T: Copy + Ord> DenseVec<T> {
+    #[allow(dead_code)]
     fn to_sparse(&self, default_value: T) -> SparseVec<T> {
         let mut vec = SparseVec::new(self.len(), default_value);
 
@@ -218,6 +218,7 @@ impl<T: Copy + Ord> DenseVec<T> {
 }
 
 impl<T: Copy> SparseVec<T> {
+    #[allow(dead_code)]
     fn to_dense(&self) -> DenseVec<T> {
         let mut vec = DenseVec::new(self.len(), self.default_value);
         for (&i, &x) in self.index.iter().zip(self.value.iter()) {
@@ -227,6 +228,7 @@ impl<T: Copy> SparseVec<T> {
     }
 }
 
+#[allow(dead_code)]
 fn head<T: Copy, V: VecLike<T>>(v: &V) -> T {
     v.get(0)
 }

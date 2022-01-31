@@ -4,11 +4,12 @@
 extern crate rand;
 use bio::io::fasta;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
 
 pub struct Config {
     pub filename: String,
 }
+
+#[allow(dead_code)]
 fn parse_config(args: &[String]) -> Config {
     Config {
         filename: args[1].clone(),
@@ -31,7 +32,7 @@ fn print(kmer: &[u8]) -> &str {
 
 pub fn run_counter(config: Config) {
     println!("filename: {}", config.filename);
-    let mut reader = fasta::Reader::from_file(config.filename).unwrap();
+    let reader = fasta::Reader::from_file(config.filename).unwrap();
     for result in reader.records() {
         let record = result.unwrap();
         let h = count(record.seq(), 20);
@@ -58,7 +59,7 @@ pub fn test_counter() -> usize {
 pub fn get_random_vec(len: usize) -> Vec<u8> {
     // let mut rng = rand::thread_rng();
     // let v: Vec<u8> = bases.choose_multiple(&mut rng, len).cloned().collect();
-    let v: Vec<u8> = Vec::new();
+    // let v: Vec<u8> = Vec::new();
     // let choices = [1, 2, 4, 8, 16, 32];
     let choices = "ACGT".as_bytes();
     let mut rng = rand::thread_rng();

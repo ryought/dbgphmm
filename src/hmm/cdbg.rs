@@ -2,12 +2,8 @@ use super::base::{Node, PHMM};
 use super::params::PHMMParams;
 use super::sampler::PHMMSampler;
 use crate::compressed_dbg::CompressedDBG;
-use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
-use crate::kmer::kmer::Kmer;
 use crate::prob::Prob;
-use arrayvec::ArrayVec;
-use log::{info, warn};
 
 pub struct CDbgPHMM<'a> {
     cdbg: &'a CompressedDBG,

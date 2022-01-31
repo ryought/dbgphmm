@@ -1,6 +1,6 @@
 use forceatlas2;
-use log::{info, warn};
-use serde::{Deserialize, Serialize};
+use log::info;
+use serde::Serialize;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Node(pub usize);
@@ -108,7 +108,7 @@ impl IndexedDiGraph {
             .collect();
 
         // 2. step
-        for k in 1..=self.n_nodes() {
+        for _k in 1..=self.n_nodes() {
             let f_new = (0..self.n_nodes())
                 .map(|i| {
                     let v = Node(i);
@@ -145,8 +145,8 @@ impl IndexedDiGraph {
     /// it fails when there are no cycles in the graph.
     fn find_minimizer_pair(
         &self,
-        source: &Node,
-        weights: &[f64],
+        _source: &Node,
+        _weights: &[f64],
         paths: &[Vec<(f64, Option<(Node, Edge)>)>],
     ) -> Option<(Node, usize, f64)> {
         let n = self.n_nodes();
@@ -182,7 +182,7 @@ impl IndexedDiGraph {
     fn traceback_paths(
         &self,
         start: &Node,
-        weights: &[f64],
+        _weights: &[f64],
         paths: &[Vec<(f64, Option<(Node, Edge)>)>],
     ) -> Vec<Edge> {
         // now: pointer to node
@@ -238,9 +238,9 @@ impl IndexedDiGraph {
 
         // 3. trackback to find the min-mean-weight cycle
         match min {
-            Some((v, k, expected_mean_weight)) => {
+            Some((v, _k, _expected_mean_weight)) => {
                 let cycle = self.traceback_paths(&v, weights, &paths);
-                let mean_weight = self.cycle_weight(&cycle, weights) / cycle.len() as f64;
+                let _mean_weight = self.cycle_weight(&cycle, weights) / cycle.len() as f64;
 
                 // check if this cycle has the desired mean_weight
                 // assert_abs_diff_eq!(mean_weight, expected_mean_weight);

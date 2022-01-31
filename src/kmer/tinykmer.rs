@@ -1,5 +1,5 @@
 //! TinyKmer definitions
-use super::common::{KmerBase, KmerLike, NullableKmer};
+use super::common::{KmerLike, NullableKmer};
 use super::quadarray::QuadArray;
 
 ///
@@ -37,14 +37,16 @@ fn decode_base(code: u64, kind: u64) -> u8 {
 }
 
 impl TinyKmer<0> {
+    #[allow(dead_code)]
     fn zero() -> TinyKmer<0> {
-        TinyKmer::new(0)
+        TinyKmer::new()
     }
 }
 
 impl<const K: usize> TinyKmer<K> {
     // constructors
-    fn new(bases: u64) -> TinyKmer<K> {
+    #[allow(dead_code)]
+    fn new() -> TinyKmer<K> {
         TinyKmer {
             codes: QuadArray::empty(),
             kinds: QuadArray::empty(),
@@ -87,6 +89,7 @@ impl<const K: usize> TinyKmer<K> {
         self.codes.shift_back();
         self.kinds.shift_back();
     }
+    #[allow(dead_code)]
     fn shift_front(&mut self) {
         self.codes.shift_front();
         self.kinds.shift_front();

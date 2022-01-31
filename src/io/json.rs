@@ -1,6 +1,5 @@
-use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use serde_json::ser::{Formatter, PrettyFormatter};
+use serde_json::ser::Formatter;
 use std::io::{self, Write};
 
 /// CustomFormatter (1): EscapeSlashes
@@ -24,16 +23,19 @@ struct RowsFormatter {
 }
 
 impl RowsFormatter {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         RowsFormatter { depth: 0 }
     }
 }
 
 impl Formatter for RowsFormatter {
+    #[allow(unused_must_use)]
     fn begin_array<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
         self.depth += 1;
         w.write_all(b"[")
     }
+    #[allow(unused_must_use)]
     fn end_array<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
         self.depth -= 1;
         if self.depth == 0 {
@@ -41,6 +43,7 @@ impl Formatter for RowsFormatter {
         }
         w.write_all(b"]")
     }
+    #[allow(unused_must_use)]
     fn begin_array_value<W: ?Sized + Write>(&mut self, w: &mut W, first: bool) -> io::Result<()> {
         if !first {
             w.write_all(b",");
@@ -50,7 +53,7 @@ impl Formatter for RowsFormatter {
         }
         Ok(())
     }
-    fn end_array_value<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
+    fn end_array_value<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
         Ok(())
     }
 }

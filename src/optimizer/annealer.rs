@@ -2,10 +2,9 @@
 //!
 
 use super::base::ScoreableState;
-use log::{debug, info, warn};
+use log::debug;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use std::fmt::Write as FmtWrite;
 
 pub trait SAState: Clone + ScoreableState {
     /// get a randomly-picked neighbor state (using rng)
@@ -95,7 +94,7 @@ impl Annealer {
 pub fn simple_run<T: SAState>(init: T, n_iteration: u64) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
     let mut now = init;
-    for i in 0..n_iteration {
+    for _ in 0..n_iteration {
         debug!("now: score={} state={}", now.score(), now.as_string());
         now = now.next(&mut rng);
     }

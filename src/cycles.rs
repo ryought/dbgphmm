@@ -1,8 +1,8 @@
-use crate::dbg::{DbgHash, DBG};
+use crate::dbg::DBG;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use fnv::FnvHashSet as HashSet;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use std::collections::VecDeque;
 use std::fmt::Write as FmtWrite;
 
@@ -205,6 +205,7 @@ impl DbgTree {
                 .collect();
         path
     }
+    #[allow(unused_must_use)]
     pub fn as_stats(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "#LoopEdge: {}", self.loop_edges.len());

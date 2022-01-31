@@ -81,6 +81,7 @@ impl PHMMParams {
 }
 
 impl std::fmt::Display for PHMMParams {
+    #[allow(unused_must_use)]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "p_mismatch: {}", self.p_mismatch);
         writeln!(f, "p_match: {}", self.p_match);

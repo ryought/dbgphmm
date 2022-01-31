@@ -1,14 +1,13 @@
-use super::annealer::{simple_run, Annealer, SAState};
+use super::annealer::{Annealer, SAState};
 use super::base::ScoreableState;
 use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
-use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
 use crate::hmm;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
-use log::{debug, info, warn};
+use log::{info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
@@ -131,7 +130,7 @@ impl<'a> CDbgState<'a> {
                     reads
                         .iter()
                         .enumerate()
-                        .map(|(i, read)| {
+                        .map(|(_, read)| {
                             // warn!("read i={}", i);
                             phmm.forward_prob(&self.param, read)
                         })
@@ -166,6 +165,7 @@ impl<'a> ScoreableState for CDbgState<'a> {
         self.calc_score();
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         match (self.prior_score_cache, self.forward_score_cache) {
@@ -267,7 +267,7 @@ pub fn test() {
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
     let a = Annealer::new(1.0, 0.8);
-    let history = a.run(&mut rng, init, 100);
+    let _history = a.run(&mut rng, init, 100);
 }
 
 #[cfg(test)]

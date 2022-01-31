@@ -1,16 +1,14 @@
 use super::base::{Node, PHMM};
-use super::params::PHMMParams;
 use super::sampler::PHMMSampler;
-use crate::dbg;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;
-use log::{info, warn};
 
 pub struct DbgPHMM {
     pub dbg: DbgHash,
     // from vectorize
+    #[allow(dead_code)]
     kmers: Vec<Kmer>,
     nodes: Vec<Node>,
     childs: Vec<ArrayVec<Node, 5>>,
@@ -107,7 +105,7 @@ pub fn test() {
         Kmer::from(b"CCTG"),
     ];
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
-    let d = DbgPHMM::new(kmers, copy_nums).unwrap();
+    let _d = DbgPHMM::new(kmers, copy_nums).unwrap();
     // println!("{}", d.dbg.as_dot());
 
     /*

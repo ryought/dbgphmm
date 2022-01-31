@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
@@ -76,6 +78,7 @@ impl<V: VecLike<Prob>> PHMMLayer<V> {
 }
 
 impl<V: VecLike<Prob>> std::fmt::Display for PHMMLayer<V> {
+    #[allow(unused_must_use)]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "Node:Begin\tpM={} pI={}", self.pMB, self.pIB);
         for i in 0..self.pD.len() {

@@ -1,7 +1,6 @@
 use super::base::{Node, PHMM};
 use super::sampler::PHMMSampler;
 use crate::prob::Prob;
-use arrayvec::ArrayVec;
 
 pub struct LinearPHMM {
     bases: Vec<u8>,

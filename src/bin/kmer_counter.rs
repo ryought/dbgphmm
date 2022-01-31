@@ -1,5 +1,5 @@
-use dbgphmm::kmer::common::{KmerBase, KmerLike, NullableKmer};
-use dbgphmm::kmer::tinykmer::TinyKmer;
+// use dbgphmm::kmer::common::{KmerBase, KmerLike, NullableKmer};
+// use dbgphmm::kmer::tinykmer::TinyKmer;
 use std::env;
 
 fn main() {

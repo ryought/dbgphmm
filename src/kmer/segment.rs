@@ -1,5 +1,4 @@
 //! Segment (variable k-mer) definition
-use super::common::{KmerBase, KmerLike};
 
 ///
 /// Segment (variable-length k-mer) struct

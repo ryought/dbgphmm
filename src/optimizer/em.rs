@@ -4,16 +4,10 @@ use crate::hmm::base::{PHMMLayer, PHMM};
 use crate::hmm::cdbg::CDbgPHMM;
 use crate::hmm::fdbg::FCDbgPHMM;
 use crate::hmm::params::PHMMParams;
-use crate::optimizer::annealer::Annealer;
 use crate::optimizer::bestfreq::BestFreqState;
-use crate::optimizer::freq::FreqState;
 use crate::optimizer::grad::GradientDescent;
 use crate::prob::Prob;
-use log::{info, warn};
-use rand::prelude::*;
-use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
-use serde::ser::{SerializeSeq, Serializer};
 
 /*
  * schedulers
@@ -249,8 +243,7 @@ pub fn freqs_to_copy_nums_full_history(
     let idg = cdbg.to_indexed_digraph();
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, false);
-    let mut history = g.run(s);
-
+    let history = g.run(s);
     history.into_iter().map(|h| h.copy_nums).collect()
 }
 

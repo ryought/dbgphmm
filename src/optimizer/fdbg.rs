@@ -1,16 +1,10 @@
-use super::annealer::{simple_run, Annealer, SAState};
 use super::base::ScoreableState;
 use super::grad::GDState;
 use crate::compressed_dbg::CompressedDBG;
-use crate::cycles::CycleDirection;
-use crate::dbg::{DbgHash, DBG};
 use crate::hmm;
 use crate::hmm::base::PHMM;
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
-use log::{debug, info, warn};
-use rand::prelude::*;
-use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
 use std::fmt::Write as FmtWrite;
 
@@ -99,6 +93,7 @@ impl<'a> ScoreableState for FCDbgState<'a> {
         self.calc_score();
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         match self.score_cache {

@@ -1,7 +1,6 @@
 //! score maximization module
 
 use super::annealer::{Annealer, SAState};
-use log::{debug, info, warn};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::fmt::Write as FmtWrite;
@@ -37,6 +36,7 @@ impl ScoreableState for TestState {
     fn fill_score(&mut self) -> f64 {
         self.score()
     }
+    #[allow(unused_must_use)]
     fn as_string(&self) -> String {
         let mut s = String::new();
         writeln!(&mut s, "{:?}", self.bits);
