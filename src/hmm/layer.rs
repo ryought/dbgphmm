@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};

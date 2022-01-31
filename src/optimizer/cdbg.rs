@@ -130,7 +130,7 @@ impl<'a> CDbgState<'a> {
                     reads
                         .iter()
                         .enumerate()
-                        .map(|(i, read)| {
+                        .map(|(_, read)| {
                             // warn!("read i={}", i);
                             phmm.forward_prob(&self.param, read)
                         })
@@ -267,7 +267,7 @@ pub fn test() {
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
     let a = Annealer::new(1.0, 0.8);
-    let history = a.run(&mut rng, init, 100);
+    let _history = a.run(&mut rng, init, 100);
 }
 
 #[cfg(test)]

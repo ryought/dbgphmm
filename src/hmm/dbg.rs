@@ -8,6 +8,7 @@ use arrayvec::ArrayVec;
 pub struct DbgPHMM {
     pub dbg: DbgHash,
     // from vectorize
+    #[allow(dead_code)]
     kmers: Vec<Kmer>,
     nodes: Vec<Node>,
     childs: Vec<ArrayVec<Node, 5>>,
@@ -104,7 +105,7 @@ pub fn test() {
         Kmer::from(b"CCTG"),
     ];
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
-    let d = DbgPHMM::new(kmers, copy_nums).unwrap();
+    let _d = DbgPHMM::new(kmers, copy_nums).unwrap();
     // println!("{}", d.dbg.as_dot());
 
     /*

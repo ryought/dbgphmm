@@ -2,6 +2,7 @@ use arrayvec::ArrayVec;
 
 #[derive(Debug)]
 pub struct SparseVec<T: Copy> {
+    #[allow(dead_code)]
     size: usize,
     index: ArrayVec<usize, 10>,
     value: ArrayVec<T, 10>,

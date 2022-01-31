@@ -243,8 +243,7 @@ pub fn freqs_to_copy_nums_full_history(
     let idg = cdbg.to_indexed_digraph();
     let s = BestFreqState::new(&cdbg, &idg, &freqs, copy_nums_init.to_vec());
     let g = GradientDescent::new(100, false);
-    let mut history = g.run(s);
-
+    let history = g.run(s);
     history.into_iter().map(|h| h.copy_nums).collect()
 }
 

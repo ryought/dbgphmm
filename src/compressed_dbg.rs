@@ -410,7 +410,7 @@ impl CompressedDBG {
         for seq in seqs.iter() {
             for kmer in linear_seq_to_kmers(seq, k) {
                 match self.ids.get(&kmer) {
-                    Some(&v) => t += 1,
+                    Some(&_v) => t += 1,
                     None => f += 1,
                 }
             }
@@ -802,7 +802,7 @@ impl CompressedDBG {
         self.to_cytoscape_json_with_true(copy_nums_list, None)
     }
     pub fn to_gexf(&self) -> String {
-        let mut s = String::new();
+        let s = String::new();
         s
     }
 }

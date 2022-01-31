@@ -47,7 +47,7 @@ pub trait PHMM {
         self.emission(v) != b'N'
     }
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob;
-    fn label(&self, v: &Node) -> String {
+    fn label(&self, _: &Node) -> String {
         let label = String::new();
         label
     }
@@ -139,7 +139,7 @@ pub trait PHMM {
             layer_t.pD.set(v.0, fD0v);
         }
         // >0
-        for x in 1..param.n_max_gaps {
+        for _x in 1..param.n_max_gaps {
             // calculate new fD1 from fD0
             fD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
@@ -429,7 +429,7 @@ pub trait PHMM {
             layer_t_1.pD.set(v.0, bD0v);
         }
         // >0
-        for x in 1..param.n_max_gaps {
+        for _x in 1..param.n_max_gaps {
             bD1 = V::new(self.n_nodes(), Prob::from_prob(0.0));
             let iterator: Box<dyn std::iter::Iterator<Item = Node>> =
                 if let Some(active_nodes) = &layer_t_1.active_nodes {
@@ -702,7 +702,7 @@ pub trait PHMM {
             // for node
             let emission = self.emission(&v);
             let copy_num = self.copy_num(&v);
-            let init_prob = self.init_prob(&v);
+            let _init_prob = self.init_prob(&v);
             writeln!(
                 &mut s,
                 "\t{} [label=\"{} x{}\"];",

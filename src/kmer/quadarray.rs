@@ -38,6 +38,7 @@ impl QuadArray {
         self.0 = self.0 << 2
     }
     /// Convert to [u8; 32]
+    #[allow(dead_code)]
     fn to_array(&self) -> [u8; 32] {
         let mut arr = [0; 32];
         for i in 0..32 {

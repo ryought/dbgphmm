@@ -87,9 +87,9 @@ pub fn test() {
     let z1 = Prob::from_prob(1.0);
     let x = Prob::from_prob(0.3);
     let y = Prob::from_prob(0.3);
-    let A = Prob::from_prob(0.6);
+    let _a2 = Prob::from_prob(0.6);
     let a = x + y;
-    let B = Prob::from_prob(0.09);
+    let b2 = Prob::from_prob(0.09);
     let b = x * y;
     println!(
         "{} {} {} {} {} {} {}",
@@ -101,7 +101,7 @@ pub fn test() {
         z1.0,
         (z0 + z1).to_value(),
     );
-    assert_abs_diff_eq!(B.0, b.0);
+    assert_abs_diff_eq!(b2.0, b.0);
 
     let x = Prob::from_prob(0.3);
     let e = Prob::from_prob(0.0);
@@ -147,7 +147,7 @@ pub fn test() {
 }
 
 pub fn test2() {
-    let x = bio::stats::LogProb::from(bio::stats::Prob(0.5));
+    let _x = bio::stats::LogProb::from(bio::stats::Prob(0.5));
     // XXX cannot multiply bio::stats::LogProb
     // println!("x*x={}", x * x);
 }

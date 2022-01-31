@@ -23,6 +23,7 @@ struct RowsFormatter {
 }
 
 impl RowsFormatter {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         RowsFormatter { depth: 0 }
     }
@@ -52,7 +53,7 @@ impl Formatter for RowsFormatter {
         }
         Ok(())
     }
-    fn end_array_value<W: ?Sized + Write>(&mut self, w: &mut W) -> io::Result<()> {
+    fn end_array_value<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
         Ok(())
     }
 }

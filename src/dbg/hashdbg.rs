@@ -4,7 +4,7 @@ use crate::prob::Prob;
 use crate::stats;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use std::fmt::Write as FmtWrite;
 // use ahash::AHashMap as HashMap;
 // use std::collections::HashMap;
@@ -73,7 +73,7 @@ pub trait DBG {
     }
     fn childs_with_trans_prob(&self, kmer: &Kmer) -> Vec<(Kmer, Prob)> {
         let childs_with_cn = self.childs_with_copy_number(kmer);
-        let sum_cn: u32 = childs_with_cn.iter().map(|(kmer, cn)| cn).sum();
+        let sum_cn: u32 = childs_with_cn.iter().map(|(_, cn)| cn).sum();
         childs_with_cn
             .into_iter()
             .map(|(kmer, cn)| (kmer, Prob::from_prob(f64::from(cn) / f64::from(sum_cn))))

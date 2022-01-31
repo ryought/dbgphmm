@@ -141,7 +141,6 @@ impl KmerLike for VecKmer {
     }
     /// check if NXXXXX
     fn is_starting(&self) -> bool {
-        let k = self.0.len();
         self.0[0] == b'N' && self.0[1..].iter().all(|&x| x != b'N')
     }
 }

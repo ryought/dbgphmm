@@ -37,7 +37,6 @@ impl SampleInfo {
 }
 
 pub fn sum_sample_infos(infos: &[SampleInfo]) -> SampleInfo {
-    let zero = SampleInfo::new();
     infos
         .iter()
         .fold(SampleInfo::new(), |acc, info| SampleInfo {

@@ -43,7 +43,7 @@ pub fn parse_kmers_and_copy_nums(filename: &str, k: usize) -> (Vec<Kmer>, Vec<u3
 }
 
 pub fn parse_seqs(filename: &str) -> Vec<Vec<u8>> {
-    let mut reader = fasta::Reader::from_file(filename).unwrap();
+    let reader = fasta::Reader::from_file(filename).unwrap();
     let mut reads: Vec<Vec<u8>> = Vec::new();
     for result in reader.records() {
         let record = result.unwrap();
