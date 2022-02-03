@@ -9,17 +9,22 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Run Forward algorithm to the emissions
     ///
     pub fn forward<V: VecLike<Prob>>(&self, emissions: &[u8]) -> PHMMResult<V> {
-        let tables_init = vec![self.f_init()];
-        let tables =
-            emissions
-                .iter()
-                .enumerate()
-                .fold(tables_init, |mut tables, (i, &emission)| {
-                    let table = self.f_step(i, emission, tables.last().unwrap());
-                    tables.push(table);
-                    tables
-                });
-        PHMMResult(tables)
+        let r0 = PHMMResult {
+            init_table: self.f_init(),
+            tables: Vec::new(),
+        };
+        emissions
+            .iter()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                let table = if i == 0 {
+                    self.f_step(i, emission, &r.init_table)
+                } else {
+                    self.f_step(i, emission, r.tables.last().unwrap())
+                };
+                r.tables.push(table);
+                r
+            })
     }
     fn f_init<V: VecLike<Prob>>(&self) -> PHMMTable<V> {
         // TODO

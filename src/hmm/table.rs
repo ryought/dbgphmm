@@ -11,8 +11,10 @@ use super::veclikewrap::NodeVec;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
 
-// TODO separate the initial layer?
-pub struct PHMMResult<V: VecLike<Prob>>(pub Vec<PHMMTable<V>>);
+pub struct PHMMResult<V: VecLike<Prob>> {
+    pub init_table: PHMMTable<V>,
+    pub tables: Vec<PHMMTable<V>>,
+}
 
 pub const MAX_DEL: usize = 4;
 
