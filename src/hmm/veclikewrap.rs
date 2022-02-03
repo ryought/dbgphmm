@@ -1,3 +1,14 @@
+//!
+//! Wrapper of VecLike<Prob> (= SparseVec or DenseVec)
+//! that can be accessed by NodeIndex
+//!
+//! TODO Prob can be generalized, so that
+//! CopyNums and Freqs can also be the instance of the NodeVec
+//!
+//! TODO add the edge version of NodeVec
+//! that can be accessed by EdgeIndex
+//!
+
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, SparseVec, VecLike};
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
