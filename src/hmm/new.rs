@@ -43,6 +43,6 @@ mod tests {
     #[test]
     fn create_linear_test() {
         let m = create_linear(b"ATCGGCTAGCT");
-        m.to_dot();
+        println!("{}", m);
     }
 }

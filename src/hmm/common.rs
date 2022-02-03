@@ -34,9 +34,13 @@ pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
 pub type PGraph = DiGraph<PNode, PEdge>;
 pub type PModel = PHMMModel<PNode, PEdge>;
 
-impl<N: PHMMNode + std::fmt::Display, E: PHMMEdge + std::fmt::Display> PHMMModel<N, E> {
-    pub fn to_dot(&self) {
-        println!("{}", Dot::with_config(&self.graph, &[]));
+impl<N, E> std::fmt::Display for PHMMModel<N, E>
+where
+    N: PHMMNode + std::fmt::Display,
+    E: PHMMEdge + std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
