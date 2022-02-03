@@ -5,7 +5,9 @@ use super::params::PHMMParams;
 use crate::common::CopyNum;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::dot::Dot;
+use petgraph::graph::DiGraph;
+pub use petgraph::graph::{EdgeIndex, NodeIndex};
 
 //
 // traits
@@ -27,13 +29,21 @@ pub trait PHMMEdge {
     fn trans_prob(&self) -> Prob;
 }
 
-pub struct PHMMGraph<N: PHMMNode, E: PHMMEdge> {
-    param: PHMMParams,
-    grpah: DiGraph<N, E>,
+pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
+    pub param: PHMMParams,
+    pub graph: DiGraph<N, E>,
 }
 
-pub type PGraph = PHMMGraph<PNode, PEdge>;
+pub type PGraph = DiGraph<PNode, PEdge>;
+pub type PModel = PHMMModel<PNode, PEdge>;
 
+impl<N: PHMMNode + std::fmt::Debug, E: PHMMEdge + std::fmt::Debug> PHMMModel<N, E> {
+    pub fn to_dot(&self) {
+        println!("{:?}", Dot::with_config(&self.graph, &[]));
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct PNode {
     ///
     copy_num: CopyNum,
@@ -44,6 +54,17 @@ pub struct PNode {
     is_emittable: bool,
     ///
     emission: u8,
+}
+
+impl PNode {
+    pub fn new(copy_num: CopyNum, init_prob: Prob, is_emittable: bool, emission: u8) -> PNode {
+        PNode {
+            copy_num,
+            init_prob,
+            is_emittable,
+            emission,
+        }
+    }
 }
 
 impl PHMMNode for PNode {
@@ -58,6 +79,7 @@ impl PHMMNode for PNode {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct PEdge {
     ///
     trans_prob: Prob,
@@ -103,7 +125,7 @@ pub struct PHMMTable<V: VecLike<Prob>> {
     e: Prob,
 }
 
-impl<N: PHMMNode, E: PHMMEdge> PHMMGraph<N, E> {
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     fn forward<V: VecLike<Prob>>(&self) -> PHMMForwardResult<V> {
         unimplemented!();
