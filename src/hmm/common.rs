@@ -37,11 +37,17 @@ pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
 pub type PGraph = DiGraph<PNode, PEdge>;
 pub type PModel = PHMMModel<PNode, PEdge>;
 
-impl<N: PHMMNode + std::fmt::Debug, E: PHMMEdge + std::fmt::Debug> PHMMModel<N, E> {
+impl<N: PHMMNode + std::fmt::Display, E: PHMMEdge + std::fmt::Display> PHMMModel<N, E> {
     pub fn to_dot(&self) {
-        println!("{:?}", Dot::with_config(&self.graph, &[]));
+        println!("{}", Dot::with_config(&self.graph, &[]));
     }
 }
+
+//
+//
+// PNode
+//
+//
 
 #[derive(Debug, Copy, Clone)]
 pub struct PNode {
@@ -79,6 +85,22 @@ impl PHMMNode for PNode {
     }
 }
 
+impl std::fmt::Display for PNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.is_emittable {
+            write!(f, "{} (p={})", self.emission as char, self.init_prob)
+        } else {
+            write!(f, "not_emittable (p={})", self.init_prob)
+        }
+    }
+}
+
+//
+//
+// PEdge
+//
+//
+
 #[derive(Debug, Copy, Clone)]
 pub struct PEdge {
     ///
@@ -99,6 +121,12 @@ impl PEdge {
 impl PHMMEdge for PEdge {
     fn trans_prob(&self) -> Prob {
         self.trans_prob
+    }
+}
+
+impl std::fmt::Display for PEdge {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "p={}", self.trans_prob)
     }
 }
 
