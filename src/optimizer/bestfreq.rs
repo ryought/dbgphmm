@@ -162,6 +162,7 @@ impl<'a> GDState for BestFreqState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optimizer::grad::GradientDescent;
 
     #[test]
     fn simple_best_freq_state() {

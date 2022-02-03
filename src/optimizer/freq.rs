@@ -167,6 +167,8 @@ impl<'a> GDState for FreqState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optimizer::annealer::Annealer;
+    use rand_xoshiro::Xoshiro256PlusPlus;
 
     #[test]
     fn simple_freq_state() {

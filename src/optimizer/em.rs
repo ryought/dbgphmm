@@ -267,6 +267,7 @@ mod tests {
         let config = EMOptimizerConfig { verbose: true };
         optimize_freq_by_em(&cdbg, &seqs, param, &freqs, 10, config);
     }
+    /*
     #[test]
     fn json_dump_as_stream() {
         // ref: https://github.com/serde-rs/json/issues/345#issuecomment-636215611
@@ -279,4 +280,5 @@ mod tests {
         }
         seq.end();
     }
+    */
 }
