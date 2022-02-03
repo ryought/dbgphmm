@@ -61,11 +61,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
         );
+        // normal state first
         self.fm(&mut table, prev_table, emission);
         self.fi(&mut table, prev_table, emission);
         self.fb(&mut table, prev_table, emission);
-        self.fd(&mut table, prev_table, emission);
         self.fe(&mut table, prev_table, emission);
+        // silent state next
+        self.fd(&mut table, prev_table, emission);
         table
     }
 }
