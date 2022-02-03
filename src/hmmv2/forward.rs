@@ -80,18 +80,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// For `i=0,...,n-1`
     ///
     /// ```text
-    /// fm_i[v]
-    /// = P(emits x[:i+1] and in state m_v)
-    /// =   (from_m_parents) \sum_{w: parents} t_wv p_mm e(x[i]) fm_i-1[w]
-    ///   + (from_i_parents) \sum_{w: parents} t_wv p_im e(x[i]) fi_i-1[w]
-    ///   + (from_d_parents) \sum_{w: parents} t_wv p_dm e(x[i]) fd_i-1[w]
-    ///   + (from_m_begin)                     t_bv p_mm e(x[i]) fm_i-1[b]
-    ///   + (from_i_begin)                     t_bv p_im e(x[i]) fi_i-1[b]
+    /// fm_i[k]
+    /// = P(emits x[:i+1] and in state m_k)
+    /// =   (from_m_parents) \sum_{l: parents} t_lk p_mm e(x[i]) fm_i-1[l]
+    ///   + (from_i_parents) \sum_{l: parents} t_lk p_im e(x[i]) fi_i-1[l]
+    ///   + (from_d_parents) \sum_{l: parents} t_lk p_dm e(x[i]) fd_i-1[l]
+    ///   + (from_m_begin)                     t_bk p_mm e(x[i]) fm_i-1[b]
+    ///   + (from_i_begin)                     t_bk p_im e(x[i]) fi_i-1[b]
     ///
     /// = e(x[i]) * (
-    ///       \sum_{w: parents} t_wv (p_mm fm_i-1[w] + p_im fi_i-1[w] + p_dm fd_i-1[w])
+    ///       \sum_{l: parents} t_lk (p_mm fm_i-1[l] + p_im fi_i-1[l] + p_dm fd_i-1[l])
     ///       +
-    ///       t_bv (p_mm fm_i-1[b] + p_im fi_i-1[b])
+    ///       t_bk (p_mm fm_i-1[b] + p_im fi_i-1[b])
     ///   )
     /// ```
     ///
@@ -128,13 +128,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// For `i=0,...,n-1`
     ///
     /// ```text
-    /// fm_i[v]
-    /// = P(emits x[:i+1] and then in state i_v)
-    /// =   (from_self_m) p_mi e(x[i]) fm_i-1[v]
-    ///   + (from_self_i) p_ii e(x[i]) fi_i-1[v]
-    ///   + (from_self_d) p_di e(x[i]) fd_i-1[v]
+    /// fm_i[k]
+    /// = P(emits x[:i+1] and then in state i_k)
+    /// =   (from_self_m) p_mi e(x[i]) fm_i-1[k]
+    ///   + (from_self_i) p_ii e(x[i]) fi_i-1[k]
+    ///   + (from_self_d) p_di e(x[i]) fd_i-1[k]
     /// = e(x[i]) * (
-    ///         p_mi fm_i-1[v] + p_ii fi_i-1[v] + p_di fd_i-1[v]
+    ///         p_mi fm_i-1[k] + p_ii fi_i-1[k] + p_di fd_i-1[k]
     ///   )
     /// ```
     ///
@@ -157,13 +157,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// For `i=0,...,n-1`
     ///
     /// ```text
-    /// fd_i[v]
-    /// = P(emits x[:i+1] and then in state d_v)
-    /// =   (from_m_parents) \sum_{w: parents} t_wv p_md fm_i[w]
-    ///   + (from_i_parents) \sum_{w: parents} t_wv p_id fi_i[w]
-    ///   + (from_d_parents) \sum_{w: parents} t_wv p_dd fd_i[w]
-    ///   + (from_m_begin)                     t_bv p_md fm_i[b]
-    ///   + (from_i_begin)                     t_bv p_id fi_i[b]
+    /// fd_i[k]
+    /// = P(emits x[:i+1] and then in state d_k)
+    /// =   (from_m_parents) \sum_{l: parents} t_lk p_md fm_i[l]
+    ///   + (from_i_parents) \sum_{l: parents} t_lk p_id fi_i[l]
+    ///   + (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i[l]
+    ///   + (from_m_begin)                     t_bk p_md fm_i[b]
+    ///   + (from_i_begin)                     t_bk p_id fi_i[b]
     /// ```
     ///
     /// (Here `x[:i+1] = x[0],...,x[i]`)
@@ -172,17 +172,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// by allowing only `param.n_max_gaps` times continuous deletions.
     ///
     /// ```text
-    /// fd_i(0)[v]
-    /// =   (from_m_parents) \sum_{w: parents} t_wv p_md fm_i[w]
-    ///   + (from_i_parents) \sum_{w: parents} t_wv p_id fi_i[w]
-    ///   + (from_m_begin)                     t_bv p_md fm_i[b]
-    ///   + (from_i_begin)                     t_bv p_id fi_i[b]
+    /// fd_i(0)[k]
+    /// =   (from_m_parents) \sum_{l: parents} t_lk p_md fm_i[l]
+    ///   + (from_i_parents) \sum_{l: parents} t_lk p_id fi_i[l]
+    ///   + (from_m_begin)                     t_bk p_md fm_i[b]
+    ///   + (from_i_begin)                     t_bk p_id fi_i[b]
     ///
     /// t = 1,2,3,...
-    /// fd_i(t)[v]
-    /// =   (from_d_parents) \sum_{w: parents} t_vw p_dd fd_i(t-1)[w]
+    /// fd_i(t)[k]
+    /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     ///
-    /// fd_i[v] = \sum_t fd_i(t)[v]
+    /// fd_i[k] = \sum_t fd_i(t)[k]
     /// ```
     ///
     /// calculate t0.d from t0.m and t0.i
@@ -195,14 +195,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
     }
     ///
-    /// Calculate `fd_i(t=0)[v]`
+    /// Calculate `fd_i(t=0)[k]`
     ///
     /// ```text
-    /// fd_i(0)[v]
-    /// =   (from_m_parents) \sum_{w: parents} t_wv p_md fm_i[w]
-    ///   + (from_i_parents) \sum_{w: parents} t_wv p_id fi_i[w]
-    ///   + (from_m_begin)                     t_bv p_md fm_i[b]
-    ///   + (from_i_begin)                     t_bv p_id fi_i[b]
+    /// fd_i(0)[k]
+    /// =   (from_m_parents) \sum_{l: parents} t_lk p_md fm_i[l]
+    ///   + (from_i_parents) \sum_{l: parents} t_lk p_id fi_i[l]
+    ///   + (from_m_begin)                     t_bk p_md fm_i[b]
+    ///   + (from_i_begin)                     t_bk p_id fi_i[b]
     /// ```
     fn fd0<V: VecLike<Prob>>(&self, t0: &PHMMTable<V>) -> NodeVec<V> {
         let param = &self.param;
@@ -212,6 +212,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             let from_normal: Prob = self
                 .parents(k)
                 .map(|(_, l, ew)| {
+                    // l -> k
                     let p_trans = ew.trans_prob();
                     p_trans * (param.p_MD * t0.m[l] + param.p_ID * t0.i[l])
                 })
@@ -225,12 +226,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         fd0
     }
     ///
-    /// Calculate `fd_i(t)[v]` for `t > 0`
+    /// Calculate `fd_i(t)[k]` for `t > 0`
     ///
     /// ```text
     /// t = 1,2,3,...
-    /// fd_i(t)[v]
-    /// =   (from_d_parents) \sum_{w: parents} t_vw p_dd fd_i(t-1)[w]
+    /// fd_i(t)[k]
+    /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     /// ```
     fn fdt<V: VecLike<Prob>>(&self, fdt1: &NodeVec<V>) -> NodeVec<V> {
         let param = &self.param;
@@ -239,7 +240,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             fdt0[k] = self
                 .parents(k)
                 .map(|(_, l, ew)| {
-                    // k -> l
+                    // l -> k
                     let p_trans = ew.trans_prob();
                     p_trans * (param.p_DD * fdt1[l])
                 })
@@ -272,9 +273,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// ```text
     /// fe_i
-    /// =   (from_all_m) \sum_{w} p_e fm_i[w]
-    ///   + (from_all_i) \sum_{w} p_e fi_i[w]
-    ///   + (from_all_d) \sum_{w} p_e fd_i[w]
+    /// =   (from_all_m) \sum_{k} p_e fm_i[k]
+    ///   + (from_all_i) \sum_{k} p_e fi_i[k]
+    ///   + (from_all_d) \sum_{k} p_e fd_i[k]
     /// ```
     fn fe<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, _t1: &PHMMTable<V>, _emission: u8) {
         let param = &self.param;

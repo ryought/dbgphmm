@@ -43,9 +43,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Create init_table in PHMMResult for Backward algorithm
     ///
     /// ```text
-    /// bm_n[v]
-    /// = P(go to end | starts from state m_v)
-    /// = p_e (if reachable to end)
+    /// b*_n[k]
+    /// = P(go to end | starts from state *_k)
+    /// = p_e (if *_k is reachable to end)
     ///     or
     ///   0   (otherwise)
     /// ```
@@ -85,10 +85,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         );
         // bd (silent states) should be first
         self.bd(&mut table, prev_table, emission);
+        self.be(&mut table, prev_table, emission);
         // normal state is next
         self.bm(&mut table, prev_table, emission);
         self.bi(&mut table, prev_table, emission);
-        self.be(&mut table, prev_table, emission);
         self.bib(&mut table, prev_table, emission);
         self.bmb(&mut table, prev_table, emission);
         table
