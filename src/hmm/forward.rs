@@ -1,4 +1,5 @@
-use super::common::{PHMMEdge, PHMMModel, PHMMNode, PHMMResult, PHMMTable};
+use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::table::{PHMMResult, PHMMTable};
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
 

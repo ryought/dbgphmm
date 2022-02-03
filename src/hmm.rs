@@ -10,4 +10,5 @@ pub mod new;
 pub mod params;
 pub mod sampler;
 pub mod seqgraph;
+pub mod table;
 pub mod testing;

@@ -4,10 +4,8 @@
 use super::params::PHMMParams;
 use crate::common::CopyNum;
 use crate::prob::Prob;
-use crate::veclike::{DenseVec, VecLike};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
-use petgraph::graph::EdgeReference;
 use petgraph::graph::Edges;
 use petgraph::graph::NodeReferences;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -211,30 +209,3 @@ impl std::fmt::Display for PEdge {
         write!(f, "p={}", self.trans_prob)
     }
 }
-
-//
-// Tables
-//
-
-// TODO separate the initial layer?
-pub struct PHMMResult<V: VecLike<Prob>>(pub Vec<PHMMTable<V>>);
-
-pub const MAX_DEL: usize = 4;
-
-#[derive(Debug, Clone)]
-pub struct PHMMTable<V: VecLike<Prob>> {
-    /// Match node probability
-    pub m: V,
-    /// Ins node probability
-    pub i: V,
-    /// Del node probability
-    pub d: V,
-    /// Match node in begin state
-    pub mb: Prob,
-    /// Ins node in begin state
-    pub ib: Prob,
-    /// end state probability
-    pub e: Prob,
-}
-
-// impl PHMMForward for PHMM {}
