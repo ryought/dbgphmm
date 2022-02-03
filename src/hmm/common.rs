@@ -34,6 +34,14 @@ pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
 pub type PGraph = DiGraph<PNode, PEdge>;
 pub type PModel = PHMMModel<PNode, PEdge>;
 
+/*
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    fn nodes(&self) {}
+    fn childs(&self, v: NodeIndex) {}
+    fn parents(&self, v: NodeIndex) {}
+}
+*/
+
 impl<N, E> std::fmt::Display for PHMMModel<N, E>
 where
     N: PHMMNode + std::fmt::Display,
@@ -132,33 +140,28 @@ impl std::fmt::Display for PEdge {
 }
 
 //
-// Forward related
+// Tables
 //
-pub struct PHMMForwardResult<V: VecLike<Prob>>(Vec<PHMMTable<V>>);
+
+// TODO separate the initial layer?
+pub struct PHMMResult<V: VecLike<Prob>>(pub Vec<PHMMTable<V>>);
 
 pub const MAX_DEL: usize = 4;
 
 #[derive(Debug, Clone)]
 pub struct PHMMTable<V: VecLike<Prob>> {
     /// Match node probability
-    m: V,
+    pub m: V,
     /// Ins node probability
-    i: V,
+    pub i: V,
     /// Del node probability
-    d: V,
+    pub d: V,
     /// Match node in begin state
-    mb: Prob,
+    pub mb: Prob,
     /// Ins node in begin state
-    ib: Prob,
+    pub ib: Prob,
     /// end state probability
-    e: Prob,
-}
-
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
-    ///
-    fn forward<V: VecLike<Prob>>(&self) -> PHMMForwardResult<V> {
-        unimplemented!();
-    }
+    pub e: Prob,
 }
 
 // impl PHMMForward for PHMM {}

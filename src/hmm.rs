@@ -3,6 +3,7 @@ pub mod cdbg;
 pub mod common;
 pub mod dbg;
 pub mod fdbg;
+pub mod forward;
 pub mod layer;
 pub mod linear;
 pub mod new;
