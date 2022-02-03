@@ -202,5 +202,12 @@ mod tests {
         println!("{}", g);
         let phmm = g.to_phmm();
         println!("{}", phmm);
+
+        for (v, vw) in phmm.nodes() {
+            println!("node {:?} {}", v, vw);
+            for e in phmm.childs(v) {
+                println!("  child {:?}", e);
+            }
+        }
     }
 }

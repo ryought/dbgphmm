@@ -7,7 +7,13 @@ use crate::prob::Prob;
 use crate::veclike::{DenseVec, VecLike};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
+use petgraph::graph::EdgeReference;
+use petgraph::graph::Edges;
+use petgraph::graph::NodeReferences;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::visit::{EdgeRef, IntoNodeReferences};
+use petgraph::Directed;
+pub use petgraph::Direction;
 
 //
 // traits
@@ -34,13 +40,80 @@ pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
 pub type PGraph = DiGraph<PNode, PEdge>;
 pub type PModel = PHMMModel<PNode, PEdge>;
 
-/*
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
-    fn nodes(&self) {}
-    fn childs(&self, v: NodeIndex) {}
-    fn parents(&self, v: NodeIndex) {}
+    ///
+    /// create iterator of all nodes
+    /// Item of the iterator is `(NodeIndex, &N)`
+    ///
+    pub fn nodes(&self) -> Nodes<N> {
+        Nodes {
+            nodes: (&self.graph).node_references(),
+        }
+    }
+    ///
+    /// create iterator of all child edges of the node
+    /// Item of the iterator is EdgeReference `er`
+    ///
+    pub fn childs(&self, v: NodeIndex) -> ChildEdges<E> {
+        ChildEdges {
+            edges: self.graph.edges_directed(v, Direction::Outgoing),
+        }
+    }
+    ///
+    /// create iterator of all parent edges of the node
+    /// Item of the iterator is EdgeReference `er`
+    ///
+    pub fn parents(&self, v: NodeIndex) -> ParentEdges<E> {
+        ParentEdges {
+            edges: self.graph.edges_directed(v, Direction::Incoming),
+        }
+    }
 }
-*/
+
+pub struct Nodes<'a, N: 'a> {
+    nodes: NodeReferences<'a, N>,
+}
+
+impl<'a, N> Iterator for Nodes<'a, N> {
+    type Item = (NodeIndex, &'a N);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.nodes.next()
+    }
+}
+
+pub struct ChildEdges<'a, E: 'a> {
+    edges: Edges<'a, E, Directed>,
+}
+
+impl<'a, E> Iterator for ChildEdges<'a, E> {
+    type Item = (EdgeIndex, NodeIndex, &'a E);
+    fn next(&mut self) -> Option<Self::Item> {
+        // edge reference
+        match self.edges.next() {
+            // er.source() = the given node
+            // er.target() = child
+            Some(er) => Some((er.id(), er.target(), er.weight())),
+            None => None,
+        }
+    }
+}
+
+pub struct ParentEdges<'a, E: 'a> {
+    edges: Edges<'a, E, Directed>,
+}
+
+impl<'a, E> Iterator for ParentEdges<'a, E> {
+    type Item = (EdgeIndex, NodeIndex, &'a E);
+    fn next(&mut self) -> Option<Self::Item> {
+        // edge reference
+        match self.edges.next() {
+            // er.source() = parent
+            // er.target() = the given node
+            Some(er) => Some((er.id(), er.source(), er.weight())),
+            None => None,
+        }
+    }
+}
 
 impl<N, E> std::fmt::Display for PHMMModel<N, E>
 where
