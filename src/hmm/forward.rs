@@ -1,9 +1,10 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMResult, PHMMTable};
+use super::veclikewrap::NodeVec;
 use crate::prob::Prob;
-use crate::veclike::{DenseVec, VecLike};
+use crate::veclike::VecLike;
 
-//
+// wrappers and exposed functions
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions
@@ -26,11 +27,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 r
             })
     }
+    ///
+    /// Create init_table in PHMMResult for Forward algorithm
+    ///
     fn f_init<V: VecLike<Prob>>(&self) -> PHMMTable<V> {
-        // TODO
-        let n_kmers = 10;
         PHMMTable::new(
-            n_kmers,
+            self.n_nodes(),
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
@@ -40,13 +42,31 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Prob::from_prob(0.0),
         )
     }
+    ///
+    /// Calculate the table from the previous table
+    /// for Forward algorithm
+    ///
     fn f_step<V: VecLike<Prob>>(
         &self,
         i: usize,
         emission: u8,
-        prev: &PHMMTable<V>,
+        prev_table: &PHMMTable<V>,
     ) -> PHMMTable<V> {
-        unimplemented!();
+        let mut table = PHMMTable::new(
+            self.n_nodes(),
+            Prob::from_prob(0.0),
+            Prob::from_prob(0.0),
+            Prob::from_prob(0.0),
+            Prob::from_prob(0.0),
+            Prob::from_prob(0.0),
+            Prob::from_prob(0.0),
+        );
+        self.fm(&mut table, prev_table, emission);
+        self.fi(&mut table, prev_table, emission);
+        self.fb(&mut table, prev_table, emission);
+        self.fd(&mut table, prev_table, emission);
+        self.fe(&mut table, prev_table, emission);
+        table
     }
 }
 
@@ -95,7 +115,40 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     fn fd<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, _t1: &PHMMTable<V>, _emission: u8) {
         let param = &self.param;
         // TODO
-        for (v, vw) in self.nodes() {}
+        let mut fdt0 = self.fd0(t0);
+        for t in 0..param.n_max_gaps {
+            let fdt1 = self.fdt(&fdt0);
+        }
+    }
+    fn fd0<V: VecLike<Prob>>(&self, t0: &PHMMTable<V>) -> NodeVec<V> {
+        let param = &self.param;
+        let mut fd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        for (k, kw) in self.nodes() {
+            let p_normal: Prob = self
+                .parents(k)
+                .map(|(_, l, ew)| {
+                    let p_trans = ew.trans_prob();
+                    p_trans * (param.p_MD * t0.m[l] + param.p_ID * t0.i[l])
+                })
+                .sum();
+            let p_begin = kw.init_prob() * (param.p_MD * t0.m[k] + param.p_ID * t0.i[k]);
+            fd0[k] = p_normal + p_begin;
+        }
+        fd0
+    }
+    fn fdt<V: VecLike<Prob>>(&self, fdt1: &NodeVec<V>) -> NodeVec<V> {
+        let param = &self.param;
+        let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        for (k, kw) in self.nodes() {
+            fdt0[k] = self
+                .parents(k)
+                .map(|(_, l, ew)| {
+                    let p_trans = ew.trans_prob();
+                    p_trans * (param.p_DD * fdt1[l])
+                })
+                .sum();
+        }
+        fdt0
     }
     /// fill `MatchBegin` and `InsBegin` states
     fn fb<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, t1: &PHMMTable<V>, _emission: u8) {

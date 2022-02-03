@@ -66,6 +66,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             edges: self.graph.edges_directed(v, Direction::Incoming),
         }
     }
+    ///
+    /// Return the number of nodes in the graph
+    ///
+    pub fn n_nodes(&self) -> usize {
+        self.graph.node_count()
+    }
 }
 
 pub struct Nodes<'a, N: 'a> {
