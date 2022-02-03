@@ -4,8 +4,8 @@
 //!
 
 use super::common::{PEdge, PGraph, PModel, PNode};
-use super::params::PHMMParams;
 use crate::common::CopyNum;
+use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;

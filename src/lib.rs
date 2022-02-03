@@ -9,6 +9,7 @@ pub mod dbg;
 pub mod distribution;
 pub mod graph;
 pub mod hmm;
+pub mod hmmv2;
 pub mod io;
 pub mod kmer;
 pub mod optimizer;
