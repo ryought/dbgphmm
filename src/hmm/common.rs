@@ -12,19 +12,16 @@ pub use petgraph::graph::{EdgeIndex, NodeIndex};
 //
 // traits
 //
-
 pub trait PHMMNode {
     fn emission(&self) -> u8;
     fn is_emittable(&self) -> bool {
         self.emission() != b'N'
     }
-    // not necessary
     // fn copy_num(&self) -> CopyNum;
     fn init_prob(&self) -> Prob;
 }
 
 pub trait PHMMEdge {
-    // TODO not necesssary
     // fn copy_num(&self) -> CopyNum;
     fn trans_prob(&self) -> Prob;
 }

@@ -8,4 +8,5 @@ pub mod linear;
 pub mod new;
 pub mod params;
 pub mod sampler;
+pub mod seqgraph;
 pub mod testing;
