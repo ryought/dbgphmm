@@ -15,7 +15,6 @@ pub mod kmer;
 pub mod optimizer;
 pub mod prob;
 pub mod random_seq;
-pub mod sparse;
 pub mod stats;
 pub mod veclike;
 
