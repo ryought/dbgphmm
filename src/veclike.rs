@@ -18,6 +18,8 @@ pub trait VecLike<T: Copy>: Sized {
     fn len(&self) -> usize;
     fn get(&self, index: usize) -> T;
     fn set(&mut self, index: usize, value: T);
+    fn get_ref(&self, index: usize) -> &T;
+    fn get_mut_ref(&mut self, index: usize) -> &mut T;
     fn fill(&mut self, value: T);
     fn iter<'a>(&'a self) -> VecLikeIter<'a, T, Self> {
         // VecLike should be Sized in order to pass self here
@@ -156,6 +158,33 @@ impl<T: Copy> VecLike<T> for SparseVec<T> {
         self.value.push(value);
     }
     #[inline(always)]
+    fn get_ref(&self, index: usize) -> &T {
+        for i in 0..self.index.len() {
+            if self.index[i] == index {
+                match self.value.get(i) {
+                    Some(value) => return value,
+                    None => panic!(),
+                }
+            }
+        }
+        return &self.default_value;
+    }
+    #[inline(always)]
+    fn get_mut_ref(&mut self, index: usize) -> &mut T {
+        for i in 0..self.index.len() {
+            if self.index[i] == index {
+                // update the existing entry
+                return &mut self.value[i];
+            }
+        }
+
+        // add a new entry and return the reference to it
+        self.index.push(index);
+        self.value.push(self.default_value);
+        let n = self.value.len();
+        return &mut self.value[n - 1];
+    }
+    #[inline(always)]
     fn fill(&mut self, value: T) {
         self.index.clear();
         self.value.clear();
@@ -184,6 +213,14 @@ impl<T: Copy> VecLike<T> for DenseVec<T> {
     #[inline(always)]
     fn set(&mut self, index: usize, value: T) {
         self.0[index] = value;
+    }
+    #[inline(always)]
+    fn get_ref(&self, index: usize) -> &T {
+        &self.0[index]
+    }
+    #[inline(always)]
+    fn get_mut_ref(&mut self, index: usize) -> &mut T {
+        &mut self.0[index]
     }
     #[inline(always)]
     fn fill(&mut self, value: T) {

@@ -12,3 +12,4 @@ pub mod sampler;
 pub mod seqgraph;
 pub mod table;
 pub mod testing;
+pub mod veclikewrap;
