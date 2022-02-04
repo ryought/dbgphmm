@@ -7,7 +7,7 @@
 use super::dense::DenseStorage;
 use super::{IterableStorage, Storage, Vector};
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
+use std::ops::{Add, Index, IndexMut};
 
 ///
 /// Vector that supports index access by petgraph::NodeIndex
@@ -46,14 +46,17 @@ impl<'a, S: IterableStorage<'a>> NodeVec<S> {
     }
 }
 
-/*
-fn f<S>(nodevec: NodeVec<S>)
+impl<'a, 'b, S> Add<&'a NodeVec<S>> for &'b NodeVec<S>
 where
-    S: Storage<Item = u8>,
+    S: IterableStorage<'a>,
+    S::Item: Add<Output = S::Item>,
 {
-    let x = nodevec[NodeIndex::new(0)];
+    type Output = NodeVec<S>;
+    fn add(self, other: &'a NodeVec<S>) -> Self::Output {
+        let v = &self.0 + &other.0;
+        NodeVec(v)
+    }
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -80,5 +83,11 @@ mod tests {
 
         let mut v2: NodeVec<DenseStorage<u32>> = NodeVec::new(5, 0);
         v2[NodeIndex::new(0)] = 222;
+
+        let added = &v + &v2;
+        assert_eq!(added[NodeIndex::new(0)], 0 + 222);
+        assert_eq!(added[NodeIndex::new(1)], 100);
+        assert_eq!(added[NodeIndex::new(2)], 0);
+        assert_eq!(added[NodeIndex::new(3)], 0);
     }
 }
