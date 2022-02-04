@@ -2,6 +2,7 @@
 //! Sampling emissions from the PHMMModel
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+pub mod picker;
 
 #[derive(Debug, Copy, Clone)]
 pub enum State {
@@ -14,5 +15,5 @@ pub enum State {
 }
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
-    pub fn sample(&self) {}
+    pub fn sample(&self, length: usize) {}
 }
