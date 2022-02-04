@@ -1,15 +1,21 @@
+//!
+//! Forward algorithm definitions
+//!
+
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMResult, PHMMTable};
-use super::veclikewrap::NodeVec;
 use crate::prob::Prob;
-use crate::veclike::VecLike;
+use crate::vector::{NodeVec, Storage};
 
 // wrappers and exposed functions
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions
     ///
-    pub fn forward<V: VecLike<Prob>>(&self, emissions: &[u8]) -> PHMMResult<V> {
+    pub fn forward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
+    where
+        S: Storage<Item = Prob>,
+    {
         let r0 = PHMMResult {
             init_table: self.f_init(),
             tables: Vec::new(),
@@ -30,7 +36,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Create init_table in PHMMResult for Forward algorithm
     ///
-    fn f_init<V: VecLike<Prob>>(&self) -> PHMMTable<V> {
+    fn f_init<S>(&self) -> PHMMTable<S>
+    where
+        S: Storage<Item = Prob>,
+    {
         PHMMTable::new(
             self.n_nodes(),
             Prob::from_prob(0.0),
@@ -46,12 +55,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Forward algorithm
     ///
-    fn f_step<V: VecLike<Prob>>(
-        &self,
-        i: usize,
-        emission: u8,
-        prev_table: &PHMMTable<V>,
-    ) -> PHMMTable<V> {
+    fn f_step<S>(&self, i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
+    where
+        S: Storage<Item = Prob>,
+    {
         let mut table = PHMMTable::new(
             self.n_nodes(),
             Prob::from_prob(0.0),
@@ -98,7 +105,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// (Here `x[:i+1] = x[0],...,x[i]`)
     ///
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fm<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, t1: &PHMMTable<V>, emission: u8) {
+    fn fm<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         for (k, kw) in self.nodes() {
             // emission prob
@@ -141,7 +151,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// (Here `x[:i+1] = x[0],...,x[i]`)
     ///
     /// calculate `t0.i` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fi<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, t1: &PHMMTable<V>, emission: u8) {
+    fn fi<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         for (k, kw) in self.nodes() {
             // emission prob
@@ -186,7 +199,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// calculate t0.d from t0.m and t0.i
-    fn fd<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, _t1: &PHMMTable<V>, _emission: u8) {
+    fn fd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         // TODO
         let mut fdt0 = self.fd0(t0);
@@ -204,7 +220,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///   + (from_m_begin)                     t_bk p_md fm_i[b]
     ///   + (from_i_begin)                     t_bk p_id fi_i[b]
     /// ```
-    fn fd0<V: VecLike<Prob>>(&self, t0: &PHMMTable<V>) -> NodeVec<V> {
+    fn fd0<S>(&self, t0: &PHMMTable<S>) -> NodeVec<S>
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         let mut fd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
         for (k, kw) in self.nodes() {
@@ -233,7 +252,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fd_i(t)[k]
     /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     /// ```
-    fn fdt<V: VecLike<Prob>>(&self, fdt1: &NodeVec<V>) -> NodeVec<V> {
+    fn fdt<S>(&self, fdt1: &NodeVec<S>) -> NodeVec<S>
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
         for (k, kw) in self.nodes() {
@@ -254,7 +276,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fm_i[b] = 1 (if i==-1)
     ///           0 (otherwise)
     /// ```
-    fn fmb<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, t1: &PHMMTable<V>, _emission: u8) {
+    fn fmb<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         t0.mb = Prob::from_prob(0.0);
     }
     /// fill `InsBegin` states
@@ -264,7 +289,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// =   (from_self_m) p_mi e(x[i]) fm_i-1[b]
     ///   + (from_self_i) p_ii e(x[i]) fi_i-1[b]
     /// ```
-    fn fib<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, t1: &PHMMTable<V>, _emission: u8) {
+    fn fib<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         let p_emit = param.p_random;
         t0.ib = p_emit * (param.p_MI * t1.mb + param.p_II * t1.ib);
@@ -277,7 +305,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///   + (from_all_i) \sum_{k} p_e fi_i[k]
     ///   + (from_all_d) \sum_{k} p_e fd_i[k]
     /// ```
-    fn fe<V: VecLike<Prob>>(&self, t0: &mut PHMMTable<V>, _t1: &PHMMTable<V>, _emission: u8) {
+    fn fe<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
+    where
+        S: Storage<Item = Prob>,
+    {
         let param = &self.param;
         let p_normal: Prob = self.nodes().map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k]).sum();
         t0.e = param.p_end * p_normal

@@ -6,6 +6,9 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 pub mod graph;
 pub mod sparse;
+pub use dense::DenseStorage;
+pub use graph::NodeVec;
+pub use sparse::SparseStorage;
 
 /// Backend storage of `Vector`
 /// an abstruction of a vec with fixed size that is readable/writable
