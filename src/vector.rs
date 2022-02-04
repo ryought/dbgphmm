@@ -4,8 +4,8 @@
 //!
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
-// pub mod sparse;
 pub mod graph;
+pub mod sparse;
 
 /// Backend storage of `Vector`
 /// an abstruction of a vec with fixed size that is readable/writable
