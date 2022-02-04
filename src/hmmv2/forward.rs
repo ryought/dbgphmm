@@ -5,16 +5,16 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMResult, PHMMTable};
 use crate::prob::Prob;
-use crate::vector::{NodeVec, Storage};
+use crate::vector::{IterableStorage, NodeVec, Storage};
 
 // wrappers and exposed functions
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions
     ///
     pub fn forward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let r0 = PHMMResult {
             init_table: self.f_init(),
@@ -38,7 +38,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     fn f_init<S>(&self) -> PHMMTable<S>
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         PHMMTable::new(
             self.n_nodes(),
@@ -57,7 +57,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     fn f_step<S>(&self, i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let mut table = PHMMTable::new(
             self.n_nodes(),
@@ -81,7 +81,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 // functions to calculate each step
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Fill the forward probs of `Match` states
     ///
     /// For `i=0,...,n-1`
@@ -107,7 +107,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
     fn fm<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         for (k, kw) in self.nodes() {
@@ -153,7 +153,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// calculate `t0.i` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
     fn fi<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         for (k, kw) in self.nodes() {
@@ -201,7 +201,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// calculate t0.d from t0.m and t0.i
     fn fd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         // TODO
@@ -222,7 +222,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     fn fd0<S>(&self, t0: &PHMMTable<S>) -> NodeVec<S>
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         let mut fd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
@@ -254,7 +254,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     fn fdt<S>(&self, fdt1: &NodeVec<S>) -> NodeVec<S>
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
@@ -278,7 +278,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     fn fmb<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         t0.mb = Prob::from_prob(0.0);
     }
@@ -307,7 +307,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     fn fe<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
     where
-        S: Storage<Item = Prob>,
+        S: IterableStorage<'a, Item = Prob>,
     {
         let param = &self.param;
         let p_normal: Prob = self.nodes().map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k]).sum();
@@ -319,6 +319,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::super::seqgraph::create_linear_seq_graph;
     use super::*;
+    use crate::vector::DenseStorage;
 
     #[test]
     fn create_linear_seq_graph_test() {
