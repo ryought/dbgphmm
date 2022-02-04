@@ -5,7 +5,7 @@ use super::{IterableStorage, Storage, Vector};
 
 /// Dense storage powered by `std::Vec`
 #[derive(Debug, Clone)]
-struct DenseStorage<T>(Vec<T>);
+pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>
 where
@@ -40,7 +40,7 @@ where
 }
 
 /// Iterator on DenseStorage (index, item)
-struct DenseStorageIterator<'a, T: Copy + 'a> {
+pub struct DenseStorageIterator<'a, T: Copy + 'a> {
     /// current index on the storage
     index: usize,
     /// reference to the original storage

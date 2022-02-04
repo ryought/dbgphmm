@@ -5,6 +5,7 @@
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 // pub mod sparse;
+pub mod graph;
 
 /// Backend storage of `Vector`
 /// an abstruction of a vec with fixed size that is readable/writable
@@ -15,7 +16,7 @@ pub mod dense;
 /// * `get` get the reference to the value in the index
 /// * `get_mut` get the mutable reference to the value in the index
 ///
-trait Storage: Clone {
+pub trait Storage: Clone {
     /// Item type that this storage stores.
     type Item: Copy;
     /// create storage with fixed size and filled with the default value
@@ -29,7 +30,7 @@ trait Storage: Clone {
 }
 
 /// Optional trait to support the iterator on indexs and values
-trait IterableStorage<'a>: Storage {
+pub trait IterableStorage<'a>: Storage {
     /// Iterator on (index: usize, value: Self::Item)
     type IndexIterator: Iterator<Item = (usize, Self::Item)>;
     /// get an iterator of (usize, Self::Item) on the storage
@@ -39,7 +40,7 @@ trait IterableStorage<'a>: Storage {
 /// `Vector` struct
 /// It generalized of (1) its item and (2) its backend storage.
 #[derive(Clone, Debug)]
-struct Vector<S: Storage> {
+pub struct Vector<S: Storage> {
     /// Backend storage of the Vector
     storage: S,
 }
