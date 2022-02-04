@@ -3,7 +3,7 @@
 //! seq with copy numbers
 //!
 
-use super::common::{PEdge, PGraph, PModel, PNode};
+use super::common::{PEdge, PModel, PNode};
 use crate::common::CopyNum;
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;

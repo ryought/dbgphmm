@@ -4,10 +4,9 @@
 //!
 //! i.e. `vec[NodeIndex(0)]`
 //!
-use super::dense::DenseStorage;
 use super::{IterableStorage, Storage, Vector};
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
-use std::ops::{Add, Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut};
 
 ///
 /// Vector that supports index access by petgraph::NodeIndex
@@ -58,9 +57,21 @@ where
     }
 }
 
+impl<'a, S> AddAssign<&'a NodeVec<S>> for NodeVec<S>
+where
+    S: IterableStorage<'a>,
+    S::Item: Add<Output = S::Item>,
+{
+    fn add_assign(&mut self, other: &'a NodeVec<S>) {
+        self.0 += &other.0;
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::super::dense::DenseStorage;
     use super::*;
+    use crate::prob::Prob;
 
     #[test]
     fn nodevec() {
@@ -89,5 +100,17 @@ mod tests {
         assert_eq!(added[NodeIndex::new(1)], 100);
         assert_eq!(added[NodeIndex::new(2)], 0);
         assert_eq!(added[NodeIndex::new(3)], 0);
+    }
+    #[test]
+    fn nodevec_prob() {
+        let mut v1: NodeVec<DenseStorage<Prob>> = NodeVec::new(5, Prob::from_prob(0.0));
+        v1[NodeIndex::new(1)] = Prob::from_prob(0.1);
+        v1[NodeIndex::new(3)] = Prob::from_prob(0.2);
+        println!("{:?}", v1);
+        let mut v2: NodeVec<DenseStorage<Prob>> = NodeVec::new(5, Prob::from_prob(0.0));
+        v2[NodeIndex::new(1)] = Prob::from_prob(0.2);
+        v2[NodeIndex::new(4)] = Prob::from_prob(0.3);
+        v1 += &v2;
+        println!("{:?}", v1);
     }
 }

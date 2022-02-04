@@ -6,8 +6,7 @@
 //! From kmer table...
 //!
 
-use super::common::{EdgeIndex, NodeIndex, PEdge, PGraph, PModel, PNode};
-use crate::common::CopyNum;
+use super::common::{NodeIndex, PEdge, PGraph, PModel, PNode};
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 

@@ -139,7 +139,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         // TODO
-        let mut bdt0 = self.bd0(t0, emission);
+        let bdt0 = self.bd0(t0, emission);
         for t in 0..param.n_max_gaps {
             let bdt1 = self.bdt(&bdt0);
         }

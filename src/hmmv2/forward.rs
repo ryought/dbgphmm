@@ -206,8 +206,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         // TODO
         let mut fdt0 = self.fd0(t0);
-        for t in 0..param.n_max_gaps {
-            let fdt1 = self.fdt(&fdt0);
+        for _t in 0..param.n_max_gaps {
+            fdt0 = self.fdt(&fdt0);
         }
     }
     ///

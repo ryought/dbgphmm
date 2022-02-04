@@ -1,7 +1,7 @@
 //!
 //! Dense storage that uses `std::Vec`
 //!
-use super::{IterableStorage, Storage, Vector};
+use super::{IterableStorage, Storage};
 
 /// Dense storage powered by `std::Vec`
 #[derive(Debug, Clone)]
@@ -63,6 +63,7 @@ impl<'a, T: Copy + 'a> Iterator for DenseStorageIterator<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Vector;
     use super::*;
 
     #[test]
