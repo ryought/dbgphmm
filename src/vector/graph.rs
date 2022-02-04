@@ -39,12 +39,21 @@ impl<S: Storage> NodeVec<S> {
     }
 }
 
-impl<'a, S: Storage + IterableStorage<'a>> NodeVec<S> {
+impl<'a, S: IterableStorage<'a>> NodeVec<S> {
     /// Get an iterator on (index, item).
     pub fn iter(&'a self) -> impl 'a + Iterator<Item = (NodeIndex, S::Item)> {
         self.0.iter().map(|(i, v)| (NodeIndex::new(i), v))
     }
 }
+
+/*
+fn f<S>(nodevec: NodeVec<S>)
+where
+    S: Storage<Item = u8>,
+{
+    let x = nodevec[NodeIndex::new(0)];
+}
+*/
 
 #[cfg(test)]
 mod tests {
