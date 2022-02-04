@@ -2,7 +2,7 @@
 //! `Vector` Wrapper of fixed size table
 //!
 //!
-use std::ops::{Add, Index, IndexMut, Mul};
+use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 // pub mod sparse;
 
@@ -80,13 +80,12 @@ impl<S: Storage> IndexMut<usize> for Vector<S> {
 
 /// Implement addition `+` between two vecs
 /// if the item of vec supports addition
-impl<'a, S> Add<&'a Vector<S>> for &'a Vector<S>
+impl<'a, 'b, S> Add<&'a Vector<S>> for &'b Vector<S>
 where
     S: IterableStorage<'a>,
     S::Item: Add<Output = S::Item>,
 {
     type Output = Vector<S>;
-    // TODO should we use 'a and 'b?
     fn add(self, other: &'a Vector<S>) -> Self::Output {
         assert_eq!(self.len(), other.len());
         let mut ret = self.clone();
@@ -98,23 +97,56 @@ where
     }
 }
 
-/*
-/// Implement multiplication `*` between two vecs
-/// if the item of vec supports multiplication
-impl<'a, 'b, S> Mul<&'b Vector<S>> for &'a Vector<S>
+/// Implement addition with assignment `+=` between two vecs
+/// if the item of vec supports addition
+/// This does not cause re-allocation
+impl<'a, S> AddAssign<&'a Vector<S>> for Vector<S>
 where
-    S: IterableStorage,
-    S::Item: Mul,
+    S: IterableStorage<'a>,
+    S::Item: Add<Output = S::Item>,
 {
-    type Output = Vector<S>;
-    fn mul(self, other: &'b Vector<S>) -> Self::Output {
-        Vector {
-            // TODO
-            storage: self.storage.clone(),
+    fn add_assign(&mut self, other: &'a Vector<S>) {
+        assert_eq!(self.len(), other.len());
+        for (index, value) in other.iter() {
+            self[index] = self[index] + value;
         }
     }
 }
-*/
+
+/// Implement multiplication `*` between two vecs
+/// if the item of vec supports multiplication
+impl<'a, 'b, S> Mul<&'a Vector<S>> for &'b Vector<S>
+where
+    S: IterableStorage<'a>,
+    S::Item: Mul<Output = S::Item>,
+{
+    type Output = Vector<S>;
+    fn mul(self, other: &'a Vector<S>) -> Self::Output {
+        assert_eq!(self.len(), other.len());
+        let mut ret = self.clone();
+        for (index, value) in other.iter() {
+            let old_value = ret[index];
+            ret[index] = old_value * value;
+        }
+        ret
+    }
+}
+
+/// Implement multiplication with assignment `*=` between two vecs
+/// if the item of vec supports multiplication
+/// This does not cause re-allocation
+impl<'a, S> MulAssign<&'a Vector<S>> for Vector<S>
+where
+    S: IterableStorage<'a>,
+    S::Item: Mul<Output = S::Item>,
+{
+    fn mul_assign(&mut self, other: &'a Vector<S>) {
+        assert_eq!(self.len(), other.len());
+        for (index, value) in other.iter() {
+            self[index] = self[index] * value;
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

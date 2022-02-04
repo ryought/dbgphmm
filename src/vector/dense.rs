@@ -132,7 +132,7 @@ mod tests {
         );
     }
     #[test]
-    fn dense_storage_vector_add() {
+    fn dense_storage_vector_add_mul() {
         let mut v1: Vector<DenseStorage<u32>> = Vector::new(4, 0);
         v1[0] = 120;
         v1[3] = 111;
@@ -143,6 +143,41 @@ mod tests {
         println!("{:?}", v1);
         println!("{:?}", v2);
         // v1 + v2
-        println!("{:?}", &v1 + &v2);
+        let added = &v1 + &v2;
+        let muled = &v1 * &v2;
+        println!("{:?}", added);
+        assert_eq!(added[0], 120 + 1);
+        assert_eq!(added[1], 0 + 0);
+        assert_eq!(added[2], 0 + 111);
+        assert_eq!(added[3], 111 + 1);
+        println!("{:?}", muled);
+        assert_eq!(muled[0], 120 * 1);
+        assert_eq!(muled[1], 0 * 0);
+        assert_eq!(muled[2], 0 * 111);
+        assert_eq!(muled[3], 111 * 1);
+    }
+    #[test]
+    fn dense_storage_vector_add_mul_assign() {
+        let mut v1: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v1[0] = 120;
+        v1[3] = 111;
+        let mut v2: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v2[0] = 1;
+        v2[2] = 111;
+        v2[3] = 2;
+        println!("{:?}", v1);
+        println!("{:?}", v2);
+        v1 *= &v2;
+        println!("{:?}", v1);
+        // v1 is modified
+        assert_eq!(v1[0], 120 * 1);
+        assert_eq!(v1[1], 0 * 0);
+        assert_eq!(v1[2], 0 * 111);
+        assert_eq!(v1[3], 111 * 2);
+        // v2 is not changed
+        assert_eq!(v2[0], 1);
+        assert_eq!(v2[1], 0);
+        assert_eq!(v2[2], 111);
+        assert_eq!(v2[3], 2);
     }
 }
