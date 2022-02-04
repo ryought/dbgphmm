@@ -3,17 +3,17 @@
 //!
 use super::{IterableStorage, Storage};
 
-/// Dense storage
+/// Dense storage powered by `std::Vec`
 #[derive(Debug, Clone)]
-struct VectorStorage<T>(Vec<T>);
+struct DenseStorage<T>(Vec<T>);
 
-impl<T> Storage for VectorStorage<T>
+impl<T> Storage for DenseStorage<T>
 where
     T: Copy,
 {
     type Item = T;
-    fn new(size: usize, default_value: T) -> VectorStorage<T> {
-        VectorStorage(vec![default_value; size])
+    fn new(size: usize, default_value: T) -> DenseStorage<T> {
+        DenseStorage(vec![default_value; size])
     }
     fn size(&self) -> usize {
         self.0.len()
@@ -26,28 +26,28 @@ where
     }
 }
 
-impl<'a, T> IterableStorage<'a> for VectorStorage<T>
+impl<'a, T> IterableStorage<'a> for DenseStorage<T>
 where
     T: Copy + 'a,
 {
-    type IndexIterator = VectorStorageIterator<'a, T>;
+    type IndexIterator = DenseStorageIterator<'a, T>;
     fn indexiter(&'a self) -> Self::IndexIterator {
-        VectorStorageIterator {
+        DenseStorageIterator {
             index: 0,
             storage: &self.0,
         }
     }
 }
 
-/// Iterator on VectorStorage
-struct VectorStorageIterator<'a, T: Copy + 'a> {
-    /// current index on the vector
+/// Iterator on DenseStorage (index, item)
+struct DenseStorageIterator<'a, T: Copy + 'a> {
+    /// current index on the storage
     index: usize,
     /// reference to the original storage
     storage: &'a [T],
 }
 
-impl<'a, T: Copy + 'a> Iterator for VectorStorageIterator<'a, T> {
+impl<'a, T: Copy + 'a> Iterator for DenseStorageIterator<'a, T> {
     type Item = (usize, T);
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.storage.len() {
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn dense_storage() {
         // u32
-        let mut s: VectorStorage<u32> = VectorStorage::new(10, 0);
+        let mut s: DenseStorage<u32> = DenseStorage::new(10, 0);
         *s.get_mut(5) = 111;
         *s.get_mut(3) = 22;
         assert_eq!(*s.get(0), 0);
@@ -84,7 +84,7 @@ mod tests {
         assert_eq!(*s.get(3), 22);
 
         // f64
-        let mut s: VectorStorage<f64> = VectorStorage::new(10, 0.0);
+        let mut s: DenseStorage<f64> = DenseStorage::new(10, 0.0);
         *s.get_mut(5) = 12.11;
         *s.get_mut(3) = 10.0;
         assert_eq!(*s.get(0), 0.0);
@@ -94,12 +94,12 @@ mod tests {
     #[test]
     #[should_panic]
     fn dense_storage_outside() {
-        let mut s: VectorStorage<u32> = VectorStorage::new(3, 0);
+        let mut s: DenseStorage<u32> = DenseStorage::new(3, 0);
         *s.get_mut(3) = 22;
     }
     #[test]
     fn dense_storage_iter() {
-        let mut s: VectorStorage<u32> = VectorStorage::new(4, 5);
+        let mut s: DenseStorage<u32> = DenseStorage::new(4, 5);
         *s.get_mut(0) = 111;
         *s.get_mut(2) = 10;
         let v: Vec<(usize, u32)> = s.indexiter().collect();
