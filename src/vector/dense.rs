@@ -1,7 +1,7 @@
 //!
 //! Dense storage that uses `std::Vec`
 //!
-use super::{IterableStorage, Storage};
+use super::{IterableStorage, Storage, Vector};
 
 /// Dense storage powered by `std::Vec`
 #[derive(Debug, Clone)]
@@ -104,5 +104,45 @@ mod tests {
         *s.get_mut(2) = 10;
         let v: Vec<(usize, u32)> = s.indexiter().collect();
         assert_eq!(v, vec![(0, 111), (1, 5), (2, 10), (3, 5)]);
+    }
+    #[test]
+    fn dense_storage_vector() {
+        let mut v: Vector<DenseStorage<u32>> = Vector::new(10, 0);
+        v[0] = 100;
+        v[3] = 222;
+        assert_eq!(v[0], 100);
+        assert_eq!(v[1], 0);
+        let w: Vec<(usize, u32)> = v.iter().collect();
+        println!("{:?}", v);
+        println!("{:?}", w);
+        assert_eq!(
+            w,
+            vec![
+                (0, 100),
+                (1, 0),
+                (2, 0),
+                (3, 222),
+                (4, 0),
+                (5, 0),
+                (6, 0),
+                (7, 0),
+                (8, 0),
+                (9, 0)
+            ]
+        );
+    }
+    #[test]
+    fn dense_storage_vector_add() {
+        let mut v1: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v1[0] = 120;
+        v1[3] = 111;
+        let mut v2: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v2[0] = 1;
+        v2[2] = 111;
+        v2[3] = 1;
+        println!("{:?}", v1);
+        println!("{:?}", v2);
+        // v1 + v2
+        println!("{:?}", &v1 + &v2);
     }
 }

@@ -51,6 +51,9 @@ impl<S: Storage> Vector<S> {
             storage: S::new(size, default_value),
         }
     }
+    pub fn len(&self) -> usize {
+        self.storage.size()
+    }
 }
 
 impl<'a, S: Storage + IterableStorage<'a>> Vector<S> {
@@ -77,25 +80,30 @@ impl<S: Storage> IndexMut<usize> for Vector<S> {
 
 /// Implement addition `+` between two vecs
 /// if the item of vec supports addition
-impl<'a, 'b, S> Add<&'b Vector<S>> for &'a Vector<S>
+impl<'a, S> Add<&'a Vector<S>> for &'a Vector<S>
 where
-    S: Storage,
-    S::Item: Add,
+    S: IterableStorage<'a>,
+    S::Item: Add<Output = S::Item>,
 {
     type Output = Vector<S>;
-    fn add(self, other: &'b Vector<S>) -> Self::Output {
-        Vector {
-            // TODO
-            storage: self.storage.clone(),
+    // TODO should we use 'a and 'b?
+    fn add(self, other: &'a Vector<S>) -> Self::Output {
+        assert_eq!(self.len(), other.len());
+        let mut ret = self.clone();
+        for (index, value) in other.iter() {
+            let old_value = ret[index];
+            ret[index] = old_value + value;
         }
+        ret
     }
 }
 
+/*
 /// Implement multiplication `*` between two vecs
 /// if the item of vec supports multiplication
 impl<'a, 'b, S> Mul<&'b Vector<S>> for &'a Vector<S>
 where
-    S: Storage,
+    S: IterableStorage,
     S::Item: Mul,
 {
     type Output = Vector<S>;
@@ -105,4 +113,10 @@ where
             storage: self.storage.clone(),
         }
     }
+}
+*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }
