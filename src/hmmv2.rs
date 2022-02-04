@@ -5,4 +5,3 @@ pub mod new;
 pub mod sample;
 pub mod seqgraph;
 pub mod table;
-pub mod veclikewrap;
