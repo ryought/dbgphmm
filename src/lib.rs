@@ -17,6 +17,7 @@ pub mod prob;
 pub mod random_seq;
 pub mod stats;
 pub mod veclike;
+pub mod vector;
 
 extern crate jemallocator;
 #[global_allocator]
