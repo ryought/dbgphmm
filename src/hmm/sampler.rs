@@ -1,19 +1,10 @@
 use super::base::{iter_nodes, Node, PHMM};
 use super::params::PHMMParams;
+pub use crate::hmmv2::sample::State;
 use crate::prob::Prob;
 use log::trace;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
-
-#[derive(Debug, Copy, Clone)]
-pub enum State {
-    Match,
-    Ins,
-    Del,
-    MatchBegin,
-    InsBegin,
-    End,
-}
 
 #[derive(Debug)]
 pub struct SampleInfo {

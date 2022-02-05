@@ -67,6 +67,7 @@ struct Hoge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /*
     #[test]
     fn json_custom_pretty() {
         // ref: https://github.com/serde-rs/json/issues/345#issuecomment-636215611
@@ -95,4 +96,5 @@ mod tests {
         }
         seq.end();
     }
+    */
 }
