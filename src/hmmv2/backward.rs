@@ -138,10 +138,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        // TODO
-        let bdt0 = self.bd0(t0, emission);
+        let mut bdt0 = self.bd0(t0, emission);
+        t0.d += &bdt0;
         for t in 0..param.n_max_gaps {
-            let bdt1 = self.bdt(&bdt0);
+            bdt0 = self.bdt(&bdt0);
+            t0.d += &bdt0;
         }
     }
     ///
