@@ -19,6 +19,11 @@ impl Prob {
     pub fn to_log_value(self) -> f64 {
         self.0
     }
+    ///
+    /// Is `p == 0` or not?
+    pub fn is_zero(self) -> bool {
+        self.0.is_infinite() && self.0.is_sign_negative()
+    }
 }
 
 // display
@@ -198,5 +203,13 @@ mod tests {
         let e = Prob::from_prob(0.0);
         assert_relative_eq!((x + e).0, x.0);
         assert_relative_eq!((x * e).0, e.0);
+    }
+    #[test]
+    fn test_zero() {
+        let zero = Prob::from_prob(0.0);
+        println!("{:?}", zero);
+        assert!(zero.is_zero());
+        let nonzero = Prob::from_prob(0.00001);
+        assert!(!nonzero.is_zero());
     }
 }
