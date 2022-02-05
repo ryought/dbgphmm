@@ -16,20 +16,52 @@ pub use petgraph::Direction;
 //
 // traits
 //
+
+///
+/// attribute of PHMM Node
+///
+/// * `emission(&self) -> u8`
+///     The emission assigned to the HMM node.
+///
+/// * `is_emittable(&self) -> bool`
+///     Check if this node has emission or not.
+///
+/// * `init_prob(&self) -> Prob`
+///     The initial transition probability (i.e. Begin state to this node)
+///
 pub trait PHMMNode {
+    ///
+    /// Emission base assigned to this HMM node.
     fn emission(&self) -> u8;
+    ///
+    /// This node has a valid emission or not.
     fn is_emittable(&self) -> bool {
         self.emission() != b'N'
     }
-    // fn copy_num(&self) -> CopyNum;
+    ///
+    /// Initial transition probability from Begin state to the node.
     fn init_prob(&self) -> Prob;
-}
-
-pub trait PHMMEdge {
+    // TODO
     // fn copy_num(&self) -> CopyNum;
-    fn trans_prob(&self) -> Prob;
 }
 
+///
+/// attribute of PHMM Edge
+///
+/// * `trans_prob(&self) -> Prob`
+///     Transition probability from `source` to `target`.
+///
+pub trait PHMMEdge {
+    ///
+    /// Transition probability from the source node to the target node
+    /// of this edge.
+    fn trans_prob(&self) -> Prob;
+    // TODO
+    // fn copy_num(&self) -> CopyNum;
+}
+
+/// Profile HMM model
+///
 pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
     pub param: PHMMParams,
     pub graph: DiGraph<N, E>,
@@ -50,20 +82,30 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     ///
     /// create iterator of all child edges of the node
-    /// Item of the iterator is EdgeReference `er`
     ///
-    pub fn childs(&self, v: NodeIndex) -> ChildEdges<E> {
+    /// Item of the iterator is `(EdgeIndex, NodeIndex, Edge weight)`
+    ///
+    /// * `EdgeIndex` is index of edge (node, child)
+    /// * `NodeIndex` is index of child
+    /// * `EdgeWeight` is of the edge transition
+    ///
+    pub fn childs(&self, node: NodeIndex) -> ChildEdges<E> {
         ChildEdges {
-            edges: self.graph.edges_directed(v, Direction::Outgoing),
+            edges: self.graph.edges_directed(node, Direction::Outgoing),
         }
     }
     ///
     /// create iterator of all parent edges of the node
-    /// Item of the iterator is EdgeReference `er`
     ///
-    pub fn parents(&self, v: NodeIndex) -> ParentEdges<E> {
+    /// Item of the iterator is `(EdgeIndex, NodeIndex, Edge weight)`
+    ///
+    /// * `EdgeIndex` is index of edge (parent, node)
+    /// * `NodeIndex` is index of parent
+    /// * `EdgeWeight` is of the edge transition
+    ///
+    pub fn parents(&self, node: NodeIndex) -> ParentEdges<E> {
         ParentEdges {
-            edges: self.graph.edges_directed(v, Direction::Incoming),
+            edges: self.graph.edges_directed(node, Direction::Incoming),
         }
     }
     ///
@@ -71,6 +113,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn n_nodes(&self) -> usize {
         self.graph.node_count()
+    }
+    ///
+    /// Get a node emission
+    ///
+    pub fn emission(&self, v: NodeIndex) -> u8 {
+        self.graph.node_weight(v).unwrap().emission()
     }
 }
 
