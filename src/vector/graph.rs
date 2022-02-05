@@ -8,43 +8,11 @@ use super::{Storage, Vector};
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
-///
-/// Vector that supports index access by petgraph::NodeIndex
-///
-#[derive(Debug, Clone)]
-pub struct NodeVec<S: Storage>(pub Vector<S, usize>);
-// pub type NodeVec<S: Storage> = Vector<S, NodeIndex>;
+/// Vector that uses petgraph::Node as an index
+pub type NodeVec<S> = Vector<S, NodeIndex>;
 
-impl<S: Storage> Index<NodeIndex> for NodeVec<S> {
-    type Output = S::Item;
-    fn index(&self, node: NodeIndex) -> &Self::Output {
-        &self.0[node.index()]
-    }
-}
-
-impl<S: Storage> IndexMut<NodeIndex> for NodeVec<S> {
-    fn index_mut(&mut self, node: NodeIndex) -> &mut Self::Output {
-        &mut self.0[node.index()]
-    }
-}
-
-impl<S: Storage> NodeVec<S> {
-    /// Create a new Vector, with fixed size and filled by default_value.
-    pub fn new(size: usize, default_value: S::Item) -> NodeVec<S> {
-        NodeVec(Vector::new(size, default_value))
-    }
-    /// get the size of the vector
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<S: Storage> NodeVec<S> {
-    /// Get an iterator on (index, item).
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (NodeIndex, S::Item)> {
-        self.0.iter().map(|(i, v)| (NodeIndex::new(i), v))
-    }
-}
+/// Vector that uses petgraph::Edge as an index
+pub type EdgeVec<S> = Vector<S, EdgeIndex>;
 
 #[cfg(test)]
 mod tests {
@@ -52,7 +20,6 @@ mod tests {
     use super::*;
     use crate::prob::Prob;
 
-    /*
     #[test]
     fn nodevec() {
         let mut v: NodeVec<DenseStorage<u32>> = NodeVec::new(5, 0);
@@ -93,5 +60,4 @@ mod tests {
         // v1 += &v2;
         println!("{:?}", v1);
     }
-    */
 }

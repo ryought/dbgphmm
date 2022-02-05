@@ -140,13 +140,14 @@ impl<S: Storage, Ix: Indexable> IndexMut<Ix> for Vector<S, Ix> {
 
 /// Implement addition `+` between two vecs
 /// if the item of vec supports addition
-impl<'a, 'b, S> Add<&'a Vector<S>> for &'b Vector<S>
+impl<'a, 'b, S, Ix> Add<&'a Vector<S, Ix>> for &'b Vector<S, Ix>
 where
     S: Storage,
     S::Item: Add<Output = S::Item>,
+    Ix: Indexable,
 {
-    type Output = Vector<S>;
-    fn add(self, other: &'a Vector<S>) -> Self::Output {
+    type Output = Vector<S, Ix>;
+    fn add(self, other: &'a Vector<S, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
         let mut ret = self.clone();
         for (index, value) in other.iter() {
@@ -160,12 +161,13 @@ where
 /// Implement addition with assignment `+=` between two vecs
 /// if the item of vec supports addition
 /// This does not cause re-allocation
-impl<'a, S> AddAssign<&'a Vector<S>> for Vector<S>
+impl<'a, S, Ix> AddAssign<&'a Vector<S, Ix>> for Vector<S, Ix>
 where
     S: Storage,
     S::Item: Add<Output = S::Item>,
+    Ix: Indexable,
 {
-    fn add_assign(&mut self, other: &'a Vector<S>) {
+    fn add_assign(&mut self, other: &'a Vector<S, Ix>) {
         assert_eq!(self.len(), other.len());
         for (index, value) in other.iter() {
             self[index] = self[index] + value;
@@ -175,13 +177,14 @@ where
 
 /// Implement multiplication `*` between two vecs
 /// if the item of vec supports multiplication
-impl<'a, 'b, S> Mul<&'a Vector<S>> for &'b Vector<S>
+impl<'a, 'b, S, Ix> Mul<&'a Vector<S, Ix>> for &'b Vector<S, Ix>
 where
     S: Storage,
     S::Item: Mul<Output = S::Item>,
+    Ix: Indexable,
 {
-    type Output = Vector<S>;
-    fn mul(self, other: &'a Vector<S>) -> Self::Output {
+    type Output = Vector<S, Ix>;
+    fn mul(self, other: &'a Vector<S, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
         let mut ret = self.clone();
         for (index, value) in other.iter() {
@@ -195,12 +198,13 @@ where
 /// Implement multiplication with assignment `*=` between two vecs
 /// if the item of vec supports multiplication
 /// This does not cause re-allocation
-impl<'a, S> MulAssign<&'a Vector<S>> for Vector<S>
+impl<'a, S, Ix> MulAssign<&'a Vector<S, Ix>> for Vector<S, Ix>
 where
     S: Storage,
     S::Item: Mul<Output = S::Item>,
+    Ix: Indexable,
 {
-    fn mul_assign(&mut self, other: &'a Vector<S>) {
+    fn mul_assign(&mut self, other: &'a Vector<S, Ix>) {
         assert_eq!(self.len(), other.len());
         for (index, value) in other.iter() {
             self[index] = self[index] * value;
