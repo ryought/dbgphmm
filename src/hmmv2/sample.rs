@@ -9,6 +9,9 @@ use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 pub mod picker;
 
+///
+/// HMM hidden states
+///
 #[derive(Debug, Copy, Clone)]
 pub enum State {
     Match(NodeIndex),
@@ -19,21 +22,59 @@ pub enum State {
     End,
 }
 
+///
+/// HMM emission
+///
 #[derive(Debug, Copy, Clone)]
-pub struct Emission(Option<u8>);
+pub struct Emission(pub Option<u8>);
 
-/// valid bases
+///
+/// Array of valid DNA bases
+///
 const BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
-    pub fn sample(&self, length: usize) {}
+    ///
+    /// Generate a sequence of Emission and Hidden states
+    /// by running a profile HMM using rng(random number generator).
+    ///
+    pub fn sample(&self, length: usize, seed: u64) -> Vec<(State, Emission)> {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let mut history = Vec::new();
+
+        // (1) init
+        let (mut state, _) = self.sample_init(&mut rng);
+        let mut emission;
+
+        for _ in 0..length {
+            // (2) step
+            (state, emission) = self.sample_step(&mut rng, state);
+            history.push((state, emission));
+
+            if let State::End = state {
+                break;
+            }
+        }
+
+        history
+    }
     fn sample_init<R: Rng>(&self, rng: &mut R) -> (State, Emission) {
         (State::MatchBegin, Emission(None))
     }
     fn sample_step<R: Rng>(&self, rng: &mut R, now: State) -> (State, Emission) {
+        // (1) transition to the next state
+        let next = self.make_transition(rng, now);
+        // (2) emission from the next state
+        let emission = self.make_emission(rng, next);
+
+        (next, emission)
+    }
+    ///
+    /// do a transition from `now: State` to `next: State` in PHMM
+    ///
+    fn make_transition<R: Rng>(&self, rng: &mut R, now: State) -> State {
         let param = &self.param;
-        // (1) transition
-        let state = match now {
+        match now {
             State::Match(node) => {
                 let child = self.pick_child(rng, node);
                 match child {
@@ -108,17 +149,23 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 }
             }
             State::End => panic!(),
-        };
-
-        // (2) emission
-        let emission = match state {
+        }
+    }
+    ///
+    /// do an emission from the current state `state: State` in PHMM.
+    ///
+    fn make_emission<R: Rng>(&self, rng: &mut R, state: State) -> Emission {
+        let param = &self.param;
+        match state {
             State::Match(node) => pick_match_emission(rng, self.emission(node), param),
             State::Ins(_) | State::InsBegin => pick_ins_emission(rng, param),
             _ => Emission(None),
-        };
-
-        (state, emission)
+        }
     }
+    ///
+    /// randomly-picks a transition to a child from the current node, according to
+    /// the assigned transition probability
+    ///
     fn pick_child<R: Rng>(&self, rng: &mut R, node: NodeIndex) -> Option<NodeIndex> {
         let choices: Vec<(NodeIndex, Prob)> = self
             .childs(node)
@@ -133,6 +180,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Some(pick_with_prob(rng, &choices))
         }
     }
+    ///
+    /// randomly-picks a transition to a initial node, according to
+    /// the assigned initial probability from Begin state.
+    ///
     fn pick_init_node<R: Rng>(&self, rng: &mut R) -> Option<NodeIndex> {
         // TODO
         // when start from head mode, this should be go to the first node
