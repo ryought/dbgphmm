@@ -7,9 +7,10 @@ pub mod dense;
 pub mod graph;
 pub mod index;
 pub mod sparse;
+pub mod test;
 pub use dense::DenseStorage;
 pub use graph::NodeVec;
-pub use petgraph::graph::IndexType;
+pub use index::Indexable;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
 
@@ -94,19 +95,19 @@ impl<'a, S: Storage> Iterator for StorageIterator<'a, S> {
 ///
 /// 1. item type `Storage::Item`
 /// 2. backend storage `S: Storage`
-/// 3. index type `Ix: IndexType`
+/// 3. index type `Ix: Indexable`
 ///
 #[derive(Clone, Debug)]
-pub struct Vector<S: Storage, Ix: IndexType = usize> {
+pub struct Vector<S: Storage, Ix: Indexable = usize> {
     /// Backend storage of the Vector
     storage: S,
     /// Hidden marker of index type
     ty: PhantomData<Ix>,
 }
 
-impl<S: Storage> Vector<S> {
+impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     /// Create a new Vector, with fixed size and filled by default_value.
-    pub fn new(size: usize, default_value: S::Item) -> Vector<S> {
+    pub fn new(size: usize, default_value: S::Item) -> Vector<S, Ix> {
         Vector {
             storage: S::new(size, default_value),
             ty: PhantomData,
@@ -117,27 +118,26 @@ impl<S: Storage> Vector<S> {
         self.storage.size()
     }
     /// Get an iterator on (index, item).
-    pub fn iter<'a>(&'a self) -> StorageIterator<'a, S> {
-        self.storage.iter()
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (Ix, S::Item)> {
+        self.storage.iter().map(|(i, v)| (Ix::new(i), v))
     }
 }
 
 /// Implement index access, vec[i]
-impl<S: Storage> Index<usize> for Vector<S> {
+impl<S: Storage, Ix: Indexable> Index<Ix> for Vector<S, Ix> {
     type Output = S::Item;
-    fn index(&self, index: usize) -> &Self::Output {
-        self.storage.get(index)
+    fn index(&self, index: Ix) -> &Self::Output {
+        self.storage.get(index.index())
     }
 }
 
 /// Implement index write access, vec[i] = 10
-impl<S: Storage> IndexMut<usize> for Vector<S> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.storage.get_mut(index)
+impl<S: Storage, Ix: Indexable> IndexMut<Ix> for Vector<S, Ix> {
+    fn index_mut(&mut self, index: Ix) -> &mut Self::Output {
+        self.storage.get_mut(index.index())
     }
 }
 
-/*
 /// Implement addition `+` between two vecs
 /// if the item of vec supports addition
 impl<'a, 'b, S> Add<&'a Vector<S>> for &'b Vector<S>
@@ -177,7 +177,7 @@ where
 /// if the item of vec supports multiplication
 impl<'a, 'b, S> Mul<&'a Vector<S>> for &'b Vector<S>
 where
-    S: IterableStorage<'a>,
+    S: Storage,
     S::Item: Mul<Output = S::Item>,
 {
     type Output = Vector<S>;
@@ -197,7 +197,7 @@ where
 /// This does not cause re-allocation
 impl<'a, S> MulAssign<&'a Vector<S>> for Vector<S>
 where
-    S: IterableStorage<'a>,
+    S: Storage,
     S::Item: Mul<Output = S::Item>,
 {
     fn mul_assign(&mut self, other: &'a Vector<S>) {
@@ -206,10 +206,4 @@ where
             self[index] = self[index] * value;
         }
     }
-}
-*/
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

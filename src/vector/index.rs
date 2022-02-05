@@ -3,12 +3,12 @@
 //!
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 
-trait Index: Copy {
+pub trait Indexable: Copy {
     fn new(x: usize) -> Self;
     fn index(&self) -> usize;
 }
 
-impl Index for usize {
+impl Indexable for usize {
     #[inline]
     fn new(x: usize) -> Self {
         x
@@ -19,7 +19,7 @@ impl Index for usize {
     }
 }
 
-impl Index for NodeIndex {
+impl Indexable for NodeIndex {
     #[inline]
     fn new(x: usize) -> Self {
         NodeIndex::new(x)
@@ -36,12 +36,12 @@ mod tests {
 
     #[test]
     fn index_usize() {
-        let x: usize = Index::new(10);
+        let x: usize = Indexable::new(10);
         println!("{}", x.index());
     }
     #[test]
     fn index_node_index() {
-        let x: NodeIndex = Index::new(10);
+        let x: NodeIndex = Indexable::new(10);
         println!("{}", x.index());
     }
 }

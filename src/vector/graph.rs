@@ -12,7 +12,8 @@ use std::ops::{Add, AddAssign, Index, IndexMut};
 /// Vector that supports index access by petgraph::NodeIndex
 ///
 #[derive(Debug, Clone)]
-pub struct NodeVec<S: Storage>(pub Vector<S>);
+pub struct NodeVec<S: Storage>(pub Vector<S, usize>);
+// pub type NodeVec<S: Storage> = Vector<S, NodeIndex>;
 
 impl<S: Storage> Index<NodeIndex> for NodeVec<S> {
     type Output = S::Item;
@@ -44,30 +45,6 @@ impl<S: Storage> NodeVec<S> {
         self.0.iter().map(|(i, v)| (NodeIndex::new(i), v))
     }
 }
-
-/*
-impl<'a, 'b, S> Add<&'a NodeVec<S>> for &'b NodeVec<S>
-where
-    S: Storage,
-    S::Item: Add<Output = S::Item>,
-{
-    type Output = NodeVec<S>;
-    fn add(self, other: &'a NodeVec<S>) -> Self::Output {
-        let v = &self.0 + &other.0;
-        NodeVec(v)
-    }
-}
-
-impl<'a, S> AddAssign<&'a NodeVec<S>> for NodeVec<S>
-where
-    S: IterableStorage<'a>,
-    S::Item: Add<Output = S::Item>,
-{
-    fn add_assign(&mut self, other: &'a NodeVec<S>) {
-        self.0 += &other.0;
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {
