@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMResult, PHMMTable};
-use crate::prob::Prob;
+use crate::prob::{p, Prob};
 use crate::vector::{NodeVec, Storage};
 
 // wrappers and exposed functions
@@ -42,13 +42,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         PHMMTable::new(
             self.n_nodes(),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
             // only MatchBegin has probability (p=1)
-            Prob::from_prob(1.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
+            p(1.0),
+            p(0.0),
+            p(0.0),
         )
     }
     ///
@@ -61,12 +61,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let mut table = PHMMTable::new(
             self.n_nodes(),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
-            Prob::from_prob(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
         );
         // normal state first
         self.fm(&mut table, prev_table, emission);

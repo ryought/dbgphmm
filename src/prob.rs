@@ -3,8 +3,25 @@
 /// implements logaddexp
 ///
 
+///
+/// Wrapper of f64 that represents probability `0 <= p <= 1`
+///
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Prob(f64);
+
+///
+/// short-hand of `Prob::from_prob`
+///
+pub fn p(p: f64) -> Prob {
+    Prob::from_prob(p)
+}
+
+///
+/// short-hand of `Prob::from_log_prob`
+///
+pub fn lp(lp: f64) -> Prob {
+    Prob::from_log_prob(lp)
+}
 
 impl Prob {
     pub fn from_prob(value: f64) -> Prob {
