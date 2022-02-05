@@ -55,7 +55,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Forward algorithm
     ///
-    fn f_step<S>(&self, i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
+    fn f_step<S>(&self, _i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
@@ -151,12 +151,12 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// (Here `x[:i+1] = x[0],...,x[i]`)
     ///
     /// calculate `t0.i` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fi<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
+    fn fi<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             // emission prob
             let p_emit = param.p_random;
 
@@ -259,7 +259,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             fdt0[k] = self
                 .parents(k)
                 .map(|(_, l, ew)| {
@@ -277,7 +277,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fm_i[b] = 1 (if i==-1)
     ///           0 (otherwise)
     /// ```
-    fn fmb<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
+    fn fmb<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
     where
         S: Storage<Item = Prob>,
     {
@@ -319,8 +319,6 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::super::seqgraph::create_linear_seq_graph;
-    use super::*;
-    use crate::vector::DenseStorage;
 
     #[test]
     fn create_linear_seq_graph_test() {

@@ -73,7 +73,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Backward algorithm
     ///
-    fn b_step<S>(&self, i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
+    fn b_step<S>(&self, _i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
@@ -133,14 +133,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// It depends on `bm_i+1, bi_i+1`. This can be calculated first in `i` tables.
     ///
-    fn bd<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
+    fn bd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, emission: u8)
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
         let mut bdt0 = self.bd0(t0, emission);
         t0.d += &bdt0;
-        for t in 0..param.n_max_gaps {
+        for _t in 0..param.n_max_gaps {
             bdt0 = self.bdt(&bdt0);
             t0.d += &bdt0;
         }
@@ -161,7 +161,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut bd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             // (1) to match
             let p_to_match: Prob = self
                 .childs(k)
@@ -200,7 +200,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut bdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             bdt0[k] = self
                 .childs(k)
                 .map(|(_, l, ew)| {
@@ -235,7 +235,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             // (1) to match and del
             let p_to_match_del: Prob = self
                 .childs(k)
@@ -282,7 +282,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
+        for (k, _) in self.nodes() {
             // (1) to match and del
             let p_to_match_del: Prob = self
                 .childs(k)
@@ -327,29 +327,28 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
-            // (1) to match and del of all nodes
-            let p_to_match_del: Prob = self
-                .nodes()
-                .map(|(l, lw)| {
-                    // k=Begin -> l
-                    let p_trans = lw.init_prob();
-                    // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
-                    p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
-                })
-                .sum();
 
-            // (2) to ins of self node
-            let p_to_ins = param.p_MI * param.p_random * t1.ib;
+        // (1) to match and del of all nodes
+        let p_to_match_del: Prob = self
+            .nodes()
+            .map(|(l, lw)| {
+                // k=Begin -> l
+                let p_trans = lw.init_prob();
+                // emission prob on l
+                let p_emit = if lw.emission() == emission {
+                    param.p_match
+                } else {
+                    param.p_mismatch
+                };
+                p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
+            })
+            .sum();
 
-            // sum
-            t0.mb = p_to_match_del + p_to_ins;
-        }
+        // (2) to ins of self node
+        let p_to_ins = param.p_MI * param.p_random * t1.ib;
+
+        // sum
+        t0.mb = p_to_match_del + p_to_ins;
     }
     /// fill the backward prob of `InsBegin` state
     ///
@@ -371,29 +370,28 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
-            // (1) to match and del of all nodes
-            let p_to_match_del: Prob = self
-                .nodes()
-                .map(|(l, lw)| {
-                    // k=Begin -> l
-                    let p_trans = lw.init_prob();
-                    // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
-                    p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
-                })
-                .sum();
 
-            // (2) to ins of self node
-            let p_to_ins = param.p_II * param.p_random * t1.ib;
+        // (1) to match and del of all nodes
+        let p_to_match_del: Prob = self
+            .nodes()
+            .map(|(l, lw)| {
+                // k=Begin -> l
+                let p_trans = lw.init_prob();
+                // emission prob on l
+                let p_emit = if lw.emission() == emission {
+                    param.p_match
+                } else {
+                    param.p_mismatch
+                };
+                p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
+            })
+            .sum();
 
-            // sum
-            t0.ib = p_to_match_del + p_to_ins;
-        }
+        // (2) to ins of self node
+        let p_to_ins = param.p_II * param.p_random * t1.ib;
+
+        // sum
+        t0.ib = p_to_match_del + p_to_ins;
     }
     /// Fill the backward prob of `End` state
     ///
@@ -402,7 +400,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ## Dependency
     /// None
     ///
-    fn be<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
+    fn be<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
     where
         S: Storage<Item = Prob>,
     {
@@ -413,7 +411,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::super::seqgraph::create_linear_seq_graph;
-    use super::*;
 
     #[test]
     fn create_linear_seq_graph_test() {

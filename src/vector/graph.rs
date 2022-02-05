@@ -4,9 +4,8 @@
 //!
 //! i.e. `vec[NodeIndex(0)]`
 //!
-use super::{Storage, Vector};
+use super::Vector;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
-use std::ops::{Add, AddAssign, Index, IndexMut};
 
 /// Vector that uses petgraph::Node as an index
 pub type NodeVec<S> = Vector<S, NodeIndex>;
