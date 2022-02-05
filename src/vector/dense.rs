@@ -22,34 +22,24 @@ where
         self.0.len()
     }
     #[inline]
-    fn get_id(&self, index: usize) -> usize {
-        index
+    fn n_ids(&self) -> usize {
+        self.0.len()
     }
     #[inline]
-    fn get_by_id(&self, id: usize) -> &T {
-        &self.0[id]
+    fn get_by_id(&self, id: usize) -> (usize, T) {
+        let index = id;
+        let value = self.0[id];
+        (index, value)
     }
     #[inline]
-    fn get_mut_by_id(&mut self, id: usize) -> &mut T {
-        &mut self.0[id]
+    fn get(&self, index: usize) -> &T {
+        &self.0[index]
+    }
+    #[inline]
+    fn get_mut(&mut self, index: usize) -> &mut T {
+        &mut self.0[index]
     }
 }
-
-/*
-impl<'a, T: Copy + 'a> Iterator for DenseStorageIterator<'a, T> {
-    type Item = (usize, T);
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.storage.len() {
-            let index = self.index;
-            let value = self.storage[index];
-            self.index += 1;
-            Some((index, value))
-        } else {
-            None
-        }
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {

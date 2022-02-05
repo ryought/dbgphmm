@@ -8,7 +8,15 @@ use arrayvec::ArrayVec;
 const SIZE: usize = 200;
 
 /// Sparse storage powered by `ArrayVec`
-/// A type of items is represented as T.
+/// A type of items is represented as `T`.
+///
+/// This sparse storage virtually has the given size
+/// `0 <= index < size`
+///
+/// Hypothesis is that it has at most `SIZE` elements
+/// which has a non-default value.
+/// `0 <= id < SIZE = 200`
+///
 #[derive(Debug, Clone)]
 pub struct SparseStorage<T> {
     /// virtual size of this storage
@@ -33,9 +41,17 @@ where
             elements: ArrayVec::<(usize, T), SIZE>::new(),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn size(&self) -> usize {
         self.size
+    }
+    #[inline]
+    fn n_ids(&self) -> usize {
+        self.elements.len()
+    }
+    #[inline]
+    fn get_by_id(&self, id: usize) -> (usize, T) {
+        self.elements[id]
     }
     fn get(&self, index: usize) -> &T {
         assert!(index < self.size());
@@ -66,22 +82,6 @@ where
         return &mut self.elements[n - 1].1;
     }
 }
-
-/*
-impl<'a, T: Copy + 'a> Iterator for SparseStorageIterator<'a, T> {
-    type Item = (usize, T);
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.i < self.storage.elements.len() {
-            let i = self.i;
-            let (index, value) = self.storage.elements[i];
-            self.i += 1;
-            Some((index, value))
-        } else {
-            None
-        }
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {

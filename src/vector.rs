@@ -6,11 +6,11 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 pub mod graph;
 pub mod index;
-// pub mod sparse;
-// pub use sparse::SparseStorage;
+pub mod sparse;
 pub use dense::DenseStorage;
 pub use graph::NodeVec;
 pub use petgraph::graph::IndexType;
+pub use sparse::SparseStorage;
 use std::marker::PhantomData;
 
 /// Backend storage of `Vector`
@@ -50,26 +50,18 @@ pub trait Storage: Clone + Sized {
     /// Get the size of this storage
     fn size(&self) -> usize;
     ///
-    /// Get internal id of the index
-    fn get_id(&self, index: usize) -> usize;
+    /// Get the number of elements.
+    /// `0 <= id < self.n_ids()` should be satisfied.
+    fn n_ids(&self) -> usize;
     ///
     /// Get the reference to the value at the internal id
-    fn get_by_id(&self, id: usize) -> &Self::Item;
-    ///
-    /// Get the mutable reference at the internal id
-    fn get_mut_by_id(&mut self, id: usize) -> &mut Self::Item;
+    fn get_by_id(&self, id: usize) -> (usize, Self::Item);
     ///
     /// Get the reference to the value at the given index
-    fn get(&self, index: usize) -> &Self::Item {
-        let id = self.get_id(index);
-        self.get_by_id(id)
-    }
+    fn get(&self, index: usize) -> &Self::Item;
     ///
     /// Get the mutable reference to the given index
-    fn get_mut(&mut self, index: usize) -> &mut Self::Item {
-        let id = self.get_id(index);
-        self.get_mut_by_id(id)
-    }
+    fn get_mut(&mut self, index: usize) -> &mut Self::Item;
     ///
     /// get an iterator of (usize, Self::Item) on the storage
     fn iter<'a>(&'a self) -> StorageIterator<'a, Self> {
@@ -92,23 +84,30 @@ pub struct StorageIterator<'a, S: Storage> {
 impl<'a, S: Storage> Iterator for StorageIterator<'a, S> {
     type Item = (usize, S::Item);
     fn next(&mut self) -> Option<Self::Item> {
-        let ret = if self.id == 0 {
-            // TODO
-            Some((0, *self.storage.get(0)))
+        if self.id < self.storage.n_ids() {
+            let id = self.id;
+            let item = self.storage.get_by_id(id);
+            self.id += 1;
+            Some(item)
         } else {
             None
-        };
-        self.id += 1;
-        ret
+        }
     }
 }
 
 /// `Vector` struct
-/// It generalized of (1) its item and (2) its backend storage.
+///
+/// It generalized of
+///
+/// 1. item type `Storage::Item`
+/// 2. backend storage `S: Storage`
+/// 3. index type `Ix: IndexType`
+///
 #[derive(Clone, Debug)]
 pub struct Vector<S: Storage, Ix: IndexType = usize> {
     /// Backend storage of the Vector
     storage: S,
+    /// Hidden marker of index type
     ty: PhantomData<Ix>,
 }
 
