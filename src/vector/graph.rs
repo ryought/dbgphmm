@@ -75,6 +75,7 @@ mod tests {
     use super::*;
     use crate::prob::Prob;
 
+    /*
     #[test]
     fn nodevec() {
         let mut v: NodeVec<DenseStorage<u32>> = NodeVec::new(5, 0);
@@ -115,4 +116,5 @@ mod tests {
         // v1 += &v2;
         println!("{:?}", v1);
     }
+    */
 }

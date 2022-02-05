@@ -28,16 +28,9 @@ use std::marker::PhantomData;
 /// * `iter`
 ///     get an iterator of (index, value) whose value is not default.
 ///
-/// Internaly, mapping of index (0 <= index < size) to value
-/// is stored with internal element id. (0 <= id < # of stored elements)
+/// Internaly, mapping of index (0 <= index < self.size()) to value
+/// is stored with internal element id. (0 <= id < self.n_ids())
 /// (index) -> (id) -> (value)
-///
-/// * `get_id`
-///     conversion from index to id
-/// * `get_by_id`
-///     get reference by id
-/// * `get_mut_by_id`
-///     get mutable reference by id
 ///
 pub trait Storage: Clone + Sized {
     /// Item type that this storage stores.
