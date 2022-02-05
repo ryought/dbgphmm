@@ -72,6 +72,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn n_nodes(&self) -> usize {
         self.graph.node_count()
     }
+    ///
+    /// Get a node emission
+    ///
+    pub fn emission(&self, v: NodeIndex) -> u8 {
+        self.graph.node_weight(v).unwrap().emission()
+    }
 }
 
 pub struct Nodes<'a, N: 'a> {
