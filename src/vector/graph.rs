@@ -4,7 +4,7 @@
 //!
 //! i.e. `vec[NodeIndex(0)]`
 //!
-use super::{IterableStorage, Storage, Vector};
+use super::{Storage, Vector};
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
@@ -38,16 +38,17 @@ impl<S: Storage> NodeVec<S> {
     }
 }
 
-impl<'a, S: IterableStorage<'a>> NodeVec<S> {
+impl<S: Storage> NodeVec<S> {
     /// Get an iterator on (index, item).
-    pub fn iter(&'a self) -> impl 'a + Iterator<Item = (NodeIndex, S::Item)> {
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (NodeIndex, S::Item)> {
         self.0.iter().map(|(i, v)| (NodeIndex::new(i), v))
     }
 }
 
+/*
 impl<'a, 'b, S> Add<&'a NodeVec<S>> for &'b NodeVec<S>
 where
-    S: IterableStorage<'a>,
+    S: Storage,
     S::Item: Add<Output = S::Item>,
 {
     type Output = NodeVec<S>;
@@ -66,6 +67,7 @@ where
         self.0 += &other.0;
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -110,7 +112,7 @@ mod tests {
         let mut v2: NodeVec<DenseStorage<Prob>> = NodeVec::new(5, Prob::from_prob(0.0));
         v2[NodeIndex::new(1)] = Prob::from_prob(0.2);
         v2[NodeIndex::new(4)] = Prob::from_prob(0.3);
-        v1 += &v2;
+        // v1 += &v2;
         println!("{:?}", v1);
     }
 }

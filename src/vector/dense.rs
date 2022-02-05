@@ -1,9 +1,11 @@
 //!
 //! Dense storage that uses `std::Vec`
 //!
-use super::{IterableStorage, Storage};
+use super::Storage;
 
 /// Dense storage powered by `std::Vec`
+///
+/// In `DenseStorage`, internal id equals to index.
 #[derive(Debug, Clone)]
 pub struct DenseStorage<T>(Vec<T>);
 
@@ -15,38 +17,25 @@ where
     fn new(size: usize, default_value: T) -> DenseStorage<T> {
         DenseStorage(vec![default_value; size])
     }
+    #[inline]
     fn size(&self) -> usize {
         self.0.len()
     }
-    fn get(&self, index: usize) -> &T {
-        &self.0[index]
+    #[inline]
+    fn get_id(&self, index: usize) -> usize {
+        index
     }
-    fn get_mut(&mut self, index: usize) -> &mut T {
-        &mut self.0[index]
+    #[inline]
+    fn get_by_id(&self, id: usize) -> &T {
+        &self.0[id]
     }
-}
-
-impl<'a, T> IterableStorage<'a> for DenseStorage<T>
-where
-    T: Copy + 'a,
-{
-    type IndexIterator = DenseStorageIterator<'a, T>;
-    fn indexiter(&'a self) -> Self::IndexIterator {
-        DenseStorageIterator {
-            index: 0,
-            storage: &self.0,
-        }
+    #[inline]
+    fn get_mut_by_id(&mut self, id: usize) -> &mut T {
+        &mut self.0[id]
     }
 }
 
-/// Iterator on DenseStorage (index, item)
-pub struct DenseStorageIterator<'a, T: Copy + 'a> {
-    /// current index on the storage
-    index: usize,
-    /// reference to the original storage
-    storage: &'a [T],
-}
-
+/*
 impl<'a, T: Copy + 'a> Iterator for DenseStorageIterator<'a, T> {
     type Item = (usize, T);
     fn next(&mut self) -> Option<Self::Item> {
@@ -60,6 +49,7 @@ impl<'a, T: Copy + 'a> Iterator for DenseStorageIterator<'a, T> {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {

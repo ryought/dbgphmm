@@ -1,7 +1,7 @@
 //!
 //! Sparse storage that uses `ArrayVec`
 //!
-use super::{IterableStorage, Storage, Vector};
+use super::Storage;
 use arrayvec::ArrayVec;
 
 /// SparseStorage max index size parameter
@@ -67,27 +67,7 @@ where
     }
 }
 
-impl<'a, T> IterableStorage<'a> for SparseStorage<T>
-where
-    T: Copy + 'a,
-{
-    type IndexIterator = SparseStorageIterator<'a, T>;
-    fn indexiter(&'a self) -> Self::IndexIterator {
-        SparseStorageIterator {
-            i: 0,
-            storage: &self,
-        }
-    }
-}
-
-/// Iterator on SparseStorage (index, item)
-pub struct SparseStorageIterator<'a, T: Copy + 'a> {
-    /// current index on the arrayvec on the sparse storage
-    i: usize,
-    /// reference to the storage
-    storage: &'a SparseStorage<T>,
-}
-
+/*
 impl<'a, T: Copy + 'a> Iterator for SparseStorageIterator<'a, T> {
     type Item = (usize, T);
     fn next(&mut self) -> Option<Self::Item> {
@@ -101,9 +81,11 @@ impl<'a, T: Copy + 'a> Iterator for SparseStorageIterator<'a, T> {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
+    use super::super::Vector;
     use super::*;
 
     #[test]
