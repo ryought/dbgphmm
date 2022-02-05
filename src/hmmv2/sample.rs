@@ -36,51 +36,76 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let state = match now {
             State::Match(node) => {
                 let child = self.pick_child(rng, node);
-                let choices = [
-                    (State::Match(child), param.p_MM),
-                    (State::Ins(node), param.p_MI),
-                    (State::Del(child), param.p_MD),
-                    (State::End, param.p_end),
-                ];
-                pick_with_prob(rng, &choices)
+                match child {
+                    Some(child) => {
+                        let choices = [
+                            (State::Match(child), param.p_MM),
+                            (State::Ins(node), param.p_MI),
+                            (State::Del(child), param.p_MD),
+                            (State::End, param.p_end),
+                        ];
+                        pick_with_prob(rng, &choices)
+                    }
+                    None => State::End,
+                }
             }
             State::Ins(node) => {
                 let child = self.pick_child(rng, node);
-                let choices = [
-                    (State::Match(child), param.p_IM),
-                    (State::Ins(node), param.p_II),
-                    (State::Del(child), param.p_ID),
-                    (State::End, param.p_end),
-                ];
-                pick_with_prob(rng, &choices)
+                match child {
+                    Some(child) => {
+                        let choices = [
+                            (State::Match(child), param.p_IM),
+                            (State::Ins(node), param.p_II),
+                            (State::Del(child), param.p_ID),
+                            (State::End, param.p_end),
+                        ];
+                        pick_with_prob(rng, &choices)
+                    }
+                    None => State::End,
+                }
             }
             State::Del(node) => {
                 let child = self.pick_child(rng, node);
-                let choices = [
-                    (State::Match(child), param.p_DM),
-                    (State::Ins(node), param.p_DI),
-                    (State::Del(child), param.p_DD),
-                    (State::End, param.p_end),
-                ];
-                pick_with_prob(rng, &choices)
+                match child {
+                    Some(child) => {
+                        let choices = [
+                            (State::Match(child), param.p_DM),
+                            (State::Ins(node), param.p_DI),
+                            (State::Del(child), param.p_DD),
+                            (State::End, param.p_end),
+                        ];
+                        pick_with_prob(rng, &choices)
+                    }
+                    None => State::End,
+                }
             }
             State::MatchBegin => {
                 let node = self.pick_init_node(rng);
-                let choices = [
-                    (State::InsBegin, param.p_MI),
-                    (State::Match(node), param.p_MM),
-                    (State::Del(node), param.p_MD),
-                ];
-                pick_with_prob(rng, &choices)
+                match node {
+                    Some(node) => {
+                        let choices = [
+                            (State::InsBegin, param.p_MI),
+                            (State::Match(node), param.p_MM),
+                            (State::Del(node), param.p_MD),
+                        ];
+                        pick_with_prob(rng, &choices)
+                    }
+                    None => State::End,
+                }
             }
             State::InsBegin => {
                 let node = self.pick_init_node(rng);
-                let choices = [
-                    (State::InsBegin, param.p_II),
-                    (State::Match(node), param.p_IM),
-                    (State::Del(node), param.p_ID),
-                ];
-                pick_with_prob(rng, &choices)
+                match node {
+                    Some(node) => {
+                        let choices = [
+                            (State::InsBegin, param.p_II),
+                            (State::Match(node), param.p_IM),
+                            (State::Del(node), param.p_ID),
+                        ];
+                        pick_with_prob(rng, &choices)
+                    }
+                    None => State::End,
+                }
             }
             State::End => panic!(),
         };
@@ -94,15 +119,35 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         (state, emission)
     }
-    fn pick_child<R: Rng>(&self, rng: &mut R, node: NodeIndex) -> NodeIndex {
-        // TODO
-        // what if when there is no child?
-        NodeIndex::new(0)
+    fn pick_child<R: Rng>(&self, rng: &mut R, node: NodeIndex) -> Option<NodeIndex> {
+        let choices: Vec<(NodeIndex, Prob)> = self
+            .childs(node)
+            .map(|(_, child, ew)| (child, ew.trans_prob()))
+            .filter(|(_, prob)| !prob.is_zero())
+            .collect();
+
+        if choices.len() == 0 {
+            // there is no child (with >0 transition probability)
+            None
+        } else {
+            Some(pick_with_prob(rng, &choices))
+        }
     }
-    fn pick_init_node<R: Rng>(&self, rng: &mut R) -> NodeIndex {
+    fn pick_init_node<R: Rng>(&self, rng: &mut R) -> Option<NodeIndex> {
         // TODO
         // when start from head mode, this should be go to the first node
-        NodeIndex::new(0)
+        let choices: Vec<(NodeIndex, Prob)> = self
+            .nodes()
+            .map(|(v, vw)| (v, vw.init_prob()))
+            .filter(|(_, prob)| !prob.is_zero())
+            .collect();
+
+        if choices.len() == 0 {
+            // there is no child (with >0 transition probability)
+            None
+        } else {
+            Some(pick_with_prob(rng, &choices))
+        }
     }
 }
 
