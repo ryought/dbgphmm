@@ -13,7 +13,7 @@ use petgraph::visit::IntoNodeReferences;
 use std::collections::HashMap;
 
 /// GenomeGraph
-pub struct GenomeGraph(DiGraph<GenomeNode, GenomeEdge>);
+pub struct GenomeGraph(pub DiGraph<GenomeNode, GenomeEdge>);
 
 /// Node in GenomeGraph is a copy-number-assigned sequence fragment
 pub struct GenomeNode {
@@ -39,7 +39,7 @@ pub struct GenomeEdge {
 }
 
 impl GenomeEdge {
-    fn new(copy_num: Option<CopyNum>) -> Self {
+    pub fn new(copy_num: Option<CopyNum>) -> Self {
         GenomeEdge { copy_num }
     }
 }
@@ -124,16 +124,6 @@ impl GenomeGraph {
 
         SeqGraph(graph)
     }
-}
-
-pub fn mock() -> GenomeGraph {
-    let mut g = DiGraph::new();
-    let v1 = g.add_node(GenomeNode::new(b"ATTCGATCGTCG", 1));
-    let v2 = g.add_node(GenomeNode::new(b"ATCGATG", 1));
-    let v3 = g.add_node(GenomeNode::new(b"TTCGAT", 2));
-    g.add_edge(v1, v3, GenomeEdge::new(None));
-    g.add_edge(v2, v3, GenomeEdge::new(None));
-    GenomeGraph(g)
 }
 
 #[cfg(test)]

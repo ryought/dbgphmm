@@ -84,11 +84,13 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
     pub fn to_phmm(&self) -> PModel {
         let total_emittable_copy_num = self.total_emittable_copy_num();
         let graph = self.0.map(
+            // node converter
             |_, vw| {
                 let init_prob = Prob::from_prob(vw.copy_num() as f64)
                     / Prob::from_prob(total_emittable_copy_num as f64);
                 PNode::new(vw.copy_num(), init_prob, vw.is_emittable(), vw.base())
             },
+            // edge converter
             |e, _| {
                 let (parent, child) = self.0.edge_endpoints(e).unwrap();
                 let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
