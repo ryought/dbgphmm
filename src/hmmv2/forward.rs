@@ -317,13 +317,4 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::seqgraph::create_linear_seq_graph;
-
-    #[test]
-    fn create_linear_seq_graph_test() {
-        let g = create_linear_seq_graph(b"ATCGGCTAGC");
-        let phmm = g.to_phmm();
-        println!("{}", phmm);
-    }
-}
+mod tests {}

@@ -1,11 +1,11 @@
 //!
-//! seqgraph
+//! `SeqGraph`
 //! seq with copy numbers
 //!
 
-use super::common::{PEdge, PModel, PNode};
 use crate::common::CopyNum;
 use crate::hmm::params::PHMMParams;
+use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;

@@ -3,6 +3,7 @@
 //! Node: linear sequence
 //! Edge: its adjacency
 //!
+use super::seq_graph::SeqGraph;
 use crate::common::{CopyNum, Sequence};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
@@ -64,6 +65,14 @@ impl std::fmt::Display for GenomeGraph {
         write!(f, "{}", Dot::with_config(&self.0, &[]))
     }
 }
+
+/*
+impl GenomeGraph {
+    fn to_seq_graph(&self) -> SeqGraph {
+        unimplemented!();
+    }
+}
+*/
 
 pub fn mock() -> GenomeGraph {
     let mut g = DiGraph::new();
