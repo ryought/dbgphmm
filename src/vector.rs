@@ -158,6 +158,31 @@ where
     }
 }
 
+/// add constant to vector
+/// `Vector<S> + S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Add<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Add<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn add(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, Add<S::Item> can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value + other;
+        }
+        self
+    }
+}
+
 /// Implement addition with assignment `+=` between two vecs
 /// if the item of vec supports addition
 /// This does not cause re-allocation
@@ -209,5 +234,30 @@ where
         for (index, value) in other.iter() {
             self[index] = self[index] * value;
         }
+    }
+}
+
+/// multiply a constant to vector
+/// `Vector<S> * S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Mul<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Mul<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn mul(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, this can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value * other;
+        }
+        self
     }
 }

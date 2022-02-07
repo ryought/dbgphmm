@@ -47,6 +47,27 @@ mod tests {
     }
 
     #[test]
+    fn dense_vector_add_mul_constant() {
+        let mut v1: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v1[0] = 120;
+        v1[3] = 111;
+        let added = v1 + 10;
+        assert_eq!(added[0], 120 + 10);
+        assert_eq!(added[1], 10);
+        assert_eq!(added[2], 10);
+        assert_eq!(added[3], 111 + 10);
+
+        let mut v2: Vector<DenseStorage<u32>> = Vector::new(4, 0);
+        v2[0] = 16;
+        v2[2] = 77;
+        let muled = v2 * 10;
+        assert_eq!(muled[0], 160);
+        assert_eq!(muled[1], 0);
+        assert_eq!(muled[2], 770);
+        assert_eq!(muled[3], 0);
+    }
+
+    #[test]
     fn sparse_vector() {
         let mut v: Vector<SparseStorage<u32>> = Vector::new(5, 0);
         v[0] = 100;
