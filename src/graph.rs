@@ -1,6 +1,7 @@
 use forceatlas2;
 use log::info;
 use serde::Serialize;
+pub mod genome_graph;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Node(pub usize);
