@@ -93,6 +93,7 @@ impl GenomeGraph {
             let copy_num = node_weight.copy_num;
 
             // add a new node for each bases
+            // TODO move this to seq_graph.rs?
             let nodes: Vec<NodeIndex> = seq
                 .iter()
                 .map(|&base| graph.add_node(SimpleSeqNode::new(copy_num, base)))

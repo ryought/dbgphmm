@@ -62,6 +62,12 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
     pub fn edge_count(&self) -> usize {
         self.graph.edge_count()
     }
+}
+
+//
+// Conversion between SeqGraph and GenomeGraph
+//
+impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
     /// calculate the sum of copy numbers
     /// of all emittable nodes
     fn total_emittable_copy_num(graph: &DiGraph<N, E>) -> CopyNum {
