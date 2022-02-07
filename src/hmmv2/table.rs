@@ -23,6 +23,13 @@ pub struct PHMMResult<S: Storage<Item = Prob>> {
     pub tables: Vec<PHMMTable<S>>,
 }
 
+impl<S: Storage<Item = Prob>> PHMMResult<S> {
+    /// The number of emissions that this result stores.
+    pub fn n_emissions(&self) -> usize {
+        self.tables.len()
+    }
+}
+
 /// Maximum number of continuous deletion (D -> D transition)
 /// allowed in pHMM.
 pub const MAX_DEL: usize = 4;

@@ -14,6 +14,34 @@ use crate::vector::{DenseStorage, NodeVec, Storage};
 pub type NodeFreq = NodeVec<DenseStorage<Freq>>;
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    /// Calculate the full probability `P(x)` of the given emission `x`
+    /// from **forward** result.
+    ///
+    /// ```text
+    /// P(x) = fe_n-1 = P(emits x[0],...,x[n-1] and now in `e` (end state))
+    /// ```
+    ///
+    pub fn to_full_prob_forward<S>(&self, forward: &PHMMResult<S>) -> Prob
+    where
+        S: Storage<Item = Prob>,
+    {
+        let f = forward.tables.last().unwrap();
+        f.e
+    }
+    /// Calculate the full probability `P(x)` of the given emission `x`
+    /// from **backward** result.
+    ///
+    /// ```text
+    /// P(x) = bm_0[b] = P(emits x[0:] | starts from m_b)
+    /// ```
+    ///
+    pub fn to_full_prob_backward<S>(&self, backward: &PHMMResult<S>) -> Prob
+    where
+        S: Storage<Item = Prob>,
+    {
+        let b = backward.tables.first().unwrap();
+        b.mb
+    }
     /// Calculate the node usage frequency
     ///
     /// `freq[i][t_k]`
