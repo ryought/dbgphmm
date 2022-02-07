@@ -1,11 +1,11 @@
 //!
-//! seqgraph
+//! `SeqGraph`
 //! seq with copy numbers
 //!
 
-use super::common::{PEdge, PModel, PNode};
 use crate::common::CopyNum;
 use crate::hmm::params::PHMMParams;
+use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
@@ -15,7 +15,10 @@ pub use petgraph::Direction;
 ///
 /// SeqGraph is a sequence graph whose node has its own copy number.
 ///
-pub struct SeqGraph<N: SeqNode, E: SeqEdge>(pub DiGraph<N, E>);
+pub struct SeqGraph<N: SeqNode, E: SeqEdge> {
+    graph: DiGraph<N, E>,
+    total_emittable_copy_num: CopyNum,
+}
 
 /// a trait that should be satisfyed by nodes in SeqGraph
 pub trait SeqNode {
@@ -42,13 +45,36 @@ pub trait SeqEdge {
 }
 
 impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
+    /// Create `SeqGraph` from `DiGraph<N: SeqNode, E: SeqEdge>`
+    /// with precalculation of total_emittable_copy_num
+    pub fn new(graph: DiGraph<N, E>) -> Self {
+        let total_emittable_copy_num = SeqGraph::total_emittable_copy_num(&graph);
+        SeqGraph {
+            graph,
+            total_emittable_copy_num,
+        }
+    }
+    /// Get the number of nodes in the SeqGraph
+    pub fn node_count(&self) -> usize {
+        self.graph.node_count()
+    }
+    /// Get the number of edges in the SeqGraph
+    pub fn edge_count(&self) -> usize {
+        self.graph.edge_count()
+    }
+}
+
+//
+// Conversion between SeqGraph and GenomeGraph
+//
+impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
     /// calculate the sum of copy numbers
     /// of all emittable nodes
-    fn total_emittable_copy_num(&self) -> CopyNum {
-        self.0
+    fn total_emittable_copy_num(graph: &DiGraph<N, E>) -> CopyNum {
+        graph
             .node_indices()
             .map(|v| {
-                let vw = self.0.node_weight(v).unwrap();
+                let vw = graph.node_weight(v).unwrap();
                 if vw.is_emittable() {
                     vw.copy_num()
                 } else {
@@ -59,11 +85,11 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
     }
     /// calculate the sum of copy numbers
     /// of all emittable childs of the given node
-    fn total_emittable_child_copy_nums(&self, node: NodeIndex) -> CopyNum {
-        self.0
+    fn total_emittable_child_copy_nums(graph: &DiGraph<N, E>, node: NodeIndex) -> CopyNum {
+        graph
             .neighbors_directed(node, Direction::Outgoing)
             .map(|child| {
-                let child_weight = self.0.node_weight(child).unwrap();
+                let child_weight = graph.node_weight(child).unwrap();
                 if child_weight.is_emittable() {
                     child_weight.copy_num()
                 } else {
@@ -72,23 +98,34 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
             })
             .sum()
     }
+    /// Convert Node in Seqgraph into phmm node
+    fn to_phmm_node(&self, node: NodeIndex) -> PNode {
+        let node_weight = self.graph.node_weight(node).unwrap();
+        let init_prob = Prob::from_prob(node_weight.copy_num() as f64)
+            / Prob::from_prob(self.total_emittable_copy_num as f64);
+        PNode::new(
+            node_weight.copy_num(),
+            init_prob,
+            node_weight.is_emittable(),
+            node_weight.base(),
+        )
+    }
+    /// Convert Edge in Seqgraph into phmm edge
+    fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
+        let (parent, child) = self.graph.edge_endpoints(edge).unwrap();
+        let total_child_copy_num = SeqGraph::total_emittable_child_copy_nums(&self.graph, parent);
+        let child_weight = self.graph.node_weight(child).unwrap();
+        let trans_prob =
+            Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64);
+        PEdge::new(trans_prob)
+    }
     /// convert SeqGraph to PHMM by ignoreing the edge copy numbers
     pub fn to_phmm(&self) -> PModel {
-        let total_emittable_copy_num = self.total_emittable_copy_num();
-        let graph = self.0.map(
-            |_, vw| {
-                let init_prob = Prob::from_prob(vw.copy_num() as f64)
-                    / Prob::from_prob(total_emittable_copy_num as f64);
-                PNode::new(vw.copy_num(), init_prob, vw.is_emittable(), vw.base())
-            },
-            |e, _| {
-                let (parent, child) = self.0.edge_endpoints(e).unwrap();
-                let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
-                let child_w = self.0.node_weight(child).unwrap();
-                let trans_prob =
-                    Prob::from_prob(child_w.copy_num() as f64 / total_child_copy_num as f64);
-                PEdge::new(trans_prob)
-            },
+        let graph = self.graph.map(
+            // node converter
+            |v, _| self.to_phmm_node(v),
+            // edge converter
+            |e, _| self.to_phmm_edge(e),
         );
         PModel {
             param: PHMMParams::default(),
@@ -166,7 +203,7 @@ where
     E: SeqEdge + std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.0, &[]))
+        write!(f, "{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
@@ -174,40 +211,7 @@ where
 // mock constructors
 //
 
-///
-/// Create a linear SeqGraph from a sequence
-///
-pub fn create_linear_seq_graph(seq: &[u8]) -> SeqGraph<SimpleSeqNode, SimpleSeqEdge> {
-    let mut graph = DiGraph::new();
-    for i in 0..seq.len() {
-        graph.add_node(SimpleSeqNode::new(1, seq[i]));
-    }
-    for i in 1..seq.len() {
-        graph.add_edge(
-            NodeIndex::new(i - 1),
-            NodeIndex::new(i),
-            SimpleSeqEdge::new(None),
-        );
-    }
-    SeqGraph(graph)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn create_linear_seq_graph_test() {
-        let g = create_linear_seq_graph(b"ATCGGCTAGC");
-        println!("{}", g);
-        let phmm = g.to_phmm();
-        println!("{}", phmm);
-
-        for (v, vw) in phmm.nodes() {
-            println!("node {:?} {}", v, vw);
-            for e in phmm.childs(v) {
-                println!("  child {:?}", e);
-            }
-        }
-    }
 }
