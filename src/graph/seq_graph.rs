@@ -42,6 +42,14 @@ pub trait SeqEdge {
 }
 
 impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
+    /// Get the number of nodes in the SeqGraph
+    pub fn node_count(&self) -> usize {
+        self.0.node_count()
+    }
+    /// Get the number of edges in the SeqGraph
+    pub fn edge_count(&self) -> usize {
+        self.0.edge_count()
+    }
     /// calculate the sum of copy numbers
     /// of all emittable nodes
     fn total_emittable_copy_num(&self) -> CopyNum {
