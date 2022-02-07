@@ -78,6 +78,21 @@ impl PHMMParams {
             0,
         )
     }
+    /// PHMM Param for highly-error sequence
+    /// `p_mismatch = 10%`
+    ///
+    pub fn high_error() -> PHMMParams {
+        PHMMParams::new(
+            Prob::from_prob(0.1),     // mismatch
+            Prob::from_prob(0.1),     // gap_open
+            Prob::from_prob(0.1),     // gap_ext
+            Prob::from_prob(0.00001), // end
+            3,
+            false,
+            0,
+            0,
+        )
+    }
 }
 
 impl std::fmt::Display for PHMMParams {

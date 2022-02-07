@@ -120,17 +120,14 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
         PEdge::new(trans_prob)
     }
     /// convert SeqGraph to PHMM by ignoreing the edge copy numbers
-    pub fn to_phmm(&self) -> PModel {
+    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         let graph = self.graph.map(
             // node converter
             |v, _| self.to_phmm_node(v),
             // edge converter
             |e, _| self.to_phmm_edge(e),
         );
-        PModel {
-            param: PHMMParams::default(),
-            graph,
-        }
+        PModel { param, graph }
     }
 }
 

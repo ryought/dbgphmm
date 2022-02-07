@@ -2,12 +2,14 @@
 //! Sampling emissions from the PHMMModel
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use picker::{pick_ins_emission, pick_match_emission, pick_with_prob};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 pub mod picker;
+pub mod utils;
 
 ///
 /// HMM hidden states
@@ -26,7 +28,10 @@ pub enum State {
 /// HMM emission
 ///
 #[derive(Debug, Copy, Clone)]
-pub struct Emission(pub Option<u8>);
+pub enum Emission {
+    Base(u8),
+    Empty,
+}
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
@@ -54,7 +59,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         history
     }
     fn sample_init<R: Rng>(&self, _rng: &mut R) -> (State, Emission) {
-        (State::MatchBegin, Emission(None))
+        (State::MatchBegin, Emission::Empty)
     }
     fn sample_step<R: Rng>(&self, rng: &mut R, now: State) -> (State, Emission) {
         // (1) transition to the next state
@@ -154,7 +159,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         match state {
             State::Match(node) => pick_match_emission(rng, self.emission(node), param),
             State::Ins(_) | State::InsBegin => pick_ins_emission(rng, param),
-            _ => Emission(None),
+            _ => Emission::Empty,
         }
     }
     ///
@@ -199,11 +204,45 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
 #[cfg(test)]
 mod tests {
+    use super::utils::get_emission_sequence;
     use super::*;
+    use crate::graph::mocks::mock_linear;
 
     #[test]
     fn hmm_sample_state() {
         let s = State::Match(NodeIndex::new(10));
         println!("{:?}", s);
+    }
+
+    #[test]
+    fn hmm_sample_mock_linear_picker() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        println!("{}", phmm);
+
+        // pick_init_node
+        for _ in 0..100 {
+            let node = phmm.pick_init_node(&mut rng);
+        }
+
+        for _ in 0..10 {
+            // head node
+            assert_eq!(
+                phmm.pick_child(&mut rng, NodeIndex::new(0)),
+                Some(NodeIndex::new(1)),
+            );
+            // tail node
+            assert_eq!(phmm.pick_child(&mut rng, NodeIndex::new(9)), None);
+        }
+    }
+    #[test]
+    fn hmm_sample_mock_linear() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        let hist = phmm.sample(20, 0);
+        println!("{:?}", hist);
+        println!("{:?}", get_emission_sequence(&hist));
     }
 }
