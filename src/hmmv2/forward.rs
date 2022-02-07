@@ -316,5 +316,24 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
 }
 
+//
+// Tests
+//
+
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::graph::mocks::mock_linear;
+    use crate::hmm::params::PHMMParams;
+    use crate::vector::DenseStorage;
+    #[test]
+    fn hmm_forward_mock_linear() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"ATCGATGC");
+        for table in r.tables {
+            println!("{}", table);
+        }
+    }
+}

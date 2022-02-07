@@ -9,7 +9,14 @@
 //!
 use crate::prob::Prob;
 use crate::vector::{NodeVec, Storage};
+pub use petgraph::graph::NodeIndex;
 
+/// Struct that stores Forward/Backward algorithm result
+/// for the given emissions
+///
+/// the length of the PHMMResult.tables will be
+/// equal to the length of emissions
+#[derive(Debug, Clone)]
 pub struct PHMMResult<S: Storage<Item = Prob>> {
     pub init_table: PHMMTable<S>,
     pub tables: Vec<PHMMTable<S>>,
@@ -19,6 +26,12 @@ pub struct PHMMResult<S: Storage<Item = Prob>> {
 /// allowed in pHMM.
 pub const MAX_DEL: usize = 4;
 
+/// Struct for storing Forward/Backward intermediate result
+/// for an emission.
+///
+/// Corresponds to a vector `T[node, type]`
+/// `node` is either normal or begin or end node.
+/// `type` is either Match, Ins, Del.
 #[derive(Debug, Clone)]
 pub struct PHMMTable<S: Storage<Item = Prob>> {
     /// Match node probability
@@ -45,6 +58,22 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             ib,
             e,
         }
+    }
+}
+
+impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "\tMatch\tIns\tDel")?;
+        // Begin state
+        writeln!(f, "Begin\t{}\t{}", self.mb, self.ib)?;
+        // Normal states
+        let n_nodes = self.m.len();
+        for i in 0..n_nodes {
+            let v = NodeIndex::new(i);
+            writeln!(f, "{}\t{}\t{}\t{}", i, self.m[v], self.i[v], self.d[v])?;
+        }
+        // End state
+        writeln!(f, "End\t{}", self.e)
     }
 }
 

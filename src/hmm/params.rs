@@ -93,6 +93,21 @@ impl PHMMParams {
             0,
         )
     }
+    /// PHMM Param for no-error sequence
+    /// `p_mismatch = 0%`
+    ///
+    pub fn zero_error() -> PHMMParams {
+        PHMMParams::new(
+            Prob::from_prob(0.0),     // mismatch
+            Prob::from_prob(0.0),     // gap_open
+            Prob::from_prob(0.0),     // gap_ext
+            Prob::from_prob(0.00001), // end
+            3,
+            false,
+            0,
+            0,
+        )
+    }
 }
 
 impl std::fmt::Display for PHMMParams {
