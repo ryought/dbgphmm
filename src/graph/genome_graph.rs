@@ -122,7 +122,7 @@ impl GenomeGraph {
             graph.add_edge(*last_of_source, *first_of_target, SimpleSeqEdge::new(None));
         }
 
-        SeqGraph(graph)
+        SeqGraph::new(graph)
     }
 }
 
