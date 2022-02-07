@@ -14,6 +14,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Backward algorithm to the emissions
     ///
+    /// `bt_i[k]` = P(emits `x[i:] = x[i], ..., x[n-1]` | starts from state `t_k`)
+    ///
+    /// * `t` is a type of state, either Match, Ins, Del
+    /// * `k` is a node index
+    ///
     pub fn backward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
     where
         S: Storage<Item = Prob>,
@@ -409,4 +414,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::graph::mocks::mock_linear;
+    use crate::hmm::params::PHMMParams;
+    use crate::vector::DenseStorage;
+    #[test]
+    fn hmm_backward_mock_linear() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        for table in r.tables {
+            println!("{}", table);
+        }
+    }
+}

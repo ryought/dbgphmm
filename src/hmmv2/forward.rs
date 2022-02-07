@@ -12,6 +12,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions
     ///
+    /// `ft_i[k]` = P(emits `x[:i+1] = x[0],...,x[i]` and now in state `t_k`)
+    ///
+    /// * `t` is a type of state, either Match, Ins, Del
+    /// * `k` is a node index
+    ///
     pub fn forward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
     where
         S: Storage<Item = Prob>,
@@ -331,7 +336,7 @@ mod tests {
         let phmm = mock_linear()
             .to_seq_graph()
             .to_phmm(PHMMParams::high_error());
-        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"ATCGATGC");
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         for table in r.tables {
             println!("{}", table);
         }
