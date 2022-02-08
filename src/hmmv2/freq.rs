@@ -5,9 +5,10 @@
 //! - **Emit prob** (for each state and each emission)
 //!     The probability of emitting the single base from the hidden state
 //!
-//! - **State freq** (for each state)
-//!     The expected value of the usage frequency of each hidden state, that
-//!     is the sum of emit prob, while emitting the set of emissions.
+//! - **State probs** (for each state)
+//!     The expected value (the sum of probabilities) of the usage frequency
+//!     of each hidden state, that is the sum of emit prob, while emitting
+//!     the set of emissions.
 //!
 //! - **Node freq** (for each node)
 //!     The expected value of the usage frequency of each node.
@@ -24,7 +25,7 @@ use crate::vector::{DenseStorage, NodeVec, Storage};
 pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
 
 /// Frequency (f64) assigned to each hidden states
-pub type StateFreq = PHMMTable<DenseStorage<Freq>>;
+pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
 
 /// Frequency (f64) assigned to each nodes
 /// It cannot assume the sparcity, so we use the dense storage
@@ -91,12 +92,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.
     ///
-    pub fn to_state_freq<S>(&self, forward: &PHMMResult<S>, backward: &PHMMResult<S>)
+    pub fn to_state_probs<S>(&self, forward: &PHMMResult<S>, backward: &PHMMResult<S>) -> StateProbs
     where
         S: Storage<Item = Prob>,
     {
-        // let emit_probs = self.to_emit_probs(forward, backward).sum();
-        unimplemented!()
+        self.to_emit_probs(forward, backward).into_iter().sum()
+    }
+    /// Calculate the expected value of the usage frequency of each nodes
+    /// by summing the emit probs of M/I/D states for each node.
+    ///
+    pub fn to_node_freqs<S>(&self, state_probs: &StateProbs) -> NodeFreq
+    where
+        S: Storage<Item = Prob>,
+    {
+        unimplemented!();
     }
     // pub fn to_edge_freq<S>() {}
 }
