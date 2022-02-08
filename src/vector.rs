@@ -36,7 +36,7 @@ use std::marker::PhantomData;
 pub trait Storage: Clone + Sized {
     /// Item type that this storage stores.
     ///
-    type Item: Copy;
+    type Item: Copy + PartialEq;
     ///
     /// Create a new storage with fixed size and filled with the default value
     fn new(size: usize, default_value: Self::Item) -> Self;
@@ -64,6 +64,13 @@ pub trait Storage: Clone + Sized {
             storage: self,
         }
     }
+    ///
+    /// Convert to the DenseStorage with same contents
+    fn to_dense(&self) -> DenseStorage<Self::Item>;
+    ///
+    /// Convert to the SparseStorage with same contents
+    /// with specifying `default_value` in SparseStorage.
+    fn to_sparse(&self, default_value: Self::Item) -> SparseStorage<Self::Item>;
 }
 
 ///
