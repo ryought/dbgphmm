@@ -128,6 +128,20 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (Ix, S::Item)> {
         self.storage.iter().map(|(i, v)| (Ix::new(i), v))
     }
+    /// Convert to the DenseStorage-backed vector.
+    pub fn to_dense(&self) -> Vector<DenseStorage<S::Item>, Ix> {
+        Vector {
+            storage: self.storage.to_dense(),
+            ty: PhantomData,
+        }
+    }
+    /// Convert to the SparseStorage-backed vector.
+    pub fn to_sparse(&self, default_value: S::Item) -> Vector<SparseStorage<S::Item>, Ix> {
+        Vector {
+            storage: self.storage.to_sparse(default_value),
+            ty: PhantomData,
+        }
+    }
 }
 
 /// Implement index access, vec[i]

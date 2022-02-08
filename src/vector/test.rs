@@ -101,4 +101,27 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn vector_conversion() {
+        let default_value = 2;
+        let mut v: Vector<DenseStorage<u32>, usize> = Vector::new(5, default_value);
+        v[0] = 100;
+        v[3] = 222;
+        let w = v.to_sparse(default_value);
+        println!("{:?}", v);
+        println!("{:?}", w);
+        assert_eq!(v[0], w[0]);
+        assert_eq!(v[1], w[1]);
+        assert_eq!(v[2], w[2]);
+        assert_eq!(v[3], w[3]);
+        assert_eq!(v[4], w[4]);
+        let v2 = v.to_dense();
+        println!("{:?}", v2);
+        assert_eq!(v[0], v2[0]);
+        assert_eq!(v[1], v2[1]);
+        assert_eq!(v[2], v2[2]);
+        assert_eq!(v[3], v2[3]);
+        assert_eq!(v[4], v2[4]);
+    }
 }
