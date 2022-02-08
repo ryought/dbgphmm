@@ -8,7 +8,7 @@
 //! F[Match,v] or B[Match,v]
 //!
 use crate::prob::Prob;
-use crate::vector::{NodeVec, Storage};
+use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
 pub use petgraph::graph::NodeIndex;
 use std::ops::{Add, AddAssign, Mul, MulAssign};
 
@@ -60,6 +60,7 @@ pub struct PHMMTable<S: Storage<Item = Prob>> {
 // PHMMTables
 //
 
+/// Constructors of PHMMTable
 impl<S: Storage<Item = Prob>> PHMMTable<S> {
     pub fn new(n_nodes: usize, m: Prob, i: Prob, d: Prob, mb: Prob, ib: Prob, e: Prob) -> Self {
         PHMMTable {
@@ -81,10 +82,36 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             e: Prob::from_prob(0.0),
         }
     }
+}
+
+/// Accessors of PHMMTable
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
     /// Get the number of nodes in the PHMM Table
     pub fn n_nodes(&self) -> usize {
         // self.i and self.d has also the same length
         self.m.len()
+    }
+    /// Convert to the DenseStorage-backend PHMMTable
+    pub fn to_dense(&self) -> PHMMTable<DenseStorage<Prob>> {
+        PHMMTable {
+            m: self.m.to_dense(),
+            i: self.i.to_dense(),
+            d: self.d.to_dense(),
+            mb: self.mb,
+            ib: self.ib,
+            e: self.e,
+        }
+    }
+    /// Convert to the SparseStorage-backend PHMMTable
+    pub fn to_sparse(&self, default_value: Prob) -> PHMMTable<SparseStorage<Prob>> {
+        PHMMTable {
+            m: self.m.to_sparse(default_value),
+            i: self.i.to_sparse(default_value),
+            d: self.d.to_sparse(default_value),
+            mb: self.mb,
+            ib: self.ib,
+            e: self.e,
+        }
     }
 }
 
