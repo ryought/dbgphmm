@@ -197,6 +197,40 @@ where
     }
 }
 
+// Sum
+impl<S> std::iter::Sum for PHMMTable<S>
+where
+    S: Storage<Item = Prob>,
+{
+    fn sum<I>(iter: I) -> PHMMTable<S>
+    where
+        I: Iterator<Item = PHMMTable<S>>,
+    {
+        iter.reduce(|mut a, b| {
+            a += &b;
+            a
+        })
+        .unwrap()
+    }
+}
+
+// Product
+impl<S> std::iter::Product for PHMMTable<S>
+where
+    S: Storage<Item = Prob>,
+{
+    fn product<I>(iter: I) -> PHMMTable<S>
+    where
+        I: Iterator<Item = PHMMTable<S>>,
+    {
+        iter.reduce(|mut a, b| {
+            a *= &b;
+            a
+        })
+        .unwrap()
+    }
+}
+
 //
 // PHMMResults
 //
@@ -218,14 +252,14 @@ mod tests {
         // check t.m, t.i, t.d
         for i in 0..t1.n_nodes() {
             let v = NodeIndex::new(i);
-            assert!(t1.m[v].to_value() - t2.m[v].to_value() < max_diff);
-            assert!(t1.i[v].to_value() - t2.i[v].to_value() < max_diff);
-            assert!(t1.d[v].to_value() - t2.d[v].to_value() < max_diff);
+            assert!((t1.m[v].to_value() - t2.m[v].to_value()).abs() < max_diff);
+            assert!((t1.i[v].to_value() - t2.i[v].to_value()).abs() < max_diff);
+            assert!((t1.d[v].to_value() - t2.d[v].to_value()).abs() < max_diff);
         }
         // check t.mb, t.ib, t.e
-        assert!(t1.mb.to_value() - t2.mb.to_value() < max_diff);
-        assert!(t1.ib.to_value() - t2.ib.to_value() < max_diff);
-        assert!(t1.e.to_value() - t2.e.to_value() < max_diff);
+        assert!((t1.mb.to_value() - t2.mb.to_value()).abs() < max_diff);
+        assert!((t1.ib.to_value() - t2.ib.to_value()).abs() < max_diff);
+        assert!((t1.e.to_value() - t2.e.to_value()).abs() < max_diff);
     }
 
     #[test]
@@ -251,13 +285,21 @@ mod tests {
         t_add.i[NodeIndex::new(1)] = Prob::from_prob(0.2);
         t_add.e = Prob::from_prob(0.6);
         t_add.mb = Prob::from_prob(0.03);
-        println!("{}", t_add);
+        println!("t_add\n{}", t_add);
         let t_add2 = &t1 + &t2;
         println!("{}", t_add2);
         check_is_similar_table(&t_add, &t_add2);
 
-        t1 += &t2;
-        check_is_similar_table(&t_add, &t1);
+        // add assign
+        let mut t3 = t1.clone();
+        t3 += &t2;
+        check_is_similar_table(&t_add, &t3);
+
+        // sum
+        let ts: Vec<PHMMTable<DenseStorage<Prob>>> = vec![t1, t2];
+        let sum: PHMMTable<DenseStorage<Prob>> = ts.into_iter().sum();
+        println!("sum\n{}", sum);
+        check_is_similar_table(&t_add, &sum);
     }
     #[test]
     fn hmm_table_mul() {
@@ -288,7 +330,17 @@ mod tests {
         let t_mul2 = &t1 * &t2;
         check_is_similar_table(&t_mul, &t_mul2);
 
-        t1 *= &t2;
-        check_is_similar_table(&t_mul, &t1);
+        // mul asign
+        let mut t3 = t1.clone();
+        t3 *= &t2;
+        check_is_similar_table(&t_mul, &t3);
+
+        // product
+        let ts: Vec<PHMMTable<DenseStorage<Prob>>> = vec![t1, t2];
+        let prd: PHMMTable<DenseStorage<Prob>> = ts.into_iter().product();
+        println!("t_mul\n{}", t_mul);
+        println!("prd\n{}", prd);
+        // TODO
+        check_is_similar_table(&t_mul, &prd);
     }
 }
