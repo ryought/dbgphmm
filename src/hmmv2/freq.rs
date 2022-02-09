@@ -20,6 +20,7 @@ use super::table::{PHMMResult, PHMMTable};
 use crate::common::Freq;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, NodeVec, Storage};
+use petgraph::graph::NodeIndex;
 
 /// The probability of emitting the emission from the hidden state.
 pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
@@ -30,7 +31,7 @@ pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
 /// Frequency (f64) assigned to each nodes
 /// It cannot assume the sparcity, so we use the dense storage
 /// TODO
-pub type NodeFreq = NodeVec<DenseStorage<Freq>>;
+pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the full probability `P(x)` of the given emission `x`
@@ -101,11 +102,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the expected value of the usage frequency of each nodes
     /// by summing the emit probs of M/I/D states for each node.
     ///
-    pub fn to_node_freqs<S>(&self, state_probs: &StateProbs) -> NodeFreq
+    pub fn to_node_freqs<S>(&self, state_probs: &StateProbs) -> NodeFreqs
     where
         S: Storage<Item = Prob>,
     {
-        unimplemented!();
+        let n = state_probs.n_nodes();
+        let mut f: NodeFreqs = NodeFreqs::new(n, 0.0);
+        for i in 0..n {
+            let v = NodeIndex::new(i);
+            f[v] = (state_probs.m[v] + state_probs.i[v] + state_probs.d[v]).to_value();
+        }
+        f
     }
     // pub fn to_edge_freq<S>() {}
 }
