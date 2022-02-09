@@ -6,9 +6,8 @@ use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
-use petgraph::graph::Edges;
-use petgraph::graph::NodeReferences;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::graph::{EdgeReferences, Edges, NodeReferences};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Directed;
 pub use petgraph::Direction;
@@ -73,11 +72,21 @@ pub type PModel = PHMMModel<PNode, PEdge>;
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// create iterator of all nodes
-    /// Item of the iterator is `(NodeIndex, &N)`
+    /// Item of the iterator is `(NodeIndex, &N)`.
     ///
-    pub fn nodes(&self) -> Nodes<N> {
-        Nodes {
+    pub fn nodes(&self) -> NodesIterator<N> {
+        NodesIterator {
             nodes: (&self.graph).node_references(),
+        }
+    }
+    ///
+    /// create iterator of all nodes
+    /// Item of the iterator is
+    /// `(EdgeIndex, NodeIndex of source, NodeIndex of target, &E)`.
+    ///
+    pub fn edges(&self) -> EdgesIterator<E> {
+        EdgesIterator {
+            edges: (&self.graph).edge_references(),
         }
     }
     ///
@@ -122,14 +131,35 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
 }
 
-pub struct Nodes<'a, N: 'a> {
+/// Iterator struct for `nodes()`
+/// (with `NodeReferences` of petgraph)
+///
+pub struct NodesIterator<'a, N: 'a> {
     nodes: NodeReferences<'a, N>,
 }
 
-impl<'a, N> Iterator for Nodes<'a, N> {
+impl<'a, N> Iterator for NodesIterator<'a, N> {
     type Item = (NodeIndex, &'a N);
     fn next(&mut self) -> Option<Self::Item> {
         self.nodes.next()
+    }
+}
+
+/// Iterator struct for `edges()`
+/// (with `NodeReferences` of petgraph)
+///
+pub struct EdgesIterator<'a, E: 'a> {
+    edges: EdgeReferences<'a, E>,
+}
+
+impl<'a, E> Iterator for EdgesIterator<'a, E> {
+    type Item = (EdgeIndex, NodeIndex, NodeIndex, &'a E);
+    fn next(&mut self) -> Option<Self::Item> {
+        // extract edge reference
+        match self.edges.next() {
+            Some(er) => Some((er.id(), er.source(), er.target(), er.weight())),
+            None => None,
+        }
     }
 }
 
@@ -261,5 +291,32 @@ impl PHMMEdge for PEdge {
 impl std::fmt::Display for PEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "p={}", self.trans_prob)
+    }
+}
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::mocks::mock_linear;
+    use crate::hmm::params::PHMMParams;
+
+    #[test]
+    fn phmmmodels_basic_ops() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        for (i, (node, weight)) in phmm.nodes().enumerate() {
+            assert_eq!(NodeIndex::new(i), node);
+            assert_eq!(weight.copy_num, 1);
+        }
+        for (i, (edge, source, target, weight)) in phmm.edges().enumerate() {
+            assert_eq!(EdgeIndex::new(i), edge);
+            assert_eq!(NodeIndex::new(i), source);
+            assert_eq!(NodeIndex::new(i + 1), target);
+        }
     }
 }
