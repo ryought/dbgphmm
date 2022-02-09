@@ -9,7 +9,7 @@ pub mod index;
 pub mod sparse;
 pub mod test;
 pub use dense::DenseStorage;
-pub use graph::NodeVec;
+pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
