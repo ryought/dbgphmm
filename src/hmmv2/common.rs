@@ -124,10 +124,35 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         self.graph.node_count()
     }
     ///
+    /// Return the number of edges in the graph
+    ///
+    pub fn n_edges(&self) -> usize {
+        self.graph.edge_count()
+    }
+    ///
     /// Get a node emission
     ///
     pub fn emission(&self, v: NodeIndex) -> u8 {
         self.graph.node_weight(v).unwrap().emission()
+    }
+    ///
+    /// emission probability of observing the emission from
+    /// Match state of node v.
+    ///
+    pub fn p_match_emit(&self, node: NodeIndex, emission: u8) -> Prob {
+        if self.emission(node) == emission {
+            self.param.p_match
+        } else {
+            self.param.p_mismatch
+        }
+    }
+    ///
+    /// emission probability of observing the emission from
+    /// Ins state of node v.
+    /// The ret is always equal to `param.p_random`
+    ///
+    pub fn p_ins_emit(&self) -> Prob {
+        self.param.p_random
     }
 }
 

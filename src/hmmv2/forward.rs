@@ -117,11 +117,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         for (k, kw) in self.nodes() {
             // emission prob
-            let p_emit = if kw.emission() == emission {
-                param.p_match
-            } else {
-                param.p_mismatch
-            };
+            let p_emit = self.p_match_emit(k, emission);
 
             // (1) from normal node
             let from_normal: Prob = self
@@ -163,7 +159,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         for (k, _) in self.nodes() {
             // emission prob
-            let p_emit = param.p_random;
+            let p_emit = self.p_ins_emit();
 
             // from my own node
             let from_me = param.p_MI * t1.m[k] + param.p_II * t1.i[k] + param.p_DI * t1.d[k];
@@ -300,7 +296,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let p_emit = param.p_random;
+        let p_emit = self.p_ins_emit();
         t0.ib = p_emit * (param.p_MI * t1.mb + param.p_II * t1.ib);
     }
     /// fill `End` state

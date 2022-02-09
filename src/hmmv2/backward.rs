@@ -173,19 +173,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * param.p_DM * p_emit * t0.m[l]
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_DI * param.p_random * t0.i[k];
+            let p_to_ins = param.p_DI * self.p_ins_emit() * t0.i[k];
             bd0[k] = p_to_match + p_to_ins;
         }
         bd0
@@ -247,19 +242,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_MI * param.p_random * t1.i[k];
+            let p_to_ins = param.p_MI * self.p_ins_emit() * t1.i[k];
 
             // sum
             t0.m[k] = p_to_match_del + p_to_ins;
@@ -294,19 +284,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_II * param.p_random * t1.i[k];
+            let p_to_ins = param.p_II * self.p_ins_emit() * t1.i[k];
 
             // sum
             t0.i[k] = p_to_match_del + p_to_ins;
@@ -340,17 +325,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
                 // emission prob on l
-                let p_emit = if lw.emission() == emission {
-                    param.p_match
-                } else {
-                    param.p_mismatch
-                };
+                let p_emit = self.p_match_emit(l, emission);
                 p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
             })
             .sum();
 
         // (2) to ins of self node
-        let p_to_ins = param.p_MI * param.p_random * t1.ib;
+        let p_to_ins = param.p_MI * self.p_ins_emit() * t1.ib;
 
         // sum
         t0.mb = p_to_match_del + p_to_ins;
@@ -383,17 +364,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
                 // emission prob on l
-                let p_emit = if lw.emission() == emission {
-                    param.p_match
-                } else {
-                    param.p_mismatch
-                };
+                let p_emit = self.p_match_emit(l, emission);
                 p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
             })
             .sum();
 
         // (2) to ins of self node
-        let p_to_ins = param.p_II * param.p_random * t1.ib;
+        let p_to_ins = param.p_II * self.p_ins_emit() * t1.ib;
 
         // sum
         t0.ib = p_to_match_del + p_to_ins;
