@@ -111,30 +111,28 @@ impl PHMMParams {
 }
 
 impl std::fmt::Display for PHMMParams {
-    #[allow(unused_must_use)]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "p_mismatch: {}", self.p_mismatch);
-        writeln!(f, "p_match: {}", self.p_match);
-        writeln!(f, "p_gap_open: {}", self.p_gap_open);
-        writeln!(f, "p_gap_ext: {}", self.p_gap_ext);
-        writeln!(f, "p_end: {}", self.p_end);
-        writeln!(f, "p_MM: {}", self.p_MM);
-        writeln!(f, "p_IM: {}", self.p_IM);
-        writeln!(f, "p_DM: {}", self.p_DM);
-        writeln!(f, "p_MI: {}", self.p_MI);
-        writeln!(f, "p_II: {}", self.p_II);
-        writeln!(f, "p_DI: {}", self.p_DI);
-        writeln!(f, "p_MD: {}", self.p_MD);
-        writeln!(f, "p_ID: {}", self.p_ID);
-        writeln!(f, "p_DD: {}", self.p_DD);
-        writeln!(f, "n_max_gaps: {}", self.n_max_gaps);
-        writeln!(f, "only_active_nodes: {}", self.only_active_nodes);
-        writeln!(f, "n_max_active_nodes: {}", self.n_max_active_nodes);
+        writeln!(f, "p_mismatch: {}", self.p_mismatch)?;
+        writeln!(f, "p_match: {}", self.p_match)?;
+        writeln!(f, "p_gap_open: {}", self.p_gap_open)?;
+        writeln!(f, "p_gap_ext: {}", self.p_gap_ext)?;
+        writeln!(f, "p_end: {}", self.p_end)?;
+        writeln!(f, "p_MM: {}", self.p_MM)?;
+        writeln!(f, "p_IM: {}", self.p_IM)?;
+        writeln!(f, "p_DM: {}", self.p_DM)?;
+        writeln!(f, "p_MI: {}", self.p_MI)?;
+        writeln!(f, "p_II: {}", self.p_II)?;
+        writeln!(f, "p_DI: {}", self.p_DI)?;
+        writeln!(f, "p_MD: {}", self.p_MD)?;
+        writeln!(f, "p_ID: {}", self.p_ID)?;
+        writeln!(f, "p_DD: {}", self.p_DD)?;
+        writeln!(f, "n_max_gaps: {}", self.n_max_gaps)?;
+        writeln!(f, "only_active_nodes: {}", self.only_active_nodes)?;
+        writeln!(f, "n_max_active_nodes: {}", self.n_max_active_nodes)?;
         writeln!(
             f,
             "n_ignore_active_nodes_first: {}",
             self.n_ignore_active_nodes_first
-        );
-        Ok(())
+        )
     }
 }
