@@ -68,7 +68,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// `freq[i][t_k]`
     /// = P(base `x[i]` is emitted from node `t_k`)
-    /// = `ft_i[k] * bt_i+1[k]`
+    /// = `(ft_i[k] * bt_i+1[k]) / P(x)`
     ///
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
@@ -78,6 +78,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let n = forward.n_emissions();
+        let p = self.to_full_prob_forward(forward);
         (0..n)
             .map(|i| {
                 let f = &forward.tables[i];
@@ -86,7 +87,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     &backward.init_table
                 };
-                f * b
+                (f * b) / p
             })
             .map(|v| v.to_dense())
             .collect()
@@ -134,16 +135,39 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::prob::p;
     use crate::vector::DenseStorage;
     #[test]
-    fn hmm_freq_mock_linear() {
+    fn hmm_freq_mock_linear_zero_error_full_prob() {
         let phmm = mock_linear()
             .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+            .to_phmm(PHMMParams::zero_error());
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
-        // phmm.to_node_freq(&rf, &rb);
+        assert_abs_diff_eq!(
+            phmm.to_full_prob_forward(&rf),
+            phmm.to_full_prob_backward(&rb),
+            epsilon = 0.0000001,
+        );
+    }
+    #[test]
+    fn hmm_freq_mock_linear_zero_error_node_freqs() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::zero_error());
+        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let eps = phmm.to_emit_probs(&rf, &rb);
+        for ep in eps.iter() {
+            println!("{}", ep);
+        }
+        assert_abs_diff_eq!(eps[4].m[ni(7)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[3].m[ni(6)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[2].m[ni(5)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[1].m[ni(4)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[0].m[ni(3)], p(1.0), epsilon = 0.00001);
     }
 }

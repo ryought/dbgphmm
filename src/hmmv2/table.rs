@@ -10,7 +10,7 @@
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
 pub use petgraph::graph::NodeIndex;
-use std::ops::{Add, AddAssign, Mul, MulAssign};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
 
 /// Struct that stores Forward/Backward algorithm result
 /// for the given emissions
@@ -194,6 +194,24 @@ where
         self.mb = self.mb * other.mb;
         self.ib = self.ib * other.ib;
         self.e = self.e * other.e;
+    }
+}
+
+// Div by constant
+impl<S> Div<Prob> for PHMMTable<S>
+where
+    S: Storage<Item = Prob>,
+{
+    type Output = PHMMTable<S>;
+    fn div(self, other: Prob) -> Self::Output {
+        PHMMTable {
+            m: self.m / other,
+            i: self.i / other,
+            d: self.d / other,
+            mb: self.mb / other,
+            ib: self.ib / other,
+            e: self.e / other,
+        }
     }
 }
 

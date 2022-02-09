@@ -2,7 +2,7 @@
 //! `Vector` Wrapper of fixed size table
 //!
 //!
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
+use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 pub mod graph;
 pub mod index;
@@ -278,6 +278,31 @@ where
         for id in 0..n {
             let (index, value) = self.storage.get_by_id(id);
             *self.storage.get_mut(index) = value * other;
+        }
+        self
+    }
+}
+
+/// divide-by a constant to vector
+/// `Vector<S> / S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Div<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Div<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn div(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, this can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value / other;
         }
         self
     }
