@@ -416,17 +416,39 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
-    fn hmm_backward_mock_linear() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+    fn hmm_backward_mock_linear_zero_error() {
+        let params = PHMMParams::zero_error();
+        println!("{}", params);
+        let phmm = mock_linear().to_seq_graph().to_phmm(params);
         let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
-        for table in r.tables {
+        for table in r.tables.iter() {
             println!("{}", table);
         }
+        println!("{}", r.init_table);
+        // total probability
+        assert_abs_diff_eq!(r.tables[0].mb, lp(-13.8155605), epsilon = 0.00001);
+        // position-wise
+        assert_abs_diff_eq!(r.tables[4].m[ni(6)], lp(-11.5129354), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(2)], lp(-11.5129354), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(5)], lp(-11.5129454), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(1)], lp(-11.5129454), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[2].m[ni(4)], lp(-11.5129554), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[1].m[ni(3)], lp(-11.5129654), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-11.5129754), epsilon = 0.00001);
+        // with allowing no errors, CGATT cannot be emitted.
+        // so it should have p=0
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        assert!(r2.tables[0].mb.is_zero());
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r2.init_table);
     }
 }

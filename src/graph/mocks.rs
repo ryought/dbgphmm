@@ -2,7 +2,7 @@ use super::genome_graph::{GenomeEdge, GenomeGraph, GenomeNode};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 ///
-/// Sample linear genome (10bp)
+/// Sample linear genome (10bp) "ATTCGATCGT"
 ///
 pub fn mock_linear() -> GenomeGraph {
     let mut g = DiGraph::new();

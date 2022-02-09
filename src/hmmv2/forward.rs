@@ -328,17 +328,34 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
-    fn hmm_forward_mock_linear() {
+    fn hmm_forward_mock_linear_zero_error() {
         let phmm = mock_linear()
             .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+            .to_phmm(PHMMParams::zero_error());
         let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        assert_eq!(r.tables.len(), 5);
+        assert_abs_diff_eq!(r.tables[2].m[ni(5)], lp(-2.3026250931), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(6)], lp(-2.3026250931), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-2.3026350932), epsilon = 0.00001);
+        // total probability
+        assert_abs_diff_eq!(r.tables[4].e, lp(-13.8155605), epsilon = 0.00001);
+        // no insertion and deletions, so i/d should be 0.
         for table in r.tables {
-            println!("{}", table);
+            for i in 0..table.n_nodes() {
+                assert!(table.i[ni(i)].is_zero());
+                assert!(table.d[ni(i)].is_zero());
+            }
         }
+        // with allowing no errors, CGATT cannot be emitted.
+        // so it should have p=0
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        assert!(r2.tables[4].e.is_zero());
     }
 }
