@@ -358,4 +358,28 @@ mod tests {
         assert_eq!(r2.tables.len(), 5);
         assert!(r2.tables[4].e.is_zero());
     }
+    #[test]
+    fn hmm_forward_mock_linear_high_error() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        // read 1
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        for table in r.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r.init_table);
+        assert_eq!(r.tables.len(), 5);
+        assert_abs_diff_eq!(r.tables[4].e, lp(-15.212633254), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-3.8652938682), epsilon = 0.00001);
+        // read 2
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATT");
+        assert_abs_diff_eq!(r2.tables[4].e, lp(-16.7862972), epsilon = 0.00001);
+        // r[:4] and r2[:4] is the same emissions
+        assert_abs_diff_eq!(r2.tables[3].e, r.tables[3].e, epsilon = 0.00001);
+        assert_eq!(r2.tables.len(), 5);
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+    }
 }

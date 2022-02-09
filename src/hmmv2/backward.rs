@@ -451,4 +451,26 @@ mod tests {
         }
         println!("{}", r2.init_table);
     }
+    #[test]
+    fn hmm_backward_mock_linear_high_error() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        // read 1
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        for table in r.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r.init_table);
+        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.1156632), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].mb, lp(-15.3745336), epsilon = 0.00001);
+        // read 2
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r2.init_table);
+        assert_abs_diff_eq!(r2.tables[0].mb, lp(-17.0679306), epsilon = 0.00001);
+    }
 }
