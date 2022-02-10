@@ -2,16 +2,13 @@
 //! Definition of Node-centric PHMM
 //!
 use crate::common::CopyNum;
+use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
 use crate::vector::{EdgeVec, NodeVec, Storage};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
-use petgraph::graph::{EdgeReferences, Edges, NodeReferences};
-use petgraph::visit::{EdgeRef, IntoNodeReferences};
-use petgraph::Directed;
-pub use petgraph::Direction;
 
 //
 // traits
@@ -76,9 +73,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Item of the iterator is `(NodeIndex, &N)`.
     ///
     pub fn nodes(&self) -> NodesIterator<N> {
-        NodesIterator {
-            nodes: (&self.graph).node_references(),
-        }
+        NodesIterator::new(&self.graph)
     }
     ///
     /// create iterator of all nodes
@@ -86,9 +81,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// `(EdgeIndex, NodeIndex of source, NodeIndex of target, &E)`.
     ///
     pub fn edges(&self) -> EdgesIterator<E> {
-        EdgesIterator {
-            edges: (&self.graph).edge_references(),
-        }
+        EdgesIterator::new(&self.graph)
     }
     ///
     /// create iterator of all child edges of the node
@@ -100,9 +93,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `EdgeWeight` is of the edge transition
     ///
     pub fn childs(&self, node: NodeIndex) -> ChildEdges<E> {
-        ChildEdges {
-            edges: self.graph.edges_directed(node, Direction::Outgoing),
-        }
+        ChildEdges::new(&self.graph, node)
     }
     ///
     /// create iterator of all parent edges of the node
@@ -114,9 +105,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `EdgeWeight` is of the edge transition
     ///
     pub fn parents(&self, node: NodeIndex) -> ParentEdges<E> {
-        ParentEdges {
-            edges: self.graph.edges_directed(node, Direction::Incoming),
-        }
+        ParentEdges::new(&self.graph, node)
     }
     ///
     /// Return the number of nodes in the graph
@@ -154,72 +143,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn p_ins_emit(&self) -> Prob {
         self.param.p_random
-    }
-}
-
-/// Iterator struct for `nodes()`
-/// (with `NodeReferences` of petgraph)
-///
-pub struct NodesIterator<'a, N: 'a> {
-    nodes: NodeReferences<'a, N>,
-}
-
-impl<'a, N> Iterator for NodesIterator<'a, N> {
-    type Item = (NodeIndex, &'a N);
-    fn next(&mut self) -> Option<Self::Item> {
-        self.nodes.next()
-    }
-}
-
-/// Iterator struct for `edges()`
-/// (with `NodeReferences` of petgraph)
-///
-pub struct EdgesIterator<'a, E: 'a> {
-    edges: EdgeReferences<'a, E>,
-}
-
-impl<'a, E> Iterator for EdgesIterator<'a, E> {
-    type Item = (EdgeIndex, NodeIndex, NodeIndex, &'a E);
-    fn next(&mut self) -> Option<Self::Item> {
-        // extract edge reference
-        match self.edges.next() {
-            Some(er) => Some((er.id(), er.source(), er.target(), er.weight())),
-            None => None,
-        }
-    }
-}
-
-pub struct ChildEdges<'a, E: 'a> {
-    edges: Edges<'a, E, Directed>,
-}
-
-impl<'a, E> Iterator for ChildEdges<'a, E> {
-    type Item = (EdgeIndex, NodeIndex, &'a E);
-    fn next(&mut self) -> Option<Self::Item> {
-        // edge reference
-        match self.edges.next() {
-            // er.source() = the given node
-            // er.target() = child
-            Some(er) => Some((er.id(), er.target(), er.weight())),
-            None => None,
-        }
-    }
-}
-
-pub struct ParentEdges<'a, E: 'a> {
-    edges: Edges<'a, E, Directed>,
-}
-
-impl<'a, E> Iterator for ParentEdges<'a, E> {
-    type Item = (EdgeIndex, NodeIndex, &'a E);
-    fn next(&mut self) -> Option<Self::Item> {
-        // edge reference
-        match self.edges.next() {
-            // er.source() = parent
-            // er.target() = the given node
-            Some(er) => Some((er.id(), er.source(), er.weight())),
-            None => None,
-        }
     }
 }
 
