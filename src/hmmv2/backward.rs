@@ -138,12 +138,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// It depends on `bm_i+1, bi_i+1`. This can be calculated first in `i` tables.
     ///
-    fn bd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, emission: u8)
+    fn bd<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut bdt0 = self.bd0(t0, emission);
+        let mut bdt0 = self.bd0(t1, emission);
         t0.d += &bdt0;
         for _t in 0..param.n_max_gaps {
             bdt0 = self.bdt(&bdt0);
