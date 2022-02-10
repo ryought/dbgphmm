@@ -14,6 +14,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Backward algorithm to the emissions
     ///
+    /// `bt_i[k]` = P(emits `x[i:] = x[i], ..., x[n-1]` | starts from state `t_k`)
+    ///
+    /// * `t` is a type of state, either Match, Ins, Del
+    /// * `k` is a node index
+    ///
     pub fn backward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
     where
         S: Storage<Item = Prob>,
@@ -133,12 +138,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// It depends on `bm_i+1, bi_i+1`. This can be calculated first in `i` tables.
     ///
-    fn bd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, emission: u8)
+    fn bd<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut bdt0 = self.bd0(t0, emission);
+        let mut bdt0 = self.bd0(t1, emission);
         t0.d += &bdt0;
         for _t in 0..param.n_max_gaps {
             bdt0 = self.bdt(&bdt0);
@@ -168,19 +173,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * param.p_DM * p_emit * t0.m[l]
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_DI * param.p_random * t0.i[k];
+            let p_to_ins = param.p_DI * self.p_ins_emit() * t0.i[k];
             bd0[k] = p_to_match + p_to_ins;
         }
         bd0
@@ -242,19 +242,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_MI * param.p_random * t1.i[k];
+            let p_to_ins = param.p_MI * self.p_ins_emit() * t1.i[k];
 
             // sum
             t0.m[k] = p_to_match_del + p_to_ins;
@@ -289,19 +284,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    let lw = self.graph.node_weight(l).unwrap();
                     // emission prob on l
-                    let p_emit = if lw.emission() == emission {
-                        param.p_match
-                    } else {
-                        param.p_mismatch
-                    };
+                    let p_emit = self.p_match_emit(l, emission);
                     p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
                 })
                 .sum();
 
             // (2) to ins
-            let p_to_ins = param.p_II * param.p_random * t1.i[k];
+            let p_to_ins = param.p_II * self.p_ins_emit() * t1.i[k];
 
             // sum
             t0.i[k] = p_to_match_del + p_to_ins;
@@ -335,17 +325,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
                 // emission prob on l
-                let p_emit = if lw.emission() == emission {
-                    param.p_match
-                } else {
-                    param.p_mismatch
-                };
+                let p_emit = self.p_match_emit(l, emission);
                 p_trans * ((param.p_MM * p_emit * t1.m[l]) + (param.p_MD * t0.d[l]))
             })
             .sum();
 
         // (2) to ins of self node
-        let p_to_ins = param.p_MI * param.p_random * t1.ib;
+        let p_to_ins = param.p_MI * self.p_ins_emit() * t1.ib;
 
         // sum
         t0.mb = p_to_match_del + p_to_ins;
@@ -378,17 +364,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
                 // emission prob on l
-                let p_emit = if lw.emission() == emission {
-                    param.p_match
-                } else {
-                    param.p_mismatch
-                };
+                let p_emit = self.p_match_emit(l, emission);
                 p_trans * ((param.p_IM * p_emit * t1.m[l]) + (param.p_ID * t0.d[l]))
             })
             .sum();
 
         // (2) to ins of self node
-        let p_to_ins = param.p_II * param.p_random * t1.ib;
+        let p_to_ins = param.p_II * self.p_ins_emit() * t1.ib;
 
         // sum
         t0.ib = p_to_match_del + p_to_ins;
@@ -409,4 +391,63 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::common::ni;
+    use crate::graph::mocks::mock_linear;
+    use crate::hmm::params::PHMMParams;
+    use crate::prob::lp;
+    use crate::vector::DenseStorage;
+    #[test]
+    fn hmm_backward_mock_linear_zero_error() {
+        let params = PHMMParams::zero_error();
+        println!("{}", params);
+        let phmm = mock_linear().to_seq_graph().to_phmm(params);
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        for table in r.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r.init_table);
+        // total probability
+        assert_abs_diff_eq!(r.tables[0].mb, lp(-13.8155605), epsilon = 0.00001);
+        // position-wise
+        assert_abs_diff_eq!(r.tables[4].m[ni(6)], lp(-11.5129354), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(2)], lp(-11.5129354), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(5)], lp(-11.5129454), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(1)], lp(-11.5129454), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[2].m[ni(4)], lp(-11.5129554), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[1].m[ni(3)], lp(-11.5129654), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-11.5129754), epsilon = 0.00001);
+        // with allowing no errors, CGATT cannot be emitted.
+        // so it should have p=0
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        assert!(r2.tables[0].mb.is_zero());
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r2.init_table);
+    }
+    #[test]
+    fn hmm_backward_mock_linear_high_error() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        // read 1
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        for table in r.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r.init_table);
+        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.0679200), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].mb, lp(-15.2115765494), epsilon = 0.00001);
+        // read 2
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r2.init_table);
+        assert_abs_diff_eq!(r2.tables[0].mb, lp(-16.7787277), epsilon = 0.00001);
+    }
+}

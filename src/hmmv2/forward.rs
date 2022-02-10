@@ -12,6 +12,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions
     ///
+    /// `ft_i[k]` = P(emits `x[:i+1] = x[0],...,x[i]` and now in state `t_k`)
+    ///
+    /// * `t` is a type of state, either Match, Ins, Del
+    /// * `k` is a node index
+    ///
     pub fn forward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
     where
         S: Storage<Item = Prob>,
@@ -112,11 +117,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         for (k, kw) in self.nodes() {
             // emission prob
-            let p_emit = if kw.emission() == emission {
-                param.p_match
-            } else {
-                param.p_mismatch
-            };
+            let p_emit = self.p_match_emit(k, emission);
 
             // (1) from normal node
             let from_normal: Prob = self
@@ -158,7 +159,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         for (k, _) in self.nodes() {
             // emission prob
-            let p_emit = param.p_random;
+            let p_emit = self.p_ins_emit();
 
             // from my own node
             let from_me = param.p_MI * t1.m[k] + param.p_II * t1.i[k] + param.p_DI * t1.d[k];
@@ -295,7 +296,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let p_emit = param.p_random;
+        let p_emit = self.p_ins_emit();
         t0.ib = p_emit * (param.p_MI * t1.mb + param.p_II * t1.ib);
     }
     /// fill `End` state
@@ -316,5 +317,65 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
 }
 
+//
+// Tests
+//
+
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::common::ni;
+    use crate::graph::mocks::mock_linear;
+    use crate::hmm::params::PHMMParams;
+    use crate::prob::lp;
+    use crate::vector::DenseStorage;
+    #[test]
+    fn hmm_forward_mock_linear_zero_error() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::zero_error());
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        assert_eq!(r.tables.len(), 5);
+        assert_abs_diff_eq!(r.tables[2].m[ni(5)], lp(-2.3026250931), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[3].m[ni(6)], lp(-2.3026250931), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-2.3026350932), epsilon = 0.00001);
+        // total probability
+        assert_abs_diff_eq!(r.tables[4].e, lp(-13.8155605), epsilon = 0.00001);
+        // no insertion and deletions, so i/d should be 0.
+        for table in r.tables {
+            for i in 0..table.n_nodes() {
+                assert!(table.i[ni(i)].is_zero());
+                assert!(table.d[ni(i)].is_zero());
+            }
+        }
+        // with allowing no errors, CGATT cannot be emitted.
+        // so it should have p=0
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATT");
+        assert_eq!(r2.tables.len(), 5);
+        assert!(r2.tables[4].e.is_zero());
+    }
+    #[test]
+    fn hmm_forward_mock_linear_high_error() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::high_error());
+        // read 1
+        let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        for table in r.tables.iter() {
+            println!("{}", table);
+        }
+        println!("{}", r.init_table);
+        assert_eq!(r.tables.len(), 5);
+        assert_abs_diff_eq!(r.tables[4].e, lp(-15.212633254), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-3.8652938682), epsilon = 0.00001);
+        // read 2
+        let r2: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATT");
+        assert_abs_diff_eq!(r2.tables[4].e, lp(-16.7862972), epsilon = 0.00001);
+        // r[:4] and r2[:4] is the same emissions
+        assert_abs_diff_eq!(r2.tables[3].e, r.tables[3].e, epsilon = 0.00001);
+        assert_eq!(r2.tables.len(), 5);
+        for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+    }
+}

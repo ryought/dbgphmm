@@ -2,6 +2,7 @@
 /// probability calculation
 /// implements logaddexp
 ///
+use approx::AbsDiffEq;
 
 ///
 /// Wrapper of f64 that represents probability `0 <= p <= 1`
@@ -30,9 +31,13 @@ impl Prob {
     pub fn from_log_prob(log_value: f64) -> Prob {
         Prob(log_value)
     }
+    ///
+    /// Get the probability (in `[0, 1]`)
     pub fn to_value(self) -> f64 {
         self.0.exp()
     }
+    ///
+    /// Get the log probability
     pub fn to_log_value(self) -> f64 {
         self.0
     }
@@ -101,6 +106,19 @@ impl std::iter::Product for Prob {
 impl<'a> std::iter::Product<&'a Self> for Prob {
     fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
         iter.fold(Prob::from_prob(1.0), |a, b| a * *b)
+    }
+}
+
+/// for approx `assert_abs_diff_eq`
+impl AbsDiffEq for Prob {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> Self::Epsilon {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        f64::abs_diff_eq(&self.0, &other.0, epsilon)
     }
 }
 

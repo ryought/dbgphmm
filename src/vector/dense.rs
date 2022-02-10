@@ -1,7 +1,7 @@
 //!
 //! Dense storage that uses `std::Vec`
 //!
-use super::Storage;
+use super::{SparseStorage, Storage};
 
 /// Dense storage powered by `std::Vec`
 ///
@@ -11,7 +11,7 @@ pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>
 where
-    T: Copy,
+    T: Copy + PartialEq,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> DenseStorage<T> {
@@ -38,6 +38,18 @@ where
     #[inline]
     fn get_mut(&mut self, index: usize) -> &mut T {
         &mut self.0[index]
+    }
+    fn to_dense(&self) -> Self {
+        self.clone()
+    }
+    fn to_sparse(&self, default_value: T) -> SparseStorage<T> {
+        let mut s: SparseStorage<T> = SparseStorage::new(self.size(), default_value);
+        for (index, value) in self.iter() {
+            if value != default_value {
+                *s.get_mut(index) = value;
+            }
+        }
+        s
     }
 }
 
@@ -87,5 +99,19 @@ mod tests {
         *s.get_mut(2) = 10;
         let v: Vec<(usize, u32)> = s.iter().collect();
         assert_eq!(v, vec![(0, 111), (1, 5), (2, 10), (3, 5)]);
+    }
+    #[test]
+    fn dense_storage_conversion() {
+        // non-zero default values
+        let mut s: DenseStorage<u32> = DenseStorage::new(4, 5);
+        *s.get_mut(0) = 111;
+        *s.get_mut(2) = 10;
+        println!("{:?}", s);
+        let s2 = s.to_sparse(5);
+        println!("{:?}", s2);
+        assert_eq!(*s2.get(0), *s.get(0));
+        assert_eq!(*s2.get(1), *s.get(1));
+        assert_eq!(*s2.get(2), *s.get(2));
+        assert_eq!(*s2.get(3), *s.get(3));
     }
 }

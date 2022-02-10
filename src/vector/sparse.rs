@@ -1,7 +1,7 @@
 //!
 //! Sparse storage that uses `ArrayVec`
 //!
-use super::Storage;
+use super::{DenseStorage, Storage};
 use arrayvec::ArrayVec;
 
 /// SparseStorage max index size parameter
@@ -31,7 +31,7 @@ pub struct SparseStorage<T> {
 
 impl<T> Storage for SparseStorage<T>
 where
-    T: Copy,
+    T: Copy + PartialEq,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> SparseStorage<T> {
@@ -81,6 +81,16 @@ where
         self.elements.push((index, self.default_value));
         let n = self.elements.len();
         return &mut self.elements[n - 1].1;
+    }
+    fn to_dense(&self) -> DenseStorage<T> {
+        let mut s: DenseStorage<T> = DenseStorage::new(self.size(), self.default_value);
+        for (index, value) in self.iter() {
+            *s.get_mut(index) = value;
+        }
+        s
+    }
+    fn to_sparse(&self, _: T) -> Self {
+        self.clone()
     }
 }
 
@@ -137,6 +147,19 @@ mod tests {
         *s.get_mut(2) = 10;
         let v: Vec<(usize, u32)> = s.iter().collect();
         assert_eq!(v, vec![(0, 111), (2, 10)]);
+    }
+    #[test]
+    fn sparse_storage_conversion() {
+        let mut s: SparseStorage<u32> = SparseStorage::new(4, 5);
+        *s.get_mut(0) = 111;
+        *s.get_mut(2) = 10;
+        println!("{:?}", s);
+        let s2 = s.to_dense();
+        println!("{:?}", s2);
+        assert_eq!(*s2.get(0), *s.get(0));
+        assert_eq!(*s2.get(1), *s.get(1));
+        assert_eq!(*s2.get(2), *s.get(2));
+        assert_eq!(*s2.get(3), *s.get(3));
     }
     /*
     #[test]

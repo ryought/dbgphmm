@@ -2,14 +2,14 @@
 //! `Vector` Wrapper of fixed size table
 //!
 //!
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign};
+use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
 pub mod graph;
 pub mod index;
 pub mod sparse;
 pub mod test;
 pub use dense::DenseStorage;
-pub use graph::NodeVec;
+pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
@@ -36,7 +36,7 @@ use std::marker::PhantomData;
 pub trait Storage: Clone + Sized {
     /// Item type that this storage stores.
     ///
-    type Item: Copy;
+    type Item: Copy + PartialEq;
     ///
     /// Create a new storage with fixed size and filled with the default value
     fn new(size: usize, default_value: Self::Item) -> Self;
@@ -64,6 +64,13 @@ pub trait Storage: Clone + Sized {
             storage: self,
         }
     }
+    ///
+    /// Convert to the DenseStorage with same contents
+    fn to_dense(&self) -> DenseStorage<Self::Item>;
+    ///
+    /// Convert to the SparseStorage with same contents
+    /// with specifying `default_value` in SparseStorage.
+    fn to_sparse(&self, default_value: Self::Item) -> SparseStorage<Self::Item>;
 }
 
 ///
@@ -121,6 +128,20 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (Ix, S::Item)> {
         self.storage.iter().map(|(i, v)| (Ix::new(i), v))
     }
+    /// Convert to the DenseStorage-backed vector.
+    pub fn to_dense(&self) -> Vector<DenseStorage<S::Item>, Ix> {
+        Vector {
+            storage: self.storage.to_dense(),
+            ty: PhantomData,
+        }
+    }
+    /// Convert to the SparseStorage-backed vector.
+    pub fn to_sparse(&self, default_value: S::Item) -> Vector<SparseStorage<S::Item>, Ix> {
+        Vector {
+            storage: self.storage.to_sparse(default_value),
+            ty: PhantomData,
+        }
+    }
 }
 
 /// Implement index access, vec[i]
@@ -155,6 +176,31 @@ where
             ret[index] = old_value + value;
         }
         ret
+    }
+}
+
+/// add constant to vector
+/// `Vector<S> + S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Add<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Add<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn add(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, Add<S::Item> can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value + other;
+        }
+        self
     }
 }
 
@@ -209,5 +255,55 @@ where
         for (index, value) in other.iter() {
             self[index] = self[index] * value;
         }
+    }
+}
+
+/// multiply a constant to vector
+/// `Vector<S> * S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Mul<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Mul<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn mul(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, this can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value * other;
+        }
+        self
+    }
+}
+
+/// divide-by a constant to vector
+/// `Vector<S> / S::Item = Vector<S>`
+///
+/// TODO
+/// does not calculate the correct values for `SparseStorage`
+/// because it cannot modify the `default_value`.
+impl<'a, 'b, S, Ix> Div<S::Item> for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Div<Output = S::Item> + Copy,
+    Ix: Indexable,
+{
+    type Output = Vector<S, Ix>;
+    fn div(mut self, other: S::Item) -> Self::Output {
+        // TODO if sparse, default value should be modified
+        // currently, this can only be used with Vector<Dense>.
+        let n = self.storage.n_ids();
+        for id in 0..n {
+            let (index, value) = self.storage.get_by_id(id);
+            *self.storage.get_mut(index) = value / other;
+        }
+        self
     }
 }

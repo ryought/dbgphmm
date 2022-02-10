@@ -26,7 +26,7 @@ pub fn pick_ins_emission<R: Rng>(rng: &mut R, param: &PHMMParams) -> Emission {
     let base = *BASES
         .choose_weighted(rng, |_base| param.p_random.to_value())
         .unwrap();
-    Emission(Some(base))
+    Emission::Base(base)
 }
 
 ///
@@ -44,5 +44,34 @@ pub fn pick_match_emission<R: Rng>(rng: &mut R, emission: u8, param: &PHMMParams
             }
         })
         .unwrap();
-    Emission(Some(base))
+    Emission::Base(base)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+
+    #[test]
+    fn picker_pick_with_prob() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+
+        // (1) assert that does not pick p=0 element
+        for _ in 0..10 {
+            let picked = pick_with_prob(
+                &mut rng,
+                &[(b'a', Prob::from_prob(0.0)), (b'b', Prob::from_prob(1.0))],
+            );
+            assert_eq!(picked, b'b');
+        }
+
+        // (2) assert that p=0.5 two elements evenly
+        for _ in 0..100 {
+            let picked = pick_with_prob(
+                &mut rng,
+                &[(b'a', Prob::from_prob(0.5)), (b'b', Prob::from_prob(0.5))],
+            );
+            // println!("{:?}", picked);
+        }
+    }
 }
