@@ -1,5 +1,5 @@
 use crate::dbg::{DbgHash, DBG};
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use bio::io::fasta;
 use log::warn;
 use std::io;
@@ -32,7 +32,7 @@ pub fn parse_kmers_and_copy_nums(filename: &str, k: usize) -> (Vec<Kmer>, Vec<u3
     for result in reader.records() {
         let record = result.unwrap();
         for window in sanitize_bases(record.seq()).windows(k) {
-            let kmer = Kmer::from(window);
+            let kmer = Kmer::from_bases(window);
             d.add(kmer, 1);
         }
     }

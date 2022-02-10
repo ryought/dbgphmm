@@ -7,24 +7,6 @@ use super::common::{KmerBase, KmerLike, NullableKmer};
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 pub struct VecKmer(pub Vec<u8>);
 
-impl VecKmer {
-    ///
-    /// Constructor from slices of u8
-    /// (that is slices of DNA bases vector)
-    ///
-    pub fn from(bases: &[u8]) -> VecKmer {
-        // TODO add base assertion?
-        let v = bases.to_vec();
-        VecKmer(v)
-    }
-    ///
-    /// Convert back to the raw vector of bases u8
-    ///
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.0.to_vec()
-    }
-}
-
 impl NullableKmer for VecKmer {
     /// check if NNNNNN
     fn is_null(&self) -> bool {
@@ -143,6 +125,21 @@ impl KmerLike for VecKmer {
     fn is_starting(&self) -> bool {
         self.0[0] == b'N' && self.0[1..].iter().all(|&x| x != b'N')
     }
+    ///
+    /// Constructor from slices of u8
+    /// (that is slices of DNA bases vector)
+    ///
+    fn from_bases(bases: &[u8]) -> VecKmer {
+        // TODO add base assertion?
+        let v = bases.to_vec();
+        VecKmer(v)
+    }
+    ///
+    /// Convert back to the raw vector of bases u8
+    ///
+    fn to_bases(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
 }
 
 impl KmerBase for VecKmer {
@@ -172,7 +169,7 @@ mod tests {
 
     #[test]
     fn veckmer() {
-        let a = VecKmer::from(b"ATCGATTAG");
+        let a = VecKmer::from_bases(b"ATCGATTAG");
         a.is_emitable();
         println!("{} {}", a, a.len());
     }

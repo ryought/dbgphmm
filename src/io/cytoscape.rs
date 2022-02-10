@@ -1,4 +1,4 @@
-use crate::kmer::kmer::Kmer;
+use crate::kmer::kmer::{Kmer, KmerLike};
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
 
@@ -33,13 +33,13 @@ mod tests {
         let mut elements = Vec::new();
         elements.push(Element::Node {
             id: 0,
-            label: Kmer::from(b"ATCGA"),
+            label: Kmer::from_bases(b"ATCGA"),
         });
         elements.push(Element::Edge {
             id: 0,
             source: 0,
             target: 1,
-            label: Kmer::from(b"ATCGAT"),
+            label: Kmer::from_bases(b"ATCGAT"),
             widths: vec![0, 1, 2],
             true_width: None,
         });

@@ -135,8 +135,8 @@ pub trait KmerLike:
         self.extend_last(other.last())
     }
     // construction
-    // fn from(bases: &[u8]) -> Self;
-    // fn to_vec(&self) -> Vec<u8>;
+    fn from_bases(bases: &[u8]) -> Self;
+    fn to_bases(&self) -> Vec<u8>;
 }
 
 ///
@@ -145,6 +145,13 @@ pub trait KmerLike:
 ///
 pub trait KmerBase {
     fn k(&self) -> usize;
+}
+
+//
+// Sequence <-> Kmers conversion
+//
+fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> impl Iterator<Item = K> + 'a {
+    seq.windows(k).map(|subseq| K::from_bases(subseq))
 }
 
 //

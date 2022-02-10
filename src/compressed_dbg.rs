@@ -263,7 +263,7 @@ impl CompressedDBG {
         debug!("start: {}", self.kmer(from));
         // add from (first kmer)
         let mut now = from;
-        let mut seq = self.kmer(from).to_vec();
+        let mut seq = self.kmer(from).to_bases();
         counts[from.0] -= 1;
         loop {
             match self
@@ -453,7 +453,10 @@ mod tests {
         // only 1 starting kmer
         assert_eq!(starting.len(), 1);
         // starting kmer is the first 7-mer
-        assert_eq!(cdbg.kmer(&starting[0]).clone(), Kmer::from(b"NATCGATT"));
+        assert_eq!(
+            cdbg.kmer(&starting[0]).clone(),
+            Kmer::from_bases(b"NATCGATT")
+        );
     }
 
     #[test]

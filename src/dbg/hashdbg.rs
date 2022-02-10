@@ -169,15 +169,15 @@ pub trait DBG {
             warn!("added sed length={} shorter than k={}", seq.len(), k);
             return;
         }
-        let first_kmer = Kmer::from(&seq[..k]);
+        let first_kmer = Kmer::from_bases(&seq[..k]);
         for kmer in starting_kmers(&first_kmer).into_iter() {
             self.add(kmer, 1);
         }
         for window in seq.windows(k) {
-            let kmer = Kmer::from(window);
+            let kmer = Kmer::from_bases(window);
             self.add(kmer, 1);
         }
-        let last_kmer = Kmer::from(&seq[seq.len() - k..]);
+        let last_kmer = Kmer::from_bases(&seq[seq.len() - k..]);
         for kmer in ending_kmers(&last_kmer).into_iter() {
             self.add(kmer, 1);
         }
@@ -301,15 +301,15 @@ impl DbgHash {
 
 pub fn test() {
     let kmers: Vec<Kmer> = vec![
-        Kmer::from(b"ATCG"),
-        Kmer::from(b"GGAC"),
-        Kmer::from(b"TGAC"),
-        Kmer::from(b"AGAC"),
-        Kmer::from(b"GACT"),
+        Kmer::from_bases(b"ATCG"),
+        Kmer::from_bases(b"GGAC"),
+        Kmer::from_bases(b"TGAC"),
+        Kmer::from_bases(b"AGAC"),
+        Kmer::from_bases(b"GACT"),
         /*
-        Kmer::from(b"TTCG"),
-        Kmer::from(b"TCGT"),
-        Kmer::from(b"TCGA"),
+        Kmer::from_bases(b"TTCG"),
+        Kmer::from_bases(b"TCGT"),
+        Kmer::from_bases(b"TCGA"),
         */
     ];
     let copy_nums: Vec<u32> = vec![3, 2, 3, 3, 1];
