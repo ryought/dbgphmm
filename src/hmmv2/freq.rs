@@ -281,9 +281,10 @@ mod tests {
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
         let sps = phmm.to_state_probs(&rf, &rb);
         let nf = phmm.to_node_freqs(&sps);
-        assert!(nf[ni(0)] < 0.0001); // -
-        assert!(nf[ni(1)] < 0.0001); // -
-        assert!(nf[ni(2)] < 0.0001); // -
+        phmm.draw_node_vec(&nf);
+        assert!(nf[ni(0)] < 0.01); // -
+        assert!(nf[ni(1)] < 0.01); // -
+        assert!(nf[ni(2)] < 0.01); // -
         assert!(nf[ni(3)] > 0.98); // C
         assert!(nf[ni(4)] > 0.98); // G
         assert!(nf[ni(5)] > 0.98); // A

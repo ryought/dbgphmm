@@ -439,8 +439,8 @@ mod tests {
             println!("{}", table);
         }
         println!("{}", r.init_table);
-        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.1156632), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[0].mb, lp(-15.3745336), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.0679200), epsilon = 0.00001);
+        assert_abs_diff_eq!(r.tables[0].mb, lp(-15.2115765494), epsilon = 0.00001);
         // read 2
         let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
         assert_eq!(r2.tables.len(), 5);
@@ -448,6 +448,6 @@ mod tests {
             println!("{}", table);
         }
         println!("{}", r2.init_table);
-        assert_abs_diff_eq!(r2.tables[0].mb, lp(-17.0679306), epsilon = 0.00001);
+        assert_abs_diff_eq!(r2.tables[0].mb, lp(-16.7787277), epsilon = 0.00001);
     }
 }
