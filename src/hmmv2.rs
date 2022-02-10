@@ -5,3 +5,4 @@ pub mod freq;
 pub mod new;
 pub mod sample;
 pub mod table;
+pub mod trans_table;

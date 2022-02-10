@@ -17,10 +17,13 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMResult, PHMMTable};
+use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
 use crate::common::Freq;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
+
+// For hidden states / nodes
 
 /// The probability of emitting the emission from the hidden state.
 pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
@@ -30,9 +33,6 @@ pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
 
 /// Frequency (f64) assigned to each nodes
 pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
-
-/// Frequency (f64) assigned to each edges
-pub type EdgeFreqs = EdgeVec<DenseStorage<Freq>>;
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the full probability `P(x)` of the given emission `x`
@@ -72,6 +72,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
+    /// * `P(x)` is the full probability of emissions
     ///
     pub fn to_emit_probs<S>(&self, forward: &PHMMResult<S>, backward: &PHMMResult<S>) -> EmitProbs
     where
@@ -99,6 +100,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     where
         S: Storage<Item = Prob>,
     {
+        // TODO to_emit_probs can be an iterator (storeing all temp vector is unnecessary).
         self.to_emit_probs(forward, backward).into_iter().sum()
     }
     /// Calculate the expected value of the usage frequency of each nodes
@@ -106,10 +108,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// `f[v]` = (How many times the hidden state `M_v, I_v, D_v` was used to emit the whole
     /// emissions?)
     ///
-    pub fn to_node_freqs<S>(&self, state_probs: &StateProbs) -> NodeFreqs
-    where
-        S: Storage<Item = Prob>,
-    {
+    /// TODO this does not depend on self, so should move to StateProbs method?
+    ///
+    pub fn to_node_freqs(&self, state_probs: &StateProbs) -> NodeFreqs {
         let n = state_probs.n_nodes();
         let mut f: NodeFreqs = NodeFreqs::new(n, 0.0);
         for i in 0..n {
@@ -120,11 +121,81 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     /// Calculate the expected value of the usage frequency of each edges
     ///
-    pub fn to_edge_freqs<S>(&self, forward: &PHMMResult<S>, backward: &PHMMResult<S>) -> EdgeFreqs
+    /// `freq[i][e]`
+    /// = P(use an edge `e` after emitting x[i])
+    ///
+    /// For a Normal state `N` and silent state `S`,
+    ///
+    /// * `e = (k: N or S, l: N)` transition
+    ///     `freq[i][e] = (f_i[k] * a_kl * e_l(x[i+1]) * b_i+2[l]) / P(x)`
+    ///
+    /// * `e = (k: N or S, l: S)` transition
+    ///     `freq[i][e] = (f_i[k] * a_kl * b_i+1[l]) / P(x)`
+    ///
+    pub fn to_edge_freqs<S>(
+        &self,
+        forward: &PHMMResult<S>,
+        backward: &PHMMResult<S>,
+        emissions: &[u8],
+    ) -> EdgeFreqs
     where
         S: Storage<Item = Prob>,
     {
-        unimplemented!();
+        assert_eq!(emissions.len(), forward.n_emissions());
+        assert_eq!(emissions.len(), backward.n_emissions());
+
+        let mut freq: EdgeFreqs = EdgeFreqs::new(self.n_edges(), 0.0);
+
+        for i in 0..forward.n_emissions() {
+            let tp = self.to_trans_probs(forward, backward, emissions, i);
+            for (e, _, _, _) in self.edges() {
+                freq[e] += tp[e].sum().to_value();
+            }
+        }
+
+        freq
+    }
+    /// Calculate the expected value of the usage frequency of each edges
+    /// TBW
+    pub fn to_trans_probs<S>(
+        &self,
+        forward: &PHMMResult<S>,
+        backward: &PHMMResult<S>,
+        emissions: &[u8],
+        i: usize,
+    ) -> TransProbs
+    where
+        S: Storage<Item = Prob>,
+    {
+        let mut t: TransProbs = TransProbs::new(self.n_edges(), TransProb::zero());
+
+        let param = &self.param;
+        let fi0 = &forward.tables[i];
+        let p = self.to_full_prob_forward(forward);
+
+        // to m (normal state)
+        if i + 2 < forward.n_emissions() {
+            let bi2 = &backward.tables[i + 2];
+            for (e, k, l, ew) in self.edges() {
+                let p_emit = self.p_match_emit(l, emissions[i + 1]);
+                let p_trans = ew.trans_prob();
+                t[e].mm = fi0.m[k] * p_trans * param.p_MM * p_emit * bi2.m[l] / p;
+                t[e].im = fi0.i[k] * p_trans * param.p_IM * p_emit * bi2.m[l] / p;
+                t[e].dm = fi0.d[k] * p_trans * param.p_DM * p_emit * bi2.m[l] / p;
+            }
+        }
+
+        // to d (silent state)
+        if i + 1 < forward.n_emissions() {
+            let bi1 = &backward.tables[i + 1];
+            for (e, k, l, weight) in self.edges() {
+                let p_trans = weight.trans_prob();
+                t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
+                t[e].id = fi0.i[k] * p_trans * param.p_ID * bi1.d[l] / p;
+                t[e].dd = fi0.d[k] * p_trans * param.p_DD * bi1.d[l] / p;
+            }
+        }
+        t
     }
 }
 
@@ -169,5 +240,60 @@ mod tests {
         assert_abs_diff_eq!(eps[2].m[ni(5)], p(1.0), epsilon = 0.00001);
         assert_abs_diff_eq!(eps[1].m[ni(4)], p(1.0), epsilon = 0.00001);
         assert_abs_diff_eq!(eps[0].m[ni(3)], p(1.0), epsilon = 0.00001);
+
+        let sps = phmm.to_state_probs(&rf, &rb);
+        println!("{}", sps);
+        assert_abs_diff_eq!(sps.m[ni(7)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(sps.m[ni(6)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(sps.m[ni(5)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(sps.m[ni(4)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(sps.m[ni(3)], p(1.0), epsilon = 0.00001);
+
+        let nf = phmm.to_node_freqs(&sps);
+        println!("{:?}", nf);
+        assert_abs_diff_eq!(nf[ni(7)], 1.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(6)], 1.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(5)], 1.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(4)], 1.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(3)], 1.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(9)], 0.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(8)], 0.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(2)], 0.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(1)], 0.0, epsilon = 0.00001);
+        assert_abs_diff_eq!(nf[ni(0)], 0.0, epsilon = 0.00001);
+    }
+    #[test]
+    fn hmm_freq_mock_linear_high_error_node_freqs() {
+        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
+        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let sps = phmm.to_state_probs(&rf, &rb);
+        let nf = phmm.to_node_freqs(&sps);
+        assert!(nf[ni(0)] < 0.0001); // -
+        assert!(nf[ni(1)] < 0.0001); // -
+        assert!(nf[ni(2)] < 0.0001); // -
+        assert!(nf[ni(3)] > 0.98); // C
+        assert!(nf[ni(4)] > 0.98); // G
+        assert!(nf[ni(5)] > 0.98); // A
+        assert!(nf[ni(6)] > 0.98); // T
+        assert!(nf[ni(7)] > 0.98); // C
+        assert!(nf[ni(8)] < 0.01); // -
+        assert!(nf[ni(9)] < 0.01); // -
+    }
+    #[test]
+    fn hmm_freq_mock_linear_high_error_trans_probs() {
+        let phmm = mock_linear()
+            .to_seq_graph()
+            .to_phmm(PHMMParams::zero_error());
+        let emissions = b"CGATC";
+        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(emissions);
+        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(emissions);
+        for i in 0..5 {
+            let tps = phmm.to_trans_probs(&rf, &rb, emissions, i);
+            println!("{}", i);
+            for (e, _, _, _) in phmm.edges() {
+                println!("{:?}\n{}", e, tps[e]);
+            }
+        }
     }
 }
