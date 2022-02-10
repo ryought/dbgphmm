@@ -325,15 +325,13 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::ni;
-    use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
     fn hmm_forward_mock_linear_zero_error() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::zero_error());
+        let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         assert_eq!(r.tables.len(), 5);
         assert_abs_diff_eq!(r.tables[2].m[ni(5)], lp(-2.3026250931), epsilon = 0.00001);
@@ -356,9 +354,7 @@ mod tests {
     }
     #[test]
     fn hmm_forward_mock_linear_high_error() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
         // read 1
         let r: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         for table in r.tables.iter() {

@@ -78,6 +78,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    /*
+    /// TODO
+    /// Convert to `SeqGraph`
+    pub fn to_seq_graph() -> SeqGraphV2 {
+        unimplemented!();
+    }
+    */
 }
 
 #[cfg(test)]

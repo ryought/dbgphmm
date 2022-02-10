@@ -206,7 +206,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::utils::get_emission_sequence;
     use super::*;
-    use crate::graph::mocks::mock_linear;
+    use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
     fn hmm_sample_state() {
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn hmm_sample_mock_linear_picker() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
-        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let phmm = mock_linear_phmm(PHMMParams::default());
         println!("{}", phmm);
 
         // pick_init_node
@@ -238,9 +238,7 @@ mod tests {
     #[test]
     fn hmm_sample_mock_linear() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
         let hist = phmm.sample(20, 0);
         println!("{:?}", hist);
         println!("{:?}", get_emission_sequence(&hist));

@@ -285,14 +285,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
     fn phmmmodels_basic_ops() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::high_error());
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
         for (i, (node, weight)) in phmm.nodes().enumerate() {
             assert_eq!(NodeIndex::new(i), node);
             assert_eq!(weight.copy_num, 1);

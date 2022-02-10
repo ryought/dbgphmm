@@ -3,7 +3,7 @@
 //! Node: linear sequence
 //! Edge: its adjacency
 //!
-use super::seq_graph::{SeqGraphV2, SimpleSeqEdge, SimpleSeqNode};
+use super::seq_graph::{SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
 use crate::common::{CopyNum, Sequence};
 use itertools::Itertools;
 use petgraph::dot::Dot;
@@ -83,7 +83,7 @@ impl GenomeGraph {
     /// Convert `GenomeGraph` into `SimpleSeqGraph`
     /// split a node containing bases into multiple nodes corresponding each bases
     ///
-    pub fn to_seq_graph(&self) -> SeqGraphV2<SimpleSeqNode, SimpleSeqEdge> {
+    pub fn to_seq_graph(&self) -> SimpleSeqGraph {
         let mut graph = DiGraph::new();
 
         // for each node
@@ -123,7 +123,7 @@ impl GenomeGraph {
             graph.add_edge(*last_of_source, *first_of_target, SimpleSeqEdge::new(None));
         }
 
-        SeqGraphV2::new(graph)
+        graph
     }
 }
 
