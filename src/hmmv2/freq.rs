@@ -221,6 +221,7 @@ mod tests {
     use crate::common::{ei, ni};
     use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::hmmv2::trans_table::draw_edge_vec;
     use crate::prob::p;
     use crate::vector::DenseStorage;
     #[test]
@@ -305,15 +306,7 @@ mod tests {
         for i in 0..5 {
             let tps = phmm.to_trans_probs(&rf, &rb, es, i);
             println!("{}", i);
-            for (e, k, l, _) in phmm.edges() {
-                println!(
-                    "{:?}({} {})\t{}",
-                    e,
-                    phmm.emission(k) as char,
-                    phmm.emission(l) as char,
-                    tps[e]
-                );
-            }
+            draw_edge_vec(&phmm, &tps);
         }
         assert_abs_diff_eq!(
             phmm.to_trans_probs(&rf, &rb, es, 0)[ei(3)].mm,
@@ -338,15 +331,7 @@ mod tests {
 
         // edge_freqs
         let efs = phmm.to_edge_freqs(&rf, &rb, es);
-        for (e, k, l, _) in phmm.edges() {
-            println!(
-                "{:?}({} {})\t{}",
-                e,
-                phmm.emission(k) as char,
-                phmm.emission(l) as char,
-                efs[e]
-            );
-        }
+        draw_edge_vec(&phmm, &efs);
         assert!(efs[ei(0)] < 0.0001);
         assert!(efs[ei(1)] < 0.0001);
         assert!(efs[ei(2)] < 0.0001);
@@ -360,6 +345,7 @@ mod tests {
     #[test]
     fn hmm_freq_mock_linear_high_error_trans_probs() {
         let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        // let es = b"ATTCGATCGT";
         let es = b"ATTCGTCGT";
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(es);
@@ -368,27 +354,12 @@ mod tests {
         for i in 0..es.len() {
             let tps = phmm.to_trans_probs(&rf, &rb, es, i);
             println!("{}", i);
-            for (e, k, l, _) in phmm.edges() {
-                println!(
-                    "{:?}({} {})\t{}",
-                    e,
-                    phmm.emission(k) as char,
-                    phmm.emission(l) as char,
-                    tps[e]
-                );
-            }
+            draw_edge_vec(&phmm, &tps);
         }
 
         // (2) edge_freqs
+        println!("edge_freqs");
         let efs = phmm.to_edge_freqs(&rf, &rb, es);
-        for (e, k, l, _) in phmm.edges() {
-            println!(
-                "{:?}({} {})\t{}",
-                e,
-                phmm.emission(k) as char,
-                phmm.emission(l) as char,
-                efs[e]
-            );
-        }
+        draw_edge_vec(&phmm, &efs);
     }
 }
