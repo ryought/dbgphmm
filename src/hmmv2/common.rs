@@ -119,6 +119,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    //
+    // PHMM Specific methods
+    //
     ///
     /// Get a node emission
     ///
