@@ -295,14 +295,22 @@ mod tests {
     #[test]
     fn hmm_freq_mock_linear_error_node_freqs_del() {
         let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
-        // let es = b"ATTCGATCGT";
-        let es = b"ATTCGTCGT";
+        // orig: b"ATTCGATCGT";
+        let es = b"ATTCGTCGT"; // have 1 deletion
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(es);
         let sps = phmm.to_state_probs(&rf, &rb);
         let nf = phmm.to_node_freqs(&sps);
         phmm.draw_node_vec(&nf);
-        // FIXME have bugs
+        assert_abs_diff_eq!(
+            phmm.to_full_prob_forward(&rf),
+            phmm.to_full_prob_backward(&rb),
+            epsilon = 0.00001,
+        );
+        for (v, _) in phmm.nodes() {
+            println!("{}", nf[v]);
+            assert_abs_diff_eq!(nf[v], 1.0, epsilon = 0.01);
+        }
     }
     #[test]
     fn hmm_freq_mock_linear_zero_error_trans_probs() {
@@ -368,15 +376,30 @@ mod tests {
         }
 
         // (1) trans_probs
-        for i in 0..es.len() {
-            let tps = phmm.to_trans_probs(&rf, &rb, es, i);
+        let tps: Vec<TransProbs> = (0..es.len())
+            .map(|i| phmm.to_trans_probs(&rf, &rb, es, i))
+            .collect();
+        for (i, t) in tps.iter().enumerate() {
             println!("{}", i);
-            phmm.draw_edge_vec(&tps);
+            phmm.draw_edge_vec(t);
         }
+        assert!(tps[0][ei(0)].mm.to_value() > 0.9);
+        assert!(tps[1][ei(1)].mm.to_value() > 0.9);
+        assert!(tps[2][ei(2)].mm.to_value() > 0.9);
+        assert!(tps[3][ei(3)].mm.to_value() > 0.9);
+        assert!(tps[4][ei(4)].md.to_value() > 0.9);
+        assert!(tps[4][ei(5)].dm.to_value() > 0.9);
+        assert!(tps[5][ei(6)].mm.to_value() > 0.9);
+        assert!(tps[6][ei(7)].mm.to_value() > 0.9);
+        assert!(tps[7][ei(8)].mm.to_value() > 0.9);
 
         // (2) edge_freqs
         println!("edge_freqs");
         let efs = phmm.to_edge_freqs(&rf, &rb, es);
         phmm.draw_edge_vec(&efs);
+        // all edge will be used so all should have f~1
+        for (e, _, _, _) in phmm.edges() {
+            assert_abs_diff_eq!(efs[e], 0.99, epsilon = 0.01);
+        }
     }
 }

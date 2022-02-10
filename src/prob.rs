@@ -31,9 +31,13 @@ impl Prob {
     pub fn from_log_prob(log_value: f64) -> Prob {
         Prob(log_value)
     }
+    ///
+    /// Get the probability (in `[0, 1]`)
     pub fn to_value(self) -> f64 {
         self.0.exp()
     }
+    ///
+    /// Get the log probability
     pub fn to_log_value(self) -> f64 {
         self.0
     }
