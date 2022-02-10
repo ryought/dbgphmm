@@ -150,8 +150,64 @@ pub trait KmerBase {
 //
 // Sequence <-> Kmers conversion
 //
-fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> impl Iterator<Item = K> + 'a {
-    seq.windows(k).map(|subseq| K::from_bases(subseq))
+fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> MarginKmerIterator<'a, K> {
+    MarginKmerIterator {
+        k,
+        index_prefix: 0,
+        index_suffix: 0,
+        index: 0,
+        seq,
+        ph: std::marker::PhantomData::<K>,
+    }
+}
+
+///
+/// 0 <= index_prefix < k   ('n' * (k-index_prefix)) + seq[:index_prefix]
+/// 0 <= index < L - k      seq[index:index+k]
+/// 0 <= index_prefix < k   seq[L-index_suffix:L] + ('n' * index_suffix)
+///
+pub struct MarginKmerIterator<'a, K: KmerLike> {
+    k: usize,
+    index_prefix: usize,
+    index_suffix: usize,
+    index: usize,
+    seq: &'a [u8],
+    ph: std::marker::PhantomData<K>,
+}
+
+impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
+    type Item = K;
+    fn next(&mut self) -> Option<K> {
+        let k = self.k;
+        let l = self.seq.len();
+        if self.index_prefix < k - 1 {
+            // NNNTTT
+            let n_prefix = k - 1 - self.index_prefix;
+            let n_body = k - n_prefix;
+            let mut bases = vec![b'N'; n_prefix];
+            bases.extend_from_slice(&self.seq[..n_body]);
+            self.index_prefix += 1;
+            Some(K::from_bases(&bases))
+        } else if self.index <= l - k {
+            // TTTTTT
+            let start = self.index;
+            let end = self.index + k;
+            let bases = self.seq[start..end].to_vec();
+            self.index += 1;
+            Some(K::from_bases(&bases))
+        } else if self.index_suffix < k - 1 {
+            // TTTNNN
+            let n_suffix = self.index_suffix + 1;
+            let n_body = k - n_suffix;
+            let mut bases = self.seq[l - n_body..].to_vec();
+            bases.extend_from_slice(&vec![b'N'; n_suffix]);
+            self.index_suffix += 1;
+            Some(K::from_bases(&bases))
+        } else {
+            // end
+            None
+        }
+    }
 }
 
 //
@@ -161,4 +217,28 @@ fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> impl Iterator<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kmer::veckmer::VecKmer;
+    #[test]
+    fn seq_to_kmers() {
+        let seq = b"ATCATCG";
+        for kmer in sequence_to_kmers::<VecKmer>(seq, 4) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = sequence_to_kmers::<VecKmer>(seq, 4).collect();
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"NNNA"),
+                VecKmer::from_bases(b"NNAT"),
+                VecKmer::from_bases(b"NATC"),
+                VecKmer::from_bases(b"ATCA"),
+                VecKmer::from_bases(b"TCAT"),
+                VecKmer::from_bases(b"CATC"),
+                VecKmer::from_bases(b"ATCG"),
+                VecKmer::from_bases(b"TCGN"),
+                VecKmer::from_bases(b"CGNN"),
+                VecKmer::from_bases(b"GNNN"),
+            ]
+        );
+    }
 }
