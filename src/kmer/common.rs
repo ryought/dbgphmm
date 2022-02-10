@@ -9,7 +9,7 @@ pub trait NullableKmer {
     fn is_null(&self) -> bool;
 }
 
-pub trait KmerLike: std::marker::Sized + PartialEq + NullableKmer {
+pub trait KmerLike: std::marker::Sized + PartialEq + NullableKmer + Eq + std::hash::Hash {
     /// type of k+1-mer
     type Kp1mer: PartialEq + NullableKmer;
     /// type of k-1-mer
