@@ -167,6 +167,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     where
         S: Storage<Item = Prob>,
     {
+        assert_eq!(emissions.len(), forward.n_emissions());
+        assert_eq!(emissions.len(), backward.n_emissions());
+
         let mut t: TransProbs = TransProbs::new(self.n_edges(), TransProb::zero());
 
         let param = &self.param;
@@ -174,8 +177,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let p = self.to_full_prob_forward(forward);
 
         // to m (normal state)
-        if i + 2 < forward.n_emissions() {
-            let bi2 = &backward.tables[i + 2];
+        let bi2 = if i + 2 < forward.n_emissions() {
+            &backward.tables[i + 2]
+        } else {
+            &backward.init_table
+        };
+        let bi1 = if i + 1 < forward.n_emissions() {
+            &backward.tables[i + 1]
+        } else {
+            &backward.init_table
+        };
+
+        if i + 1 < forward.n_emissions() {
             for (e, k, l, ew) in self.edges() {
                 let p_emit = self.p_match_emit(l, emissions[i + 1]);
                 let p_trans = ew.trans_prob();
@@ -186,8 +199,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
 
         // to d (silent state)
-        if i + 1 < forward.n_emissions() {
-            let bi1 = &backward.tables[i + 1];
+        if i < forward.n_emissions() {
             for (e, k, l, weight) in self.edges() {
                 let p_trans = weight.trans_prob();
                 t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
@@ -206,7 +218,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ni;
+    use crate::common::{ei, ni};
     use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
     use crate::prob::p;
@@ -281,19 +293,102 @@ mod tests {
         assert!(nf[ni(9)] < 0.01); // -
     }
     #[test]
-    fn hmm_freq_mock_linear_high_error_trans_probs() {
+    fn hmm_freq_mock_linear_zero_error_trans_probs() {
         let phmm = mock_linear()
             .to_seq_graph()
             .to_phmm(PHMMParams::zero_error());
-        let emissions = b"CGATC";
-        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(emissions);
-        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(emissions);
+        let es = b"CGATC";
+        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
+        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(es);
+
+        // (1) trans_probs
         for i in 0..5 {
-            let tps = phmm.to_trans_probs(&rf, &rb, emissions, i);
+            let tps = phmm.to_trans_probs(&rf, &rb, es, i);
             println!("{}", i);
-            for (e, _, _, _) in phmm.edges() {
-                println!("{:?}\n{}", e, tps[e]);
+            for (e, k, l, _) in phmm.edges() {
+                println!(
+                    "{:?}({} {})\t{}",
+                    e,
+                    phmm.emission(k) as char,
+                    phmm.emission(l) as char,
+                    tps[e]
+                );
             }
+        }
+        assert_abs_diff_eq!(
+            phmm.to_trans_probs(&rf, &rb, es, 0)[ei(3)].mm,
+            p(1.0),
+            epsilon = 0.00001
+        );
+        assert_abs_diff_eq!(
+            phmm.to_trans_probs(&rf, &rb, es, 1)[ei(4)].mm,
+            p(1.0),
+            epsilon = 0.00001
+        );
+        assert_abs_diff_eq!(
+            phmm.to_trans_probs(&rf, &rb, es, 2)[ei(5)].mm,
+            p(1.0),
+            epsilon = 0.00001
+        );
+        assert_abs_diff_eq!(
+            phmm.to_trans_probs(&rf, &rb, es, 3)[ei(6)].mm,
+            p(1.0),
+            epsilon = 0.00001
+        );
+
+        // edge_freqs
+        let efs = phmm.to_edge_freqs(&rf, &rb, es);
+        for (e, k, l, _) in phmm.edges() {
+            println!(
+                "{:?}({} {})\t{}",
+                e,
+                phmm.emission(k) as char,
+                phmm.emission(l) as char,
+                efs[e]
+            );
+        }
+        assert!(efs[ei(0)] < 0.0001);
+        assert!(efs[ei(1)] < 0.0001);
+        assert!(efs[ei(2)] < 0.0001);
+        assert!(efs[ei(3)] > 0.9999); // C -> G
+        assert!(efs[ei(4)] > 0.9999); // G -> A
+        assert!(efs[ei(5)] > 0.9999); // A -> T
+        assert!(efs[ei(6)] > 0.9999); // T -> C
+        assert!(efs[ei(7)] < 0.0001);
+        assert!(efs[ei(8)] < 0.0001);
+    }
+    #[test]
+    fn hmm_freq_mock_linear_high_error_trans_probs() {
+        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let es = b"ATTCGTCGT";
+        let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
+        let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(es);
+
+        // (1) trans_probs
+        for i in 0..es.len() {
+            let tps = phmm.to_trans_probs(&rf, &rb, es, i);
+            println!("{}", i);
+            for (e, k, l, _) in phmm.edges() {
+                println!(
+                    "{:?}({} {})\t{}",
+                    e,
+                    phmm.emission(k) as char,
+                    phmm.emission(l) as char,
+                    tps[e]
+                );
+            }
+        }
+
+        // (2) edge_freqs
+        let efs = phmm.to_edge_freqs(&rf, &rb, es);
+        for (e, k, l, _) in phmm.edges() {
+            println!(
+                "{:?}({} {})\t{}",
+                e,
+                phmm.emission(k) as char,
+                phmm.emission(l) as char,
+                efs[e]
+            );
         }
     }
 }

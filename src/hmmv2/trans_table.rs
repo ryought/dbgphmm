@@ -42,12 +42,12 @@ impl TransProb {
 
 impl std::fmt::Display for TransProb {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "m -> m\t{}", self.mm)?;
-        writeln!(f, "m -> d\t{}", self.md)?;
-        writeln!(f, "i -> m\t{}", self.im)?;
-        writeln!(f, "i -> d\t{}", self.id)?;
-        writeln!(f, "d -> m\t{}", self.dm)?;
-        writeln!(f, "d -> d\t{}", self.dd)
+        write!(f, "mm:{}\t", self.mm.to_value())?;
+        write!(f, "md:{}\t", self.md.to_value())?;
+        write!(f, "im:{}\t", self.im.to_value())?;
+        write!(f, "id:{}\t", self.id.to_value())?;
+        write!(f, "dm:{}\t", self.dm.to_value())?;
+        write!(f, "dd:{}", self.dd.to_value())
     }
 }
 
