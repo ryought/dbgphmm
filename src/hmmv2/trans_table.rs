@@ -1,10 +1,9 @@
 //!
 //! table structure for storing transition/edge usages
 //!
-use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::common::Freq;
 use crate::prob::Prob;
-use crate::vector::{DenseStorage, EdgeVec, Storage};
+use crate::vector::{DenseStorage, EdgeVec};
 
 #[derive(Debug, Copy, PartialEq, Clone)]
 pub struct TransProb {
@@ -57,28 +56,6 @@ pub type TransProbs = EdgeVec<DenseStorage<TransProb>>;
 
 /// Frequency (f64) assigned to each edges
 pub type EdgeFreqs = EdgeVec<DenseStorage<Freq>>;
-
-//
-// visualizer
-// TODO move to crate::vector::graph?
-//
-pub fn draw_edge_vec<N, E, S>(phmm: &PHMMModel<N, E>, ev: &EdgeVec<S>)
-where
-    N: PHMMNode,
-    E: PHMMEdge,
-    S: Storage,
-    S::Item: std::fmt::Display,
-{
-    for (e, k, l, _) in phmm.edges() {
-        println!(
-            "{:?}({}->{})\t{}",
-            e,
-            phmm.emission(k) as char,
-            phmm.emission(l) as char,
-            ev[e]
-        );
-    }
-}
 
 // test
 //

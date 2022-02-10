@@ -4,6 +4,7 @@
 use crate::common::CopyNum;
 use crate::hmm::params::PHMMParams;
 use crate::prob::Prob;
+use crate::vector::{EdgeVec, NodeVec, Storage};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -316,6 +317,38 @@ impl PHMMEdge for PEdge {
 impl std::fmt::Display for PEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "p={}", self.trans_prob)
+    }
+}
+
+//
+// Visualizers
+//
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    /// println wrapper of NodeVec, with attributes of each nodes
+    pub fn draw_node_vec<S>(&self, nv: &NodeVec<S>)
+    where
+        S: Storage,
+        S::Item: std::fmt::Display,
+    {
+        for (node, _w) in self.nodes() {
+            println!("{:?}({})\t{}", node, self.emission(node) as char, nv[node]);
+        }
+    }
+    /// println wrapper of EdgeVec, with attributes of each edges
+    pub fn draw_edge_vec<S>(&self, ev: &EdgeVec<S>)
+    where
+        S: Storage,
+        S::Item: std::fmt::Display,
+    {
+        for (edge, k, l, _) in self.edges() {
+            println!(
+                "{:?}({}->{})\t{}",
+                edge,
+                self.emission(k) as char,
+                self.emission(l) as char,
+                ev[edge]
+            );
+        }
     }
 }
 
