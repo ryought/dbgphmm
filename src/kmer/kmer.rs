@@ -1,9 +1,11 @@
 //!
 //! kmer base struct definitions
 //!
-pub use super::common::KmerLike;
+pub use super::common::{sequence_to_kmers, KmerLike};
 pub use super::veckmer::VecKmer as Kmer;
+
 use std::collections::HashMap;
+
 pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
     let mut h: HashMap<Kmer, usize> = HashMap::new();
     for i in 0..=&seq.len() - k {

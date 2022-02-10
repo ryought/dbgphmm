@@ -65,6 +65,17 @@ impl KmerLike for VecKmer {
             .collect();
         parents
     }
+    fn siblings(&self) -> Vec<VecKmer> {
+        let (_, suffix) = self.0.split_first().unwrap();
+        [b'A', b'C', b'G', b'T', b'N']
+            .iter()
+            .map(|first_base| {
+                let mut v = suffix.to_vec();
+                v.insert(0, *first_base);
+                VecKmer(v)
+            })
+            .collect()
+    }
     /// return k+1mer {ACGT}<Kmer> and <Kmer>{ACGT} vector
     fn neighbors(&self) -> Vec<VecKmer> {
         let bases = [b'A', b'C', b'G', b'T'];
@@ -148,6 +159,9 @@ impl KmerBase for VecKmer {
     }
 }
 
+//
+// Display
+//
 impl std::fmt::Display for VecKmer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // iter returns reference

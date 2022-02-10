@@ -60,6 +60,11 @@ pub trait KmerLike:
     ///
     fn parents(&self) -> Vec<Self>;
     ///
+    /// siblings is childs's parents
+    /// XYYYY -> [AYYYY, CYYYY, GYYYY, TYYYY]
+    ///
+    fn siblings(&self) -> Vec<Self>;
+    ///
     /// union of childs and parents
     /// XYYYZ -> [
     ///            YYYZA, YYYZC, YYYZG, YYYZT, (childs)
@@ -150,7 +155,7 @@ pub trait KmerBase {
 //
 // Sequence <-> Kmers conversion
 //
-fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> MarginKmerIterator<'a, K> {
+pub fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> MarginKmerIterator<'a, K> {
     MarginKmerIterator {
         k,
         index_prefix: 0,
