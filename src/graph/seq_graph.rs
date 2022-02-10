@@ -12,10 +12,18 @@ use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 pub use petgraph::Direction;
 
+trait Hoge {
+    fn hoge(&self) {
+        println!("hoge");
+    }
+}
+
+impl<N: SeqNode, E: SeqEdge> Hoge for DiGraph<N, E> {}
+
 ///
-/// SeqGraph is a sequence graph whose node has its own copy number.
+/// SimpleSeqGraph is a sequence graph whose node has its own copy number.
 ///
-pub struct SeqGraph<N: SeqNode, E: SeqEdge> {
+pub struct SimpleSeqGraph<N: SeqNode, E: SeqEdge> {
     graph: DiGraph<N, E>,
     total_emittable_copy_num: CopyNum,
 }
@@ -44,12 +52,12 @@ pub trait SeqEdge {
     fn copy_num(&self) -> Option<CopyNum>;
 }
 
-impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
+impl<N: SeqNode, E: SeqEdge> SimpleSeqGraph<N, E> {
     /// Create `SeqGraph` from `DiGraph<N: SeqNode, E: SeqEdge>`
     /// with precalculation of total_emittable_copy_num
     pub fn new(graph: DiGraph<N, E>) -> Self {
-        let total_emittable_copy_num = SeqGraph::total_emittable_copy_num(&graph);
-        SeqGraph {
+        let total_emittable_copy_num = SimpleSeqGraph::total_emittable_copy_num(&graph);
+        SimpleSeqGraph {
             graph,
             total_emittable_copy_num,
         }
@@ -65,9 +73,9 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
 }
 
 //
-// Conversion between SeqGraph and GenomeGraph
+// Conversion between SimpleSeqGraph and GenomeGraph
 //
-impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
+impl<N: SeqNode, E: SeqEdge> SimpleSeqGraph<N, E> {
     /// calculate the sum of copy numbers
     /// of all emittable nodes
     fn total_emittable_copy_num(graph: &DiGraph<N, E>) -> CopyNum {
@@ -98,7 +106,7 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
             })
             .sum()
     }
-    /// Convert Node in Seqgraph into phmm node
+    /// Convert Node in SimpleSeqGraph into phmm node
     fn to_phmm_node(&self, node: NodeIndex) -> PNode {
         let node_weight = self.graph.node_weight(node).unwrap();
         let init_prob = Prob::from_prob(node_weight.copy_num() as f64)
@@ -110,16 +118,17 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph<N, E> {
             node_weight.base(),
         )
     }
-    /// Convert Edge in Seqgraph into phmm edge
+    /// Convert Edge in SimpleSeqGraph into phmm edge
     fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
         let (parent, child) = self.graph.edge_endpoints(edge).unwrap();
-        let total_child_copy_num = SeqGraph::total_emittable_child_copy_nums(&self.graph, parent);
+        let total_child_copy_num =
+            SimpleSeqGraph::total_emittable_child_copy_nums(&self.graph, parent);
         let child_weight = self.graph.node_weight(child).unwrap();
         let trans_prob =
             Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64);
         PEdge::new(trans_prob)
     }
-    /// convert SeqGraph to PHMM by ignoreing the edge copy numbers
+    /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         let graph = self.graph.map(
             // node converter
@@ -194,7 +203,7 @@ impl std::fmt::Display for SimpleSeqEdge {
     }
 }
 
-impl<N, E> std::fmt::Display for SeqGraph<N, E>
+impl<N, E> std::fmt::Display for SimpleSeqGraph<N, E>
 where
     N: SeqNode + std::fmt::Display,
     E: SeqEdge + std::fmt::Display,
@@ -211,4 +220,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::mocks::mock_linear;
+    #[test]
+    fn trait_test() {
+        let sg = mock_linear().to_seq_graph();
+        let g = sg.graph;
+        g.hoge();
+    }
 }
