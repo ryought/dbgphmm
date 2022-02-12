@@ -88,12 +88,12 @@ pub fn count(seq: &[u8], k: usize) -> HashMap<Vec<u8>, usize> {
     h
 }
 
-use super::kmer::Kmer;
+use super::kmer::{Kmer, KmerLike};
 pub fn count_my_kmer(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
     let mut h = HashMap::new();
     for i in 0..=&seq.len() - k {
         // XXX bottleneck here
-        let kmer = Kmer::from(&seq[i..i + k]);
+        let kmer = Kmer::from_bases(&seq[i..i + k]);
         match h.get(&kmer) {
             Some(&occ) => {
                 h.insert(kmer, occ + 1);

@@ -98,12 +98,12 @@ impl PHMMSampler for DbgPHMM {}
 
 pub fn test() {
     let kmers: Vec<Kmer> = vec![
-        Kmer::from(b"GGAC"),
-        Kmer::from(b"TGAC"),
-        Kmer::from(b"GACT"),
-        Kmer::from(b"GACC"),
-        Kmer::from(b"ACCT"),
-        Kmer::from(b"CCTG"),
+        Kmer::from_bases(b"GGAC"),
+        Kmer::from_bases(b"TGAC"),
+        Kmer::from_bases(b"GACT"),
+        Kmer::from_bases(b"GACC"),
+        Kmer::from_bases(b"ACCT"),
+        Kmer::from_bases(b"CCTG"),
     ];
     let copy_nums: Vec<u32> = vec![1, 2, 2, 1, 1, 1];
     let _d = DbgPHMM::new(kmers, copy_nums).unwrap();

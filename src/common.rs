@@ -12,6 +12,12 @@ pub type Freq = f64;
 /// Type of DNA sequence
 pub type Sequence = Vec<u8>;
 
+/// Convert Sequence(Vec<u8>) into &str
+/// useful in displaying
+pub fn sequence_to_string(seq: &Sequence) -> &str {
+    std::str::from_utf8(seq).unwrap()
+}
+
 ///
 /// short-hand of `NodeIndex::new`
 ///

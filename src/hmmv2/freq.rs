@@ -219,15 +219,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ei, ni};
-    use crate::graph::mocks::mock_linear;
     use crate::hmm::params::PHMMParams;
+    use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::prob::p;
     use crate::vector::DenseStorage;
     #[test]
     fn hmm_freq_mock_linear_zero_error_full_prob() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::zero_error());
+        let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
         assert_abs_diff_eq!(
@@ -238,9 +236,7 @@ mod tests {
     }
     #[test]
     fn hmm_freq_mock_linear_zero_error_node_freqs() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::zero_error());
+        let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
         let eps = phmm.to_emit_probs(&rf, &rb);
@@ -276,7 +272,7 @@ mod tests {
     }
     #[test]
     fn hmm_freq_mock_linear_high_error_node_freqs() {
-        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let phmm = mock_linear_phmm(PHMMParams::default());
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(b"CGATC");
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
         let sps = phmm.to_state_probs(&rf, &rb);
@@ -295,7 +291,7 @@ mod tests {
     }
     #[test]
     fn hmm_freq_mock_linear_error_node_freqs_del() {
-        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let phmm = mock_linear_phmm(PHMMParams::default());
         // orig: b"ATTCGATCGT";
         let es = b"ATTCGTCGT"; // have 1 deletion
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
@@ -315,9 +311,7 @@ mod tests {
     }
     #[test]
     fn hmm_freq_mock_linear_zero_error_trans_probs() {
-        let phmm = mock_linear()
-            .to_seq_graph()
-            .to_phmm(PHMMParams::zero_error());
+        let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let es = b"CGATC";
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
         let rb: PHMMResult<DenseStorage<Prob>> = phmm.backward(es);
@@ -364,7 +358,7 @@ mod tests {
     }
     #[test]
     fn hmm_freq_mock_linear_high_error_trans_probs() {
-        let phmm = mock_linear().to_seq_graph().to_phmm(PHMMParams::default());
+        let phmm = mock_linear_phmm(PHMMParams::default());
         // let es = b"ATTCGATCGT";
         let es = b"ATTCGTCGT";
         let rf: PHMMResult<DenseStorage<Prob>> = phmm.forward(es);
