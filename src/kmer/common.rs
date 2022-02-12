@@ -155,7 +155,11 @@ pub trait KmerBase {
 //
 // Sequence <-> Kmers conversion
 //
-pub fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> MarginKmerIterator<'a, K> {
+/// Convert linear sequence to a list of kmers
+pub fn linear_sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
     MarginKmerIterator {
         k,
         index_prefix: 0,
@@ -164,6 +168,13 @@ pub fn sequence_to_kmers<'a, K: KmerLike>(seq: &'a [u8], k: usize) -> MarginKmer
         seq,
         ph: std::marker::PhantomData::<K>,
     }
+}
+
+pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
+    unimplemented!();
 }
 
 ///
