@@ -2,25 +2,31 @@
 //! De bruijn graph definitions
 //!
 //!
-use crate::common::CopyNum;
+use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
+use crate::common::{CopyNum, Sequence};
+use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use fnv::FnvHashMap as HashMap;
+use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 ///
 /// (Node-centric) De bruijn graph struct
 /// k
 ///
-pub struct Dbg<N: DbgNode, E: DbgEdge> {
+pub struct Dbg<K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
     k: usize,
     graph: DiGraph<N, E>,
+    phantom: std::marker::PhantomData<K>,
 }
 
 ///
 /// Trait for nodes in Dbg
 ///
-pub trait DbgNode {
-    fn kmer(&self) -> &Kmer;
+pub trait DbgNode<K: KmerLike> {
+    fn new(kmer: K, copy_num: CopyNum) -> Self;
+    fn kmer(&self) -> &K;
     fn copy_num(&self) -> CopyNum;
 }
 
@@ -28,13 +34,14 @@ pub trait DbgNode {
 /// Trait for edges in Dbg
 ///
 pub trait DbgEdge {
-    fn copy_num(&self) -> CopyNum;
+    fn new(copy_num: Option<CopyNum>) -> Self;
+    fn copy_num(&self) -> Option<CopyNum>;
 }
 
 ///
 /// Basic graph operations for Dbg
 ///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -81,16 +88,84 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 }
 
 ///
-/// Dbg constructors
+/// Basic properties
+///
+impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+    pub fn is_consistent(&self) {
+        unimplemented!();
+    }
+}
+
+///
+/// Basic constructors
+///
+impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+    /// plain constructor of dbg
+    pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
+        Dbg {
+            k,
+            graph,
+            phantom: std::marker::PhantomData::<K>,
+        }
+    }
+    /// Convert HashDbg<K> into Dbg<K>
+    pub fn from_hashdbg(d: &HashDbg<K>) -> Self {
+        let mut graph = DiGraph::new();
+        // a temporary map from Kmer to NodeIndex
+        let mut ids: HashMap<K, NodeIndex> = HashMap::default();
+
+        // (1) add a node for each kmer
+        for kmer in d.kmers() {
+            let node = graph.add_node(N::new(kmer.clone(), d.get(kmer)));
+            ids.insert(kmer.clone(), node);
+        }
+
+        // (2) add an edge from kmer to its childs
+        for kmer in d.kmers() {
+            let v = *ids.get(kmer).unwrap();
+            for child in d.childs(kmer) {
+                let w = *ids.get(&child).unwrap();
+                graph.add_edge(v, w, E::new(None));
+            }
+        }
+
+        Self::new(d.k(), graph)
+    }
+}
+
+/*
+///
+/// traverse related
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    // pub fn from_dbghash(d: &DbgHash) -> Self {}
+    /// TODO
+    pub fn to_seqs<K: KmerLike>(d: &HashDbg<K>) -> Vec<Sequence> {
+        unimplemented!();
+    }
+}
+*/
+
+impl<K, N, E> std::fmt::Display for Dbg<K, N, E>
+where
+    K: KmerLike,
+    N: DbgNode<K> + std::fmt::Display,
+    E: DbgEdge + std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", Dot::with_config(&self.graph, &[]))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kmer::veckmer::VecKmer;
 
     #[test]
-    fn dbg_new() {}
+    fn dbg_new() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
+        println!("{}", hd);
+        let dbg: Dbg<VecKmer, SimpleDbgNode<VecKmer>, SimpleDbgEdge> = Dbg::from_hashdbg(&hd);
+        println!("{}", dbg);
+    }
 }

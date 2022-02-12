@@ -237,10 +237,10 @@ mod tests {
     #[test]
     fn seq_to_kmers() {
         let seq = b"ATCATCG";
-        for kmer in sequence_to_kmers::<VecKmer>(seq, 4) {
+        for kmer in linear_sequence_to_kmers::<VecKmer>(seq, 4) {
             println!("{}", kmer);
         }
-        let kmers: Vec<VecKmer> = sequence_to_kmers::<VecKmer>(seq, 4).collect();
+        let kmers: Vec<VecKmer> = linear_sequence_to_kmers::<VecKmer>(seq, 4).collect();
         assert_eq!(
             kmers,
             vec![
