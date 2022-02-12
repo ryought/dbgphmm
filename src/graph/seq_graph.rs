@@ -59,8 +59,11 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     /// Convert Node in SimpleSeqGraph into phmm node
     fn to_phmm_node(&self, node: NodeIndex, total_copy_num: CopyNum) -> PNode {
         let node_weight = self.node_weight(node).unwrap();
-        let init_prob =
-            Prob::from_prob(node_weight.copy_num() as f64) / Prob::from_prob(total_copy_num as f64);
+        let init_prob = if node_weight.is_emittable() {
+            Prob::from_prob(node_weight.copy_num() as f64) / Prob::from_prob(total_copy_num as f64)
+        } else {
+            Prob::from_prob(0.0)
+        };
         PNode::new(
             node_weight.copy_num(),
             init_prob,
@@ -73,8 +76,11 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
         let (parent, child) = self.edge_endpoints(edge).unwrap();
         let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
         let child_weight = self.node_weight(child).unwrap();
-        let trans_prob =
-            Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64);
+        let trans_prob = if child_weight.is_emittable() {
+            Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64)
+        } else {
+            Prob::from_prob(0.0)
+        };
         PEdge::new(trans_prob)
     }
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
