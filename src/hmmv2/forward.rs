@@ -3,7 +3,7 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::result::PHMMResult;
+use super::result::{PHMMResult, PHMMResultSparse};
 use super::table::PHMMTable;
 use crate::prob::{p, Prob};
 use crate::vector::{NodeVec, Storage};
@@ -36,6 +36,45 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     self.f_step(i, emission, r.tables.last().unwrap())
                 };
                 r.tables.push(table);
+                r
+            })
+    }
+    ///
+    /// Run Forward algorithm to the emissions, with sparse calculation
+    /// Not tested
+    ///
+    pub fn forward_sparse(&self, emissions: &[u8], n_warmup: usize) -> PHMMResultSparse {
+        let r0 = PHMMResultSparse {
+            init_table: self.f_init(),
+            tables_warmup: Vec::new(),
+            tables_sparse: Vec::new(),
+        };
+        emissions
+            .iter()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                if i < n_warmup {
+                    // dense_table -> dense_table
+                    let table = if i == 0 {
+                        self.f_step(i, emission, &r.init_table)
+                    } else {
+                        self.f_step(i, emission, r.tables_warmup.last().unwrap())
+                    };
+                    r.tables_warmup.push(table);
+                } else if i == n_warmup {
+                    // dense_table -> sparse_table
+                    let table_prev = r
+                        .tables_warmup
+                        .last()
+                        .unwrap()
+                        .to_sparse(Prob::from_prob(0.0));
+                    let table = self.f_step(i, emission, &table_prev);
+                    r.tables_sparse.push(table);
+                } else {
+                    // sparse_table -> sparse_table
+                    let table = self.f_step(i, emission, r.tables_sparse.last().unwrap());
+                    r.tables_sparse.push(table);
+                };
                 r
             })
     }
