@@ -21,7 +21,7 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 ///
 pub struct Dbg<N: DbgNode, E: DbgEdge> {
     k: usize,
-    graph: DiGraph<N, E>,
+    pub graph: DiGraph<N, E>,
 }
 
 ///
