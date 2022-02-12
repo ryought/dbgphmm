@@ -32,6 +32,11 @@ pub trait DbgNode<K: KmerLike> {
     fn new(kmer: K, copy_num: CopyNum) -> Self;
     fn kmer(&self) -> &K;
     fn copy_num(&self) -> CopyNum;
+    ///
+    /// Last base of kmer will be used as an emission
+    fn emission(&self) -> u8 {
+        self.kmer().last()
+    }
 }
 
 ///
@@ -88,6 +93,14 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     /// Return the number of edges in the graph
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
+    }
+    /// convert node to emission
+    pub fn emission(&self, node: NodeIndex) -> u8 {
+        self.graph.node_weight(node).unwrap().emission()
+    }
+    /// check if two nodes `a, b: NodeIndex` is connected or not
+    pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
+        self.graph.contains_edge(a, b)
     }
 }
 

@@ -15,12 +15,24 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     ///
     ///
     pub fn traverse(&self) -> Traverser<K, N, E> {
-        Traverser {
-            // should start from root
-            next_node: Some(NodeIndex::new(0)),
-            dbg: self,
-            copy_nums: self.to_copy_nums(),
+        self.traverse_from(NodeIndex::new(0))
+    }
+    fn traverse_from(&self, from: NodeIndex) -> Traverser<K, N, E> {
+        Traverser::new(self, self.to_copy_nums(), from)
+    }
+    pub fn traverse_all(&self) -> Traveller<K, N, E> {
+        Traveller {
+            traverser: self.traverse(),
         }
+    }
+    fn is_valid_cycle(&self, cycle: &Cycle) -> bool {
+        let head = cycle.first().unwrap();
+        let tail = cycle.last().unwrap();
+        self.contains_edge(*tail, *head)
+    }
+    fn cycle_as_sequence(&self, cycle: &Cycle) -> Sequence {
+        assert!(self.is_valid_cycle(cycle));
+        cycle.iter().map(|&node| self.emission(node)).collect()
     }
     ///
     /// Create the NodeVec with copy numbers of each node
@@ -34,6 +46,7 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     }
 }
 
+/// Iterate through nodes on a cycle from the starting node
 pub struct Traverser<'a, K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
     /// the node index it will visit in the next step
     next_node: Option<NodeIndex>,
@@ -49,6 +62,20 @@ where
     N: DbgNode<K>,
     E: DbgEdge,
 {
+    fn new(
+        dbg: &'a Dbg<K, N, E>,
+        copy_nums: NodeCopyNums,
+        from: NodeIndex,
+    ) -> Traverser<'a, K, N, E> {
+        Traverser {
+            next_node: Some(from),
+            dbg,
+            copy_nums,
+        }
+    }
+    fn set_next_node(&mut self, node: NodeIndex) {
+        self.next_node = Some(node);
+    }
     fn find_unvisited_child(&self, node: NodeIndex) -> Option<NodeIndex> {
         self.dbg
             .childs(node)
@@ -84,22 +111,66 @@ where
     }
 }
 
+pub type Cycle = Vec<NodeIndex>;
+
+pub struct Traveller<'a, K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
+    traverser: Traverser<'a, K, N, E>,
+}
+
+impl<'a, K, N, E> Traveller<'a, K, N, E>
+where
+    K: KmerLike,
+    N: DbgNode<K>,
+    E: DbgEdge,
+{
+}
+
+impl<'a, K, N, E> Iterator for Traveller<'a, K, N, E>
+where
+    K: KmerLike,
+    N: DbgNode<K>,
+    E: DbgEdge,
+{
+    type Item = Cycle;
+    fn next(&mut self) -> Option<Self::Item> {
+        // pick a start node
+        match self.traverser.find_unvisited_node() {
+            Some(node) => {
+                // if found, traverse the nodes from the starting node
+                self.traverser.set_next_node(node);
+                let cycle: Cycle = self.traverser.by_ref().collect();
+                // check if this is circular
+                Some(cycle)
+            }
+            None => None,
+        }
+    }
+}
+
 //
 // tests
 //
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dbg::hashdbg_v2::HashDbg;
-    use crate::dbg::impls::SimpleDbg;
-    use crate::kmer::veckmer::VecKmer;
+    use crate::common::sequence_to_string;
+    use crate::dbg::mocks::*;
     #[test]
-    fn dbg_traverse() {
-        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
-        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
-        println!("{}", dbg);
-        for node in dbg.traverse() {
-            println!("{:?}", node);
+    fn dbg_traverse_simple() {
+        let dbg = mock_simple();
+    }
+    #[test]
+    fn dbg_traverse_rep() {
+        let dbg = mock_rep();
+        let circles: Vec<Vec<NodeIndex>> = dbg.traverse_all().collect();
+        assert_eq!(circles.len(), 3);
+        for circle in circles.iter() {
+            println!("{:?}", circle);
+            println!("{:?}", sequence_to_string(&dbg.cycle_as_sequence(circle)));
         }
+        assert_eq!(dbg.cycle_as_sequence(&circles[0]), b"NNCCCN");
+        assert_eq!(dbg.cycle_as_sequence(&circles[1]), b"ANNNAAAAAAAAAAAA");
+        assert_eq!(dbg.cycle_as_sequence(&circles[2]), b"CCCCCCCCCCC");
+        assert_eq!(circles[0].len() + circles[1].len() + circles[2].len(), 33);
     }
 }
