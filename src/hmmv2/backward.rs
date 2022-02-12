@@ -3,7 +3,8 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::table::{PHMMResult, PHMMTable};
+use super::result::PHMMResult;
+use super::table::PHMMTable;
 use crate::prob::Prob;
 use crate::vector::{NodeVec, Storage};
 

@@ -16,7 +16,8 @@
 //!     is the sum of three state freqs for `Match/Ins/Del`.
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::table::{PHMMResult, PHMMTable};
+use super::result::PHMMResult;
+use super::table::PHMMTable;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
 use crate::common::Freq;
 use crate::prob::Prob;
