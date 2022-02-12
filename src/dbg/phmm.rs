@@ -7,10 +7,7 @@ use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmm::params::PHMMParams;
 use crate::hmmv2::common::PModel;
 
-impl<N> SeqNode for N
-where
-    N: DbgNode,
-{
+impl<N: DbgNode> SeqNode for N {
     fn copy_num(&self) -> CopyNum {
         self.copy_num()
     }
@@ -26,6 +23,7 @@ impl<E: DbgEdge> SeqEdge for E {
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    /// Convert dbg into phmm
     fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
     }
