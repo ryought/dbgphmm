@@ -7,9 +7,13 @@ use crate::common::{CopyNum, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+
+pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
+pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 
 ///
 /// (Node-centric) De bruijn graph struct
@@ -133,18 +137,6 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     }
 }
 
-/*
-///
-/// traverse related
-///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    /// TODO
-    pub fn to_seqs<K: KmerLike>(d: &HashDbg<K>) -> Vec<Sequence> {
-        unimplemented!();
-    }
-}
-*/
-
 impl<K, N, E> std::fmt::Display for Dbg<K, N, E>
 where
     K: KmerLike,
@@ -165,7 +157,16 @@ mod tests {
     fn dbg_new() {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
         println!("{}", hd);
-        let dbg: Dbg<VecKmer, SimpleDbgNode<VecKmer>, SimpleDbgEdge> = Dbg::from_hashdbg(&hd);
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
+        for (node, weight) in dbg.nodes() {
+            println!("{:?} {}", node, weight);
+            for (edge, child, weight) in dbg.childs(node) {
+                println!("{:?} {:?} {}", edge, child, weight);
+            }
+            for (edge, parent, weight) in dbg.parents(node) {
+                println!("{:?} {:?} {}", edge, parent, weight);
+            }
+        }
     }
 }

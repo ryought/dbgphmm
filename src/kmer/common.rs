@@ -10,7 +10,7 @@ pub trait NullableKmer {
 }
 
 pub trait KmerLike:
-    std::marker::Sized + PartialEq + NullableKmer + Eq + std::hash::Hash + Clone
+    std::marker::Sized + PartialEq + NullableKmer + Eq + std::hash::Hash + Clone + std::fmt::Display
 {
     /// type of k+1-mer
     type Kp1mer: PartialEq + NullableKmer;

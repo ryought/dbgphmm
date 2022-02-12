@@ -37,7 +37,7 @@ impl DbgEdge for SimpleDbgEdge {
     }
 }
 
-impl<K: KmerLike + std::fmt::Display> std::fmt::Display for SimpleDbgNode<K> {
+impl<K: KmerLike> std::fmt::Display for SimpleDbgNode<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} (x{})", self.kmer(), self.copy_num)
     }
