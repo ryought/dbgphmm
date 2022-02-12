@@ -6,7 +6,7 @@ use crate::common::{CopyNum, Sequence};
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
-impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// TODO
     pub fn to_seqs(&self) -> Vec<Sequence> {
         unimplemented!();
@@ -14,13 +14,13 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     ///
     ///
     ///
-    pub fn traverse(&self) -> Traverser<K, N, E> {
+    pub fn traverse(&self) -> Traverser<N, E> {
         self.traverse_from(NodeIndex::new(0))
     }
-    fn traverse_from(&self, from: NodeIndex) -> Traverser<K, N, E> {
+    fn traverse_from(&self, from: NodeIndex) -> Traverser<N, E> {
         Traverser::new(self, self.to_copy_nums(), from)
     }
-    pub fn traverse_all(&self) -> Traveller<K, N, E> {
+    pub fn traverse_all(&self) -> Traveller<N, E> {
         Traveller {
             traverser: self.traverse(),
         }
@@ -47,26 +47,21 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
 }
 
 /// Iterate through nodes on a cycle from the starting node
-pub struct Traverser<'a, K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
+pub struct Traverser<'a, N: DbgNode, E: DbgEdge> {
     /// the node index it will visit in the next step
     next_node: Option<NodeIndex>,
     /// reference to the dbg struct
-    dbg: &'a Dbg<K, N, E>,
+    dbg: &'a Dbg<N, E>,
     /// remaining unvisited copy numbers of each nodes
     copy_nums: NodeCopyNums,
 }
 
-impl<'a, K, N, E> Traverser<'a, K, N, E>
+impl<'a, N, E> Traverser<'a, N, E>
 where
-    K: KmerLike,
-    N: DbgNode<K>,
+    N: DbgNode,
     E: DbgEdge,
 {
-    fn new(
-        dbg: &'a Dbg<K, N, E>,
-        copy_nums: NodeCopyNums,
-        from: NodeIndex,
-    ) -> Traverser<'a, K, N, E> {
+    fn new(dbg: &'a Dbg<N, E>, copy_nums: NodeCopyNums, from: NodeIndex) -> Traverser<'a, N, E> {
         Traverser {
             next_node: Some(from),
             dbg,
@@ -90,10 +85,9 @@ where
     }
 }
 
-impl<'a, K, N, E> Iterator for Traverser<'a, K, N, E>
+impl<'a, N, E> Iterator for Traverser<'a, N, E>
 where
-    K: KmerLike,
-    N: DbgNode<K>,
+    N: DbgNode,
     E: DbgEdge,
 {
     type Item = NodeIndex;
@@ -113,22 +107,20 @@ where
 
 pub type Cycle = Vec<NodeIndex>;
 
-pub struct Traveller<'a, K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
-    traverser: Traverser<'a, K, N, E>,
+pub struct Traveller<'a, N: DbgNode, E: DbgEdge> {
+    traverser: Traverser<'a, N, E>,
 }
 
-impl<'a, K, N, E> Traveller<'a, K, N, E>
+impl<'a, N, E> Traveller<'a, N, E>
 where
-    K: KmerLike,
-    N: DbgNode<K>,
+    N: DbgNode,
     E: DbgEdge,
 {
 }
 
-impl<'a, K, N, E> Iterator for Traveller<'a, K, N, E>
+impl<'a, N, E> Iterator for Traveller<'a, N, E>
 where
-    K: KmerLike,
-    N: DbgNode<K>,
+    N: DbgNode,
     E: DbgEdge,
 {
     type Item = Cycle;

@@ -3,7 +3,7 @@ use crate::common::{CopyNum, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
 
 /// Basic implementations of Dbg
-pub type SimpleDbg<K> = Dbg<K, SimpleDbgNode<K>, SimpleDbgEdge>;
+pub type SimpleDbg<K> = Dbg<SimpleDbgNode<K>, SimpleDbgEdge>;
 
 /// Basic implementations of DbgNode
 pub struct SimpleDbgNode<K: KmerLike> {
@@ -11,7 +11,8 @@ pub struct SimpleDbgNode<K: KmerLike> {
     copy_num: CopyNum,
 }
 
-impl<K: KmerLike> DbgNode<K> for SimpleDbgNode<K> {
+impl<K: KmerLike> DbgNode for SimpleDbgNode<K> {
+    type Kmer = K;
     fn new(kmer: K, copy_num: CopyNum) -> Self {
         SimpleDbgNode { kmer, copy_num }
     }

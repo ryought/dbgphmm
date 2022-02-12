@@ -19,20 +19,25 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// (Node-centric) De bruijn graph struct
 /// k
 ///
-pub struct Dbg<K: KmerLike, N: DbgNode<K>, E: DbgEdge> {
+pub struct Dbg<N: DbgNode, E: DbgEdge> {
     k: usize,
     graph: DiGraph<N, E>,
-    phantom: std::marker::PhantomData<K>,
 }
 
 ///
 /// Trait for nodes in Dbg
 ///
-pub trait DbgNode<K: KmerLike> {
-    fn new(kmer: K, copy_num: CopyNum) -> Self;
-    fn kmer(&self) -> &K;
+pub trait DbgNode {
+    type Kmer: KmerLike;
+    fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
+    ///
+    /// Kmer of this node of the Dbg
+    fn kmer(&self) -> &Self::Kmer;
+    ///
+    /// Copy number count of this node in Dbg
     fn copy_num(&self) -> CopyNum;
     ///
+    /// Single base assigned to this node in Dbg
     /// Last base of kmer will be used as an emission
     fn emission(&self) -> u8 {
         self.kmer().last()
@@ -50,7 +55,7 @@ pub trait DbgEdge {
 ///
 /// Basic graph operations for Dbg
 ///
-impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -107,7 +112,7 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
 ///
 /// Basic properties
 ///
-impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn is_consistent(&self) {
         unimplemented!();
     }
@@ -116,20 +121,16 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
 ///
 /// Basic constructors
 ///
-impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// plain constructor of dbg
     pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
-        Dbg {
-            k,
-            graph,
-            phantom: std::marker::PhantomData::<K>,
-        }
+        Dbg { k, graph }
     }
-    /// Convert HashDbg<K> into Dbg<K>
-    pub fn from_hashdbg(d: &HashDbg<K>) -> Self {
+    /// Convert HashDbg<K> into Dbg
+    pub fn from_hashdbg(d: &HashDbg<N::Kmer>) -> Self {
         let mut graph = DiGraph::new();
         // a temporary map from Kmer to NodeIndex
-        let mut ids: HashMap<K, NodeIndex> = HashMap::default();
+        let mut ids: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
         // (1) add a node for each kmer
         for kmer in d.kmers() {
@@ -150,10 +151,9 @@ impl<K: KmerLike, N: DbgNode<K>, E: DbgEdge> Dbg<K, N, E> {
     }
 }
 
-impl<K, N, E> std::fmt::Display for Dbg<K, N, E>
+impl<N, E> std::fmt::Display for Dbg<N, E>
 where
-    K: KmerLike,
-    N: DbgNode<K> + std::fmt::Display,
+    N: DbgNode + std::fmt::Display,
     E: DbgEdge + std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
