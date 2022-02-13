@@ -24,16 +24,9 @@ use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
-// For hidden states / nodes
-
-/// The probability of emitting the emission from the hidden state.
-pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
-
-/// Probability assigned to each hidden states
-pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
-
-/// Frequency (f64) assigned to each nodes
-pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
+//
+// For full probability
+//
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the full probability `P(x)` of the given emission `x`
@@ -64,6 +57,22 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let b = backward.tables.first().unwrap();
         b.mb
     }
+}
+
+//
+// For hidden states / nodes
+//
+
+/// The probability of emitting the emission from the hidden state.
+pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
+
+/// Probability assigned to each hidden states
+pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
+
+/// Frequency (f64) assigned to each nodes
+pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
+
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the probability that the hidden states (that is (type, node))
     /// emits the i-th emission.
     ///
@@ -120,6 +129,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
         f
     }
+}
+
+//
+// For transitions / edges
+//
+
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the expected value of the usage frequency of each edges
     ///
     /// `freq[i][e]`

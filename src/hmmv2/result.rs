@@ -41,3 +41,14 @@ impl PHMMResultSparse {
         self.tables_warmup.len() + self.tables_sparse.len()
     }
 }
+
+/*
+ *TODO
+///
+/// Trait that generalizes PHMMResultFull and PHMMResultSparse
+///
+impl PHMMResultLike {
+    type Table; // sparse or dense
+    fn table(&self, index: usize) -> &Self::Table
+}
+*/
