@@ -83,44 +83,29 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `k` is a node index
     /// * `P(x)` is the full probability of emissions
     ///
-    pub fn to_emit_probs(&self, forward: &PHMMResult, backward: &PHMMResult) -> EmitProbs {
+    pub fn to_emit_probs<R: PHMMResultLike>(&self, forward: &R, backward: &R) -> EmitProbs {
         let n = forward.n_emissions();
         let p = self.to_full_prob_forward(forward);
         (0..n)
             .map(|i| {
-                let f = &forward.tables[i];
+                let f = forward.table(i);
                 let b = if i + 1 < n {
-                    &backward.tables[i + 1]
+                    backward.table(i + 1)
                 } else {
-                    &backward.init_table
+                    backward.init_table()
                 };
-                (f * b) / p
+                (&f * &b) / p
             })
-            .map(|v| v.to_dense())
+            // .map(|v| v.to_dense())
             .collect()
     }
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.
     ///
-    pub fn to_state_probs(&self, forward: &PHMMResult, backward: &PHMMResult) -> StateProbs {
+    pub fn to_state_probs<R: PHMMResultLike>(&self, forward: &R, backward: &R) -> StateProbs {
         // TODO to_emit_probs can be an iterator (storeing all temp vector is unnecessary).
         self.to_emit_probs(forward, backward).into_iter().sum()
     }
-    /*
-    pub fn to_state_probs_sparse(
-        &self,
-        forward: &PHMMResultSparse,
-        backward: &PHMMResultSparse,
-    ) -> StateProbs {
-        let n = forward.n_emissions();
-        let p = self.to_full_prob_forward(forward);
-        (0..n).map(|i| {
-            let f = forward.table(i);
-            let b = forward.table(i + 1);
-            (f * b) / p
-        })
-    }
-    */
     /// Calculate the expected value of the usage frequency of each nodes
     /// by summing the emit probs of M/I/D states for each node.
     /// `f[v]` = (How many times the hidden state `M_v, I_v, D_v` was used to emit the whole
@@ -157,10 +142,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `e = (k: N or S, l: S)` transition
     ///     `freq[i][e] = (f_i[k] * a_kl * b_i+1[l]) / P(x)`
     ///
-    pub fn to_edge_freqs(
+    pub fn to_edge_freqs<R: PHMMResultLike>(
         &self,
-        forward: &PHMMResult,
-        backward: &PHMMResult,
+        forward: &R,
+        backward: &R,
         emissions: &[u8],
     ) -> EdgeFreqs {
         assert_eq!(emissions.len(), forward.n_emissions());
@@ -177,48 +162,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         freq
     }
-    /*
-    // TODO
-    fn to_trans_probs_internal<S>(
-        &self,
-        fi0: &PHMMTable<S>,
-        bi1: &PHMMTable<S>,
-        bi2: &PHMMTable<S>,
-        p: Prob,
-        ei1: u8,
-    ) where
-        S: Storage<Item = Prob>,
-    {
-        let param = &self.param;
-        let mut t: TransProbs = TransProbs::new(self.n_edges(), TransProb::zero());
-        for (e, k, l, ew) in self.edges() {
-            let p_emit = self.p_match_emit(l, ei1);
-            let p_trans = ew.trans_prob();
-            t[e].mm = fi0.m[k] * p_trans * param.p_MM * p_emit * bi2.m[l] / p;
-            t[e].im = fi0.i[k] * p_trans * param.p_IM * p_emit * bi2.m[l] / p;
-            t[e].dm = fi0.d[k] * p_trans * param.p_DM * p_emit * bi2.m[l] / p;
-            t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
-            t[e].id = fi0.i[k] * p_trans * param.p_ID * bi1.d[l] / p;
-            t[e].dd = fi0.d[k] * p_trans * param.p_DD * bi1.d[l] / p;
-        }
-    }
-    */
-    pub fn to_trans_probs_sparse(
-        &self,
-        forward: &PHMMResultSparse,
-        backward: &PHMMResultSparse,
-        emissions: &[u8],
-        i: usize,
-    ) -> TransProbs {
-        let fi0 = forward.table(i);
-        unimplemented!();
-    }
     /// Calculate the expected value of the usage frequency of each edges
     /// TBW
-    pub fn to_trans_probs(
+    pub fn to_trans_probs<R: PHMMResultLike>(
         &self,
-        forward: &PHMMResult,
-        backward: &PHMMResult,
+        forward: &R,
+        backward: &R,
         emissions: &[u8],
         i: usize,
     ) -> TransProbs {
@@ -228,28 +177,28 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let mut t: TransProbs = TransProbs::new(self.n_edges(), TransProb::zero());
 
         let param = &self.param;
-        let fi0 = &forward.tables[i];
+        let fi0 = forward.table(i);
         let p = self.to_full_prob_forward(forward);
 
         // to m (normal state)
         let bi2 = if i + 2 < forward.n_emissions() {
-            &backward.tables[i + 2]
+            backward.table(i + 2)
         } else {
-            &backward.init_table
+            backward.init_table()
         };
         let bi1 = if i + 1 < forward.n_emissions() {
-            &backward.tables[i + 1]
+            backward.table(i + 1)
         } else {
-            &backward.init_table
+            backward.init_table()
         };
 
         if i + 1 < forward.n_emissions() {
             for (e, k, l, ew) in self.edges() {
                 let p_emit = self.p_match_emit(l, emissions[i + 1]);
                 let p_trans = ew.trans_prob();
-                t[e].mm = fi0.m[k] * p_trans * param.p_MM * p_emit * bi2.m[l] / p;
-                t[e].im = fi0.i[k] * p_trans * param.p_IM * p_emit * bi2.m[l] / p;
-                t[e].dm = fi0.d[k] * p_trans * param.p_DM * p_emit * bi2.m[l] / p;
+                t[e].mm = fi0.m(k) * p_trans * param.p_MM * p_emit * bi2.m(l) / p;
+                t[e].im = fi0.i(k) * p_trans * param.p_IM * p_emit * bi2.m(l) / p;
+                t[e].dm = fi0.d(k) * p_trans * param.p_DM * p_emit * bi2.m(l) / p;
             }
         }
 
@@ -257,9 +206,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         if i < forward.n_emissions() {
             for (e, k, l, weight) in self.edges() {
                 let p_trans = weight.trans_prob();
-                t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
-                t[e].id = fi0.i[k] * p_trans * param.p_ID * bi1.d[l] / p;
-                t[e].dd = fi0.d[k] * p_trans * param.p_DD * bi1.d[l] / p;
+                t[e].md = fi0.m(k) * p_trans * param.p_MD * bi1.d(l) / p;
+                t[e].id = fi0.i(k) * p_trans * param.p_ID * bi1.d(l) / p;
+                t[e].dd = fi0.d(k) * p_trans * param.p_DD * bi1.d(l) / p;
             }
         }
         t

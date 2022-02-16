@@ -4,6 +4,7 @@
 use super::table::PHMMTable;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, SparseStorage, Storage};
+pub use petgraph::graph::NodeIndex;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
 
 ///
@@ -14,12 +15,36 @@ pub enum PHMMTableRef<'a> {
     Sparse(&'a PHMMTable<SparseStorage<Prob>>),
 }
 
-///
-///
-///
-pub enum PHMMTableEnum {
-    Dense(PHMMTable<DenseStorage<Prob>>),
-    Sparse(PHMMTable<SparseStorage<Prob>>),
+// ///
+// ///
+// ///
+// pub enum PHMMTableEnum {
+//     Dense(PHMMTable<DenseStorage<Prob>>),
+//     Sparse(PHMMTable<SparseStorage<Prob>>),
+// }
+
+impl<'a> PHMMTableRef<'a> {
+    /// Get a value from `PHMMTable.m` by node index
+    pub fn m(&self, node: NodeIndex) -> Prob {
+        match self {
+            PHMMTableRef::Dense(t) => t.m[node],
+            PHMMTableRef::Sparse(t) => t.m[node],
+        }
+    }
+    /// Get a value from `PHMMTable.i` by node index
+    pub fn i(&self, node: NodeIndex) -> Prob {
+        match self {
+            PHMMTableRef::Dense(t) => t.i[node],
+            PHMMTableRef::Sparse(t) => t.i[node],
+        }
+    }
+    /// Get a value from `PHMMTable.d` by node index
+    pub fn d(&self, node: NodeIndex) -> Prob {
+        match self {
+            PHMMTableRef::Dense(t) => t.d[node],
+            PHMMTableRef::Sparse(t) => t.d[node],
+        }
+    }
 }
 
 //
@@ -30,12 +55,13 @@ impl<'a, 'b> Add<&'a PHMMTableRef<'a>> for &'b PHMMTableRef<'b> {
     fn add(self, other: &'a PHMMTableRef) -> Self::Output {
         match (self, other) {
             // if dense is involved, return should be dense
-            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(o)) => o + s,
-            (&PHMMTableRef::Dense(s), &PHMMTableRef::Dense(o)) => s + o,
-            (&PHMMTableRef::Dense(s), &PHMMTableRef::Sparse(o)) => s + o,
+            // and add sparse to dense, not dense to sparse.
+            (&PHMMTableRef::Dense(d1), &PHMMTableRef::Dense(d2)) => d1 + d2,
+            (&PHMMTableRef::Dense(d), &PHMMTableRef::Sparse(s)) => d + s,
+            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(d)) => d + s,
             // TODO if sparse-vec only, returned-vec can be sparse
             // for now, all returned-vec is dense
-            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Sparse(o)) => &s.to_dense() + o,
+            (&PHMMTableRef::Sparse(s1), &PHMMTableRef::Sparse(s2)) => &s1.to_dense() + s2,
         }
     }
 }
@@ -48,12 +74,13 @@ impl<'a, 'b> Mul<&'a PHMMTableRef<'a>> for &'b PHMMTableRef<'b> {
     fn mul(self, other: &'a PHMMTableRef) -> Self::Output {
         match (self, other) {
             // if dense is involved, return should be dense
-            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(o)) => o * s,
-            (&PHMMTableRef::Dense(s), &PHMMTableRef::Dense(o)) => s * o,
-            (&PHMMTableRef::Dense(s), &PHMMTableRef::Sparse(o)) => s * o,
+            // and add sparse to dense, not dense to sparse.
+            (&PHMMTableRef::Dense(d1), &PHMMTableRef::Dense(d2)) => d1 * d2,
+            (&PHMMTableRef::Dense(d), &PHMMTableRef::Sparse(s)) => d * s,
+            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(d)) => d * s,
             // TODO if sparse-vec only, returned-vec can be sparse
             // for now, all returned-vec is dense
-            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Sparse(o)) => &s.to_dense() * o,
+            (&PHMMTableRef::Sparse(s1), &PHMMTableRef::Sparse(s2)) => &s1.to_dense() * s2,
         }
     }
 }
