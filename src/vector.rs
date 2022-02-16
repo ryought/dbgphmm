@@ -71,6 +71,9 @@ pub trait Storage: Clone + Sized {
     /// Convert to the SparseStorage with same contents
     /// with specifying `default_value` in SparseStorage.
     fn to_sparse(&self, default_value: Self::Item) -> SparseStorage<Self::Item>;
+    ///
+    /// Check if this is dense storage or not
+    fn is_dense() -> bool;
 }
 
 ///

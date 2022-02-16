@@ -51,6 +51,9 @@ where
         }
         s
     }
+    fn is_dense() -> bool {
+        true
+    }
 }
 
 #[cfg(test)]
@@ -113,5 +116,9 @@ mod tests {
         assert_eq!(*s2.get(1), *s.get(1));
         assert_eq!(*s2.get(2), *s.get(2));
         assert_eq!(*s2.get(3), *s.get(3));
+    }
+    #[test]
+    fn dense_storage_dense_check() {
+        assert!(DenseStorage::<u32>::is_dense());
     }
 }

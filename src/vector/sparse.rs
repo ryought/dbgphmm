@@ -92,6 +92,9 @@ where
     fn to_sparse(&self, _: T) -> Self {
         self.clone()
     }
+    fn is_dense() -> bool {
+        false
+    }
 }
 
 #[cfg(test)]
