@@ -5,6 +5,7 @@
 //! * For sparse
 //!
 use super::table::PHMMTable;
+use super::table_ref::PHMMTableRef;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, SparseStorage, Storage};
 
@@ -35,21 +36,18 @@ pub struct PHMMResultSparse {
     pub tables_sparse: Vec<PHMMTable<SparseStorage<Prob>>>,
 }
 
-pub enum Table<'a> {
-    Dense(&'a PHMMTable<DenseStorage<Prob>>),
-    Sparse(&'a PHMMTable<SparseStorage<Prob>>),
-}
-
 impl PHMMResultSparse {
     /// The number of emissions that this result stores.
     pub fn n_emissions(&self) -> usize {
         self.tables_warmup.len() + self.tables_sparse.len()
     }
     /// TODO getter of table
-    pub fn table(&self, index: usize) -> Table {
-        match index {
-            0 => Table::Dense(&self.tables_warmup[0]),
-            _ => Table::Sparse(&self.tables_sparse[index]),
+    pub fn table(&self, index: usize) -> PHMMTableRef {
+        let n_warmup = self.tables_warmup.len();
+        if index < n_warmup {
+            PHMMTableRef::Dense(&self.tables_warmup[index])
+        } else {
+            PHMMTableRef::Sparse(&self.tables_sparse[index - n_warmup])
         }
     }
 }
