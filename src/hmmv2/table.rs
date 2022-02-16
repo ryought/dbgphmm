@@ -36,6 +36,16 @@ pub struct PHMMTable<S: Storage<Item = Prob>> {
     pub ib: Prob,
     /// end state probability
     pub e: Prob,
+    ///
+    pub active_nodes: ActiveNodes,
+}
+
+#[derive(Debug, Clone)]
+pub enum ActiveNodes {
+    /// All nodes are active
+    All,
+    /// Only nodes specified are active
+    Only(Vec<NodeIndex>),
 }
 
 //
@@ -52,6 +62,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb,
             ib,
             e,
+            active_nodes: ActiveNodes::All,
         }
     }
     pub fn zero(n_nodes: usize) -> Self {
@@ -62,6 +73,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: Prob::from_prob(0.0),
             ib: Prob::from_prob(0.0),
             e: Prob::from_prob(0.0),
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -82,6 +94,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: self.mb,
             ib: self.ib,
             e: self.e,
+            active_nodes: self.active_nodes.clone(),
         }
     }
     /// Convert to the SparseStorage-backend PHMMTable
@@ -93,6 +106,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: self.mb,
             ib: self.ib,
             e: self.e,
+            active_nodes: self.active_nodes.clone(),
         }
     }
 }
@@ -128,6 +142,7 @@ where
             mb: self.mb + other.mb,
             ib: self.ib + other.ib,
             e: self.e + other.e,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -162,6 +177,7 @@ where
             mb: self.mb * other.mb,
             ib: self.ib * other.ib,
             e: self.e * other.e,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -195,6 +211,7 @@ where
             mb: self.mb / other,
             ib: self.ib / other,
             e: self.e / other,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
