@@ -16,6 +16,12 @@ pub trait PHMMResultLike {
     fn n_emissions(&self) -> usize;
     fn table(&self, index: usize) -> PHMMTableRef;
     fn init_table(&self) -> PHMMTableRef;
+    fn first_table(&self) -> PHMMTableRef {
+        self.table(0)
+    }
+    fn last_table(&self) -> PHMMTableRef {
+        self.table(self.n_emissions() - 1)
+    }
 }
 
 /// Struct that stores Forward/Backward algorithm result
@@ -54,14 +60,14 @@ pub struct PHMMResultSparse {
     pub is_forward: bool,
 }
 
-impl PHMMResultSparse {
+impl PHMMResultLike for PHMMResultSparse {
     /// The number of emissions that this result stores.
-    pub fn n_emissions(&self) -> usize {
+    fn n_emissions(&self) -> usize {
         self.tables_warmup.len() + self.tables_sparse.len()
     }
     /// TODO getter of table
     /// TODO index should be enum?
-    pub fn table(&self, index: usize) -> PHMMTableRef {
+    fn table(&self, index: usize) -> PHMMTableRef {
         if self.is_forward {
             let n_warmup = self.tables_warmup.len();
             if index < n_warmup {
@@ -78,7 +84,7 @@ impl PHMMResultSparse {
             }
         }
     }
-    pub fn init_table(&self) -> PHMMTableRef {
+    fn init_table(&self) -> PHMMTableRef {
         PHMMTableRef::Dense(&self.init_table)
     }
 }

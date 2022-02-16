@@ -18,6 +18,7 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
+use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
 use crate::common::Freq;
 use crate::prob::Prob;
@@ -36,9 +37,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// P(x) = fe_n-1 = P(emits x[0],...,x[n-1] and now in `e` (end state))
     /// ```
     ///
-    pub fn to_full_prob_forward(&self, forward: &PHMMResult) -> Prob {
-        let f = forward.tables.last().unwrap();
-        f.e
+    pub fn to_full_prob_forward<R: PHMMResultLike>(&self, forward: &R) -> Prob {
+        match forward.last_table() {
+            PHMMTableRef::Dense(t) => t.e,
+            PHMMTableRef::Sparse(t) => t.e,
+        }
     }
     /// Calculate the full probability `P(x)` of the given emission `x`
     /// from **backward** result.
@@ -47,9 +50,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// P(x) = bm_0[b] = P(emits x[0:] | starts from m_b)
     /// ```
     ///
-    pub fn to_full_prob_backward(&self, backward: &PHMMResult) -> Prob {
-        let b = backward.tables.first().unwrap();
-        b.mb
+    pub fn to_full_prob_backward<R: PHMMResultLike>(&self, backward: &R) -> Prob {
+        match backward.first_table() {
+            PHMMTableRef::Dense(t) => t.mb,
+            PHMMTableRef::Sparse(t) => t.mb,
+        }
     }
 }
 
