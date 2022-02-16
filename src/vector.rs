@@ -230,14 +230,15 @@ where
 
 /// Implement multiplication `*` between two vecs
 /// if the item of vec supports multiplication
-impl<'a, 'b, S, Ix> Mul<&'a Vector<S, Ix>> for &'b Vector<S, Ix>
+impl<'a, 'b, Sa, Sb, Ix> Mul<&'a Vector<Sa, Ix>> for &'b Vector<Sb, Ix>
 where
-    S: Storage,
-    S::Item: Mul<Output = S::Item>,
+    Sa: Storage,
+    Sb: Storage<Item = Sa::Item>,
+    Sa::Item: Mul<Output = Sa::Item>,
     Ix: Indexable,
 {
-    type Output = Vector<S, Ix>;
-    fn mul(self, other: &'a Vector<S, Ix>) -> Self::Output {
+    type Output = Vector<Sb, Ix>;
+    fn mul(self, other: &'a Vector<Sa, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
         let mut ret = self.clone();
         for (index, value) in other.iter() {

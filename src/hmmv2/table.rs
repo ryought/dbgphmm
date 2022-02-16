@@ -148,12 +148,13 @@ where
 }
 
 // Mul
-impl<'a, 'b, S> Mul<&'a PHMMTable<S>> for &'b PHMMTable<S>
+impl<'a, 'b, Sa, Sb> Mul<&'a PHMMTable<Sa>> for &'b PHMMTable<Sb>
 where
-    S: Storage<Item = Prob>,
+    Sa: Storage<Item = Prob>,
+    Sb: Storage<Item = Prob>,
 {
-    type Output = PHMMTable<S>;
-    fn mul(self, other: &'a PHMMTable<S>) -> Self::Output {
+    type Output = PHMMTable<Sb>;
+    fn mul(self, other: &'a PHMMTable<Sa>) -> Self::Output {
         PHMMTable {
             m: &self.m * &other.m,
             i: &self.i * &other.i,
