@@ -16,7 +16,7 @@
 //!     is the sum of three state freqs for `Match/Ins/Del`.
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::result::PHMMResult;
+use super::result::{PHMMResult, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
 use crate::common::Freq;
@@ -171,6 +171,42 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
 
         freq
+    }
+    /*
+    // TODO
+    fn to_trans_probs_internal<S>(
+        &self,
+        fi0: &PHMMTable<S>,
+        bi1: &PHMMTable<S>,
+        bi2: &PHMMTable<S>,
+        p: Prob,
+        ei1: u8,
+    ) where
+        S: Storage<Item = Prob>,
+    {
+        let param = &self.param;
+        let mut t: TransProbs = TransProbs::new(self.n_edges(), TransProb::zero());
+        for (e, k, l, ew) in self.edges() {
+            let p_emit = self.p_match_emit(l, ei1);
+            let p_trans = ew.trans_prob();
+            t[e].mm = fi0.m[k] * p_trans * param.p_MM * p_emit * bi2.m[l] / p;
+            t[e].im = fi0.i[k] * p_trans * param.p_IM * p_emit * bi2.m[l] / p;
+            t[e].dm = fi0.d[k] * p_trans * param.p_DM * p_emit * bi2.m[l] / p;
+            t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
+            t[e].id = fi0.i[k] * p_trans * param.p_ID * bi1.d[l] / p;
+            t[e].dd = fi0.d[k] * p_trans * param.p_DD * bi1.d[l] / p;
+        }
+    }
+    */
+    pub fn to_trans_probs_sparse(
+        &self,
+        forward: &PHMMResultSparse,
+        backward: &PHMMResultSparse,
+        emissions: &[u8],
+        i: usize,
+    ) -> TransProbs {
+        let fi0 = forward.table(i);
+        unimplemented!();
     }
     /// Calculate the expected value of the usage frequency of each edges
     /// TBW
