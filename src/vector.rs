@@ -145,6 +145,9 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
             ty: PhantomData,
         }
     }
+    pub fn is_dense(&self) -> bool {
+        S::is_dense()
+    }
 }
 
 /// Implement index access, vec[i]
@@ -164,14 +167,15 @@ impl<S: Storage, Ix: Indexable> IndexMut<Ix> for Vector<S, Ix> {
 
 /// Implement addition `+` between two vecs
 /// if the item of vec supports addition
-impl<'a, 'b, S, Ix> Add<&'a Vector<S, Ix>> for &'b Vector<S, Ix>
+impl<'a, 'b, Sa, Sb, Ix> Add<&'a Vector<Sa, Ix>> for &'b Vector<Sb, Ix>
 where
-    S: Storage,
-    S::Item: Add<Output = S::Item>,
+    Sa: Storage,
+    Sb: Storage<Item = Sa::Item>,
+    Sa::Item: Add<Output = Sa::Item>,
     Ix: Indexable,
 {
-    type Output = Vector<S, Ix>;
-    fn add(self, other: &'a Vector<S, Ix>) -> Self::Output {
+    type Output = Vector<Sb, Ix>;
+    fn add(self, other: &'a Vector<Sa, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
         let mut ret = self.clone();
         for (index, value) in other.iter() {
