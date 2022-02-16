@@ -7,4 +7,5 @@ pub mod new;
 pub mod result;
 pub mod sample;
 pub mod table;
+pub mod table_ref;
 pub mod trans_table;

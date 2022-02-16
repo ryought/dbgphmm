@@ -20,10 +20,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
     ///
-    pub fn backward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
-    where
-        S: Storage<Item = Prob>,
-    {
+    pub fn backward(&self, emissions: &[u8]) -> PHMMResult {
         let r0 = PHMMResult {
             init_table: self.b_init(),
             tables: Vec::new(),
@@ -404,7 +401,7 @@ mod tests {
         let params = PHMMParams::zero_error();
         println!("{}", params);
         let phmm = mock_linear_phmm(params);
-        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let r = phmm.backward(b"CGATC");
         for table in r.tables.iter() {
             println!("{}", table);
         }
@@ -421,7 +418,7 @@ mod tests {
         assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-11.5129754), epsilon = 0.00001);
         // with allowing no errors, CGATT cannot be emitted.
         // so it should have p=0
-        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        let r2 = phmm.backward(b"CGATT");
         assert_eq!(r2.tables.len(), 5);
         assert!(r2.tables[0].mb.is_zero());
         for table in r2.tables.iter() {
@@ -433,7 +430,7 @@ mod tests {
     fn hmm_backward_mock_linear_high_error() {
         let phmm = mock_linear_phmm(PHMMParams::high_error());
         // read 1
-        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let r = phmm.backward(b"CGATC");
         for table in r.tables.iter() {
             println!("{}", table);
         }
@@ -441,7 +438,7 @@ mod tests {
         assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.0679200), epsilon = 0.00001);
         assert_abs_diff_eq!(r.tables[0].mb, lp(-15.2115765494), epsilon = 0.00001);
         // read 2
-        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        let r2 = phmm.backward(b"CGATT");
         assert_eq!(r2.tables.len(), 5);
         for table in r2.tables.iter() {
             println!("{}", table);
