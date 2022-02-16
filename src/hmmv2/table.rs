@@ -7,6 +7,7 @@
 //!
 //! F[Match,v] or B[Match,v]
 //!
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
 pub use petgraph::graph::NodeIndex;
@@ -38,14 +39,6 @@ pub struct PHMMTable<S: Storage<Item = Prob>> {
     pub e: Prob,
     ///
     pub active_nodes: ActiveNodes,
-}
-
-#[derive(Debug, Clone)]
-pub enum ActiveNodes {
-    /// All nodes are active
-    All,
-    /// Only nodes specified are active
-    Only(Vec<NodeIndex>),
 }
 
 //

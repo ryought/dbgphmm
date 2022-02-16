@@ -1,6 +1,7 @@
 //!
 //! Extension to `petgraph` basic iterators
 //!
+use super::active_nodes::ActiveNodes;
 use petgraph::graph::DiGraph;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::graph::{EdgeReferences, Edges, NodeReferences};
@@ -28,6 +29,47 @@ impl<'a, N> Iterator for NodesIterator<'a, N> {
     type Item = (NodeIndex, &'a N);
     fn next(&mut self) -> Option<Self::Item> {
         self.nodes.next()
+    }
+}
+
+/// Iterator struct for `active_nodes()`
+pub struct ActiveNodesIterator<'a, N: 'a, E: 'a> {
+    index: usize,
+    active_nodes: &'a ActiveNodes,
+    graph: &'a DiGraph<N, E>,
+    nodes: NodeReferences<'a, N>,
+}
+
+impl<'a, N, E> ActiveNodesIterator<'a, N, E> {
+    /// Create ActiveNodesIterator from
+    /// the reference of DiGraph and ref of active_nodes
+    /// If active_nodes is `All`, it acts like NodesIterator.
+    pub fn new(graph: &'a DiGraph<N, E>, active_nodes: &'a ActiveNodes) -> Self {
+        ActiveNodesIterator {
+            index: 0,
+            nodes: graph.node_references(),
+            graph,
+            active_nodes,
+        }
+    }
+}
+
+impl<'a, N, E> Iterator for ActiveNodesIterator<'a, N, E> {
+    type Item = (NodeIndex, &'a N);
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.active_nodes {
+            ActiveNodes::All => self.nodes.next(),
+            ActiveNodes::Only(nodes) => {
+                if self.index < nodes.len() {
+                    let node = nodes[self.index];
+                    let weight = self.graph.node_weight(node).unwrap();
+                    self.index += 1;
+                    Some((node, weight))
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
