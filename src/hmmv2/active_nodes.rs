@@ -8,7 +8,7 @@ use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::prob::Prob;
 use crate::vector::graph::NodeVec;
 use crate::vector::Storage;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use petgraph::graph::NodeIndex;
 
 /// Active nodes methods for PHMMModel and PHMMTable
@@ -78,6 +78,23 @@ impl ActiveNodes {
             .collect();
         ActiveNodes::Only(nodes)
     }
+    ///
+    /// merge another active nodes into self.
+    ///
+    /// * if self or other is All, merged nodes is also All
+    /// * if both self and other are Only, nodes will be merged.
+    ///
+    pub fn merge(&self, other: &ActiveNodes) -> ActiveNodes {
+        match (self, other) {
+            (ActiveNodes::Only(n1), ActiveNodes::Only(n2)) => {
+                let n = chain!(n1.iter().copied(), n2.iter().copied())
+                    .unique()
+                    .collect();
+                ActiveNodes::Only(n)
+            }
+            _ => ActiveNodes::All,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -118,5 +135,15 @@ mod tests {
         let an = ActiveNodes::from_nodevec(&v, 3);
         assert_eq!(an, ActiveNodes::Only(vec![ni(5), ni(4), ni(2)]));
         println!("{:?}", an);
+    }
+    #[test]
+    fn active_nodes_merge() {
+        let an1 = ActiveNodes::Only(vec![ni(1), ni(2)]);
+        let an2 = ActiveNodes::Only(vec![ni(1), ni(3), ni(5)]);
+        let an = an1.merge(&an2);
+        println!("{:?}", an1);
+        println!("{:?}", an2);
+        println!("{:?}", an);
+        assert_eq!(an, ActiveNodes::Only(vec![ni(1), ni(2), ni(3), ni(5)]));
     }
 }
