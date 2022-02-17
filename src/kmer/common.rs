@@ -12,10 +12,6 @@ pub trait NullableKmer {
 pub trait KmerLike:
     std::marker::Sized + PartialEq + NullableKmer + Eq + std::hash::Hash + Clone + std::fmt::Display
 {
-    /// type of k+1-mer
-    type Kp1mer: PartialEq + NullableKmer;
-    /// type of k-1-mer
-    type Km1mer: PartialEq + NullableKmer;
     ///
     /// k of the k-mer
     ///
@@ -39,12 +35,12 @@ pub trait KmerLike:
     /// prefix of the kmer
     /// AAAAB -> AAAA
     ///
-    fn prefix(&self) -> Self::Km1mer;
+    fn prefix(&self) -> Self;
     ///
     /// suffix of the kmer
     /// ABBBB -> BBBB
     ///
-    fn suffix(&self) -> Self::Km1mer;
+    fn suffix(&self) -> Self;
     ///
     /// ABBBB and BBBBC is adjacent
     ///
@@ -80,7 +76,7 @@ pub trait KmerLike:
     ///
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
     ///
-    fn preds(&self) -> Vec<Self::Kp1mer> {
+    fn preds(&self) -> Vec<Self> {
         let bases = [b'A', b'C', b'G', b'T'];
         bases
             .iter()
@@ -90,7 +86,7 @@ pub trait KmerLike:
     ///
     /// XX (k mer) -> [XXA, XXC, XXG, XXT] (k+1 mer)
     ///
-    fn succs(&self) -> Vec<Self::Kp1mer> {
+    fn succs(&self) -> Vec<Self> {
         let bases = [b'A', b'C', b'G', b'T'];
         bases
             .iter()
@@ -125,15 +121,15 @@ pub trait KmerLike:
     ///
     /// (YYY, X) -> XYYY
     ///
-    fn extend_first(&self, first_base: u8) -> Self::Kp1mer;
+    fn extend_first(&self, first_base: u8) -> Self;
     ///
     /// (YYY, Z) -> YYYZ
     ///
-    fn extend_last(&self, last_base: u8) -> Self::Kp1mer;
+    fn extend_last(&self, last_base: u8) -> Self;
     ///
     /// (XYYY, YYYZ) (two k mers) -> XYYYZ (k+1 mer)
     ///
-    fn join(&self, other: &Self) -> Self::Kp1mer {
+    fn join(&self, other: &Self) -> Self {
         if !self.adjacent(other) {
             panic!();
         }
