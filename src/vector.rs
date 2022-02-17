@@ -128,6 +128,14 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
             ty: PhantomData,
         }
     }
+    /// Create a new Vector, from the elements
+    pub fn from_vec(size: usize, default_value: S::Item, vec: &[(Ix, S::Item)]) -> Vector<S, Ix> {
+        let mut v = Vector::new(size, default_value);
+        for (index, value) in vec.iter() {
+            v[*index] = *value;
+        }
+        v
+    }
     /// Get an (virtual) size of the storage
     pub fn len(&self) -> usize {
         self.storage.size()
