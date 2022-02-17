@@ -19,11 +19,28 @@ pub trait SeqGraph {
     /// calculate the sum of copy numbers
     /// of all emittable childs of the given node
     fn total_emittable_child_copy_nums(&self, node: NodeIndex) -> CopyNum;
+    ///
+    /// SeqGraph has consistent copy numbers on nodes?
+    ///
+    /// * for all nodes, sum of copy numbers of in-edges and out-edges are the same.
+    ///
+    fn node_copy_nums_is_consistent(&self) -> bool;
+    ///
+    /// SeqGraph has consistent copy numbers on edges?
+    ///
+    /// * for all nodes, all of out-edges are either with-copy-numbers or without-copy-numbers
+    /// * if copy numbers are set on edges, the sum of copy numbers on edges should be equal to the
+    /// copy number of the node.
+    ///
+    fn edge_copy_nums_is_consistent(&self) -> bool;
     /// Convert Node in SimpleSeqGraph into phmm node
+    ///
     fn to_phmm_node(&self, node: NodeIndex, total_copy_num: CopyNum) -> PNode;
     /// Convert Edge in SimpleSeqGraph into phmm edge
+    ///
     fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge;
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
+    ///
     fn to_phmm(&self, param: PHMMParams) -> PModel;
 }
 
@@ -56,6 +73,17 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             })
             .sum()
     }
+    fn node_copy_nums_is_consistent(&self) -> bool {
+        // TODO
+        true
+    }
+    fn edge_copy_nums_is_consistent(&self) -> bool {
+        self.node_indices().all(|v| {
+            let vw = self.node_weight(v).unwrap();
+            self.edges_directed(v, Direction::Outgoing)
+                .all(|e| e.weight().copy_num().is_some())
+        })
+    }
     /// Convert Node in SimpleSeqGraph into phmm node
     fn to_phmm_node(&self, node: NodeIndex, total_copy_num: CopyNum) -> PNode {
         let node_weight = self.node_weight(node).unwrap();
@@ -73,6 +101,7 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     }
     /// Convert Edge in SimpleSeqGraph into phmm edge
     fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
+        // TODO if copy_num is assigned?
         let (parent, child) = self.edge_endpoints(edge).unwrap();
         let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
         let child_weight = self.node_weight(child).unwrap();
@@ -191,18 +220,6 @@ impl std::fmt::Display for SimpleSeqEdge {
     }
 }
 
-/*
-impl<N, E> std::fmt::Display for SimpleSeqGraph<N, E>
-where
-    N: SeqNode + std::fmt::Display,
-    E: SeqEdge + std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.graph, &[]))
-    }
-}
-*/
-
 //
 // mock constructors
 //
@@ -215,4 +232,6 @@ mod tests {
     fn trait_test() {
         let sg = mock_linear().to_seq_graph();
     }
+    #[test]
+    fn seq_graph_small() {}
 }
