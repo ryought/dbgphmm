@@ -2,10 +2,10 @@
 //! - FlowEdge, FlowEdgeRaw<T>
 //! - FlowGraph, FlowGraphRaw<T>
 //! - Flow
+use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()
 use petgraph::Direction;
-use std::collections::HashMap;
 
 /// Edge attributes used in FlowGraph
 /// It has
@@ -53,38 +53,7 @@ pub type FlowGraphRaw<T> = DiGraph<(), FlowEdgeRaw<T>>;
 /// Flow definitions
 ///
 /// Flow f is a mapping of u32 f(e) to each edge e
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Flow(HashMap<EdgeIndex, u32>);
-
-impl Flow {
-    pub fn zero(n_edges: usize) -> Flow {
-        let mut hm = HashMap::new();
-        for i in 0..n_edges {
-            hm.insert(EdgeIndex::new(i), 0);
-        }
-        Flow(hm)
-    }
-    pub fn from_vec(vec: &[(EdgeIndex, u32)]) -> Flow {
-        let mut hm = HashMap::new();
-        for (e, f) in vec.iter() {
-            hm.insert(*e, *f);
-        }
-        Flow(hm)
-    }
-    pub fn is_valid<N, E>(&self, _graph: &DiGraph<N, E>) -> bool {
-        // TODO
-        true
-    }
-    pub fn get(&self, e: EdgeIndex) -> Option<u32> {
-        self.0.get(&e).cloned()
-    }
-    pub fn set(&mut self, e: EdgeIndex, v: u32) {
-        self.0.insert(e, v);
-    }
-    pub fn has(&self, e: EdgeIndex) -> bool {
-        self.0.contains_key(&e)
-    }
-}
+pub type Flow = EdgeVec<DenseStorage<u32>>;
 
 ///
 /// Check if the flow is valid, i.e. it satisfies
@@ -102,7 +71,7 @@ pub fn is_valid_flow<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
 /// Check if the flow contains all edges
 ///
 pub fn is_defined_for_all_edges<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
-    graph.edge_indices().all(|e| flow.get(e).is_some())
+    flow.len() == graph.edge_count()
 }
 
 ///
@@ -112,10 +81,8 @@ pub fn is_defined_for_all_edges<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool
 pub fn is_in_demand_and_capacity<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
     graph.edge_indices().all(|e| {
         let ew = graph.edge_weight(e).unwrap();
-        match flow.get(e) {
-            Some(f) => (ew.demand <= f) && (f <= ew.capacity),
-            None => false,
-        }
+        let f = flow[e];
+        (ew.demand <= f) && (f <= ew.capacity)
     })
 }
 
@@ -127,11 +94,11 @@ pub fn is_satisfying_flow_constraint<T>(flow: &Flow, graph: &FlowGraphRaw<T>) ->
     graph.node_indices().all(|v| {
         let in_flow: u32 = graph
             .edges_directed(v, Direction::Incoming)
-            .map(|er| flow.get(er.id()).unwrap())
+            .map(|er| flow[er.id()])
             .sum();
         let out_flow: u32 = graph
             .edges_directed(v, Direction::Outgoing)
-            .map(|er| flow.get(er.id()).unwrap())
+            .map(|er| flow[er.id()])
             .sum();
         in_flow == out_flow
     })
@@ -155,7 +122,7 @@ pub fn total_cost<N, E: EdgeCost>(graph: &DiGraph<N, E>, flow: &Flow) -> f64 {
         .edge_indices()
         .map(|e| {
             let ew = graph.edge_weight(e).unwrap();
-            let f = flow.get(e).unwrap();
+            let f = flow[e];
             ew.cost(f)
         })
         .sum()
