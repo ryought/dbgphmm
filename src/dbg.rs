@@ -3,6 +3,7 @@ pub mod hashdbg;
 pub mod hashdbg_v2;
 pub mod traverse;
 pub use hashdbg::{DbgHash, DBG};
+pub mod edge_centric;
 pub mod impls;
 pub mod mocks;
 pub mod output;
