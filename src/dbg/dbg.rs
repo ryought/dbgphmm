@@ -2,6 +2,7 @@
 //! De bruijn graph definitions
 //!
 //!
+use super::edge_centric::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::{CopyNum, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
@@ -148,6 +149,44 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         Self::new(d.k(), graph)
     }
+    ///
+    /// Convert into edge-centric de bruijn graph
+    ///
+    pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
+        let mut graph = DiGraph::new();
+        let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
+
+        for (node, weight) in self.nodes() {
+            let kmer = weight.kmer().clone();
+            let copy_num = weight.copy_num();
+
+            // add prefix node if not exists
+            let prefix = kmer.prefix();
+            let v = match nodes.get(&prefix) {
+                None => {
+                    let node = graph.add_node(SimpleEDbgNode::new());
+                    nodes.insert(prefix, node);
+                    node
+                }
+                Some(&node) => node,
+            };
+
+            // add suffix node if not exists
+            let suffix = kmer.suffix();
+            let w = match nodes.get(&suffix) {
+                None => {
+                    let node = graph.add_node(SimpleEDbgNode::new());
+                    nodes.insert(suffix, node);
+                    node
+                }
+                Some(&node) => node,
+            };
+
+            // add an edge for this kmer
+            graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num));
+        }
+        SimpleEDbg::new(self.k(), graph)
+    }
 }
 
 #[cfg(test)]
@@ -157,7 +196,7 @@ mod tests {
 
     #[test]
     fn dbg_new() {
-        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
         println!("{}", hd);
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
@@ -170,5 +209,13 @@ mod tests {
                 println!("{:?} {:?} {}", edge, parent, weight);
             }
         }
+    }
+    #[test]
+    fn dbg_to_edbg() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+        println!("{}", dbg);
+        let edbg = dbg.to_edbg();
+        println!("{}", edbg);
     }
 }
