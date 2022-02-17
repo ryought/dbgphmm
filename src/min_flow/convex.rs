@@ -14,7 +14,7 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 /// are assigned.
 ///
 #[derive(Debug, Copy, Clone)]
-pub struct ConvexFlowEdge {
+pub struct BaseConvexFlowEdge {
     /// demand (lower limit of flow) of the edge l(e)
     pub demand: u32,
     /// capacity (upper limit of flow) of the edge u(e)
@@ -24,9 +24,9 @@ pub struct ConvexFlowEdge {
     pub convex_cost: fn(u32) -> f64,
 }
 
-impl ConvexFlowEdge {
-    pub fn new(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> ConvexFlowEdge {
-        ConvexFlowEdge {
+impl BaseConvexFlowEdge {
+    pub fn new(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
+        BaseConvexFlowEdge {
             demand,
             capacity,
             convex_cost,
@@ -40,18 +40,18 @@ impl ConvexFlowEdge {
     }
 }
 
-/// short version of ConvexFlowEdge::new
-fn cfe(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> ConvexFlowEdge {
-    ConvexFlowEdge::new(demand, capacity, convex_cost)
+/// short version of BaseConvexFlowEdge::new
+fn cfe(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
+    BaseConvexFlowEdge::new(demand, capacity, convex_cost)
 }
 
-impl EdgeCost for ConvexFlowEdge {
+impl EdgeCost for BaseConvexFlowEdge {
     fn cost(&self, flow: u32) -> f64 {
         (self.convex_cost)(flow)
     }
 }
 
-pub type ConvexFlowGraph = DiGraph<(), ConvexFlowEdge>;
+pub type ConvexFlowGraph = DiGraph<(), BaseConvexFlowEdge>;
 
 ///
 ///
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn convex_flow_edge_new() {
-        let e = ConvexFlowEdge::new(1, 5, |f| 10.0 * f as f64);
+        let e = BaseConvexFlowEdge::new(1, 5, |f| 10.0 * f as f64);
         assert_eq!(50.0, (e.convex_cost)(5));
         assert_eq!(50.0, e.cost(5));
         assert_eq!(1, e.demand);
