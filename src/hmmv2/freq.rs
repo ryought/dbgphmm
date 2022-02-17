@@ -111,14 +111,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// `f[v]` = (How many times the hidden state `M_v, I_v, D_v` was used to emit the whole
     /// emissions?)
     ///
-    /// TODO this does not depend on self, so should move to StateProbs method?
-    ///
     pub fn to_node_freqs(&self, state_probs: &StateProbs) -> NodeFreqs {
-        let n = state_probs.n_nodes();
-        let mut f: NodeFreqs = NodeFreqs::new(n, 0.0);
-        for i in 0..n {
-            let v = NodeIndex::new(i);
-            f[v] = (state_probs.m[v] + state_probs.i[v] + state_probs.d[v]).to_value();
+        // v is NodeVec<Prob>
+        let v = state_probs.to_nodevec();
+        // f is NodeVec<Freq>
+        let mut f: NodeFreqs = NodeFreqs::new(state_probs.n_nodes(), 0.0);
+        for (node, p) in v.iter() {
+            f[node] = p.to_value();
         }
         f
     }
