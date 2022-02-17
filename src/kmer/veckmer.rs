@@ -15,8 +15,6 @@ impl NullableKmer for VecKmer {
 }
 
 impl KmerLike for VecKmer {
-    type Kp1mer = VecKmer;
-    type Km1mer = VecKmer;
     fn len(&self) -> usize {
         self.0.len()
     }
