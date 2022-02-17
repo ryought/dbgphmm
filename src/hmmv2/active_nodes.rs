@@ -2,8 +2,10 @@
 //!
 //!
 //!
+use super::table::PHMMTable;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
+use crate::prob::Prob;
 use crate::vector::graph::NodeVec;
 use crate::vector::Storage;
 use itertools::Itertools;
@@ -43,28 +45,18 @@ impl ActiveNodes {
             }
         }
     }
-}
-
-///
-/// NodeVec with ActiveNodes information
-///
-pub struct ActiveNodeVec<S: Storage> {
-    /// NodeVec
-    pub vec: NodeVec<S>,
-    /// Active Nodes
-    pub active_nodes: ActiveNodes,
-}
-
-impl<S: Storage> ActiveNodeVec<S> {
-    /// Constructor
-    pub fn new(
-        n_nodes: usize,
-        default_value: S::Item,
-        active_nodes: ActiveNodes,
-    ) -> ActiveNodeVec<S> {
-        ActiveNodeVec {
-            vec: NodeVec::new(n_nodes, default_value),
-            active_nodes,
-        }
+    ///
+    pub fn fit_to_table<S>(&self, t: &PHMMTable<S>, n_active_nodes: usize) -> ActiveNodes
+    where
+        S: Storage<Item = Prob>,
+    {
+        unimplemented!();
+    }
+    ///
+    pub fn fit_to_nodevec<S>(&self, v: &NodeVec<S>, n_active_nodes: usize) -> ActiveNodes
+    where
+        S: Storage<Item = Prob>,
+    {
+        unimplemented!();
     }
 }

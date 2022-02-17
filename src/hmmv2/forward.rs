@@ -2,7 +2,6 @@
 //! Forward algorithm definitions
 //!
 
-use super::active_nodes::ActiveNodeVec;
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultSparse};
 use super::table::PHMMTable;
@@ -283,7 +282,8 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut fd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
+        let active_nodes = t0.active_nodes.to_childs(self);
+        let mut fd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
         for (k, kw) in self.active_nodes(&fd0.active_nodes) {
             // (1) from normal node
             let from_normal: Prob = self
@@ -315,7 +315,8 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut fdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
+        let active_nodes = fdt1.active_nodes.to_childs(self);
+        let mut fdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
         for (k, _) in self.active_nodes(&fdt0.active_nodes) {
             fdt0.d[k] = self
                 .parents(k)
