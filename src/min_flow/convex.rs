@@ -138,9 +138,17 @@ pub type FixedCostFlowGraph = DiGraph<(), FixedCostFlowEdge>;
 //
 // conversion functions
 //
-pub fn to_fixed_flow_graph_v2<N, E: ConvexFlowEdge>(
-    graph: &DiGraph<N, E>,
-) -> Option<FixedCostFlowGraph> {
+
+///
+/// convert convex flow graph to the (normal, fixed constant cost) flow graph
+///
+/// create an parallel edges
+/// with static cost of `e.cost(f + 1) - e.cost(f)`
+///
+pub fn to_fixed_flow_graph<N, E>(graph: &DiGraph<N, E>) -> Option<FixedCostFlowGraph>
+where
+    E: ConvexFlowEdge,
+{
     let mut g: FixedCostFlowGraph = FixedCostFlowGraph::new();
 
     for e in graph.edge_indices() {
@@ -177,16 +185,6 @@ pub fn to_fixed_flow_graph_v2<N, E: ConvexFlowEdge>(
     Some(g)
 }
 
-///
-/// convert convex flow graph to the (normal, fixed constant cost) flow graph
-///
-/// create an parallel edges
-/// with static cost of `e.cost(f + 1) - e.cost(f)`
-///
-pub fn to_fixed_flow_graph(graph: &ConvexFlowGraph) -> Option<FixedCostFlowGraph> {
-    to_fixed_flow_graph_v2(graph)
-}
-
 fn get_flow_in_fixed(edge: EdgeIndex, fixed_flow: &Flow, fixed_graph: &FixedCostFlowGraph) -> u32 {
     // for original edge e (with EdgeIndex edge) in ConvexFlowGraph
     // the flow is the sum of the flow on the edges whose FixedCostFlowEdge.info.origin == edge
@@ -204,11 +202,14 @@ fn get_flow_in_fixed(edge: EdgeIndex, fixed_flow: &Flow, fixed_graph: &FixedCost
         .sum()
 }
 
-pub fn restore_convex_flow(
+pub fn restore_convex_flow<N, E>(
     fixed_flow: &Flow,
     fixed_graph: &FixedCostFlowGraph,
-    graph: &ConvexFlowGraph,
-) -> Flow {
+    graph: &DiGraph<N, E>,
+) -> Flow
+where
+    E: ConvexFlowEdge,
+{
     let mut flow = Flow::new(graph.edge_count(), 0);
 
     for e in graph.edge_indices() {
