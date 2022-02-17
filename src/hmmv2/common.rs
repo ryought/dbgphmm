@@ -299,7 +299,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ei, ni};
+    use crate::graph::mocks::{mock_crossing, mock_linear};
+    use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::mocks::mock_linear_phmm;
+    use crate::prob::p;
 
     #[test]
     fn phmmmodels_basic_ops() {
@@ -352,5 +355,43 @@ mod tests {
             .map(|(v, _)| v.index())
             .collect();
         assert_eq!(n4.len(), 0);
+    }
+    #[test]
+    fn hmm_crossing_edge_on() {
+        let m1 = mock_crossing(true);
+        println!("{}", m1);
+        let g1 = m1.to_seq_graph().to_phmm(PHMMParams::default());
+        println!("{}", g1);
+        assert_eq!(g1.n_nodes(), 40);
+        assert_eq!(g1.n_edges(), 40);
+        for (_, v, w) in g1.childs(ni(9)) {
+            if v == ni(20) {
+                assert_abs_diff_eq!(w.trans_prob(), p(1.0));
+            } else if v == ni(30) {
+                assert!(w.trans_prob().is_zero());
+            }
+        }
+        for (_, v, w) in g1.parents(ni(20)) {
+            if v == ni(9) {
+                assert_abs_diff_eq!(w.trans_prob(), p(1.0));
+            } else if v == ni(19) {
+                assert!(w.trans_prob().is_zero());
+            }
+        }
+    }
+    #[test]
+    fn hmm_crossing_edge_off() {
+        let m1 = mock_crossing(false);
+        println!("{}", m1);
+        let g1 = m1.to_seq_graph().to_phmm(PHMMParams::default());
+        println!("{}", g1);
+        assert_eq!(g1.n_nodes(), 40);
+        assert_eq!(g1.n_edges(), 40);
+        for (_, _, w) in g1.childs(ni(9)) {
+            assert_abs_diff_eq!(w.trans_prob(), p(0.5));
+        }
+        for (_, _, w) in g1.parents(ni(20)) {
+            assert_abs_diff_eq!(w.trans_prob(), p(0.5));
+        }
     }
 }

@@ -21,3 +21,19 @@ pub fn mock_linear_random_phmm(length: usize, seed: u64, param: PHMMParams) -> P
         .to_seq_graph()
         .to_phmm(param)
 }
+
+/// Example small grpah
+///
+/// ```text
+///     a(x2) ----   ------ c(x2)
+///               \ /
+///                X
+///               / \
+///     b(x2) ----   ------ d(x2)
+/// ```
+///
+pub fn mock_crossing_phmm(has_edge_copy_number: bool, param: PHMMParams) -> PModel {
+    mock_crossing(has_edge_copy_number)
+        .to_seq_graph()
+        .to_phmm(param)
+}
