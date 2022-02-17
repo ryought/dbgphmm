@@ -133,6 +133,22 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             active_nodes: self.active_nodes.clone(),
         }
     }
+    /// Convert to the nodevec containing the sum of hidden states for each node
+    /// `v[node] = t.m[node] + t.i[node] + t.d[node]`
+    ///
+    pub fn to_nodevec(&self) -> NodeVec<S> {
+        let mut v = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        for (node, p_m) in self.m.iter() {
+            v[node] += p_m;
+        }
+        for (node, p_i) in self.i.iter() {
+            v[node] += p_i;
+        }
+        for (node, p_d) in self.d.iter() {
+            v[node] += p_d;
+        }
+        v
+    }
 }
 
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
@@ -283,6 +299,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
+    use crate::prob::p;
     use crate::vector::DenseStorage;
 
     ///
@@ -385,5 +403,37 @@ mod tests {
         println!("prd\n{}", prd);
         // TODO
         check_is_similar_table(&t_mul, &prd);
+    }
+    #[test]
+    fn hmm_table_to_nodevec() {
+        let mut t1: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        t1.e = p(0.2);
+        t1.mb = p(0.01);
+        let v = t1.to_nodevec();
+        println!("{:?}", v);
+        assert_abs_diff_eq!(v[ni(0)], p(0.5) + p(0.01) + p(0.02));
+        assert_abs_diff_eq!(v[ni(1)], p(0.2) + p(1.0));
+        assert!(v[ni(2)].is_zero());
+        assert!(v[ni(3)].is_zero());
+
+        let mut t1: PHMMTable<SparseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        t1.e = p(0.2);
+        t1.mb = p(0.01);
+        let v = t1.to_nodevec();
+        println!("{:?}", v);
+        assert_abs_diff_eq!(v[ni(0)], p(0.5) + p(0.01) + p(0.02));
+        assert_abs_diff_eq!(v[ni(1)], p(0.2) + p(1.0));
+        assert!(v[ni(2)].is_zero());
+        assert!(v[ni(3)].is_zero());
     }
 }
