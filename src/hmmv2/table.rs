@@ -151,6 +151,15 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     }
 }
 
+/// Active nodes related methods
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
+    /// refresh self.active_nodes
+    /// by its own probabilities
+    fn refresh_active_nodes(&mut self, n_active_nodes: usize) {
+        self.active_nodes = ActiveNodes::from_nodevec(&self.to_nodevec(), n_active_nodes)
+    }
+}
+
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header

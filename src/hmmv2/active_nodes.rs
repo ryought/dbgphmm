@@ -46,13 +46,6 @@ impl ActiveNodes {
         }
     }
     ///
-    pub fn fit_to_table<S>(&self, t: &PHMMTable<S>, n_active_nodes: usize) -> ActiveNodes
-    where
-        S: Storage<Item = Prob>,
-    {
-        ActiveNodes::from_nodevec(&t.to_nodevec(), n_active_nodes)
-    }
-    ///
     /// Create active_nodes list from NodeVec
     /// by taking the n_active_nodes highest prob nodes from `v`.
     ///
