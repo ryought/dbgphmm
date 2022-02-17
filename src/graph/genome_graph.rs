@@ -18,9 +18,9 @@ pub struct GenomeGraph(pub DiGraph<GenomeNode, GenomeEdge>);
 /// Node in GenomeGraph is a copy-number-assigned sequence fragment
 pub struct GenomeNode {
     /// sequence fragment of this node
-    seq: Sequence,
+    pub seq: Sequence,
     /// copy number of the sequence
-    copy_num: CopyNum,
+    pub copy_num: CopyNum,
 }
 
 impl GenomeNode {
@@ -35,7 +35,7 @@ impl GenomeNode {
 pub struct GenomeEdge {
     /// copy number of the transition
     /// it assumes random transition if `None`
-    copy_num: Option<CopyNum>,
+    pub copy_num: Option<CopyNum>,
 }
 
 impl GenomeEdge {
@@ -103,7 +103,7 @@ impl GenomeGraph {
             let edges: Vec<EdgeIndex> = nodes
                 .iter()
                 .tuple_windows()
-                .map(|(&v0, &v1)| graph.add_edge(v0, v1, SimpleSeqEdge::new(None)))
+                .map(|(&v0, &v1)| graph.add_edge(v0, v1, SimpleSeqEdge::new(Some(copy_num))))
                 .collect();
 
             // store the first/last node
@@ -114,13 +114,18 @@ impl GenomeGraph {
         for er in self.0.edge_references() {
             let source = er.source();
             let target = er.target();
+            let weight = er.weight();
 
             // add an edge
             // from "the last node of the source"
             // to "the first node of the target"
             let (_, last_of_source) = m.get(&source).unwrap();
             let (first_of_target, _) = m.get(&target).unwrap();
-            graph.add_edge(*last_of_source, *first_of_target, SimpleSeqEdge::new(None));
+            graph.add_edge(
+                *last_of_source,
+                *first_of_target,
+                SimpleSeqEdge::new(weight.copy_num),
+            );
         }
 
         graph

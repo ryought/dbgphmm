@@ -275,11 +275,12 @@ impl std::fmt::Display for SimpleSeqEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::mocks::mock_linear;
+    use crate::common::ni;
+    use crate::graph::mocks::{mock_crossing, mock_linear};
+    use crate::hmmv2::params::PHMMParams;
+    use crate::prob::p;
     #[test]
     fn trait_test() {
         let sg = mock_linear().to_seq_graph();
     }
-    #[test]
-    fn seq_graph_small() {}
 }
