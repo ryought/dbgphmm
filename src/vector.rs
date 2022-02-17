@@ -108,7 +108,11 @@ impl<'a, S: Storage> Iterator for StorageIterator<'a, S> {
 /// 2. backend storage `S: Storage`
 /// 3. index type `Ix: Indexable`
 ///
-#[derive(Clone, Debug)]
+/// TODO
+/// PartialEq and Eq should be revised.
+/// For sparsestorage, PartialEq should be ignore the ordering of elements.
+///
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Vector<S: Storage, Ix: Indexable = usize> {
     /// Backend storage of the Vector
     storage: S,
@@ -123,6 +127,14 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
             storage: S::new(size, default_value),
             ty: PhantomData,
         }
+    }
+    /// Create a new Vector, from the elements
+    pub fn from_vec(size: usize, default_value: S::Item, vec: &[(Ix, S::Item)]) -> Vector<S, Ix> {
+        let mut v = Vector::new(size, default_value);
+        for (index, value) in vec.iter() {
+            v[*index] = *value;
+        }
+        v
     }
     /// Get an (virtual) size of the storage
     pub fn len(&self) -> usize {
