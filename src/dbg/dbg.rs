@@ -9,7 +9,6 @@ use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEd
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
-use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
@@ -148,16 +147,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         Self::new(d.k(), graph)
-    }
-}
-
-impl<N, E> std::fmt::Display for Dbg<N, E>
-where
-    N: DbgNode + std::fmt::Display,
-    E: DbgEdge + std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
