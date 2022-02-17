@@ -51,7 +51,7 @@ impl Prob {
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:.2}(=log({}))", self.0, self.to_value())
+        write!(f, "{:.2}(=log({:.12}))", self.0, self.to_value())
     }
 }
 

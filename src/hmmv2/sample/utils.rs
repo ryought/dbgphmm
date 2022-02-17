@@ -4,6 +4,8 @@
 use super::{Emission, State};
 use crate::common::Sequence;
 
+/// Convert sampling-result `&[(State, Emission)]` into sequence `Vec<u8>`
+///
 pub fn get_emission_sequence(sampled: &[(State, Emission)]) -> Sequence {
     sampled
         .iter()

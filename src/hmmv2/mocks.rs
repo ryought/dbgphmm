@@ -12,3 +12,12 @@ use crate::hmm::params::PHMMParams;
 pub fn mock_linear_phmm(param: PHMMParams) -> PModel {
     mock_linear().to_seq_graph().to_phmm(param)
 }
+
+///
+/// Create random linear phmm
+///
+pub fn mock_linear_random_phmm(length: usize, seed: u64, param: PHMMParams) -> PModel {
+    mock_linear_random(length, seed)
+        .to_seq_graph()
+        .to_phmm(param)
+}

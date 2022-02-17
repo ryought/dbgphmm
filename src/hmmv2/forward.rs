@@ -47,6 +47,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         n_warmup: usize,
         n_active_nodes: usize,
     ) -> PHMMResultSparse {
+        assert!(n_warmup > 1);
+        assert!(n_active_nodes > 1);
         let r0 = PHMMResultSparse {
             init_table: self.f_init(),
             tables_warmup: Vec::new(),
@@ -389,9 +391,9 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ni;
+    use crate::common::{ni, sequence_to_string};
     use crate::hmm::params::PHMMParams;
-    use crate::hmmv2::mocks::mock_linear_phmm;
+    use crate::hmmv2::mocks::*;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
@@ -436,6 +438,27 @@ mod tests {
         assert_abs_diff_eq!(r2.tables[3].e, r.tables[3].e, epsilon = 0.00001);
         assert_eq!(r2.tables.len(), 5);
         for table in r2.tables.iter() {
+            println!("{}", table);
+        }
+    }
+    #[test]
+    fn hmm_forward_mock_sparse() {
+        let phmm = mock_linear_random_phmm(100, 0, PHMMParams::default());
+        let read = phmm.sample_read(32, 0);
+        println!("{}", sequence_to_string(&read));
+
+        let r1 = phmm.forward(&read);
+        println!("dense");
+        for table in r1.tables.iter() {
+            println!("{}", table);
+        }
+
+        let r2 = phmm.forward_sparse(&read, 16, 40);
+        println!("sparse");
+        for table in r2.tables_warmup.iter() {
+            println!("{}", table);
+        }
+        for table in r2.tables_sparse.iter() {
             println!("{}", table);
         }
     }
