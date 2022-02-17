@@ -184,13 +184,30 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header
+        if S::is_dense() {
+            write!(f, "dense")?;
+        } else {
+            write!(f, "sparse")?;
+        }
         writeln!(f, "\tMatch\tIns\tDel")?;
         // Begin state
         writeln!(f, "Begin\t{}\t{}", self.mb, self.ib)?;
         // Normal states
         for i in 0..self.n_nodes() {
             let v = NodeIndex::new(i);
-            writeln!(f, "{}\t{}\t{}\t{}", i, self.m[v], self.i[v], self.d[v])?;
+            match &self.active_nodes {
+                ActiveNodes::Only(nodes) => {
+                    if nodes.contains(&v) {
+                        write!(f, "{}+", i)?;
+                    } else {
+                        write!(f, "{}", i)?;
+                    }
+                }
+                ActiveNodes::All => {
+                    write!(f, "{}*", i)?;
+                }
+            };
+            writeln!(f, "\t{}\t{}\t{}", self.m[v], self.i[v], self.d[v])?;
         }
         // End state
         writeln!(f, "End\t{}", self.e)
@@ -465,5 +482,17 @@ mod tests {
         assert_abs_diff_eq!(v[ni(1)], p(0.2) + p(1.0));
         assert!(v[ni(2)].is_zero());
         assert!(v[ni(3)].is_zero());
+    }
+    #[test]
+    fn hmm_table_refresh() {
+        let mut t: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t.m[ni(0)] = p(0.5);
+        t.d[ni(0)] = p(0.01);
+        t.i[ni(0)] = p(0.02);
+        t.i[ni(1)] = p(0.2);
+        t.m[ni(1)] = p(1.0);
+        t.refresh_active_nodes(1);
+        println!("{}", t);
+        assert_eq!(t.active_nodes, ActiveNodes::Only(vec![ni(1)]))
     }
 }
