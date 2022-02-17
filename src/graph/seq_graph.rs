@@ -4,8 +4,8 @@
 //!
 
 use crate::common::CopyNum;
-use crate::hmm::params::PHMMParams;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;

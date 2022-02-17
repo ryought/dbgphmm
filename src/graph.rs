@@ -1,10 +1,16 @@
 use forceatlas2;
 use log::info;
 use serde::Serialize;
+pub mod active_nodes;
 pub mod genome_graph;
 pub mod iterators;
 pub mod mocks;
 pub mod seq_graph;
+
+//
+// Old codes
+//
+//
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Copy, Clone)]
 pub struct Node(pub usize);

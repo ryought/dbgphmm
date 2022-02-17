@@ -6,7 +6,7 @@ pub use petgraph::graph::{EdgeIndex, NodeIndex};
 
 /// Generalized indexable types
 /// that have one-to-one correspondence with `usize`
-pub trait Indexable: Copy {
+pub trait Indexable: Copy + Eq + std::hash::Hash + std::fmt::Debug {
     /// convert `usize` to the `Indexable` type
     fn new(x: usize) -> Self;
     /// convert-back the `Indexable` type to `usize`

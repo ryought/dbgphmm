@@ -7,7 +7,7 @@
 //!
 
 use super::common::{NodeIndex, PEdge, PGraph, PModel, PNode};
-use crate::hmm::params::PHMMParams;
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 
 pub fn create_linear(seq: &[u8]) -> PModel {

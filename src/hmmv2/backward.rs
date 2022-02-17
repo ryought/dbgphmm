@@ -3,7 +3,9 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::table::{PHMMResult, PHMMTable};
+use super::result::{PHMMResult, PHMMResultSparse};
+use super::table::PHMMTable;
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::Prob;
 use crate::vector::{NodeVec, Storage};
 
@@ -19,10 +21,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
     ///
-    pub fn backward<S>(&self, emissions: &[u8]) -> PHMMResult<S>
-    where
-        S: Storage<Item = Prob>,
-    {
+    pub fn backward(&self, emissions: &[u8]) -> PHMMResult {
         let r0 = PHMMResult {
             init_table: self.b_init(),
             tables: Vec::new(),
@@ -44,6 +43,54 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         // reverse the vector, to order the tables along with emissions
         // i.e. tables[i] corresponds to the emissions[i]
         r.tables.reverse();
+        r
+    }
+    ///
+    /// Run Backward algorithm to the emissions, with sparse calculation
+    ///
+    pub fn backward_sparse(&self, emissions: &[u8]) -> PHMMResultSparse {
+        let r0 = PHMMResultSparse {
+            init_table: self.b_init(),
+            tables_warmup: Vec::new(),
+            tables_sparse: Vec::new(),
+            is_forward: false,
+        };
+        let param = &self.param;
+        let mut r = emissions
+            .iter()
+            .rev()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                if i < param.n_warmup {
+                    // dense_table -> dense_table
+                    let table = if i == 0 {
+                        self.b_step(i, emission, &r.init_table)
+                    } else {
+                        self.b_step(i, emission, r.tables_warmup.last().unwrap())
+                    };
+                    r.tables_warmup.push(table);
+                } else if i == param.n_warmup {
+                    // dense_table -> sparse_table
+                    let table_prev = r
+                        .tables_warmup
+                        .last()
+                        .unwrap()
+                        .to_sparse_active_nodes(param.n_active_nodes);
+                    let mut table = self.b_step(i, emission, &table_prev);
+                    table.refresh_active_nodes(param.n_active_nodes);
+                    r.tables_sparse.push(table);
+                } else {
+                    // sparse_table -> sparse_table
+                    let mut table = self.b_step(i, emission, r.tables_sparse.last().unwrap());
+                    table.refresh_active_nodes(param.n_active_nodes);
+                    r.tables_sparse.push(table);
+                };
+                r
+            });
+        // reverse the vector, to order the tables along with emissions
+        // i.e. tables[i] corresponds to the emissions[i]
+        r.tables_warmup.reverse();
+        r.tables_sparse.reverse();
         r
     }
     ///
@@ -82,6 +129,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     where
         S: Storage<Item = Prob>,
     {
+        // active_nodes are not used in bd and be
         let mut table = PHMMTable::new(
             self.n_nodes(),
             Prob::from_prob(0.0),
@@ -91,9 +139,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
         );
+
         // bd (silent states) should be first
         self.bd(&mut table, prev_table, emission);
         self.be(&mut table, prev_table, emission);
+
+        // candidates of active nodes of next step
+        if !S::is_dense() {
+            let parents_and_us = prev_table.active_nodes.to_parents_and_us(self);
+            let active_in_d = table.active_nodes_from_prob(self.param.n_active_nodes);
+            table.active_nodes = parents_and_us.merge(&active_in_d);
+        }
+
         // normal state is next
         self.bm(&mut table, prev_table, emission);
         self.bi(&mut table, prev_table, emission);
@@ -144,10 +201,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut bdt0 = self.bd0(t1, emission);
-        t0.d += &bdt0;
+        t0.d += &bdt0.d;
         for _t in 0..param.n_max_gaps {
             bdt0 = self.bdt(&bdt0);
-            t0.d += &bdt0;
+            t0.d += &bdt0.d;
         }
     }
     ///
@@ -160,13 +217,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// (For the complete definitions, see the reference doc of `self.bd()`)
-    fn bd0<S>(&self, t0: &PHMMTable<S>, emission: u8) -> NodeVec<S>
+    fn bd0<S>(&self, t0: &PHMMTable<S>, emission: u8) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut bd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, _) in self.nodes() {
+
+        // bd0.d[k] depends on child and itself.
+        let active_nodes = t0.active_nodes.to_parents_and_us(self);
+        let mut bd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
+
+        for (k, _) in self.active_nodes(&bd0.active_nodes) {
             // (1) to match
             let p_to_match: Prob = self
                 .childs(k)
@@ -181,8 +242,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
             // (2) to ins
             let p_to_ins = param.p_DI * self.p_ins_emit() * t0.i[k];
-            bd0[k] = p_to_match + p_to_ins;
+            bd0.d[k] = p_to_match + p_to_ins;
         }
+
+        // shrink active_nodes to actually-high prob nodes
+        bd0.refresh_active_nodes(param.n_active_nodes);
+
         bd0
     }
     ///
@@ -194,22 +259,30 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// (For the complete definitions, see the reference doc of `self.bd()`)
-    fn bdt<S>(&self, bdt1: &NodeVec<S>) -> NodeVec<S>
+    fn bdt<S>(&self, bdt1: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut bdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, _) in self.nodes() {
-            bdt0[k] = self
+
+        // bdt0.d[k] only depends on k's child l in bdt1.d
+        let active_nodes = bdt1.active_nodes.to_parents(self);
+        let mut bdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
+
+        for (k, _) in self.active_nodes(&bdt0.active_nodes) {
+            bdt0.d[k] = self
                 .childs(k)
                 .map(|(_, l, ew)| {
                     // k -> l
                     let p_trans = ew.trans_prob();
-                    p_trans * param.p_DD * bdt1[l]
+                    p_trans * param.p_DD * bdt1.d[l]
                 })
                 .sum();
         }
+
+        // shrink active_nodes to actually-high prob nodes
+        bdt0.refresh_active_nodes(param.n_active_nodes);
+
         bdt0
     }
     /// Fill the backward probs of `Match` states
@@ -235,7 +308,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, _) in self.nodes() {
+        for (k, _) in self.active_nodes(&t0.active_nodes) {
             // (1) to match and del
             let p_to_match_del: Prob = self
                 .childs(k)
@@ -277,7 +350,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, _) in self.nodes() {
+        for (k, _) in self.active_nodes(&t0.active_nodes) {
             // (1) to match and del
             let p_to_match_del: Prob = self
                 .childs(k)
@@ -320,7 +393,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         // (1) to match and del of all nodes
         let p_to_match_del: Prob = self
-            .nodes()
+            .active_nodes(&t0.active_nodes)
             .map(|(l, lw)| {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
@@ -359,7 +432,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         // (1) to match and del of all nodes
         let p_to_match_del: Prob = self
-            .nodes()
+            .active_nodes(&t0.active_nodes)
             .map(|(l, lw)| {
                 // k=Begin -> l
                 let p_trans = lw.init_prob();
@@ -394,8 +467,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::ni;
-    use crate::hmm::params::PHMMParams;
     use crate::hmmv2::mocks::mock_linear_phmm;
+    use crate::hmmv2::params::PHMMParams;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
@@ -403,7 +476,7 @@ mod tests {
         let params = PHMMParams::zero_error();
         println!("{}", params);
         let phmm = mock_linear_phmm(params);
-        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let r = phmm.backward(b"CGATC");
         for table in r.tables.iter() {
             println!("{}", table);
         }
@@ -420,7 +493,7 @@ mod tests {
         assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-11.5129754), epsilon = 0.00001);
         // with allowing no errors, CGATT cannot be emitted.
         // so it should have p=0
-        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        let r2 = phmm.backward(b"CGATT");
         assert_eq!(r2.tables.len(), 5);
         assert!(r2.tables[0].mb.is_zero());
         for table in r2.tables.iter() {
@@ -432,7 +505,7 @@ mod tests {
     fn hmm_backward_mock_linear_high_error() {
         let phmm = mock_linear_phmm(PHMMParams::high_error());
         // read 1
-        let r: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATC");
+        let r = phmm.backward(b"CGATC");
         for table in r.tables.iter() {
             println!("{}", table);
         }
@@ -440,7 +513,7 @@ mod tests {
         assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.0679200), epsilon = 0.00001);
         assert_abs_diff_eq!(r.tables[0].mb, lp(-15.2115765494), epsilon = 0.00001);
         // read 2
-        let r2: PHMMResult<DenseStorage<Prob>> = phmm.backward(b"CGATT");
+        let r2 = phmm.backward(b"CGATT");
         assert_eq!(r2.tables.len(), 5);
         for table in r2.tables.iter() {
             println!("{}", table);

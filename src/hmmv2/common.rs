@@ -2,8 +2,11 @@
 //! Definition of Node-centric PHMM
 //!
 use crate::common::CopyNum;
-use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::hmm::params::PHMMParams;
+use crate::graph::active_nodes::ActiveNodes;
+use crate::graph::iterators::{
+    ActiveNodesIterator, ChildEdges, EdgesIterator, NodesIterator, ParentEdges,
+};
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::vector::{EdgeVec, NodeVec, Storage};
 use petgraph::dot::Dot;
@@ -74,6 +77,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn nodes(&self) -> NodesIterator<N> {
         NodesIterator::new(&self.graph)
+    }
+    ///
+    /// create iterator on active nodes
+    /// Item of the iterator is `(NodeIndex, &N)`.
+    ///
+    pub fn active_nodes<'a>(
+        &'a self,
+        active_nodes: &'a ActiveNodes,
+    ) -> ActiveNodesIterator<'a, N, E> {
+        ActiveNodesIterator::new(&self.graph, active_nodes)
     }
     ///
     /// create iterator of all nodes
@@ -285,7 +298,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hmm::params::PHMMParams;
+    use crate::common::{ei, ni};
     use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
@@ -300,5 +313,44 @@ mod tests {
             assert_eq!(NodeIndex::new(i), source);
             assert_eq!(NodeIndex::new(i + 1), target);
         }
+    }
+    #[test]
+    fn phmmmodels_active_nodes() {
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
+        let n_all: Vec<usize> = (0..10).collect();
+
+        // (1) default nodes iterator
+        let n1: Vec<usize> = phmm.nodes().map(|(v, _)| v.index()).collect();
+        for node in phmm.nodes() {
+            println!("{:?}", node);
+        }
+        assert_eq!(n1, n_all);
+
+        // (2) all nodes are active nodes
+        let n2: Vec<usize> = phmm
+            .active_nodes(&ActiveNodes::All)
+            .map(|(v, _)| v.index())
+            .collect();
+        for node in phmm.active_nodes(&ActiveNodes::All) {
+            println!("{:?}", node);
+        }
+        assert_eq!(n2, n_all);
+
+        // (3) three active nodes
+        let n3: Vec<usize> = phmm
+            .active_nodes(&ActiveNodes::Only(vec![ni(1), ni(5), ni(3)]))
+            .map(|(v, _)| v.index())
+            .collect();
+        assert_eq!(n3, vec![1, 5, 3]);
+        for node in phmm.active_nodes(&ActiveNodes::Only(vec![ni(1), ni(5), ni(3)])) {
+            println!("{:?}", node);
+        }
+
+        // (4) zero active nodes
+        let n4: Vec<usize> = phmm
+            .active_nodes(&ActiveNodes::Only(Vec::new()))
+            .map(|(v, _)| v.index())
+            .collect();
+        assert_eq!(n4.len(), 0);
     }
 }

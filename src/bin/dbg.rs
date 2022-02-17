@@ -1,12 +1,10 @@
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::impls::SimpleDbg;
+use dbgphmm::hmmv2::mocks::mock_linear_random_phmm;
+use dbgphmm::hmmv2::params::PHMMParams;
 use dbgphmm::kmer::veckmer::VecKmer;
 
 fn main() {
-    // let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
-    let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
-    hd.add_seq(b"AAAGCTTGATT");
-    hd.add_seq(b"CGTATC");
-    let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
-    println!("{}", dbg);
+    let phmm = mock_linear_random_phmm(100, 0, PHMMParams::default());
+    println!("{}", phmm);
 }

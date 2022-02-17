@@ -124,4 +124,35 @@ mod tests {
         assert_eq!(v[3], v2[3]);
         assert_eq!(v[4], v2[4]);
     }
+
+    #[test]
+    fn vector_ops_between_different_storage_type() {
+        let mut v1: Vector<DenseStorage<u32>, usize> = Vector::new(5, 0);
+        v1[0] = 33;
+        v1[3] = 55;
+        let mut v2: Vector<SparseStorage<u32>, usize> = Vector::new(5, 0);
+        v2[0] = 22;
+        v2[2] = 11;
+        println!("{:?}", v1);
+        println!("{:?}", v2);
+        let w = &v1 + &v2;
+        println!("{:?}", w);
+        assert!(w.is_dense());
+        assert_eq!(w[0], 33 + 22);
+        assert_eq!(w[1], 0);
+        assert_eq!(w[2], 11);
+        assert_eq!(w[3], 55);
+    }
+    #[test]
+    fn vector_to_sparse_by_indexes() {
+        let mut v: Vector<DenseStorage<u32>, usize> = Vector::new(10, 0);
+        v[0] = 33;
+        v[3] = 55;
+        v[5] = 110;
+        println!("{:?}", v);
+        let w = v.to_sparse_by_indexes(0, &[5, 3]);
+        println!("{:?}", w);
+        let e: Vec<(usize, u32)> = w.iter().collect();
+        assert_eq!(e, vec![(5, 110), (3, 55)]);
+    }
 }

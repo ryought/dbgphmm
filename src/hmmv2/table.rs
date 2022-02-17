@@ -7,28 +7,11 @@
 //!
 //! F[Match,v] or B[Match,v]
 //!
-use crate::prob::Prob;
+use crate::graph::active_nodes::ActiveNodes;
+use crate::prob::{p, Prob};
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
 pub use petgraph::graph::NodeIndex;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
-
-/// Struct that stores Forward/Backward algorithm result
-/// for the given emissions
-///
-/// the length of the PHMMResult.tables will be
-/// equal to the length of emissions
-#[derive(Debug, Clone)]
-pub struct PHMMResult<S: Storage<Item = Prob>> {
-    pub init_table: PHMMTable<S>,
-    pub tables: Vec<PHMMTable<S>>,
-}
-
-impl<S: Storage<Item = Prob>> PHMMResult<S> {
-    /// The number of emissions that this result stores.
-    pub fn n_emissions(&self) -> usize {
-        self.tables.len()
-    }
-}
 
 /// Maximum number of continuous deletion (D -> D transition)
 /// allowed in pHMM.
@@ -54,6 +37,8 @@ pub struct PHMMTable<S: Storage<Item = Prob>> {
     pub ib: Prob,
     /// end state probability
     pub e: Prob,
+    ///
+    pub active_nodes: ActiveNodes,
 }
 
 //
@@ -70,6 +55,27 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb,
             ib,
             e,
+            active_nodes: ActiveNodes::All,
+        }
+    }
+    pub fn new_with_active_nodes(
+        n_nodes: usize,
+        m: Prob,
+        i: Prob,
+        d: Prob,
+        mb: Prob,
+        ib: Prob,
+        e: Prob,
+        active_nodes: ActiveNodes,
+    ) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, m),
+            i: NodeVec::new(n_nodes, i),
+            d: NodeVec::new(n_nodes, d),
+            mb,
+            ib,
+            e,
+            active_nodes,
         }
     }
     pub fn zero(n_nodes: usize) -> Self {
@@ -80,6 +86,18 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: Prob::from_prob(0.0),
             ib: Prob::from_prob(0.0),
             e: Prob::from_prob(0.0),
+            active_nodes: ActiveNodes::All,
+        }
+    }
+    pub fn zero_with_active_nodes(n_nodes: usize, active_nodes: ActiveNodes) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            i: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            d: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            mb: Prob::from_prob(0.0),
+            ib: Prob::from_prob(0.0),
+            e: Prob::from_prob(0.0),
+            active_nodes,
         }
     }
 }
@@ -100,6 +118,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: self.mb,
             ib: self.ib,
             e: self.e,
+            active_nodes: self.active_nodes.clone(),
         }
     }
     /// Convert to the SparseStorage-backend PHMMTable
@@ -111,20 +130,96 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             mb: self.mb,
             ib: self.ib,
             e: self.e,
+            active_nodes: self.active_nodes.clone(),
         }
+    }
+    /// Convert to the SparseStorage-backend PHMMTable
+    /// by taking only active_nodes
+    pub fn to_sparse_active_nodes(&self, n_active_nodes: usize) -> PHMMTable<SparseStorage<Prob>> {
+        let active_nodes = self.active_nodes_from_prob(n_active_nodes);
+        match active_nodes {
+            ActiveNodes::Only(nodes) => PHMMTable {
+                m: self.m.to_sparse_by_indexes(p(0.0), &nodes),
+                i: self.i.to_sparse_by_indexes(p(0.0), &nodes),
+                d: self.d.to_sparse_by_indexes(p(0.0), &nodes),
+                mb: self.mb,
+                ib: self.ib,
+                e: self.e,
+                active_nodes: ActiveNodes::Only(nodes),
+            },
+            ActiveNodes::All => unreachable!(),
+        }
+    }
+    /// Convert to the nodevec containing the sum of hidden states for each node
+    /// `v[node] = t.m[node] + t.i[node] + t.d[node]`
+    ///
+    pub fn to_nodevec(&self) -> NodeVec<S> {
+        let mut v = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        for (node, p_m) in self.m.iter() {
+            v[node] += p_m;
+        }
+        for (node, p_i) in self.i.iter() {
+            v[node] += p_i;
+        }
+        for (node, p_d) in self.d.iter() {
+            v[node] += p_d;
+        }
+        v
+    }
+}
+
+/// Active nodes related methods
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
+    /// refresh self.active_nodes by its own probabilities
+    pub fn refresh_active_nodes(&mut self, n_active_nodes: usize) {
+        self.active_nodes = self.active_nodes_from_prob(n_active_nodes);
+    }
+    /// Determine latest active_nodes from the current probabilities in the table
+    ///
+    pub fn active_nodes_from_prob(&self, n_active_nodes: usize) -> ActiveNodes {
+        ActiveNodes::from_nodevec(&self.to_nodevec(), n_active_nodes)
+    }
+}
+
+//
+// Diff related functions
+//
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
+    ///
+    /// Measureing difference between two phmm tables
+    ///
+    pub fn diff<T: Storage<Item = Prob>>(&self, other: &PHMMTable<T>) -> f64 {
+        self.m.diff(&other.m) + self.i.diff(&other.i) + self.d.diff(&other.d)
     }
 }
 
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header
+        if S::is_dense() {
+            write!(f, "dense")?;
+        } else {
+            write!(f, "sparse")?;
+        }
         writeln!(f, "\tMatch\tIns\tDel")?;
         // Begin state
         writeln!(f, "Begin\t{}\t{}", self.mb, self.ib)?;
         // Normal states
         for i in 0..self.n_nodes() {
             let v = NodeIndex::new(i);
-            writeln!(f, "{}\t{}\t{}\t{}", i, self.m[v], self.i[v], self.d[v])?;
+            match &self.active_nodes {
+                ActiveNodes::Only(nodes) => {
+                    if nodes.contains(&v) {
+                        write!(f, "{}+", i)?;
+                    } else {
+                        write!(f, "{}", i)?;
+                    }
+                }
+                ActiveNodes::All => {
+                    write!(f, "{}*", i)?;
+                }
+            };
+            writeln!(f, "\t{}\t{}\t{}", self.m[v], self.i[v], self.d[v])?;
         }
         // End state
         writeln!(f, "End\t{}", self.e)
@@ -132,12 +227,13 @@ impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
 }
 
 // Add
-impl<'a, 'b, S> Add<&'a PHMMTable<S>> for &'b PHMMTable<S>
+impl<'a, 'b, Sa, Sb> Add<&'a PHMMTable<Sa>> for &'b PHMMTable<Sb>
 where
-    S: Storage<Item = Prob>,
+    Sa: Storage<Item = Prob>,
+    Sb: Storage<Item = Prob>,
 {
-    type Output = PHMMTable<S>;
-    fn add(self, other: &'a PHMMTable<S>) -> Self::Output {
+    type Output = PHMMTable<Sb>;
+    fn add(self, other: &'a PHMMTable<Sa>) -> Self::Output {
         PHMMTable {
             m: &self.m + &other.m,
             i: &self.i + &other.i,
@@ -145,6 +241,7 @@ where
             mb: self.mb + other.mb,
             ib: self.ib + other.ib,
             e: self.e + other.e,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -165,12 +262,13 @@ where
 }
 
 // Mul
-impl<'a, 'b, S> Mul<&'a PHMMTable<S>> for &'b PHMMTable<S>
+impl<'a, 'b, Sa, Sb> Mul<&'a PHMMTable<Sa>> for &'b PHMMTable<Sb>
 where
-    S: Storage<Item = Prob>,
+    Sa: Storage<Item = Prob>,
+    Sb: Storage<Item = Prob>,
 {
-    type Output = PHMMTable<S>;
-    fn mul(self, other: &'a PHMMTable<S>) -> Self::Output {
+    type Output = PHMMTable<Sb>;
+    fn mul(self, other: &'a PHMMTable<Sa>) -> Self::Output {
         PHMMTable {
             m: &self.m * &other.m,
             i: &self.i * &other.i,
@@ -178,6 +276,7 @@ where
             mb: self.mb * other.mb,
             ib: self.ib * other.ib,
             e: self.e * other.e,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -211,6 +310,7 @@ where
             mb: self.mb / other,
             ib: self.ib / other,
             e: self.e / other,
+            active_nodes: ActiveNodes::All,
         }
     }
 }
@@ -258,6 +358,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
+    use crate::prob::p;
     use crate::vector::DenseStorage;
 
     ///
@@ -360,5 +462,68 @@ mod tests {
         println!("prd\n{}", prd);
         // TODO
         check_is_similar_table(&t_mul, &prd);
+    }
+    #[test]
+    fn hmm_table_to_nodevec() {
+        let mut t1: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        t1.e = p(0.2);
+        t1.mb = p(0.01);
+        let v = t1.to_nodevec();
+        println!("{:?}", v);
+        assert_abs_diff_eq!(v[ni(0)], p(0.5) + p(0.01) + p(0.02));
+        assert_abs_diff_eq!(v[ni(1)], p(0.2) + p(1.0));
+        assert!(v[ni(2)].is_zero());
+        assert!(v[ni(3)].is_zero());
+
+        let mut t1: PHMMTable<SparseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        t1.e = p(0.2);
+        t1.mb = p(0.01);
+        let v = t1.to_nodevec();
+        println!("{:?}", v);
+        assert_abs_diff_eq!(v[ni(0)], p(0.5) + p(0.01) + p(0.02));
+        assert_abs_diff_eq!(v[ni(1)], p(0.2) + p(1.0));
+        assert!(v[ni(2)].is_zero());
+        assert!(v[ni(3)].is_zero());
+    }
+    #[test]
+    fn hmm_table_refresh() {
+        let mut t: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t.m[ni(0)] = p(0.5);
+        t.d[ni(0)] = p(0.01);
+        t.i[ni(0)] = p(0.02);
+        t.i[ni(1)] = p(0.2);
+        t.m[ni(1)] = p(1.0);
+        t.refresh_active_nodes(1);
+        println!("{}", t);
+        assert_eq!(t.active_nodes, ActiveNodes::Only(vec![ni(1)]))
+    }
+    #[test]
+    fn hmm_table_diff() {
+        let mut t1: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        let mut t2: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t2.m[ni(0)] = p(0.51);
+        t2.d[ni(0)] = p(0.02);
+        t2.i[ni(0)] = p(0.02);
+        t2.i[ni(1)] = p(0.21);
+        t2.m[ni(1)] = p(1.0);
+        println!("d(t1,t2)={}", t1.diff(&t2));
+        println!("d(t2,t1)={}", t2.diff(&t1));
+        assert_abs_diff_eq!(t1.diff(&t2), 0.03);
+        assert_abs_diff_eq!(t2.diff(&t1), 0.03);
     }
 }

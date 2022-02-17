@@ -1,6 +1,7 @@
 use super::hashdbg_v2::HashDbg;
 use super::impls::SimpleDbg;
 use crate::kmer::veckmer::VecKmer;
+use crate::random_seq::generate;
 
 pub fn mock_simple() -> SimpleDbg<VecKmer> {
     let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
@@ -19,4 +20,29 @@ pub fn mock_rep() -> SimpleDbg<VecKmer> {
     hd.add_seq(b"AAAAAAAAAAAAA");
     hd.add_seq(b"CCCCCCCCCCCCCC");
     SimpleDbg::from_hashdbg(&hd)
+}
+
+///
+/// crate a mock `SimpleDbg` from single random sequence of given length
+///
+pub fn mock_random(k: usize, length: usize) -> SimpleDbg<VecKmer> {
+    let seq = generate(length, 1);
+    let mut hd: HashDbg<VecKmer> = HashDbg::new(k);
+    hd.add_seq(&seq);
+    SimpleDbg::from_hashdbg(&hd)
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dbg_mock_random() {
+        let dbg = mock_random(8, 100);
+        println!("{}", dbg);
+    }
 }

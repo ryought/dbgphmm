@@ -1,13 +1,19 @@
 //!
 //! Sampling emissions from the PHMMModel
 //!
+//! ## Todos
+//!
+//! * create a special struct for storeing the sampling result instead of `Vec<(State, Emission)>`
+//!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use crate::hmm::params::PHMMParams;
+use crate::common::Sequence;
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use picker::{pick_ins_emission, pick_match_emission, pick_with_prob};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
+use utils::get_emission_sequence;
 pub mod picker;
 pub mod utils;
 
@@ -57,6 +63,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
 
         history
+    }
+    ///
+    /// Generate a sequence of emissions
+    /// by running a profile HMM using rng(random number generator).
+    ///
+    /// (sampling reads from the model)
+    ///
+    pub fn sample_read(&self, length: usize, seed: u64) -> Sequence {
+        let history = self.sample(length, seed);
+        get_emission_sequence(&history)
     }
     fn sample_init<R: Rng>(&self, _rng: &mut R) -> (State, Emission) {
         (State::MatchBegin, Emission::Empty)
@@ -204,8 +220,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
 #[cfg(test)]
 mod tests {
-    use super::utils::get_emission_sequence;
     use super::*;
+    use crate::common::sequence_to_string;
     use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
@@ -238,9 +254,11 @@ mod tests {
     #[test]
     fn hmm_sample_mock_linear() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        let hist = phmm.sample(20, 0);
+        let phmm = mock_linear_phmm(PHMMParams::zero_error());
+        let hist = phmm.sample(5, 0);
+        let read = get_emission_sequence(&hist);
         println!("{:?}", hist);
-        println!("{:?}", get_emission_sequence(&hist));
+        assert_eq!(read, b"CGATC");
+        println!("{:?}", sequence_to_string(&read));
     }
 }

@@ -1,5 +1,5 @@
 use super::Emission;
-use crate::hmm::params::PHMMParams;
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use rand::prelude::*;
 
