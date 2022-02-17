@@ -15,8 +15,8 @@ use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEd
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 pub mod impls;
+pub mod output;
 pub use impls::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
-use petgraph::dot::Dot;
 
 ///
 /// (Edge-centric) De bruijn graph struct
@@ -101,15 +101,5 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// plain constructor of edbg
     pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
         EDbg { k, graph }
-    }
-}
-
-impl<N, E> std::fmt::Display for EDbg<N, E>
-where
-    N: EDbgNode + std::fmt::Display,
-    E: EDbgEdge + std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.graph, &[]))
     }
 }
