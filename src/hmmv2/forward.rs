@@ -106,6 +106,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     where
         S: Storage<Item = Prob>,
     {
+        // candidates of active nodes of next step
+        let active_nodes = prev_table.active_nodes.to_childs(self);
+
         let mut table = PHMMTable::new_with_active_nodes(
             self.n_nodes(),
             p(0.0),
@@ -114,8 +117,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             p(0.0),
             p(0.0),
             p(0.0),
-            prev_table.active_nodes.to_childs(self),
+            active_nodes,
         );
+
         // normal state first
         self.fm(&mut table, prev_table, emission);
         self.fi(&mut table, prev_table, emission);
@@ -154,6 +158,9 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// (Here `x[:i+1] = x[0],...,x[i]`)
+    ///
+    /// If `t0.active_nodes` is set, only node k in the ActiveNodes will
+    /// be calculated.
     ///
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
     fn fm<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
@@ -252,10 +259,10 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut fdt0 = self.fd0(t0);
-        t0.d += &fdt0;
+        t0.d += &fdt0.d;
         for _t in 0..param.n_max_gaps {
             fdt0 = self.fdt(&fdt0);
-            t0.d += &fdt0;
+            t0.d += &fdt0.d;
         }
     }
     ///
@@ -268,13 +275,16 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///   + (from_m_begin)                     t_bk p_md fm_i[b]
     ///   + (from_i_begin)                     t_bk p_id fi_i[b]
     /// ```
-    fn fd0<S>(&self, t0: &PHMMTable<S>) -> NodeVec<S>
+    ///
+    /// active_nodes will be determined by the childs of t0
+    ///
+    fn fd0<S>(&self, t0: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut fd0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        for (k, kw) in self.nodes() {
+        let mut fd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
+        for (k, kw) in self.active_nodes(&fd0.active_nodes) {
             // (1) from normal node
             let from_normal: Prob = self
                 .parents(k)
@@ -288,7 +298,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             // (2) from begin node
             let from_begin = kw.init_prob() * (param.p_MD * t0.mb + param.p_ID * t0.ib);
 
-            fd0[k] = from_normal + from_begin;
+            fd0.d[k] = from_normal + from_begin;
         }
         fd0
     }
@@ -300,20 +310,19 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fd_i(t)[k]
     /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     /// ```
-    fn fdt<S>(&self, fdt1: &NodeVec<S>) -> NodeVec<S>
+    fn fdt<S>(&self, fdt1: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
-        // TODO how to use active_nodes?
-        for (k, _) in self.nodes() {
-            fdt0[k] = self
+        let mut fdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
+        for (k, _) in self.active_nodes(&fdt0.active_nodes) {
+            fdt0.d[k] = self
                 .parents(k)
                 .map(|(_, l, ew)| {
                     // l -> k
                     let p_trans = ew.trans_prob();
-                    p_trans * (param.p_DD * fdt1[l])
+                    p_trans * (param.p_DD * fdt1.d[l])
                 })
                 .sum();
         }

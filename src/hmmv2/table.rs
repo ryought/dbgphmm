@@ -89,6 +89,17 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             active_nodes: ActiveNodes::All,
         }
     }
+    pub fn zero_with_active_nodes(n_nodes: usize, active_nodes: ActiveNodes) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            i: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            d: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
+            mb: Prob::from_prob(0.0),
+            ib: Prob::from_prob(0.0),
+            e: Prob::from_prob(0.0),
+            active_nodes,
+        }
+    }
 }
 
 /// Accessors of PHMMTable
