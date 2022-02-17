@@ -7,7 +7,7 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::common::Sequence;
-use crate::hmm::params::PHMMParams;
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use picker::{pick_ins_emission, pick_match_emission, pick_with_prob};

@@ -464,8 +464,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::ni;
-    use crate::hmm::params::PHMMParams;
     use crate::hmmv2::mocks::mock_linear_phmm;
+    use crate::hmmv2::params::PHMMParams;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]

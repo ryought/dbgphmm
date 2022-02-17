@@ -4,7 +4,7 @@
 use super::common::PModel;
 use crate::graph::mocks::*;
 use crate::graph::seq_graph::SeqGraph;
-use crate::hmm::params::PHMMParams;
+use crate::hmmv2::params::PHMMParams;
 
 ///
 /// Sample linear genome (10bp) "ATTCGATCGT"

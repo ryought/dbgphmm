@@ -4,8 +4,8 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::CopyNum;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
-use crate::hmm::params::PHMMParams;
 use crate::hmmv2::common::PModel;
+use crate::hmmv2::params::PHMMParams;
 
 impl<N: DbgNode> SeqNode for N {
     fn copy_num(&self) -> CopyNum {

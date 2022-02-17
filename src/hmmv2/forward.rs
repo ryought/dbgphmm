@@ -392,8 +392,8 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
-    use crate::hmm::params::PHMMParams;
     use crate::hmmv2::mocks::*;
+    use crate::hmmv2::params::PHMMParams;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]

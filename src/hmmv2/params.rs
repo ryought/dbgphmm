@@ -31,6 +31,9 @@ pub struct PHMMParams {
     ///
     /// number of warmup layer used in sparse result
     pub n_warmup: usize,
+    ///
+    /// maximum number of consecutive deletions allowed in phmm
+    pub n_max_gaps: usize,
 }
 
 impl PHMMParams {
@@ -42,7 +45,6 @@ impl PHMMParams {
         n_active_nodes: usize,
         n_warmup: usize,
     ) -> PHMMParams {
-        assert!(n_active_nodes <= MAX_DEL);
         PHMMParams {
             p_mismatch,
             p_gap_open,
@@ -68,6 +70,7 @@ impl PHMMParams {
             p_random: Prob::from_prob(0.25),
             n_active_nodes,
             n_warmup,
+            n_max_gaps: 4,
         }
     }
     pub fn default() -> PHMMParams {

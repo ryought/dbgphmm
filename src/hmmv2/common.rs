@@ -6,7 +6,7 @@ use crate::graph::active_nodes::ActiveNodes;
 use crate::graph::iterators::{
     ActiveNodesIterator, ChildEdges, EdgesIterator, NodesIterator, ParentEdges,
 };
-use crate::hmm::params::PHMMParams;
+use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::vector::{EdgeVec, NodeVec, Storage};
 use petgraph::dot::Dot;
@@ -299,7 +299,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ei, ni};
-    use crate::hmm::params::PHMMParams;
     use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
