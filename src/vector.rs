@@ -145,6 +145,22 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
             ty: PhantomData,
         }
     }
+    /// Convert to the SparseStorage-backed vector
+    /// storing values of the specified indexes.
+    pub fn to_sparse_by_indexes(
+        &self,
+        default_value: S::Item,
+        indexes: &[Ix],
+    ) -> Vector<SparseStorage<S::Item>, Ix> {
+        let mut v = Vector {
+            storage: SparseStorage::new(self.storage.size(), default_value),
+            ty: PhantomData,
+        };
+        for &index in indexes.iter() {
+            v[index] = self[index];
+        }
+        v
+    }
     pub fn is_dense(&self) -> bool {
         S::is_dense()
     }
