@@ -181,6 +181,18 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     }
 }
 
+//
+// Diff related functions
+//
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
+    ///
+    /// Measureing difference between two phmm tables
+    ///
+    pub fn diff<T: Storage<Item = Prob>>(&self, other: &PHMMTable<T>) -> f64 {
+        self.m.diff(&other.m) + self.i.diff(&other.i) + self.d.diff(&other.d)
+    }
+}
+
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header
@@ -494,5 +506,22 @@ mod tests {
         t.refresh_active_nodes(1);
         println!("{}", t);
         assert_eq!(t.active_nodes, ActiveNodes::Only(vec![ni(1)]))
+    }
+    #[test]
+    fn hmm_table_diff() {
+        let mut t1: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        let mut t2: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t2.m[ni(0)] = p(0.51);
+        t2.d[ni(0)] = p(0.02);
+        t2.i[ni(0)] = p(0.02);
+        t2.i[ni(1)] = p(0.21);
+        t2.m[ni(1)] = p(1.0);
+        println!("{}", t1.diff(&t2));
+        assert_abs_diff_eq!(t1.diff(&t2), 0.03);
     }
 }

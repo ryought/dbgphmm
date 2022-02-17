@@ -4,6 +4,7 @@
 //!
 use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign};
 pub mod dense;
+pub mod diff;
 pub mod graph;
 pub mod index;
 pub mod sparse;
