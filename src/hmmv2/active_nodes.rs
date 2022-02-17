@@ -50,18 +50,23 @@ impl ActiveNodes {
     where
         S: Storage<Item = Prob>,
     {
-        self.fit_to_nodevec(&t.to_nodevec(), n_active_nodes)
+        ActiveNodes::from_nodevec(&t.to_nodevec(), n_active_nodes)
     }
     ///
     /// Create active_nodes list from NodeVec
     /// by taking the n_active_nodes highest prob nodes from `v`.
     ///
-    pub fn fit_to_nodevec<S>(&self, v: &NodeVec<S>, n_active_nodes: usize) -> ActiveNodes
+    pub fn from_nodevec<S>(v: &NodeVec<S>, n_active_nodes: usize) -> ActiveNodes
     where
         S: Storage<Item = Prob>,
     {
-        // v.iter().k_smallest()
-        unimplemented!();
+        let nodes = v
+            .iter()
+            .sorted_by(|a, b| Ord::cmp(&b.1, &a.1)) // sort by prob in descending order
+            .take(n_active_nodes)
+            .map(|(node, _)| node)
+            .collect();
+        ActiveNodes::Only(nodes)
     }
 }
 
@@ -70,20 +75,18 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::prob::p;
+    use crate::vector::dense::DenseStorage;
 
     #[test]
-    fn itertools_k_smallest() {
-        let xs = vec![(p(0.2), ni(0)), (p(0.1), ni(10)), (p(0.5), ni(3))];
-        // let sm = xs.iter().k_smallest(2);
-        // k_largest
-        let ys: Vec<NodeIndex> = xs
-            .iter()
-            .sorted_by(|a, b| Ord::cmp(&b, &a))
-            .take(2)
-            .map(|(_, v)| v)
-            .copied()
-            .collect();
-        println!("{:?}", ys);
-        assert_eq!(ys, vec![ni(3), ni(0)])
+    fn active_nodes_from_node_vec() {
+        let mut v: NodeVec<DenseStorage<Prob>> = NodeVec::new(10, p(0.0));
+        v[ni(4)] = p(0.8);
+        v[ni(2)] = p(0.6);
+        v[ni(1)] = p(0.1);
+        v[ni(5)] = p(0.9);
+        v[ni(8)] = p(0.5);
+        let an = ActiveNodes::from_nodevec(&v, 3);
+        assert_eq!(an, ActiveNodes::Only(vec![ni(5), ni(4), ni(2)]));
+        println!("{:?}", an);
     }
 }
