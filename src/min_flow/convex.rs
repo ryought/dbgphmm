@@ -165,7 +165,7 @@ pub fn restore_convex_flow(
     fixed_graph: &FixedCostFlowGraph,
     graph: &ConvexFlowGraph,
 ) -> Flow {
-    let mut flow = Flow::empty();
+    let mut flow = Flow::zero(graph.edge_count());
 
     for e in graph.edge_indices() {
         let f = get_flow_in_fixed(e, fixed_flow, fixed_graph);

@@ -58,7 +58,7 @@ pub fn min_cost_flow_convex(graph: &ConvexFlowGraph) -> Option<Flow> {
 ///
 fn min_cost_flow_from_zero<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Flow {
     assert!(is_zero_demand_flow_graph(&graph));
-    let flow = Flow::zero(graph);
+    let flow = Flow::zero(graph.edge_count());
     min_cost_flow_from(graph, &flow)
 }
 

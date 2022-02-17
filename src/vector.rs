@@ -108,7 +108,11 @@ impl<'a, S: Storage> Iterator for StorageIterator<'a, S> {
 /// 2. backend storage `S: Storage`
 /// 3. index type `Ix: Indexable`
 ///
-#[derive(Clone, Debug)]
+/// TODO
+/// PartialEq and Eq should be revised.
+/// For sparsestorage, PartialEq should be ignore the ordering of elements.
+///
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Vector<S: Storage, Ix: Indexable = usize> {
     /// Backend storage of the Vector
     storage: S,

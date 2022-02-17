@@ -2,7 +2,7 @@
 //! Zero demand flow graphs
 //! for finding init valid flow
 //!
-use super::flow::{Flow, FlowEdgeRaw, FlowGraphRaw};
+use super::flow::{total_cost, Flow, FlowEdgeRaw, FlowGraphRaw};
 use super::min_cost_flow_from_zero;
 use petgraph::graph::{DiGraph, EdgeIndex};
 
@@ -89,8 +89,12 @@ fn to_zero_demand_graph<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> ZeroDema
 /// - type-A edge $ea$
 /// - type-B edge $eb$
 /// and the sum of the flows of the two is the flow of original edge $e$.
-fn zero_demand_flow_to_original_flow(zd_flow: &Flow, zd_graph: &ZeroDemandFlowGraph) -> Flow {
-    let mut flow = Flow::empty();
+fn zero_demand_flow_to_original_flow<T>(
+    graph: &FlowGraphRaw<T>,
+    zd_flow: &Flow,
+    zd_graph: &ZeroDemandFlowGraph,
+) -> Flow {
+    let mut flow = Flow::zero(graph.edge_count());
     for e in zd_graph.edge_indices() {
         let ew = zd_graph.edge_weight(e).unwrap();
         let zd_f = zd_flow.get(e).unwrap();
@@ -120,12 +124,12 @@ pub fn find_initial_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Option<
     let zd_flow = min_cost_flow_from_zero(&zdg);
 
     println!("sum_of_demand={:?}", sum_of_demand(&graph));
-    if zd_flow.total_cost(&zdg) > sum_of_demand(&graph) as f64 {
+    if total_cost(&zdg, &zd_flow) > sum_of_demand(&graph) as f64 {
         // valid flow does not exists
         None
     } else {
         // valid initial flow exists!
-        let flow = zero_demand_flow_to_original_flow(&zd_flow, &zdg);
+        let flow = zero_demand_flow_to_original_flow(graph, &zd_flow, &zdg);
         Some(flow)
     }
 }
