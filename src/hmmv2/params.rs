@@ -45,6 +45,8 @@ impl PHMMParams {
         n_active_nodes: usize,
         n_warmup: usize,
     ) -> PHMMParams {
+        assert!(n_active_nodes > 0);
+        assert!(n_warmup > 0);
         PHMMParams {
             p_mismatch,
             p_gap_open,

@@ -41,25 +41,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Run Forward algorithm to the emissions, with sparse calculation
     /// Not tested
     ///
-    pub fn forward_sparse(
-        &self,
-        emissions: &[u8],
-        n_warmup: usize,
-        n_active_nodes: usize,
-    ) -> PHMMResultSparse {
-        assert!(n_warmup > 1);
-        assert!(n_active_nodes > 1);
+    pub fn forward_sparse(&self, emissions: &[u8]) -> PHMMResultSparse {
         let r0 = PHMMResultSparse {
             init_table: self.f_init(),
             tables_warmup: Vec::new(),
             tables_sparse: Vec::new(),
             is_forward: true,
         };
+        let param = &self.param;
         emissions
             .iter()
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
-                if i < n_warmup {
+                if i < param.n_warmup {
                     // dense_table -> dense_table
                     let table = if i == 0 {
                         self.f_step(i, emission, &r.init_table)
@@ -67,20 +61,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                         self.f_step(i, emission, r.tables_warmup.last().unwrap())
                     };
                     r.tables_warmup.push(table);
-                } else if i == n_warmup {
+                } else if i == param.n_warmup {
                     // dense_table -> sparse_table
                     let table_prev = r
                         .tables_warmup
                         .last()
                         .unwrap()
-                        .to_sparse_active_nodes(n_active_nodes);
+                        .to_sparse_active_nodes(param.n_active_nodes);
                     let mut table = self.f_step(i, emission, &table_prev);
-                    table.refresh_active_nodes(n_active_nodes);
+                    table.refresh_active_nodes(param.n_active_nodes);
                     r.tables_sparse.push(table);
                 } else {
                     // sparse_table -> sparse_table
                     let mut table = self.f_step(i, emission, r.tables_sparse.last().unwrap());
-                    table.refresh_active_nodes(n_active_nodes);
+                    table.refresh_active_nodes(param.n_active_nodes);
                     r.tables_sparse.push(table);
                 };
                 r
@@ -448,7 +442,7 @@ mod tests {
         println!("{}", sequence_to_string(&read));
 
         let r1 = phmm.forward(&read);
-        let r2 = phmm.forward_sparse(&read, 16, 40);
+        let r2 = phmm.forward_sparse(&read);
         for i in 0..r1.n_emissions() {
             let t1 = r1.table(i);
             let t2 = r2.table(i);
