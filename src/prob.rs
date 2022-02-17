@@ -87,6 +87,17 @@ impl std::ops::Div for Prob {
         Prob(self.0 - other.0)
     }
 }
+// assign
+impl std::ops::AddAssign for Prob {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
+    }
+}
+impl std::ops::MulAssign for Prob {
+    fn mul_assign(&mut self, other: Self) {
+        *self = *self * other;
+    }
+}
 // sum/prod
 impl std::iter::Sum for Prob {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
@@ -246,5 +257,23 @@ mod tests {
         assert!(zero.is_zero());
         let nonzero = Prob::from_prob(0.00001);
         assert!(!nonzero.is_zero());
+    }
+    #[test]
+    fn test_prob_assign() {
+        let mut x = p(0.4);
+        let y = p(0.2);
+        x += y;
+        assert_abs_diff_eq!(x, p(0.6));
+        let z = p(0.5);
+        x *= z;
+        assert_abs_diff_eq!(x, p(0.3));
+        let o = p(1.0);
+        x *= o;
+        assert_abs_diff_eq!(x, p(0.3));
+        let z = p(0.0);
+        x += z;
+        assert_abs_diff_eq!(x, p(0.3));
+        x *= z;
+        assert!(x.is_zero());
     }
 }
