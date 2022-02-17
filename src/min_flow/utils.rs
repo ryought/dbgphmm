@@ -71,7 +71,7 @@ where
     let graph_with_flow = graph.map(
         |_, vw| vw,
         |e, ew| EdgeWithFlow {
-            flow: flow.get(e).unwrap(),
+            flow: flow[e],
             info: ew,
         },
     );

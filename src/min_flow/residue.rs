@@ -123,7 +123,7 @@ pub fn flow_to_residue<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow)
 
     // create two edges (Up and Down) for each edge
     for e in graph.edge_indices() {
-        let f = flow.get(e).unwrap();
+        let f = flow[e];
         let ew = graph.edge_weight(e).unwrap();
         let (v, w) = graph.edge_endpoints(e).unwrap();
         println!("{:?} {:?} {}", e, ew, f);
@@ -230,13 +230,13 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         println!("{:?} {:?}", edge, ew);
         // convert back to the original edgeindex
         let original_edge = ew.target;
-        let original_edge_flow = flow.get(original_edge).unwrap();
+        let original_edge_flow = flow[original_edge];
 
         let new_edge_flow = match ew.direction {
             ResidueDirection::Up => original_edge_flow + flow_change_amount,
             ResidueDirection::Down => original_edge_flow - flow_change_amount,
         };
-        new_flow.set(original_edge, new_edge_flow);
+        new_flow[original_edge] = new_edge_flow;
     }
 
     new_flow

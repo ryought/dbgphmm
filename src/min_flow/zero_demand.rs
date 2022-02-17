@@ -94,18 +94,13 @@ fn zero_demand_flow_to_original_flow<T>(
     zd_flow: &Flow,
     zd_graph: &ZeroDemandFlowGraph,
 ) -> Flow {
-    let mut flow = Flow::zero(graph.edge_count());
+    let mut flow = Flow::new(graph.edge_count(), 0);
     for e in zd_graph.edge_indices() {
         let ew = zd_graph.edge_weight(e).unwrap();
-        let zd_f = zd_flow.get(e).unwrap();
+        let zd_f = zd_flow[e];
         let original_edge = ew.info.origin;
 
-        if flow.has(original_edge) {
-            let f = flow.get(original_edge).unwrap();
-            flow.set(original_edge, f + zd_f);
-        } else {
-            flow.set(original_edge, zd_f);
-        }
+        flow[original_edge] += zd_f;
     }
     flow
 }

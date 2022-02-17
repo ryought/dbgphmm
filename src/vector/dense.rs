@@ -6,7 +6,7 @@ use super::{SparseStorage, Storage};
 /// Dense storage powered by `std::Vec`
 ///
 /// In `DenseStorage`, internal id equals to index.
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>

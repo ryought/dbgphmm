@@ -151,7 +151,7 @@ fn get_flow_in_fixed(edge: EdgeIndex, fixed_flow: &Flow, fixed_graph: &FixedCost
         .filter_map(|fe| {
             let fe_weight = fixed_graph.edge_weight(fe).unwrap();
             if fe_weight.info.origin == edge {
-                let flow = fixed_flow.get(fe).unwrap();
+                let flow = fixed_flow[fe];
                 Some(flow)
             } else {
                 None
@@ -165,11 +165,11 @@ pub fn restore_convex_flow(
     fixed_graph: &FixedCostFlowGraph,
     graph: &ConvexFlowGraph,
 ) -> Flow {
-    let mut flow = Flow::zero(graph.edge_count());
+    let mut flow = Flow::new(graph.edge_count(), 0);
 
     for e in graph.edge_indices() {
         let f = get_flow_in_fixed(e, fixed_flow, fixed_graph);
-        flow.set(e, f);
+        flow[e] = f;
     }
 
     flow
@@ -188,7 +188,7 @@ fn mock_convex_flow_graph1() -> (ConvexFlowGraph, Flow) {
     let e1 = g.add_edge(b, c, cfe(0, 10, |f| (f as f64 - 5.0).powi(2)));
     let e2 = g.add_edge(c, a, cfe(0, 10, |f| (f as f64 - 5.0).powi(2)));
 
-    let f = Flow::from_vec(&[(e0, 5), (e1, 5), (e2, 5)]);
+    let f = Flow::from_vec(3, 0, &[(e0, 5), (e1, 5), (e2, 5)]);
 
     (g, f)
 }
@@ -216,17 +216,21 @@ fn mock_convex_flow_graph2() -> (ConvexFlowGraph, Flow) {
     let e8 = g.add_edge(v2, w2, cfe(0, 6, |f| -10.0 * clamped_log(f)));
 
     // true flow
-    let f = Flow::from_vec(&[
-        (e0, 2),
-        (e1, 4),
-        (e2, 1),
-        (e3, 5),
-        (e4, 6),
-        (e5, 0),
-        (e6, 2),
-        (e7, 1),
-        (e8, 3),
-    ]);
+    let f = Flow::from_vec(
+        9,
+        0,
+        &[
+            (e0, 2),
+            (e1, 4),
+            (e2, 1),
+            (e3, 5),
+            (e4, 6),
+            (e5, 0),
+            (e6, 2),
+            (e7, 1),
+            (e8, 3),
+        ],
+    );
 
     (g, f)
 }
