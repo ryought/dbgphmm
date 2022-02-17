@@ -6,7 +6,6 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
-use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use crate::vector::{NodeVec, Storage};
 
