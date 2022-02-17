@@ -7,12 +7,16 @@ use serde_with::{serde_as, DisplayFromStr};
 #[serde(tag = "group", content = "data")]
 pub enum Element {
     #[serde(rename = "nodes")]
+    /// Node element of cytoscape
     Node {
+        /// Node id
         id: usize,
+        /// Node label
         #[serde_as(as = "DisplayFromStr")]
         label: Kmer,
     },
     #[serde(rename = "edges")]
+    /// Edge element of cytoscape
     Edge {
         id: usize,
         source: usize,
@@ -20,6 +24,7 @@ pub enum Element {
         #[serde_as(as = "DisplayFromStr")]
         label: Kmer,
         widths: Vec<u32>,
+        /// TODO?
         true_width: Option<u32>,
     },
 }
@@ -45,5 +50,30 @@ mod tests {
         });
         let serialized = serde_json::to_string_pretty(&elements).unwrap();
         println!("{}", serialized);
+        let answer = r#"[
+  {
+    "group": "nodes",
+    "data": {
+      "id": 0,
+      "label": "ATCGA"
+    }
+  },
+  {
+    "group": "edges",
+    "data": {
+      "id": 0,
+      "source": 0,
+      "target": 1,
+      "label": "ATCGAT",
+      "widths": [
+        0,
+        1,
+        2
+      ],
+      "true_width": null
+    }
+  }
+]"#;
+        assert_eq!(serialized, answer);
     }
 }
