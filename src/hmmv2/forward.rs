@@ -2,9 +2,11 @@
 //! Forward algorithm definitions
 //!
 
+use super::active_nodes::ActiveNodeVec;
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultSparse};
 use super::table::PHMMTable;
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use crate::vector::{NodeVec, Storage};
 
@@ -98,11 +100,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Forward algorithm
     ///
+    /// If `prev_table.active_nodes` is set (i.e. `ActiveNodes::Only`),
+    ///
     fn f_step<S>(&self, _i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
-        let mut table = PHMMTable::new(
+        let mut table = PHMMTable::new_with_active_nodes(
             self.n_nodes(),
             p(0.0),
             p(0.0),
@@ -110,6 +114,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             p(0.0),
             p(0.0),
             p(0.0),
+            prev_table.active_nodes.to_childs(self),
         );
         // normal state first
         self.fm(&mut table, prev_table, emission);
@@ -119,6 +124,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         // silent state next
         self.fd(&mut table, prev_table, emission);
         self.fe(&mut table, prev_table, emission);
+
+        // TODO fit the active nodes
+
         table
     }
 }
@@ -153,7 +161,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.nodes() {
+        for (k, kw) in self.active_nodes(&t0.active_nodes) {
             // emission prob
             let p_emit = self.p_match_emit(k, emission);
 
@@ -195,7 +203,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, _) in self.nodes() {
+        for (k, _) in self.active_nodes(&t0.active_nodes) {
             // emission prob
             let p_emit = self.p_ins_emit();
 
@@ -298,6 +306,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         let param = &self.param;
         let mut fdt0 = NodeVec::new(self.n_nodes(), Prob::from_prob(0.0));
+        // TODO how to use active_nodes?
         for (k, _) in self.nodes() {
             fdt0[k] = self
                 .parents(k)
@@ -350,7 +359,10 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let p_normal: Prob = self.nodes().map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k]).sum();
+        let p_normal: Prob = self
+            .active_nodes(&t0.active_nodes)
+            .map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k])
+            .sum();
         t0.e = param.p_end * p_normal
     }
 }

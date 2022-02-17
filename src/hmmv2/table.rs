@@ -58,6 +58,26 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             active_nodes: ActiveNodes::All,
         }
     }
+    pub fn new_with_active_nodes(
+        n_nodes: usize,
+        m: Prob,
+        i: Prob,
+        d: Prob,
+        mb: Prob,
+        ib: Prob,
+        e: Prob,
+        active_nodes: ActiveNodes,
+    ) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, m),
+            i: NodeVec::new(n_nodes, i),
+            d: NodeVec::new(n_nodes, d),
+            mb,
+            ib,
+            e,
+            active_nodes,
+        }
+    }
     pub fn zero(n_nodes: usize) -> Self {
         PHMMTable {
             m: NodeVec::new(n_nodes, Prob::from_prob(0.0)),

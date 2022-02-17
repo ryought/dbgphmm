@@ -15,13 +15,13 @@ pub enum PHMMTableRef<'a> {
     Sparse(&'a PHMMTable<SparseStorage<Prob>>),
 }
 
-// ///
-// ///
-// ///
-// pub enum PHMMTableEnum {
-//     Dense(PHMMTable<DenseStorage<Prob>>),
-//     Sparse(PHMMTable<SparseStorage<Prob>>),
-// }
+///
+///
+///
+pub enum PHMMTableEnum {
+    Dense(PHMMTable<DenseStorage<Prob>>),
+    Sparse(PHMMTable<SparseStorage<Prob>>),
+}
 
 impl<'a> PHMMTableRef<'a> {
     /// Get a value from `PHMMTable.m` by node index
