@@ -129,10 +129,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     where
         S: Storage<Item = Prob>,
     {
-        // candidates of active nodes of next step
-        let active_nodes = prev_table.active_nodes.to_parents_and_us(self);
-
-        let mut table = PHMMTable::new_with_active_nodes(
+        // active_nodes are not used in bd and be
+        let mut table = PHMMTable::new(
             self.n_nodes(),
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
@@ -140,12 +138,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
             Prob::from_prob(0.0),
-            active_nodes,
         );
 
         // bd (silent states) should be first
         self.bd(&mut table, prev_table, emission);
         self.be(&mut table, prev_table, emission);
+
+        // candidates of active nodes of next step
+        if !S::is_dense() {
+            let parents_and_us = prev_table.active_nodes.to_parents_and_us(self);
+            let active_in_d = table.active_nodes_from_prob(self.param.n_active_nodes);
+            table.active_nodes = parents_and_us.merge(&active_in_d);
+        }
+
         // normal state is next
         self.bm(&mut table, prev_table, emission);
         self.bi(&mut table, prev_table, emission);
@@ -240,8 +245,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             bd0.d[k] = p_to_match + p_to_ins;
         }
 
-        // TODO
-        // table.refresh_active_nodes(n_active_nodes);
+        // shrink active_nodes to actually-high prob nodes
+        bd0.refresh_active_nodes(param.n_active_nodes);
 
         bd0
     }
@@ -259,9 +264,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
+
         // bdt0.d[k] only depends on k's child l in bdt1.d
         let active_nodes = bdt1.active_nodes.to_parents(self);
         let mut bdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
+
         for (k, _) in self.active_nodes(&bdt0.active_nodes) {
             bdt0.d[k] = self
                 .childs(k)
@@ -272,8 +279,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 })
                 .sum();
         }
-        // TODO
-        // table.refresh_active_nodes(n_active_nodes);
+
+        // shrink active_nodes to actually-high prob nodes
+        bdt0.refresh_active_nodes(param.n_active_nodes);
+
         bdt0
     }
     /// Fill the backward probs of `Match` states

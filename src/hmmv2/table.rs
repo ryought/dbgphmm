@@ -176,7 +176,7 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     }
     /// Determine latest active_nodes from the current probabilities in the table
     ///
-    fn active_nodes_from_prob(&self, n_active_nodes: usize) -> ActiveNodes {
+    pub fn active_nodes_from_prob(&self, n_active_nodes: usize) -> ActiveNodes {
         ActiveNodes::from_nodevec(&self.to_nodevec(), n_active_nodes)
     }
 }
