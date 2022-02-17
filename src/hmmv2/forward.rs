@@ -41,7 +41,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Run Forward algorithm to the emissions, with sparse calculation
     /// Not tested
     ///
-    pub fn forward_sparse(&self, emissions: &[u8], n_warmup: usize) -> PHMMResultSparse {
+    pub fn forward_sparse(
+        &self,
+        emissions: &[u8],
+        n_warmup: usize,
+        n_active_nodes: usize,
+    ) -> PHMMResultSparse {
         let r0 = PHMMResultSparse {
             init_table: self.f_init(),
             tables_warmup: Vec::new(),
@@ -66,12 +71,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                         .tables_warmup
                         .last()
                         .unwrap()
-                        .to_sparse(Prob::from_prob(0.0));
-                    let table = self.f_step(i, emission, &table_prev);
+                        .to_sparse_active_nodes(n_active_nodes);
+                    let mut table = self.f_step(i, emission, &table_prev);
+                    table.refresh_active_nodes(n_active_nodes);
                     r.tables_sparse.push(table);
                 } else {
                     // sparse_table -> sparse_table
-                    let table = self.f_step(i, emission, r.tables_sparse.last().unwrap());
+                    let mut table = self.f_step(i, emission, r.tables_sparse.last().unwrap());
+                    table.refresh_active_nodes(n_active_nodes);
                     r.tables_sparse.push(table);
                 };
                 r
@@ -127,8 +134,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         // silent state next
         self.fd(&mut table, prev_table, emission);
         self.fe(&mut table, prev_table, emission);
-
-        // TODO fit the active nodes
 
         table
     }

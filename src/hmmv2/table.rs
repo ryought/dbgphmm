@@ -8,7 +8,7 @@
 //! F[Match,v] or B[Match,v]
 //!
 use crate::graph::active_nodes::ActiveNodes;
-use crate::prob::Prob;
+use crate::prob::{p, Prob};
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
 pub use petgraph::graph::NodeIndex;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
@@ -133,6 +133,23 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             active_nodes: self.active_nodes.clone(),
         }
     }
+    /// Convert to the SparseStorage-backend PHMMTable
+    /// by taking only active_nodes
+    pub fn to_sparse_active_nodes(&self, n_active_nodes: usize) -> PHMMTable<SparseStorage<Prob>> {
+        let active_nodes = self.active_nodes_from_prob(n_active_nodes);
+        match active_nodes {
+            ActiveNodes::Only(nodes) => PHMMTable {
+                m: self.m.to_sparse_by_indexes(p(0.0), &nodes),
+                i: self.i.to_sparse_by_indexes(p(0.0), &nodes),
+                d: self.d.to_sparse_by_indexes(p(0.0), &nodes),
+                mb: self.mb,
+                ib: self.ib,
+                e: self.e,
+                active_nodes: ActiveNodes::Only(nodes),
+            },
+            ActiveNodes::All => unreachable!(),
+        }
+    }
     /// Convert to the nodevec containing the sum of hidden states for each node
     /// `v[node] = t.m[node] + t.i[node] + t.d[node]`
     ///
@@ -153,10 +170,14 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
 
 /// Active nodes related methods
 impl<S: Storage<Item = Prob>> PHMMTable<S> {
-    /// refresh self.active_nodes
-    /// by its own probabilities
-    fn refresh_active_nodes(&mut self, n_active_nodes: usize) {
-        self.active_nodes = ActiveNodes::from_nodevec(&self.to_nodevec(), n_active_nodes)
+    /// refresh self.active_nodes by its own probabilities
+    pub fn refresh_active_nodes(&mut self, n_active_nodes: usize) {
+        self.active_nodes = self.active_nodes_from_prob(n_active_nodes);
+    }
+    /// Determine latest active_nodes from the current probabilities in the table
+    ///
+    fn active_nodes_from_prob(&self, n_active_nodes: usize) -> ActiveNodes {
+        ActiveNodes::from_nodevec(&self.to_nodevec(), n_active_nodes)
     }
 }
 
