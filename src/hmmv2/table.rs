@@ -521,7 +521,9 @@ mod tests {
         t2.i[ni(0)] = p(0.02);
         t2.i[ni(1)] = p(0.21);
         t2.m[ni(1)] = p(1.0);
-        println!("{}", t1.diff(&t2));
+        println!("d(t1,t2)={}", t1.diff(&t2));
+        println!("d(t2,t1)={}", t2.diff(&t1));
         assert_abs_diff_eq!(t1.diff(&t2), 0.03);
+        assert_abs_diff_eq!(t2.diff(&t1), 0.03);
     }
 }

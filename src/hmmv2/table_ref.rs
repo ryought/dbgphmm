@@ -84,3 +84,20 @@ impl<'a, 'b> Mul<&'a PHMMTableRef<'a>> for &'b PHMMTableRef<'b> {
         }
     }
 }
+
+//
+// Diff
+//
+impl<'a> PHMMTableRef<'a> {
+    ///
+    /// Measureing difference between two phmm tables
+    ///
+    pub fn diff(&self, other: &PHMMTableRef) -> f64 {
+        match (self, other) {
+            (&PHMMTableRef::Dense(s), &PHMMTableRef::Dense(o)) => s.diff(o),
+            (&PHMMTableRef::Dense(s), &PHMMTableRef::Sparse(o)) => s.diff(o),
+            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(o)) => s.diff(o),
+            (&PHMMTableRef::Sparse(s), &PHMMTableRef::Sparse(o)) => s.diff(o),
+        }
+    }
+}
