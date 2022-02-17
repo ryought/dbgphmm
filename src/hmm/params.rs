@@ -23,6 +23,12 @@ pub struct PHMMParams {
     pub only_active_nodes: bool,
     pub n_max_active_nodes: usize,
     pub n_ignore_active_nodes_first: usize,
+    // ///
+    // /// number of active nodes in sparse calculation
+    // pub n_active_nodes: usize,
+    // ///
+    // /// number of warmup layer used in sparse result
+    // pub n_warmup: usize,
 }
 
 impl PHMMParams {

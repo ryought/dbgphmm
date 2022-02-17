@@ -223,9 +223,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        // TODO
-        let mut bd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
-        for (k, _) in self.nodes() {
+
+        // bd0.d[k] depends on child and itself.
+        let active_nodes = t0.active_nodes.to_parents_and_us(self);
+        let mut bd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
+
+        for (k, _) in self.active_nodes(&bd0.active_nodes) {
             // (1) to match
             let p_to_match: Prob = self
                 .childs(k)
@@ -242,6 +245,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             let p_to_ins = param.p_DI * self.p_ins_emit() * t0.i[k];
             bd0.d[k] = p_to_match + p_to_ins;
         }
+
+        // TODO
+        // table.refresh_active_nodes(n_active_nodes);
+
         bd0
     }
     ///
@@ -258,8 +265,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut bdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), ActiveNodes::All);
-        for (k, _) in self.nodes() {
+        // bdt0.d[k] only depends on k's child l in bdt1.d
+        let active_nodes = bdt1.active_nodes.to_parents(self);
+        let mut bdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
+        for (k, _) in self.active_nodes(&bdt0.active_nodes) {
             bdt0.d[k] = self
                 .childs(k)
                 .map(|(_, l, ew)| {
@@ -269,6 +278,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 })
                 .sum();
         }
+        // TODO
+        // table.refresh_active_nodes(n_active_nodes);
         bdt0
     }
     /// Fill the backward probs of `Match` states
