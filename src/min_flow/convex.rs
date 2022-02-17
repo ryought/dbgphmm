@@ -13,6 +13,45 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 ///   convex cost function
 /// are assigned.
 ///
+pub trait ConvexFlowEdge {
+    ///
+    /// demand (lower limit of flow) of the edge l(e)
+    ///
+    fn demand(&self) -> u32;
+    ///
+    /// capacity (upper limit of flow) of the edge u(e)
+    ///
+    fn capacity(&self) -> u32;
+    /// cost function
+    ///
+    /// it is a convex function of the current flow
+    fn convex_cost(&self) -> fn(u32) -> f64;
+    fn is_finite_capacity(&self) -> bool {
+        self.capacity() < 100
+    }
+    fn is_convex(&self) -> bool {
+        is_convex(self.convex_cost(), self.demand(), self.capacity())
+    }
+}
+
+impl<E: ConvexFlowEdge> EdgeCost for E {
+    fn cost(&self, flow: u32) -> f64 {
+        self.convex_cost()(flow)
+    }
+}
+
+//
+// Base implementations
+//
+
+///
+/// Edge attributes of ConvexFlowGraph
+/// For each edge,
+///   demand
+///   capacity
+///   convex cost function
+/// are assigned.
+///
 #[derive(Debug, Copy, Clone)]
 pub struct BaseConvexFlowEdge {
     /// demand (lower limit of flow) of the edge l(e)
@@ -24,6 +63,18 @@ pub struct BaseConvexFlowEdge {
     pub convex_cost: fn(u32) -> f64,
 }
 
+impl ConvexFlowEdge for BaseConvexFlowEdge {
+    fn demand(&self) -> u32 {
+        self.demand
+    }
+    fn capacity(&self) -> u32 {
+        self.capacity
+    }
+    fn convex_cost(&self) -> fn(u32) -> f64 {
+        self.convex_cost
+    }
+}
+
 impl BaseConvexFlowEdge {
     pub fn new(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
         BaseConvexFlowEdge {
@@ -32,23 +83,11 @@ impl BaseConvexFlowEdge {
             convex_cost,
         }
     }
-    pub fn is_finite_capacity(&self) -> bool {
-        self.capacity < 100
-    }
-    pub fn is_convex(&self) -> bool {
-        is_convex(self.convex_cost, self.demand, self.capacity)
-    }
 }
 
 /// short version of BaseConvexFlowEdge::new
 fn cfe(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
     BaseConvexFlowEdge::new(demand, capacity, convex_cost)
-}
-
-impl EdgeCost for BaseConvexFlowEdge {
-    fn cost(&self, flow: u32) -> f64 {
-        (self.convex_cost)(flow)
-    }
 }
 
 pub type ConvexFlowGraph = DiGraph<(), BaseConvexFlowEdge>;
@@ -99,14 +138,9 @@ pub type FixedCostFlowGraph = DiGraph<(), FixedCostFlowEdge>;
 //
 // conversion functions
 //
-
-///
-/// convert convex flow graph to the (normal, fixed constant cost) flow graph
-///
-/// create an parallel edges
-/// with static cost of `e.cost(f + 1) - e.cost(f)`
-///
-pub fn to_fixed_flow_graph(graph: &ConvexFlowGraph) -> Option<FixedCostFlowGraph> {
+pub fn to_fixed_flow_graph_v2<N, E: ConvexFlowEdge>(
+    graph: &DiGraph<N, E>,
+) -> Option<FixedCostFlowGraph> {
     let mut g: FixedCostFlowGraph = FixedCostFlowGraph::new();
 
     for e in graph.edge_indices() {
@@ -125,12 +159,12 @@ pub fn to_fixed_flow_graph(graph: &ConvexFlowGraph) -> Option<FixedCostFlowGraph
 
         // convert to the FixedFlowGraph
         // (1) if demand d > 0, add an edge of [demand,capacity]=[d,d]
-        if ew.demand > 0 {
-            let demand = ew.demand;
+        if ew.demand() > 0 {
+            let demand = ew.demand();
             g.extend_with_edges(&[(v, w, FixedCostFlowEdge::new(demand, demand, 0.0, e, 0))]);
         }
         // (2) add aux edges of [demand,capacity]=[0,1]
-        let edges: Vec<(NodeIndex, NodeIndex, FixedCostFlowEdge)> = (ew.demand..ew.capacity)
+        let edges: Vec<(NodeIndex, NodeIndex, FixedCostFlowEdge)> = (ew.demand()..ew.capacity())
             .map(|f| {
                 let cost = ew.cost(f + 1) - ew.cost(f);
                 let fe = FixedCostFlowEdge::new(0, 1, cost, e, f);
@@ -141,6 +175,16 @@ pub fn to_fixed_flow_graph(graph: &ConvexFlowGraph) -> Option<FixedCostFlowGraph
     }
 
     Some(g)
+}
+
+///
+/// convert convex flow graph to the (normal, fixed constant cost) flow graph
+///
+/// create an parallel edges
+/// with static cost of `e.cost(f + 1) - e.cost(f)`
+///
+pub fn to_fixed_flow_graph(graph: &ConvexFlowGraph) -> Option<FixedCostFlowGraph> {
+    to_fixed_flow_graph_v2(graph)
 }
 
 fn get_flow_in_fixed(edge: EdgeIndex, fixed_flow: &Flow, fixed_graph: &FixedCostFlowGraph) -> u32 {
