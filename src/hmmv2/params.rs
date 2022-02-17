@@ -1,8 +1,8 @@
 //!
 //! PHMMParams for v2 hmm
 //!
-use super::table::MAX_DEL;
 use crate::prob::Prob;
+use crate::vector::sparse::SIZE;
 
 ///
 /// PHMMParams for HMMv2
@@ -47,6 +47,8 @@ impl PHMMParams {
     ) -> PHMMParams {
         assert!(n_active_nodes > 0);
         assert!(n_warmup > 0);
+        // TODO less than 1/5 * SIZE?
+        assert!(n_active_nodes < SIZE);
         PHMMParams {
             p_mismatch,
             p_gap_open,
