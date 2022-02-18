@@ -2,7 +2,7 @@
 //! Zero demand flow graphs
 //! for finding init valid flow
 //!
-use super::flow::{total_cost, Flow, FlowEdgeLike, FlowEdgeRaw, FlowGraphRaw};
+use super::flow::{total_cost, Flow, FlowEdge, FlowEdgeRaw, FlowGraphRaw};
 use super::min_cost_flow_from_zero;
 use petgraph::graph::{DiGraph, EdgeIndex};
 
@@ -50,7 +50,7 @@ pub type ZeroDemandFlowGraph = DiGraph<(), ZeroDemandFlowEdge>;
 
 /// Convert normal FlowGraph to ZeroDemandGraph
 /// (min-cost-flow on ZeroDemandGraph) == (one of the valid flow on FlowGraph)
-fn to_zero_demand_graph<N, E: FlowEdgeLike + std::fmt::Debug>(
+fn to_zero_demand_graph<N, E: FlowEdge + std::fmt::Debug>(
     graph: &DiGraph<N, E>,
 ) -> ZeroDemandFlowGraph {
     let mut zdg: ZeroDemandFlowGraph = ZeroDemandFlowGraph::new();
@@ -91,7 +91,7 @@ fn to_zero_demand_graph<N, E: FlowEdgeLike + std::fmt::Debug>(
 /// - type-A edge $ea$
 /// - type-B edge $eb$
 /// and the sum of the flows of the two is the flow of original edge $e$.
-fn zero_demand_flow_to_original_flow<N, E: FlowEdgeLike>(
+fn zero_demand_flow_to_original_flow<N, E: FlowEdge>(
     graph: &DiGraph<N, E>,
     zd_flow: &Flow,
     zd_graph: &ZeroDemandFlowGraph,
@@ -114,9 +114,7 @@ fn zero_demand_flow_to_original_flow<N, E: FlowEdgeLike>(
 /// 2. find the min-cost-flow on the zero demand graph
 /// 3. convert it back to the valid flow on the original graph
 ///
-pub fn find_initial_flow<N, E: FlowEdgeLike + std::fmt::Debug>(
-    graph: &DiGraph<N, E>,
-) -> Option<Flow> {
+pub fn find_initial_flow<N, E: FlowEdge + std::fmt::Debug>(graph: &DiGraph<N, E>) -> Option<Flow> {
     let zdg = to_zero_demand_graph(graph);
     // utils::draw(&zdg);
     let zd_flow = min_cost_flow_from_zero(&zdg);
@@ -139,7 +137,7 @@ pub fn find_initial_flow<N, E: FlowEdgeLike + std::fmt::Debug>(
 /// we should know whether the given graph is demand-less
 /// that is all demands of the edges are 0.
 ///
-pub fn is_zero_demand_flow_graph<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>) -> bool {
+pub fn is_zero_demand_flow_graph<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> bool {
     graph.edge_indices().all(|e| {
         let ew = graph.edge_weight(e).unwrap();
         ew.demand() == 0
@@ -149,7 +147,7 @@ pub fn is_zero_demand_flow_graph<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>) -> b
 ///
 /// sum of edge demand
 ///
-fn sum_of_demand<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>) -> u32 {
+fn sum_of_demand<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> u32 {
     graph
         .edge_indices()
         .map(|e| {
