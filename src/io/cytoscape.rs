@@ -1,6 +1,12 @@
+use crate::common::{CopyNum, Freq};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
+
+//
+// V1
+//
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize)]
@@ -26,6 +32,49 @@ pub enum Element {
         widths: Vec<u32>,
         /// TODO?
         true_width: Option<u32>,
+    },
+}
+
+//
+// V2
+//
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NodeAttr {
+    CopyNum(CopyNum),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EdgeAttr {
+    TrueCopyNum(CopyNum),
+    CopyNums(Vec<CopyNum>),
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "group", content = "data")]
+pub enum ElementV2 {
+    #[serde(rename = "nodes")]
+    /// Node element of cytoscape
+    Node {
+        /// Node id
+        id: usize,
+        /// Node label
+        #[serde_as(as = "Option<DisplayFromStr>")]
+        label: Option<Kmer>,
+        attrs: Vec<NodeAttr>,
+    },
+    #[serde(rename = "edges")]
+    /// Edge element of cytoscape
+    Edge {
+        id: usize,
+        source: usize,
+        target: usize,
+        #[serde_as(as = "Option<DisplayFromStr>")]
+        label: Option<Kmer>,
+        attrs: Vec<EdgeAttr>,
     },
 }
 
@@ -75,5 +124,24 @@ mod tests {
   }
 ]"#;
         assert_eq!(serialized, answer);
+    }
+
+    #[test]
+    fn cytoscape_v2_serialize_test() {
+        let mut elements = Vec::new();
+        elements.push(ElementV2::Node {
+            id: 0,
+            label: Some(Kmer::from_bases(b"ATCGA")),
+            attrs: vec![NodeAttr::CopyNum(10)],
+        });
+        elements.push(ElementV2::Edge {
+            id: 0,
+            source: 0,
+            target: 1,
+            label: Some(Kmer::from_bases(b"ATCGAT")),
+            attrs: vec![EdgeAttr::TrueCopyNum(10), EdgeAttr::CopyNums(vec![10, 20])],
+        });
+        let serialized = serde_json::to_string_pretty(&elements).unwrap();
+        println!("{}", serialized);
     }
 }
