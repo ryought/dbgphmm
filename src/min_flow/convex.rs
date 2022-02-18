@@ -1,6 +1,7 @@
 //!
 //! Flow network definitions for convex cost.
 //!
+pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdgeRaw};
 use super::utils::{clamped_log, is_convex};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
