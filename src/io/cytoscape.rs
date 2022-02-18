@@ -60,7 +60,8 @@ pub enum ElementV2 {
     /// Node element of cytoscape
     Node {
         /// Node id
-        id: usize,
+        #[serde(serialize_with = "serialize_node")]
+        id: NodeIndex,
         /// Node label
         #[serde_as(as = "Option<DisplayFromStr>")]
         label: Option<Kmer>,
@@ -69,13 +70,24 @@ pub enum ElementV2 {
     #[serde(rename = "edges")]
     /// Edge element of cytoscape
     Edge {
-        id: usize,
-        source: usize,
-        target: usize,
+        #[serde(serialize_with = "serialize_edge")]
+        id: EdgeIndex,
+        #[serde(serialize_with = "serialize_node")]
+        source: NodeIndex,
+        #[serde(serialize_with = "serialize_node")]
+        target: NodeIndex,
         #[serde_as(as = "Option<DisplayFromStr>")]
         label: Option<Kmer>,
         attrs: Vec<EdgeAttr>,
     },
+}
+
+fn serialize_node<S: serde::Serializer>(node: &NodeIndex, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&format!("n{}", node.index()))
+}
+
+fn serialize_edge<S: serde::Serializer>(edge: &EdgeIndex, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&format!("e{}", edge.index()))
 }
 
 #[cfg(test)]
@@ -130,14 +142,14 @@ mod tests {
     fn cytoscape_v2_serialize_test() {
         let mut elements = Vec::new();
         elements.push(ElementV2::Node {
-            id: 0,
+            id: NodeIndex::new(0),
             label: Some(Kmer::from_bases(b"ATCGA")),
             attrs: vec![NodeAttr::CopyNum(10)],
         });
         elements.push(ElementV2::Edge {
-            id: 0,
-            source: 0,
-            target: 1,
+            id: EdgeIndex::new(0),
+            source: NodeIndex::new(0),
+            target: NodeIndex::new(1),
             label: Some(Kmer::from_bases(b"ATCGAT")),
             attrs: vec![EdgeAttr::TrueCopyNum(10), EdgeAttr::CopyNums(vec![10, 20])],
         });
