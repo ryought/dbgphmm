@@ -7,6 +7,31 @@ use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()
 use petgraph::Direction;
 
+/// Edge of FlowGraph
+///
+/// * `demand()`: demand `l(e)`
+/// * `capacity()`: capacity `u(e)`
+///
+/// cost is either `ConstCost` or `ConvexCost`
+///
+/// `[l, u], c`
+pub trait FlowEdge {
+    /// Demand of the edge, Lower limit of the flow
+    fn demand(&self) -> u32;
+    /// Capacity of the edge, Upper limit of the flow
+    fn capacity(&self) -> u32;
+}
+
+/// Edge of FlowGraph with constant cost
+///
+/// * `cost()`: cost per unit flow `c(e)`
+///
+/// `[l, u], c`
+pub trait ConstCost {
+    /// constant Cost-per-unit-flow of the edge
+    fn cost(&self) -> f64;
+}
+
 /// Edge attributes used in FlowGraph
 /// It has
 /// - demand l
@@ -27,11 +52,11 @@ pub struct FlowEdgeRaw<T> {
     pub info: T,
 }
 
-pub type FlowEdge = FlowEdgeRaw<()>;
+pub type FlowEdgeBase = FlowEdgeRaw<()>;
 
-impl FlowEdge {
-    pub fn new(demand: u32, capacity: u32, cost: f64) -> FlowEdge {
-        FlowEdge {
+impl FlowEdgeBase {
+    pub fn new(demand: u32, capacity: u32, cost: f64) -> FlowEdgeBase {
+        FlowEdgeBase {
             demand,
             capacity,
             cost,
@@ -46,8 +71,23 @@ impl<T> std::fmt::Display for FlowEdgeRaw<T> {
     }
 }
 
+impl<T> FlowEdge for FlowEdgeRaw<T> {
+    fn demand(&self) -> u32 {
+        self.demand
+    }
+    fn capacity(&self) -> u32 {
+        self.capacity
+    }
+}
+
+impl<T> ConstCost for FlowEdgeRaw<T> {
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
 /// FlowGraph definition
-pub type FlowGraph = DiGraph<(), FlowEdge>;
+pub type FlowGraph = DiGraph<(), FlowEdgeBase>;
 pub type FlowGraphRaw<T> = DiGraph<(), FlowEdgeRaw<T>>;
 
 /// Flow definitions
@@ -61,7 +101,7 @@ pub type Flow = EdgeVec<DenseStorage<u32>>;
 /// - demand and capacity constraint
 /// - flow constraint
 ///
-pub fn is_valid_flow<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
+pub fn is_valid_flow<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N, E>) -> bool {
     is_defined_for_all_edges(flow, graph)
         && is_in_demand_and_capacity(flow, graph)
         && is_satisfying_flow_constraint(flow, graph)
@@ -70,7 +110,7 @@ pub fn is_valid_flow<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
 ///
 /// Check if the flow contains all edges
 ///
-pub fn is_defined_for_all_edges<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
+pub fn is_defined_for_all_edges<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N, E>) -> bool {
     flow.len() == graph.edge_count()
 }
 
@@ -78,11 +118,11 @@ pub fn is_defined_for_all_edges<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool
 /// For each edge, the flow must satisfy `demand <= flow <= capacity`.
 /// This function checks it
 ///
-pub fn is_in_demand_and_capacity<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
+pub fn is_in_demand_and_capacity<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N, E>) -> bool {
     graph.edge_indices().all(|e| {
         let ew = graph.edge_weight(e).unwrap();
         let f = flow[e];
-        (ew.demand <= f) && (f <= ew.capacity)
+        (ew.demand() <= f) && (f <= ew.capacity())
     })
 }
 
@@ -90,7 +130,7 @@ pub fn is_in_demand_and_capacity<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> boo
 /// For each node,
 /// (the sum of out-going flows) should be equal to (the sum of in-coming flows).
 ///
-pub fn is_satisfying_flow_constraint<T>(flow: &Flow, graph: &FlowGraphRaw<T>) -> bool {
+pub fn is_satisfying_flow_constraint<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N, E>) -> bool {
     graph.node_indices().all(|v| {
         let in_flow: u32 = graph
             .edges_directed(v, Direction::Incoming)

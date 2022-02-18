@@ -2,7 +2,7 @@
 //! Zero demand flow graphs
 //! for finding init valid flow
 //!
-use super::flow::{total_cost, Flow, FlowEdgeRaw, FlowGraphRaw};
+use super::flow::{total_cost, Flow, FlowEdge, FlowEdgeRaw, FlowGraphRaw};
 use super::min_cost_flow_from_zero;
 use petgraph::graph::{DiGraph, EdgeIndex};
 
@@ -50,7 +50,9 @@ pub type ZeroDemandFlowGraph = DiGraph<(), ZeroDemandFlowEdge>;
 
 /// Convert normal FlowGraph to ZeroDemandGraph
 /// (min-cost-flow on ZeroDemandGraph) == (one of the valid flow on FlowGraph)
-fn to_zero_demand_graph<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> ZeroDemandFlowGraph {
+fn to_zero_demand_graph<N, E: FlowEdge + std::fmt::Debug>(
+    graph: &DiGraph<N, E>,
+) -> ZeroDemandFlowGraph {
     let mut zdg: ZeroDemandFlowGraph = ZeroDemandFlowGraph::new();
 
     // create two edges (type-A and type-B) for each edge
@@ -63,14 +65,14 @@ fn to_zero_demand_graph<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> ZeroDema
             (
                 v,
                 w,
-                ZeroDemandFlowEdge::new(0, ew.demand, -1., e, ZeroDemandEdgeKind::BelowDemand),
+                ZeroDemandFlowEdge::new(0, ew.demand(), -1., e, ZeroDemandEdgeKind::BelowDemand),
             ),
             (
                 v,
                 w,
                 ZeroDemandFlowEdge::new(
                     0,
-                    ew.capacity - ew.demand,
+                    ew.capacity() - ew.demand(),
                     0.,
                     e,
                     ZeroDemandEdgeKind::AboveDemand,
@@ -89,8 +91,8 @@ fn to_zero_demand_graph<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> ZeroDema
 /// - type-A edge $ea$
 /// - type-B edge $eb$
 /// and the sum of the flows of the two is the flow of original edge $e$.
-fn zero_demand_flow_to_original_flow<T>(
-    graph: &FlowGraphRaw<T>,
+fn zero_demand_flow_to_original_flow<N, E: FlowEdge>(
+    graph: &DiGraph<N, E>,
     zd_flow: &Flow,
     zd_graph: &ZeroDemandFlowGraph,
 ) -> Flow {
@@ -99,7 +101,6 @@ fn zero_demand_flow_to_original_flow<T>(
         let ew = zd_graph.edge_weight(e).unwrap();
         let zd_f = zd_flow[e];
         let original_edge = ew.info.origin;
-
         flow[original_edge] += zd_f;
     }
     flow
@@ -113,7 +114,7 @@ fn zero_demand_flow_to_original_flow<T>(
 /// 2. find the min-cost-flow on the zero demand graph
 /// 3. convert it back to the valid flow on the original graph
 ///
-pub fn find_initial_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Option<Flow> {
+pub fn find_initial_flow<N, E: FlowEdge + std::fmt::Debug>(graph: &DiGraph<N, E>) -> Option<Flow> {
     let zdg = to_zero_demand_graph(graph);
     // utils::draw(&zdg);
     let zd_flow = min_cost_flow_from_zero(&zdg);
@@ -136,22 +137,22 @@ pub fn find_initial_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Option<
 /// we should know whether the given graph is demand-less
 /// that is all demands of the edges are 0.
 ///
-pub fn is_zero_demand_flow_graph<T>(graph: &FlowGraphRaw<T>) -> bool {
+pub fn is_zero_demand_flow_graph<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> bool {
     graph.edge_indices().all(|e| {
         let ew = graph.edge_weight(e).unwrap();
-        ew.demand == 0
+        ew.demand() == 0
     })
 }
 
 ///
 /// sum of edge demand
 ///
-fn sum_of_demand<T>(graph: &FlowGraphRaw<T>) -> u32 {
+fn sum_of_demand<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> u32 {
     graph
         .edge_indices()
         .map(|e| {
             let ew = graph.edge_weight(e).unwrap();
-            ew.demand
+            ew.demand()
         })
         .sum()
 }

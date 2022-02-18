@@ -3,7 +3,8 @@
 //! - ResidueGraph
 //! - ResidueDirection
 //!
-use super::flow::{Flow, FlowGraphRaw};
+use super::convex::ConvexCost;
+use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use itertools::Itertools; // for tuple_windows
 use petgraph::algo::find_negative_cycle;
@@ -118,7 +119,10 @@ pub type ResidueGraph = DiGraph<(), ResidueEdge>;
 ///  e1 = (u-f, +c) if u-f>0
 /// w -> v
 ///  e2 = (f-l, -c) if f-l>0
-pub fn flow_to_residue<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow) -> ResidueGraph {
+pub fn flow_to_residue<N, E: FlowEdge + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> ResidueGraph {
     let mut rg: ResidueGraph = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -126,23 +130,69 @@ pub fn flow_to_residue<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow)
         let f = flow[e];
         let ew = graph.edge_weight(e).unwrap();
         let (v, w) = graph.edge_endpoints(e).unwrap();
-        println!("{:?} {:?} {}", e, ew, f);
 
         let mut edges = Vec::new();
-        if f < ew.capacity {
+        if f < ew.capacity() {
             // up movable
             edges.push((
                 v,
                 w,
-                ResidueEdge::new(ew.capacity - f, ew.cost, e, ResidueDirection::Up),
+                ResidueEdge::new(ew.capacity() - f, ew.cost(), e, ResidueDirection::Up),
             ));
         }
-        if f > ew.demand {
+        if f > ew.demand() {
             // down movable
             edges.push((
                 w,
                 v,
-                ResidueEdge::new(f - ew.demand, -ew.cost, e, ResidueDirection::Down),
+                ResidueEdge::new(f - ew.demand(), -ew.cost(), e, ResidueDirection::Down),
+            ));
+        }
+        rg.extend_with_edges(&edges);
+    }
+    rg
+}
+
+/// Convert FlowGraph with Flow with ConvexCost into ResidueGraph.
+///
+/// For each edge in FlowGraph with Flow
+/// ```text
+/// e(v -> w) = ([l,u],c), f
+/// ```
+///
+/// create two edges in ResidueGraph
+/// ```text
+/// e1(v -> w) = (1, c(f+1) - c(f)) if u - f > 0
+///
+/// e2(w -> v) = (1, c(f-1) - c(f)) if f - l > 0
+/// ```
+pub fn flow_to_residue_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> ResidueGraph
+where
+    E: FlowEdge + ConvexCost,
+{
+    let mut rg: ResidueGraph = ResidueGraph::new();
+
+    // create two edges (Up and Down) for each edge
+    for e in graph.edge_indices() {
+        let f = flow[e];
+        let ew = graph.edge_weight(e).unwrap();
+        let (v, w) = graph.edge_endpoints(e).unwrap();
+
+        let mut edges = Vec::new();
+        if f < ew.capacity() {
+            // up movable
+            edges.push((
+                v,
+                w,
+                ResidueEdge::new(1, ew.cost(f + 1) - ew.cost(f), e, ResidueDirection::Up),
+            ));
+        }
+        if f > ew.demand() {
+            // down movable
+            edges.push((
+                w,
+                v,
+                ResidueEdge::new(1, ew.cost(f - 1) - ew.cost(f), e, ResidueDirection::Down),
             ));
         }
         rg.extend_with_edges(&edges);
@@ -227,16 +277,13 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
     // (2) apply these changes to the flow along the cycle
     for edge in edges {
         let ew = rg.edge_weight(*edge).unwrap();
-        println!("{:?} {:?}", edge, ew);
         // convert back to the original edgeindex
         let original_edge = ew.target;
-        let original_edge_flow = flow[original_edge];
 
-        let new_edge_flow = match ew.direction {
-            ResidueDirection::Up => original_edge_flow + flow_change_amount,
-            ResidueDirection::Down => original_edge_flow - flow_change_amount,
+        new_flow[original_edge] = match ew.direction {
+            ResidueDirection::Up => flow[original_edge] + flow_change_amount,
+            ResidueDirection::Down => flow[original_edge] - flow_change_amount,
         };
-        new_flow[original_edge] = new_edge_flow;
     }
 
     new_flow
@@ -272,15 +319,9 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
     return None;
 }
 
-//
-// public functions
-//
-
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow) -> Option<Flow> {
-    let rg = flow_to_residue(graph, flow);
-
+fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     draw(&rg);
@@ -299,6 +340,30 @@ pub fn improve_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow) ->
         }
         None => None,
     }
+}
+
+//
+// public functions
+//
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+pub fn improve_flow<N, E: FlowEdge + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> Option<Flow> {
+    let rg = flow_to_residue(graph, flow);
+    update_flow_in_residue_graph(flow, &rg)
+}
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+pub fn improve_flow_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow>
+where
+    E: FlowEdge + ConvexCost,
+{
+    let rg = flow_to_residue_convex(graph, flow);
+    update_flow_in_residue_graph(flow, &rg)
 }
 
 #[cfg(test)]
