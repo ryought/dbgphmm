@@ -5,7 +5,7 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexFlowGraph};
+use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexFlowEdge};
 use flow::{is_valid_flow, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
 use residue::improve_flow;
@@ -38,7 +38,11 @@ where
 ///
 /// Find minimum cost flow on the ConvexFlowGraph
 ///
-pub fn min_cost_flow_convex(graph: &ConvexFlowGraph) -> Option<Flow> {
+pub fn min_cost_flow_convex<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+where
+    N: std::fmt::Debug,
+    E: ConvexFlowEdge + std::fmt::Debug,
+{
     // (1) convert to normal FlowGraph and find the min-cost-flow
     let fg = match to_fixed_flow_graph(graph) {
         Some(fg) => fg,

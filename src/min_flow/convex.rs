@@ -23,13 +23,17 @@ pub trait ConvexFlowEdge {
     /// capacity (upper limit of flow) of the edge u(e)
     ///
     fn capacity(&self) -> u32;
-    /// cost function
     ///
+    /// cost function
     /// it is a convex function of the current flow
     fn convex_cost(&self) -> fn(u32) -> f64;
+    ///
+    /// check if this edge has a finite capacity (`capacity < 100`).
     fn is_finite_capacity(&self) -> bool {
         self.capacity() < 100
     }
+    ///
+    /// check if the cost function of the edge is actually convex function
     fn is_convex(&self) -> bool {
         is_convex(self.convex_cost(), self.demand(), self.capacity())
     }
