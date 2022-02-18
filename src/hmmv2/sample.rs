@@ -284,4 +284,13 @@ mod tests {
         assert_eq!(read, b"CGATC");
         println!("{:?}", sequence_to_string(&read));
     }
+    #[test]
+    fn hmm_sample_mock_linear_high_error() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
+        let hist = phmm.sample(10, 0);
+        let read = hist.to_sequence();
+        println!("{}", hist);
+        assert_eq!(read, b"CACAACGT");
+    }
 }
