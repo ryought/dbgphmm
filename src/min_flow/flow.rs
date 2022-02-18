@@ -11,7 +11,8 @@ use petgraph::Direction;
 ///
 /// * `demand()`: demand `l(e)`
 /// * `capacity()`: capacity `u(e)`
-/// * `cost()`: cost per unit flow `c(e)`
+///
+/// cost is either `ConstCost` or `ConvexCost`
 ///
 /// `[l, u], c`
 pub trait FlowEdge {
@@ -19,7 +20,15 @@ pub trait FlowEdge {
     fn demand(&self) -> u32;
     /// Capacity of the edge, Upper limit of the flow
     fn capacity(&self) -> u32;
-    /// Cost-per-unit-flow of the edge
+}
+
+/// Edge of FlowGraph with constant cost
+///
+/// * `cost()`: cost per unit flow `c(e)`
+///
+/// `[l, u], c`
+pub trait ConstCost {
+    /// constant Cost-per-unit-flow of the edge
     fn cost(&self) -> f64;
 }
 
@@ -69,6 +78,9 @@ impl<T> FlowEdge for FlowEdgeRaw<T> {
     fn capacity(&self) -> u32 {
         self.capacity
     }
+}
+
+impl<T> ConstCost for FlowEdgeRaw<T> {
     fn cost(&self) -> f64 {
         self.cost
     }

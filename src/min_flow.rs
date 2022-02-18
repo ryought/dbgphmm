@@ -1,3 +1,4 @@
+pub mod common;
 pub mod convex;
 pub mod flow;
 pub mod mocks;
@@ -5,8 +6,8 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexFlowEdge};
-use flow::{is_valid_flow, Flow, FlowEdge, FlowGraphRaw};
+use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexCost};
+use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
 use residue::improve_flow;
 use utils::draw_with_flow;
@@ -22,7 +23,7 @@ use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 pub fn min_cost_flow<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
 where
     N: std::fmt::Debug,
-    E: FlowEdge + std::fmt::Debug,
+    E: FlowEdge + ConstCost + std::fmt::Debug,
 {
     let init_flow = find_initial_flow(graph);
 
@@ -41,7 +42,7 @@ where
 pub fn min_cost_flow_convex<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
 where
     N: std::fmt::Debug,
-    E: ConvexFlowEdge + std::fmt::Debug,
+    E: FlowEdge + ConvexCost + std::fmt::Debug,
 {
     // (1) convert to normal FlowGraph and find the min-cost-flow
     let fg = match to_fixed_flow_graph(graph) {
@@ -65,7 +66,7 @@ where
 pub fn min_cost_flow_convex_fast<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
 where
     N: std::fmt::Debug,
-    E: ConvexFlowEdge + std::fmt::Debug,
+    E: FlowEdge + ConvexCost + std::fmt::Debug,
 {
     // (1) find the initial flow, by assigning constant cost to the flow.
     // (2) upgrade the flow, by finding a negative cycle in residue graph.
@@ -79,7 +80,7 @@ where
 ///
 /// Find minimum cost flow of the special FlowGraph, whose demand is always zero.
 ///
-fn min_cost_flow_from_zero<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> Flow {
+fn min_cost_flow_from_zero<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>) -> Flow {
     assert!(is_zero_demand_flow_graph(&graph));
     let flow = Flow::new(graph.edge_count(), 0);
     min_cost_flow_from(graph, &flow)
@@ -88,7 +89,7 @@ fn min_cost_flow_from_zero<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> Flow {
 ///
 /// Find minimum cost by starting from the specified flow values.
 ///
-fn min_cost_flow_from<N, E: FlowEdge>(graph: &DiGraph<N, E>, init_flow: &Flow) -> Flow {
+fn min_cost_flow_from<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>, init_flow: &Flow) -> Flow {
     let mut flow = init_flow.clone();
 
     loop {
@@ -110,7 +111,7 @@ fn min_cost_flow_from<N, E: FlowEdge>(graph: &DiGraph<N, E>, init_flow: &Flow) -
 ///
 /// Find minimum cost by starting from the specified flow values.
 ///
-fn min_cost_flow_from_convex<N, E: ConvexFlowEdge>(
+fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
     graph: &DiGraph<N, E>,
     init_flow: &Flow,
 ) -> Flow {

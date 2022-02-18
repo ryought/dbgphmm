@@ -3,7 +3,7 @@
 //! - ResidueGraph
 //! - ResidueDirection
 //!
-use super::flow::{Flow, FlowEdge};
+use super::flow::{ConstCost, Flow, FlowEdge};
 use super::utils::draw;
 use itertools::Itertools; // for tuple_windows
 use petgraph::algo::find_negative_cycle;
@@ -118,7 +118,10 @@ pub type ResidueGraph = DiGraph<(), ResidueEdge>;
 ///  e1 = (u-f, +c) if u-f>0
 /// w -> v
 ///  e2 = (f-l, -c) if f-l>0
-pub fn flow_to_residue<N, E: FlowEdge>(graph: &DiGraph<N, E>, flow: &Flow) -> ResidueGraph {
+pub fn flow_to_residue<N, E: FlowEdge + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> ResidueGraph {
     let mut rg: ResidueGraph = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -277,7 +280,10 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow<N, E: FlowEdge>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow> {
+pub fn improve_flow<N, E: FlowEdge + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> Option<Flow> {
     let rg = flow_to_residue(graph, flow);
 
     // find negative weight cycles

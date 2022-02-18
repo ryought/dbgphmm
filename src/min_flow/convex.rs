@@ -2,27 +2,15 @@
 //! Flow network definitions for convex cost.
 //!
 pub mod fast;
-use super::flow::{EdgeCost, Flow, FlowEdgeRaw};
+use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
 use super::utils::{clamped_log, is_convex};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
+/// Edge of FlowGraph with convex function cost
 ///
-/// Edge attributes of ConvexFlowGraph
-/// For each edge,
-///   demand
-///   capacity
-///   convex cost function
-/// are assigned.
+/// * `cost(f)`: cost per unit flow `c(e, f)`
 ///
-pub trait ConvexFlowEdge {
-    ///
-    /// demand (lower limit of flow) of the edge l(e)
-    ///
-    fn demand(&self) -> u32;
-    ///
-    /// capacity (upper limit of flow) of the edge u(e)
-    ///
-    fn capacity(&self) -> u32;
+pub trait ConvexCost: FlowEdge {
     ///
     /// cost function
     /// it is a convex function of the current flow
@@ -39,7 +27,7 @@ pub trait ConvexFlowEdge {
     }
 }
 
-impl<E: ConvexFlowEdge> EdgeCost for E {
+impl<E: ConvexCost> EdgeCost for E {
     fn cost(&self, flow: u32) -> f64 {
         self.convex_cost()(flow)
     }
@@ -68,13 +56,16 @@ pub struct BaseConvexFlowEdge {
     pub convex_cost: fn(u32) -> f64,
 }
 
-impl ConvexFlowEdge for BaseConvexFlowEdge {
+impl FlowEdge for BaseConvexFlowEdge {
     fn demand(&self) -> u32 {
         self.demand
     }
     fn capacity(&self) -> u32 {
         self.capacity
     }
+}
+
+impl ConvexCost for BaseConvexFlowEdge {
     fn convex_cost(&self) -> fn(u32) -> f64 {
         self.convex_cost
     }
@@ -152,7 +143,7 @@ pub type FixedCostFlowGraph = DiGraph<(), FixedCostFlowEdge>;
 ///
 pub fn to_fixed_flow_graph<N, E>(graph: &DiGraph<N, E>) -> Option<FixedCostFlowGraph>
 where
-    E: ConvexFlowEdge,
+    E: FlowEdge + ConvexCost,
 {
     let mut g: FixedCostFlowGraph = FixedCostFlowGraph::new();
 
@@ -213,7 +204,7 @@ pub fn restore_convex_flow<N, E>(
     graph: &DiGraph<N, E>,
 ) -> Flow
 where
-    E: ConvexFlowEdge,
+    E: FlowEdge + ConvexCost,
 {
     let mut flow = Flow::new(graph.edge_count(), 0);
 
