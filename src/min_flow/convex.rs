@@ -4,7 +4,6 @@
 pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
 use super::utils::{clamped_log, is_convex};
-pub use fast::improve_flow_convex;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Edge of FlowGraph with convex function cost

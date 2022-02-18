@@ -3,7 +3,8 @@
 //! - ResidueGraph
 //! - ResidueDirection
 //!
-use super::flow::{ConstCost, Flow, FlowEdge};
+use super::convex::ConvexCost;
+use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use itertools::Itertools; // for tuple_windows
 use petgraph::algo::find_negative_cycle;
@@ -152,6 +153,53 @@ pub fn flow_to_residue<N, E: FlowEdge + ConstCost>(
     rg
 }
 
+/// Convert FlowGraph with Flow with ConvexCost into ResidueGraph.
+///
+/// For each edge in FlowGraph with Flow
+/// ```text
+/// e(v -> w) = ([l,u],c), f
+/// ```
+///
+/// create two edges in ResidueGraph
+/// ```text
+/// e1(v -> w) = (1, c(f+1) - c(f)) if u - f > 0
+///
+/// e2(w -> v) = (1, c(f-1) - c(f)) if f - l > 0
+/// ```
+pub fn flow_to_residue_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> ResidueGraph
+where
+    E: FlowEdge + ConvexCost,
+{
+    let mut rg: ResidueGraph = ResidueGraph::new();
+
+    // create two edges (Up and Down) for each edge
+    for e in graph.edge_indices() {
+        let f = flow[e];
+        let ew = graph.edge_weight(e).unwrap();
+        let (v, w) = graph.edge_endpoints(e).unwrap();
+
+        let mut edges = Vec::new();
+        if f < ew.capacity() {
+            // up movable
+            edges.push((
+                v,
+                w,
+                ResidueEdge::new(1, ew.cost(f + 1) - ew.cost(f), e, ResidueDirection::Up),
+            ));
+        }
+        if f > ew.demand() {
+            // down movable
+            edges.push((
+                w,
+                v,
+                ResidueEdge::new(1, ew.cost(f - 1) - ew.cost(f), e, ResidueDirection::Down),
+            ));
+        }
+        rg.extend_with_edges(&edges);
+    }
+    rg
+}
+
 #[allow(dead_code)]
 fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), f64> {
     graph.map(|_, _| (), |_, ew| ew.weight)
@@ -285,6 +333,34 @@ pub fn improve_flow<N, E: FlowEdge + ConstCost>(
     flow: &Flow,
 ) -> Option<Flow> {
     let rg = flow_to_residue(graph, flow);
+
+    // find negative weight cycles
+    let path = find_negative_cycle_in_whole_graph(&rg);
+    draw(&rg);
+
+    match path {
+        Some(nodes) => {
+            let edges = node_list_to_edge_list(&rg, &nodes);
+
+            // check if this is actually negative cycle
+            assert!(is_negative_cycle(&rg, &edges));
+
+            // apply these changes along the cycle to current flow
+            let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
+            println!("{:?}", new_flow);
+            Some(new_flow)
+        }
+        None => None,
+    }
+}
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+pub fn improve_flow_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow>
+where
+    E: FlowEdge + ConvexCost,
+{
+    let rg = flow_to_residue_convex(graph, flow);
 
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);

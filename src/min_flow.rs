@@ -6,10 +6,10 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{improve_flow_convex, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
+use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
-use residue::improve_flow;
+use residue::{improve_flow, improve_flow_convex};
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 
@@ -117,7 +117,7 @@ fn min_cost_flow_from<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>, init_fl
 }
 
 ///
-/// Find minimum cost by starting from the specified flow values.
+/// Find minimum cost by starting from the specified flow values in ConvexCost Flowgraph.
 ///
 fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
     graph: &DiGraph<N, E>,
@@ -125,7 +125,6 @@ fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
 ) -> Flow {
     let mut flow = init_flow.clone();
 
-    // TODO
     loop {
         assert!(is_valid_flow(&flow, &graph));
         match improve_flow_convex(graph, &flow) {
@@ -139,5 +138,5 @@ fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
         };
     }
 
-    unimplemented!();
+    flow
 }
