@@ -145,11 +145,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         self.be(&mut table, prev_table, emission);
 
         // candidates of active nodes of next step
-        if !S::is_dense() {
+        table.active_nodes = if !S::is_dense() {
             let parents_and_us = prev_table.active_nodes.to_parents_and_us(self);
             let active_in_d = table.active_nodes_from_prob(self.param.n_active_nodes);
-            table.active_nodes = parents_and_us.merge(&active_in_d);
-        }
+            parents_and_us.merge(&active_in_d)
+        } else {
+            ActiveNodes::All
+        };
 
         // normal state is next
         self.bm(&mut table, prev_table, emission);
@@ -224,7 +226,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
 
         // bd0.d[k] depends on child and itself.
-        let active_nodes = t0.active_nodes.to_parents_and_us(self);
+        let active_nodes = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            t0.active_nodes.to_parents_and_us(self)
+        };
         let mut bd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
 
         for (k, _) in self.active_nodes(&bd0.active_nodes) {
@@ -246,7 +252,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
 
         // shrink active_nodes to actually-high prob nodes
-        bd0.refresh_active_nodes(param.n_active_nodes);
+        if !S::is_dense() {
+            bd0.refresh_active_nodes(param.n_active_nodes);
+        }
 
         bd0
     }
@@ -266,7 +274,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
 
         // bdt0.d[k] only depends on k's child l in bdt1.d
-        let active_nodes = bdt1.active_nodes.to_parents(self);
+        let active_nodes = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            bdt1.active_nodes.to_parents(self)
+        };
         let mut bdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
 
         for (k, _) in self.active_nodes(&bdt0.active_nodes) {
@@ -281,7 +293,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         }
 
         // shrink active_nodes to actually-high prob nodes
-        bdt0.refresh_active_nodes(param.n_active_nodes);
+        if !S::is_dense() {
+            bdt0.refresh_active_nodes(param.n_active_nodes);
+        }
 
         bdt0
     }
@@ -503,7 +517,10 @@ mod tests {
     }
     #[test]
     fn hmm_backward_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
+        let mut param = PHMMParams::high_error();
+        param.n_warmup = 2;
+        param.n_active_nodes = 2;
+        let phmm = mock_linear_phmm(param);
         // read 1
         let r = phmm.backward(b"CGATC");
         for table in r.tables.iter() {

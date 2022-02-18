@@ -6,6 +6,7 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use crate::vector::{NodeVec, Storage};
 
@@ -109,7 +110,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         // candidates of active nodes of next step
-        let active_nodes = prev_table.active_nodes.to_childs(self);
+        let active_nodes = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            prev_table.active_nodes.to_childs(self)
+        };
 
         let mut table = PHMMTable::new_with_active_nodes(
             self.n_nodes(),
@@ -283,7 +288,11 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let active_nodes = t0.active_nodes.to_childs(self);
+        let active_nodes = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            t0.active_nodes.to_childs(self)
+        };
         let mut fd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
         for (k, kw) in self.active_nodes(&fd0.active_nodes) {
             // (1) from normal node
@@ -316,7 +325,11 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let active_nodes = fdt1.active_nodes.to_childs(self);
+        let active_nodes = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            fdt1.active_nodes.to_childs(self)
+        };
         let mut fdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
         for (k, _) in self.active_nodes(&fdt0.active_nodes) {
             fdt0.d[k] = self
