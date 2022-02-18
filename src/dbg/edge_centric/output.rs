@@ -22,7 +22,7 @@ where
 impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// Convert edge-centric de bruijn graph into
     /// collection of elements for cytoscape parsing
-    fn to_cytoscape_elements(&self) -> Vec<ElementV2> {
+    fn to_cytoscape_elements(&self) -> Vec<ElementV2<E::Kmer>> {
         let mut elements = Vec::new();
 
         // add nodes
@@ -42,7 +42,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
                 id: edge,
                 source: s,
                 target: t,
-                label: Some(VecKmer::from_bases(&weight.kmer().to_bases())),
+                label: Some(weight.kmer().clone()),
                 attrs: vec![
                     EdgeAttr::TrueCopyNum(weight.copy_num()),
                     EdgeAttr::CopyNums(vec![5, 4, 3, 2]),

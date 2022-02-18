@@ -56,7 +56,7 @@ pub enum EdgeAttr {
 #[serde_as]
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "group", content = "data")]
-pub enum ElementV2 {
+pub enum ElementV2<K: KmerLike> {
     #[serde(rename = "nodes")]
     /// Node element of cytoscape
     Node {
@@ -65,7 +65,7 @@ pub enum ElementV2 {
         id: NodeIndex,
         /// Node label
         #[serde_as(as = "Option<DisplayFromStr>")]
-        label: Option<Kmer>,
+        label: Option<K>,
         attrs: Vec<NodeAttr>,
     },
     #[serde(rename = "edges")]
@@ -78,7 +78,7 @@ pub enum ElementV2 {
         #[serde(serialize_with = "serialize_node")]
         target: NodeIndex,
         #[serde_as(as = "Option<DisplayFromStr>")]
-        label: Option<Kmer>,
+        label: Option<K>,
         attrs: Vec<EdgeAttr>,
     },
 }
