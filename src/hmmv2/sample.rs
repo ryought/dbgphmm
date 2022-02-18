@@ -31,6 +31,19 @@ pub enum State {
     End,
 }
 
+impl std::fmt::Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            State::Match(node) => write!(f, "Match({})", node.index()),
+            State::Ins(node) => write!(f, "Ins({})", node.index()),
+            State::Del(node) => write!(f, "Del({})", node.index()),
+            State::MatchBegin => write!(f, "MatchBegin"),
+            State::InsBegin => write!(f, "InsBegin"),
+            State::End => write!(f, "End"),
+        }
+    }
+}
+
 ///
 /// HMM emission
 ///
@@ -38,6 +51,15 @@ pub enum State {
 pub enum Emission {
     Base(u8),
     Empty,
+}
+
+impl std::fmt::Display for Emission {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Emission::Base(base) => write!(f, "{}", *base as char),
+            Emission::Empty => write!(f, "-"),
+        }
+    }
 }
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
@@ -258,7 +280,7 @@ mod tests {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let hist = phmm.sample(5, 0);
         let read = hist.to_sequence();
-        println!("{:?}", hist);
+        println!("{}", hist);
         assert_eq!(read, b"CGATC");
         println!("{:?}", sequence_to_string(&read));
     }

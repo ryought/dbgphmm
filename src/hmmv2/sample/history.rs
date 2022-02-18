@@ -48,3 +48,12 @@ impl History {
         unimplemented!();
     }
 }
+
+impl std::fmt::Display for History {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (state, emission) in self.0.iter() {
+            writeln!(f, "{} -> {}", state, emission)?;
+        }
+        Ok(())
+    }
+}
