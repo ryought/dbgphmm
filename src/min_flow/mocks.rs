@@ -1,4 +1,4 @@
-use super::flow::{Flow, FlowEdge, FlowGraph};
+use super::flow::{Flow, FlowEdgeBase, FlowGraph};
 use petgraph::graph::{EdgeIndex, Graph};
 
 ///
@@ -10,9 +10,9 @@ pub fn mock_flow_network1() -> (FlowGraph, Flow) {
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
-    graph.add_edge(a, b, FlowEdge::new(0, 10, -1.0));
-    graph.add_edge(b, c, FlowEdge::new(0, 10, -2.0));
-    graph.add_edge(c, a, FlowEdge::new(0, 10, -2.0));
+    graph.add_edge(a, b, FlowEdgeBase::new(0, 10, -1.0));
+    graph.add_edge(b, c, FlowEdgeBase::new(0, 10, -2.0));
+    graph.add_edge(c, a, FlowEdgeBase::new(0, 10, -2.0));
     let f = Flow::from_vec(
         3,
         0,
@@ -39,17 +39,17 @@ pub fn mock_flow_network2() -> (FlowGraph, Flow) {
     let f = g.add_node(());
     let t = g.add_node(());
     const INF: u32 = 100000;
-    let e0 = g.add_edge(s, a, FlowEdge::new(0, INF, 0.0));
-    let e1 = g.add_edge(a, b, FlowEdge::new(2, 4, 2.0));
-    let e2 = g.add_edge(a, d, FlowEdge::new(9, 13, 1.0));
-    let e3 = g.add_edge(b, c, FlowEdge::new(2, 3, 2.0));
-    let e4 = g.add_edge(d, c, FlowEdge::new(0, 6, 1.0));
-    let e5 = g.add_edge(c, t, FlowEdge::new(4, 8, 1.0));
-    let e6 = g.add_edge(d, f, FlowEdge::new(0, 10, 3.0));
-    let e7 = g.add_edge(s, e, FlowEdge::new(0, 6, 1.0));
-    let e8 = g.add_edge(e, f, FlowEdge::new(0, 5, 1.0));
-    let e9 = g.add_edge(f, t, FlowEdge::new(7, 13, 3.0));
-    let ea = g.add_edge(t, s, FlowEdge::new(17, 17, 0.0));
+    let e0 = g.add_edge(s, a, FlowEdgeBase::new(0, INF, 0.0));
+    let e1 = g.add_edge(a, b, FlowEdgeBase::new(2, 4, 2.0));
+    let e2 = g.add_edge(a, d, FlowEdgeBase::new(9, 13, 1.0));
+    let e3 = g.add_edge(b, c, FlowEdgeBase::new(2, 3, 2.0));
+    let e4 = g.add_edge(d, c, FlowEdgeBase::new(0, 6, 1.0));
+    let e5 = g.add_edge(c, t, FlowEdgeBase::new(4, 8, 1.0));
+    let e6 = g.add_edge(d, f, FlowEdgeBase::new(0, 10, 3.0));
+    let e7 = g.add_edge(s, e, FlowEdgeBase::new(0, 6, 1.0));
+    let e8 = g.add_edge(e, f, FlowEdgeBase::new(0, 5, 1.0));
+    let e9 = g.add_edge(f, t, FlowEdgeBase::new(7, 13, 3.0));
+    let ea = g.add_edge(t, s, FlowEdgeBase::new(17, 17, 0.0));
 
     let f = Flow::from_vec(
         11,
@@ -78,11 +78,11 @@ pub fn mock_flow_network3() -> (FlowGraph, Flow) {
     let b = g.add_node(());
     let c = g.add_node(());
     let d = g.add_node(());
-    let e0 = g.add_edge(a, b, FlowEdge::new(0, 2, 1.0));
-    let e1 = g.add_edge(a, c, FlowEdge::new(0, 2, -2.0));
-    let e2 = g.add_edge(b, d, FlowEdge::new(0, 2, 3.0));
-    let e3 = g.add_edge(c, d, FlowEdge::new(0, 1, 4.0));
-    let e4 = g.add_edge(d, a, FlowEdge::new(2, 2, 0.0));
+    let e0 = g.add_edge(a, b, FlowEdgeBase::new(0, 2, 1.0));
+    let e1 = g.add_edge(a, c, FlowEdgeBase::new(0, 2, -2.0));
+    let e2 = g.add_edge(b, d, FlowEdgeBase::new(0, 2, 3.0));
+    let e3 = g.add_edge(c, d, FlowEdgeBase::new(0, 1, 4.0));
+    let e4 = g.add_edge(d, a, FlowEdgeBase::new(2, 2, 0.0));
 
     let f = Flow::from_vec(5, 0, &[(e0, 1), (e1, 1), (e2, 1), (e3, 1), (e4, 2)]);
     (g, f)
@@ -93,10 +93,10 @@ pub fn mock_flow_network_parallel_edge1() -> (FlowGraph, Flow) {
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
-    let e0 = graph.add_edge(a, b, FlowEdge::new(0, 2, -1.0));
-    let e1 = graph.add_edge(b, c, FlowEdge::new(0, 2, -1.0));
-    let e2 = graph.add_edge(b, c, FlowEdge::new(0, 2, -2.0));
-    let e3 = graph.add_edge(c, a, FlowEdge::new(0, 2, 0.0));
+    let e0 = graph.add_edge(a, b, FlowEdgeBase::new(0, 2, -1.0));
+    let e1 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, -1.0));
+    let e2 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, -2.0));
+    let e3 = graph.add_edge(c, a, FlowEdgeBase::new(0, 2, 0.0));
 
     let f = Flow::from_vec(4, 0, &[(e0, 2), (e1, 0), (e2, 2), (e3, 2)]);
     (graph, f)
@@ -107,10 +107,10 @@ pub fn mock_flow_network_parallel_edge2() -> (FlowGraph, Flow) {
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
-    let e1 = graph.add_edge(a, b, FlowEdge::new(0, 2, 1.0));
-    let e2 = graph.add_edge(b, c, FlowEdge::new(0, 2, 1.0));
-    let e3 = graph.add_edge(b, c, FlowEdge::new(0, 2, 2.0));
-    let e4 = graph.add_edge(c, a, FlowEdge::new(2, 2, 0.0));
+    let e1 = graph.add_edge(a, b, FlowEdgeBase::new(0, 2, 1.0));
+    let e2 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, 1.0));
+    let e3 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, 2.0));
+    let e4 = graph.add_edge(c, a, FlowEdgeBase::new(2, 2, 0.0));
 
     let f = Flow::from_vec(4, 0, &[(e1, 2), (e2, 2), (e3, 0), (e4, 2)]);
     (graph, f)

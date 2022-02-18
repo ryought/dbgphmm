@@ -43,11 +43,11 @@ pub struct FlowEdgeRaw<T> {
     pub info: T,
 }
 
-pub type FlowEdge = FlowEdgeRaw<()>;
+pub type FlowEdgeBase = FlowEdgeRaw<()>;
 
-impl FlowEdge {
-    pub fn new(demand: u32, capacity: u32, cost: f64) -> FlowEdge {
-        FlowEdge {
+impl FlowEdgeBase {
+    pub fn new(demand: u32, capacity: u32, cost: f64) -> FlowEdgeBase {
+        FlowEdgeBase {
             demand,
             capacity,
             cost,
@@ -75,7 +75,7 @@ impl<T> FlowEdgeLike for FlowEdgeRaw<T> {
 }
 
 /// FlowGraph definition
-pub type FlowGraph = DiGraph<(), FlowEdge>;
+pub type FlowGraph = DiGraph<(), FlowEdgeBase>;
 pub type FlowGraphRaw<T> = DiGraph<(), FlowEdgeRaw<T>>;
 
 /// Flow definitions
