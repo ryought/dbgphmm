@@ -318,8 +318,22 @@ mod tests {
     }
 
     #[test]
+    fn convex_flow_graph_mock1_fast() {
+        let (g, f_true) = mock_convex_flow_graph1();
+        let f = min_cost_flow_convex_fast(&g);
+        println!("{:?}", f);
+        println!("{:?}", f_true);
+        assert!(f.is_some());
+        assert!(f.unwrap() == f_true);
+    }
+
+    #[test]
     fn convex_flow_graph_mock2_fast() {
         let (g, f_true) = mock_convex_flow_graph2();
-        // min_cost_flow_convex_fast(&g);
+        let f = min_cost_flow_convex_fast(&g);
+        println!("{:?}", f);
+        println!("{:?}", f_true);
+        assert!(f.is_some());
+        assert!(f.unwrap() == f_true);
     }
 }
