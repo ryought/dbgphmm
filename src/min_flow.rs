@@ -6,7 +6,7 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexCost};
+use convex::{improve_flow_convex, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
 use residue::improve_flow;
@@ -69,8 +69,16 @@ where
     E: FlowEdge + ConvexCost + std::fmt::Debug,
 {
     // (1) find the initial flow, by assigning constant cost to the flow.
+    let init_flow = find_initial_flow(graph);
+
     // (2) upgrade the flow, by finding a negative cycle in residue graph.
-    unimplemented!();
+    match init_flow {
+        Some(flow) => {
+            draw_with_flow(graph, &flow);
+            Some(min_cost_flow_from_convex(graph, &flow))
+        }
+        None => None,
+    }
 }
 
 //
@@ -117,11 +125,10 @@ fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
 ) -> Flow {
     let mut flow = init_flow.clone();
 
-    /*
     // TODO
     loop {
         assert!(is_valid_flow(&flow, &graph));
-        match improve_flow(graph, &flow) {
+        match improve_flow_convex(graph, &flow) {
             Some(new_flow) => {
                 flow = new_flow;
                 continue;
@@ -131,7 +138,6 @@ fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
             }
         };
     }
-    */
 
-    flow
+    unimplemented!();
 }

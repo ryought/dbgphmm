@@ -4,6 +4,7 @@
 pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
 use super::utils::{clamped_log, is_convex};
+pub use fast::improve_flow_convex;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Edge of FlowGraph with convex function cost
@@ -284,7 +285,7 @@ fn mock_convex_flow_graph2() -> (ConvexFlowGraph, Flow) {
 mod tests {
     use super::super::utils::{draw, draw_with_flow};
     use super::*;
-    use crate::min_flow::{min_cost_flow, min_cost_flow_convex};
+    use crate::min_flow::{min_cost_flow, min_cost_flow_convex, min_cost_flow_convex_fast};
 
     #[test]
     fn convex_flow_edge_new() {
@@ -315,5 +316,11 @@ mod tests {
         draw_with_flow(&g, &flow);
         println!("{:?}", flow);
         assert!(flow == f_true);
+    }
+
+    #[test]
+    fn convex_flow_graph_mock2_fast() {
+        let (g, f_true) = mock_convex_flow_graph2();
+        // min_cost_flow_convex_fast(&g);
     }
 }
