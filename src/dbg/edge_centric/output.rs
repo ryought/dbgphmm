@@ -1,5 +1,5 @@
 use super::{EDbg, EDbgEdge, EDbgNode};
-use crate::io::cytoscape::ElementV2;
+use crate::io::cytoscape::{EdgeAttr, ElementV2, NodeAttr};
 use crate::kmer::{KmerLike, VecKmer};
 use petgraph::dot::Dot;
 
@@ -30,7 +30,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
             elements.push(ElementV2::Node {
                 id: node,
                 label: None,
-                attrs: vec![],
+                attrs: vec![NodeAttr::CopyNum(10), NodeAttr::Freq(9.9)],
             });
         }
 
@@ -43,7 +43,10 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
                 source: s,
                 target: t,
                 label: Some(VecKmer::from_bases(&weight.kmer().to_bases())),
-                attrs: vec![],
+                attrs: vec![
+                    EdgeAttr::TrueCopyNum(weight.copy_num()),
+                    EdgeAttr::CopyNums(vec![5, 4, 3, 2]),
+                ],
             });
         }
         elements

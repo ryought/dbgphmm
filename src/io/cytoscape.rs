@@ -40,13 +40,14 @@ pub enum Element {
 //
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum NodeAttr {
     CopyNum(CopyNum),
+    Freq(Freq),
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum EdgeAttr {
     TrueCopyNum(CopyNum),
     CopyNums(Vec<CopyNum>),
