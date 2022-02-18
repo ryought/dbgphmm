@@ -322,18 +322,9 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
     return None;
 }
 
-//
-// public functions
-//
-
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow<N, E: FlowEdge + ConstCost>(
-    graph: &DiGraph<N, E>,
-    flow: &Flow,
-) -> Option<Flow> {
-    let rg = flow_to_residue(graph, flow);
-
+fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     draw(&rg);
@@ -354,6 +345,20 @@ pub fn improve_flow<N, E: FlowEdge + ConstCost>(
     }
 }
 
+//
+// public functions
+//
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+pub fn improve_flow<N, E: FlowEdge + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> Option<Flow> {
+    let rg = flow_to_residue(graph, flow);
+    update_flow_in_residue_graph(flow, &rg)
+}
+
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
 pub fn improve_flow_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow>
@@ -361,25 +366,7 @@ where
     E: FlowEdge + ConvexCost,
 {
     let rg = flow_to_residue_convex(graph, flow);
-
-    // find negative weight cycles
-    let path = find_negative_cycle_in_whole_graph(&rg);
-    draw(&rg);
-
-    match path {
-        Some(nodes) => {
-            let edges = node_list_to_edge_list(&rg, &nodes);
-
-            // check if this is actually negative cycle
-            assert!(is_negative_cycle(&rg, &edges));
-
-            // apply these changes along the cycle to current flow
-            let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
-            println!("{:?}", new_flow);
-            Some(new_flow)
-        }
-        None => None,
-    }
+    update_flow_in_residue_graph(flow, &rg)
 }
 
 #[cfg(test)]
