@@ -9,12 +9,12 @@ var global_state = {
   time: 0,
   show_node_label: true,
   show_edge_label: true,
-  edge_label_key: null,
-  edge_color_key: null,
-  edge_width_key: null,
-  node_label_key: null,
-  node_color_key: null,
-  node_size_key: null,
+  edge_label_key: -1,
+  edge_color_key: -1,
+  edge_width_key: -1,
+  node_label_key: -1,
+  node_color_key: -1,
+  node_size_key: -1,
 }
 var node_attrs = {}
 var edge_attrs = {}
@@ -44,14 +44,14 @@ function parse_attrs(elements) {
     .data.attrs.map((attr) => attr.type)
 
   node_attrs = {
-    'disabled': null
+    'disabled': -1
   }
   for (let i = 0; i < node.length; i++) {
     node_attrs[`${i}: ${node[i]}`] = i
   }
 
   edge_attrs = {
-    'disabled': null
+    'disabled': -1
   }
   for (let i = 0; i < edge.length; i++) {
     edge_attrs[`${i}: ${edge[i]}`] = i
@@ -59,10 +59,10 @@ function parse_attrs(elements) {
 }
 
 function get_attr(attrs, key, time) {
-  if (key != null) {
+  if (key != null && key != -1) {
     const attr = attrs[key]
     if (attr.type === 'copy_nums') {
-      return attr.value[t]
+      return attr.value[time]
     } else {
       return attr.value
     }
@@ -145,7 +145,7 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const label = e.data('label') || ''
-              if (key != null) {
+              if (key != -1) {
                 const attrs = e.data('attrs')
                 const time = e.scratch('time')
                 return `${label} (${get_attr(attrs, key, time)})`
@@ -176,7 +176,7 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const label = e.data('label') || ''
-              if (key != null) {
+              if (key != -1) {
                 const attrs = e.data('attrs')
                 const time = e.scratch('time')
                 return `${label} (${get_attr(attrs, key, time)})`
