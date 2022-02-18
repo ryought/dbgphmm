@@ -187,6 +187,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         SimpleEDbg::new(self.k(), graph)
     }
+    /// output as cytoscape json format
+    /// by converting into edge centric dbg
+    pub fn to_cytoscape(&self) -> String {
+        self.to_edbg().to_cytoscape()
+    }
 }
 
 #[cfg(test)]

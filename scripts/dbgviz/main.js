@@ -30,7 +30,7 @@ var cy = window.cy = cytoscape({
       }
     }
   ],
-  elements: fetch('/g.json')
+  elements: fetch('/hoge.json')
     .then(function (res) { return res.json() })
     .then(function (json) { console.log('json', json); return json }),
   layout: {
