@@ -156,5 +156,43 @@ mod tests {
         });
         let serialized = serde_json::to_string_pretty(&elements).unwrap();
         println!("{}", serialized);
+        let answer = r#"[
+  {
+    "group": "nodes",
+    "data": {
+      "id": "n0",
+      "label": "ATCGA",
+      "attrs": [
+        {
+          "type": "copy_num",
+          "value": 10
+        }
+      ]
+    }
+  },
+  {
+    "group": "edges",
+    "data": {
+      "id": "e0",
+      "source": "n0",
+      "target": "n1",
+      "label": "ATCGAT",
+      "attrs": [
+        {
+          "type": "true_copy_num",
+          "value": 10
+        },
+        {
+          "type": "copy_nums",
+          "value": [
+            10,
+            20
+          ]
+        }
+      ]
+    }
+  }
+]"#;
+        assert_eq!(serialized, answer);
     }
 }
