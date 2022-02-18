@@ -13,9 +13,10 @@ pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use picker::{pick_ins_emission, pick_match_emission, pick_with_prob};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use utils::get_emission_sequence;
+pub mod history;
 pub mod picker;
 pub mod utils;
+pub use history::History;
 
 ///
 /// HMM hidden states
@@ -30,6 +31,19 @@ pub enum State {
     End,
 }
 
+impl std::fmt::Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            State::Match(node) => write!(f, "Match({})", node.index()),
+            State::Ins(node) => write!(f, "Ins({})", node.index()),
+            State::Del(node) => write!(f, "Del({})", node.index()),
+            State::MatchBegin => write!(f, "MatchBegin"),
+            State::InsBegin => write!(f, "InsBegin"),
+            State::End => write!(f, "End"),
+        }
+    }
+}
+
 ///
 /// HMM emission
 ///
@@ -39,14 +53,23 @@ pub enum Emission {
     Empty,
 }
 
+impl std::fmt::Display for Emission {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Emission::Base(base) => write!(f, "{}", *base as char),
+            Emission::Empty => write!(f, "-"),
+        }
+    }
+}
+
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Generate a sequence of Emission and Hidden states
     /// by running a profile HMM using rng(random number generator).
     ///
-    pub fn sample(&self, length: usize, seed: u64) -> Vec<(State, Emission)> {
+    pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        let mut history = Vec::new();
+        let mut history = History::new();
 
         // (1) init
         let (mut state, _) = self.sample_init(&mut rng);
@@ -55,7 +78,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         for _ in 0..length {
             // (2) step
             (state, emission) = self.sample_step(&mut rng, state);
-            history.push((state, emission));
+            history.push(state, emission);
 
             if let State::End = state {
                 break;
@@ -72,7 +95,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample_read(&self, length: usize, seed: u64) -> Sequence {
         let history = self.sample(length, seed);
-        get_emission_sequence(&history)
+        history.to_sequence()
     }
     fn sample_init<R: Rng>(&self, _rng: &mut R) -> (State, Emission) {
         (State::MatchBegin, Emission::Empty)
@@ -256,8 +279,8 @@ mod tests {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
         let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let hist = phmm.sample(5, 0);
-        let read = get_emission_sequence(&hist);
-        println!("{:?}", hist);
+        let read = hist.to_sequence();
+        println!("{}", hist);
         assert_eq!(read, b"CGATC");
         println!("{:?}", sequence_to_string(&read));
     }
