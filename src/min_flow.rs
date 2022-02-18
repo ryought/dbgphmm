@@ -58,6 +58,20 @@ where
     Some(restore_convex_flow(&fg_flow, &fg, &graph))
 }
 
+///
+/// Find minimum cost flow on the Graph whose edge is ConvexFlowEdge.
+/// This solver requires less memory.
+///
+pub fn min_cost_flow_convex_fast<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+where
+    N: std::fmt::Debug,
+    E: ConvexFlowEdge + std::fmt::Debug,
+{
+    // (1) find the initial flow, by assigning constant cost to the flow.
+    // (2) upgrade the flow, by finding a negative cycle in residue graph.
+    unimplemented!();
+}
+
 //
 // internal functions
 //
@@ -89,6 +103,34 @@ fn min_cost_flow_from<N, E: FlowEdge>(graph: &DiGraph<N, E>, init_flow: &Flow) -
             }
         };
     }
+
+    flow
+}
+
+///
+/// Find minimum cost by starting from the specified flow values.
+///
+fn min_cost_flow_from_convex<N, E: ConvexFlowEdge>(
+    graph: &DiGraph<N, E>,
+    init_flow: &Flow,
+) -> Flow {
+    let mut flow = init_flow.clone();
+
+    /*
+    // TODO
+    loop {
+        assert!(is_valid_flow(&flow, &graph));
+        match improve_flow(graph, &flow) {
+            Some(new_flow) => {
+                flow = new_flow;
+                continue;
+            }
+            None => {
+                break;
+            }
+        };
+    }
+    */
 
     flow
 }

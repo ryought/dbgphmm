@@ -11,3 +11,6 @@
 //! * to find the initial valid flow, cost will be unit and...
 //! * to find the min flow from the init flow, residual...
 //!
+use super::super::flow::Flow;
+use super::ConvexFlowEdge;
+use petgraph::graph::DiGraph;
