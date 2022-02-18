@@ -2,6 +2,7 @@
 //! Struct for storeing sampling results
 //!
 use super::super::freq::NodeFreqs;
+use super::super::trans_table::EdgeFreqs;
 use super::{Emission, State};
 use crate::common::Sequence;
 
@@ -36,7 +37,14 @@ impl History {
             .copied()
             .collect()
     }
+    /// TODO
+    ///
     pub fn to_node_freqs(&self) -> NodeFreqs {
+        unimplemented!();
+    }
+    /// TODO
+    ///
+    pub fn to_edge_freqs(&self) -> EdgeFreqs {
         unimplemented!();
     }
 }
