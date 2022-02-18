@@ -6,7 +6,8 @@ pub mod utils;
 pub mod zero_demand;
 
 use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexFlowGraph};
-use flow::{is_valid_flow, Flow, FlowGraphRaw};
+use flow::{is_valid_flow, Flow, FlowEdgeLike, FlowGraphRaw};
+use petgraph::graph::DiGraph;
 use residue::improve_flow;
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
@@ -18,7 +19,11 @@ use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 ///
 /// Find minimum cost flow on the FlowGraph
 ///
-pub fn min_cost_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Option<Flow> {
+pub fn min_cost_flow<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+where
+    N: std::fmt::Debug,
+    E: FlowEdgeLike + std::fmt::Debug,
+{
     let init_flow = find_initial_flow(graph);
 
     match init_flow {
@@ -56,7 +61,7 @@ pub fn min_cost_flow_convex(graph: &ConvexFlowGraph) -> Option<Flow> {
 ///
 /// Find minimum cost flow of the special FlowGraph, whose demand is always zero.
 ///
-fn min_cost_flow_from_zero<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Flow {
+fn min_cost_flow_from_zero<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>) -> Flow {
     assert!(is_zero_demand_flow_graph(&graph));
     let flow = Flow::new(graph.edge_count(), 0);
     min_cost_flow_from(graph, &flow)
@@ -65,7 +70,7 @@ fn min_cost_flow_from_zero<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>) -> Flow 
 ///
 /// Find minimum cost by starting from the specified flow values.
 ///
-fn min_cost_flow_from<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, init_flow: &Flow) -> Flow {
+fn min_cost_flow_from<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>, init_flow: &Flow) -> Flow {
     let mut flow = init_flow.clone();
 
     loop {

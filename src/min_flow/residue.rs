@@ -3,7 +3,7 @@
 //! - ResidueGraph
 //! - ResidueDirection
 //!
-use super::flow::{Flow, FlowGraphRaw};
+use super::flow::{Flow, FlowEdgeLike};
 use super::utils::draw;
 use itertools::Itertools; // for tuple_windows
 use petgraph::algo::find_negative_cycle;
@@ -118,7 +118,7 @@ pub type ResidueGraph = DiGraph<(), ResidueEdge>;
 ///  e1 = (u-f, +c) if u-f>0
 /// w -> v
 ///  e2 = (f-l, -c) if f-l>0
-pub fn flow_to_residue<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow) -> ResidueGraph {
+pub fn flow_to_residue<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>, flow: &Flow) -> ResidueGraph {
     let mut rg: ResidueGraph = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -126,23 +126,22 @@ pub fn flow_to_residue<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow)
         let f = flow[e];
         let ew = graph.edge_weight(e).unwrap();
         let (v, w) = graph.edge_endpoints(e).unwrap();
-        println!("{:?} {:?} {}", e, ew, f);
 
         let mut edges = Vec::new();
-        if f < ew.capacity {
+        if f < ew.capacity() {
             // up movable
             edges.push((
                 v,
                 w,
-                ResidueEdge::new(ew.capacity - f, ew.cost, e, ResidueDirection::Up),
+                ResidueEdge::new(ew.capacity() - f, ew.cost(), e, ResidueDirection::Up),
             ));
         }
-        if f > ew.demand {
+        if f > ew.demand() {
             // down movable
             edges.push((
                 w,
                 v,
-                ResidueEdge::new(f - ew.demand, -ew.cost, e, ResidueDirection::Down),
+                ResidueEdge::new(f - ew.demand(), -ew.cost(), e, ResidueDirection::Down),
             ));
         }
         rg.extend_with_edges(&edges);
@@ -278,7 +277,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow<T: std::fmt::Debug>(graph: &FlowGraphRaw<T>, flow: &Flow) -> Option<Flow> {
+pub fn improve_flow<N, E: FlowEdgeLike>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow> {
     let rg = flow_to_residue(graph, flow);
 
     // find negative weight cycles
