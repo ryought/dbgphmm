@@ -277,16 +277,13 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
     // (2) apply these changes to the flow along the cycle
     for edge in edges {
         let ew = rg.edge_weight(*edge).unwrap();
-        println!("{:?} {:?}", edge, ew);
         // convert back to the original edgeindex
         let original_edge = ew.target;
-        let original_edge_flow = flow[original_edge];
 
-        let new_edge_flow = match ew.direction {
-            ResidueDirection::Up => original_edge_flow + flow_change_amount,
-            ResidueDirection::Down => original_edge_flow - flow_change_amount,
+        new_flow[original_edge] = match ew.direction {
+            ResidueDirection::Up => flow[original_edge] + flow_change_amount,
+            ResidueDirection::Down => flow[original_edge] - flow_change_amount,
         };
-        new_flow[original_edge] = new_edge_flow;
     }
 
     new_flow
