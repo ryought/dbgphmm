@@ -9,8 +9,10 @@ var global_state = {
   time: 0,
   show_node_label: true,
   show_edge_label: true,
+  edge_label_key: null,
   edge_color_key: null,
   edge_width_key: null,
+  node_label_key: null,
   node_color_key: null,
   node_size_key: null,
 }
@@ -54,6 +56,24 @@ function parse_attrs(elements) {
   for (let i = 0; i < edge.length; i++) {
     edge_attrs[`${i}: ${edge[i]}`] = i
   }
+}
+
+function get_attr(attrs, key, time) {
+  if (key != null) {
+    const attr = attrs[key]
+    if (attr.type === 'copy_nums') {
+      return attr.value[t]
+    } else {
+      return attr.value
+    }
+  } else {
+    return null
+  }
+}
+
+function color(x, x_min, x_max) {
+  const b = Math.floor(((x - x_min) / (x_max - x_min)) * 255)
+  return `rgb(100, 100, ${b})`
 }
 
 
@@ -123,42 +143,66 @@ function init_cytoscape(elements) {
           shape: 'ellipse',
           label: (e) => {
             if (e.scratch('show_label')) {
-              return e.data('label') || ''
+              const key = e.scratch('label_attr_key')
+              const label = e.data('label') || ''
+              if (key != null) {
+                const attrs = e.data('attrs')
+                const time = e.scratch('time')
+                return `${label} (${get_attr(attrs, key, time)})`
+              } else {
+                return label
+              }
             } else {
               return ''
             }
           },
+          'background-color': (e) => {
+            const attrs = e.data('attrs')
+            const time = e.scratch('time')
+            const key = e.scratch('color_attr_key')
+            const x = get_attr(attrs, key, time)
+            if (x != null)  {
+              return color(x, 0, 5)
+            } else {
+              return '#444'
+            }
+          }
         }
       },
       {
         selector: 'edge',
         style: {
           label: (e) => {
-            // return `${e.data('label') || ''} (x${e.data('true_width') || ''})`
             if (e.scratch('show_label')) {
-              return e.data('label') || ''
+              const key = e.scratch('label_attr_key')
+              const label = e.data('label') || ''
+              if (key != null) {
+                const attrs = e.data('attrs')
+                const time = e.scratch('time')
+                return `${label} (${get_attr(attrs, key, time)})`
+              } else {
+                return label
+              }
             } else {
               return ''
             }
           },
           'line-color': (e) => {
             const attrs = e.data('attrs')
-            return '#000'
+            const time = e.scratch('time')
+            const key = e.scratch('color_attr_key')
+            const x = get_attr(attrs, key, time)
+            if (x != null) {
+              return color(x, 0, 5)
+            } else {
+              return '#444'
+            }
           },
           'width': (e) => {
             const attrs = e.data('attrs')
-            const t = e.scratch('time')
+            const time = e.scratch('time')
             const key = e.scratch('width_attr_key')
-            if (key != null) {
-              const attr = attrs[key]
-              if (attr.type === 'copy_nums') {
-                return attr.value[t]
-              } else {
-                return attr.value
-              }
-            } else {
-              return 1
-            }
+            return get_attr(attrs, key, time) || 1
           },
           'curve-style': 'bezier',
           'target-arrow-shape': 'triangle',
@@ -183,8 +227,10 @@ function init_cytoscape(elements) {
 function sync_states() {
   cy.nodes().scratch('show_label', global_state.show_node_label)
   cy.edges().scratch('show_label', global_state.show_edge_label)
+  cy.edges().scratch('label_attr_key', global_state.edge_label_key)
   cy.edges().scratch('color_attr_key', global_state.edge_color_key)
   cy.edges().scratch('width_attr_key', global_state.edge_width_key)
+  cy.nodes().scratch('label_attr_key', global_state.node_label_key)
   cy.nodes().scratch('color_attr_key', global_state.node_color_key)
   cy.nodes().scratch('size_attr_key', global_state.node_size_key)
   cy.elements().scratch('time', global_state.time)
@@ -199,7 +245,7 @@ function init_controls() {
   select.add(global_state, 'selected_node')
     .listen()
     .onChange(() => select_node(global_state.selected_node, global_state.max_depth))
-  select.add(global_state, 'max_depth', 1, 20, 1)
+  select.add(global_state, 'max_depth', 1, 40, 1)
   select.add({ unselect: unselect_node }, 'unselect')
 
 
@@ -215,29 +261,23 @@ function init_controls() {
   const attr = gui.addFolder('attributes')
   attr.closed = false
   attr.add(global_state, 'show_node_label')
-    .onChange((value) => {
-      cy.nodes().scratch('show_label', value)
-    })
+    .onChange((value) => cy.nodes().scratch('show_label', value))
   attr.add(global_state, 'show_edge_label')
-    .onChange((value) => {
-      cy.edges().scratch('show_label', value)
-    })
+    .onChange((value) => cy.edges().scratch('show_label', value))
+  // edges
+  attr.add(global_state, 'edge_label_key', edge_attrs)
+    .onChange((value) => cy.edges().scratch('label_attr_key', value))
   attr.add(global_state, 'edge_color_key', edge_attrs)
-    .onChange((value) => {
-      cy.edges().scratch('color_attr_key', value)
-    })
+    .onChange((value) => cy.edges().scratch('color_attr_key', value))
   attr.add(global_state, 'edge_width_key', edge_attrs)
-    .onChange((value) => {
-      cy.edges().scratch('width_attr_key', value)
-    })
+    .onChange((value) => cy.edges().scratch('width_attr_key', value))
+  // nodes
+  attr.add(global_state, 'node_label_key', node_attrs)
+    .onChange((value) => cy.nodes().scratch('label_attr_key', value))
   attr.add(global_state, 'node_color_key', node_attrs)
-    .onChange((value) => {
-      cy.nodes().scratch('color_attr_key', value)
-    })
+    .onChange((value) => cy.nodes().scratch('color_attr_key', value))
   attr.add(global_state, 'node_size_key', node_attrs)
-    .onChange((value) => {
-      cy.nodes().scratch('size_attr_key', value)
-    })
+    .onChange((value) => cy.nodes().scratch('size_attr_key', value))
 
 
   // [4] animation related
