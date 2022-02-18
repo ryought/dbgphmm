@@ -1,52 +1,97 @@
-/**
- * parameters
- */
-var index = 0
-var params = {
-  target: '',
+var gui
+var cy
+const MAX_TIME = 10
+var global_state = {
+  // independent states
+  selected_node: '',
+  max_depth: 10,
+  // synced states
   time: 0,
-  depth: 10,
+  show_node_label: true,
+  show_edge_label: true,
+  edge_color_key: null,
+  edge_width_key: null,
+  node_color_key: null,
+  node_size_key: null,
 }
-var gui = new dat.GUI({name: 'My GUI'})
+var node_attrs = {}
+var edge_attrs = {}
 
-var cy = window.cy = cytoscape({
-  container: document.getElementById('cy'),
-  style: [
-    {
-      selector: 'node',
-      style: {
-        shape: 'ellipse',
-        // label: function (e) { return e.data('label') },
-      }
-    },
-    {
-      selector: 'edge',
-      style: {
-        label: function (e) { return `${e.data('label')} (x${e.data('true_width')})` },
-        'curve-style': 'bezier',
-        'target-arrow-shape': 'triangle',
-        'line-color': function (e) { return e.data('true_width') ? 'red' : 'black' },
-        'target-arrow-color': function (e) { return e.data('true_width') ? 'red' : 'black' },
-      }
-    }
-  ],
-  elements: fetch('/hoge.json')
-    .then(function (res) { return res.json() })
-    .then(function (json) { console.log('json', json); return json }),
-  layout: {
-    // name: 'cola',
-    name: 'random',
-    maxSimulationTime: 1000,
-  },
-});
+function main() {
+  fetch('/hoge.json')
+    .then((res) => res.json())
+    .then((elements) => {
+      parse_attrs(elements)
+      init_cytoscape(elements)
+      sync_states()
+      init_controls()
+    })
+}
 
+main()
 
 /**
+ * parse attribute set from elements
+ */
+function parse_attrs(elements) {
+  const node = elements
+    .find((element) => element.group == 'nodes')
+    .data.attrs.map((attr) => attr.type)
+  const edge = elements
+    .find((element) => element.group == 'edges')
+    .data.attrs.map((attr) => attr.type)
+
+  node_attrs = {
+    'disabled': null
+  }
+  for (let i = 0; i < node.length; i++) {
+    node_attrs[`${i}: ${node[i]}`] = i
+  }
+
+  edge_attrs = {
+    'disabled': null
+  }
+  for (let i = 0; i < edge.length; i++) {
+    edge_attrs[`${i}: ${edge[i]}`] = i
+  }
+}
+
+
+
+/*
+ * layouts
+ */
+// current ongoing layout
+let layout = null;
+function start_layout() {
+  if (layout === null) {
+    const target = cy.elements().filter((element) => element.style('display') !== 'none')
+    layout = target.layout({
+      name: 'cola',
+      maxSimulationTime: 40000000,
+      stop: () => {
+        // remove layout when finished
+        layout = null
+      },
+    })
+    layout.run()
+  }
+}
+function stop_layout() {
+  if (layout !== null) {
+    layout.stop()
+    layout = null
+  }
+}
+
+
+
+/*
  * node selection
  */
-const select = (root, k) => {
+function select_node(root_node, max_depth) {
   let depth = {}
-  const elem = cy.getElementById(root)
+  const elem = cy.getElementById(root_node)
   if (elem) {
     cy.elements().bfs({
       roots: elem,
@@ -56,82 +101,180 @@ const select = (root, k) => {
       directed: false,
     })
     cy.nodes().style('display', 'none');
-    cy.nodes().filter((v) => depth[v.id()] < k).neighborhood().style('display', '');
+    cy.nodes().filter((v) => depth[v.id()] < max_depth).neighborhood().style('display', '');
   }
 }
-const unselect = () => {
+function unselect_node() {
   cy.nodes().style('display', '');
 }
-cy.on('click', 'node', function(e){
-  const node = e.target;
-  params.target = node.id();
-  select(node.id(), params.depth);
-})
-gui.add(params, 'target')
-  .listen()
-  .onChange(() => {
-    select(params.target, params.depth);
-  })
-gui.add(params, 'depth', 1, 20, 1).listen()
-gui.add({ unselect }, 'unselect')
 
 
-/**
- * edge width history
+
+/*
+ * init functions
  */
-const updateWidth = () => {
-  cy.edges()
-    .style('width', function (e) {
-      const widths = e.data('widths')
-      if (params.time < widths.length) {
-        return widths[params.time] * 5
-      } else {
-        return 0
+function init_cytoscape(elements) {
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    style: [
+      {
+        selector: 'node',
+        style: {
+          shape: 'ellipse',
+          label: (e) => {
+            if (e.scratch('show_label')) {
+              return e.data('label') || ''
+            } else {
+              return ''
+            }
+          },
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          label: (e) => {
+            // return `${e.data('label') || ''} (x${e.data('true_width') || ''})`
+            if (e.scratch('show_label')) {
+              return e.data('label') || ''
+            } else {
+              return ''
+            }
+          },
+          'line-color': (e) => {
+            const attrs = e.data('attrs')
+            return '#000'
+          },
+          'width': (e) => {
+            const attrs = e.data('attrs')
+            const t = e.scratch('time')
+            const key = e.scratch('width_attr_key')
+            if (key != null) {
+              const attr = attrs[key]
+              if (attr.type === 'copy_nums') {
+                return attr.value[t]
+              } else {
+                return attr.value
+              }
+            } else {
+              return 1
+            }
+          },
+          'curve-style': 'bezier',
+          'target-arrow-shape': 'triangle',
+        }
       }
-    })
-}
-const MAX_TIME = 10
-gui.add(params, 'time', 0, MAX_TIME, 1)
-  .listen()
-  .onChange(() => {
-    updateWidth()
+    ],
+    elements: elements,
+    layout: {
+      name: 'random',
+      maxSimulationTime: 1000,
+    },
   })
-let timer = null;
-const animate = () => {
-  if (timer === null) {
-    // start animation
-    timer = setInterval(() => {
-      updateWidth()
-      params.time = (params.time + 1) % MAX_TIME
-    }, 100)
-  } else {
-    // stop animation
-    clearInterval(timer)
-    timer = null
-  }
+
+  // add handlers
+  cy.on('click', 'node', function (e) {
+    const node = e.target
+    global_state.selected_node = node.id()
+    select_node(global_state.selected_node, global_state.max_depth)
+  })
 }
-gui.add({ animate }, 'animate')
+
+function sync_states() {
+  cy.nodes().scratch('show_label', global_state.show_node_label)
+  cy.edges().scratch('show_label', global_state.show_edge_label)
+  cy.edges().scratch('color_attr_key', global_state.edge_color_key)
+  cy.edges().scratch('width_attr_key', global_state.edge_width_key)
+  cy.nodes().scratch('color_attr_key', global_state.node_color_key)
+  cy.nodes().scratch('size_attr_key', global_state.node_size_key)
+  cy.elements().scratch('time', global_state.time)
+}
+
+function init_controls() {
+  gui = new dat.GUI({name: 'My GUI'})
+
+  // [1] selection related
+  const select = gui.addFolder('select')
+  select.closed = false
+  select.add(global_state, 'selected_node')
+    .listen()
+    .onChange(() => select_node(global_state.selected_node, global_state.max_depth))
+  select.add(global_state, 'max_depth', 1, 20, 1)
+  select.add({ unselect: unselect_node }, 'unselect')
 
 
-/**
- * layouts
- */
-let layout = null
-const start = () => {
-  if (layout === null) {
-    const target = cy.elements().filter((element) => element.style('display') !== 'none')
-    layout = target.layout({
-      name: 'cola',
-      maxSimulationTime: 40000000,
+  // [2] layout related
+  const layout = gui.addFolder('layout')
+  layout.closed = false
+  layout.add({ start: start_layout }, 'start')
+  layout.add({ stop: stop_layout }, 'stop')
+
+
+  // [3] node/edge style related
+  //
+  const attr = gui.addFolder('attributes')
+  attr.closed = false
+  attr.add(global_state, 'show_node_label')
+    .onChange((value) => {
+      cy.nodes().scratch('show_label', value)
     })
-    layout.run()
-  }
+  attr.add(global_state, 'show_edge_label')
+    .onChange((value) => {
+      cy.edges().scratch('show_label', value)
+    })
+  attr.add(global_state, 'edge_color_key', edge_attrs)
+    .onChange((value) => {
+      cy.edges().scratch('color_attr_key', value)
+    })
+  attr.add(global_state, 'edge_width_key', edge_attrs)
+    .onChange((value) => {
+      cy.edges().scratch('width_attr_key', value)
+    })
+  attr.add(global_state, 'node_color_key', node_attrs)
+    .onChange((value) => {
+      cy.nodes().scratch('color_attr_key', value)
+    })
+  attr.add(global_state, 'node_size_key', node_attrs)
+    .onChange((value) => {
+      cy.nodes().scratch('size_attr_key', value)
+    })
+
+
+  // [4] animation related
+  const animation = gui.addFolder('animation')
+  animation.closed = false
+  animation.add(global_state, 'time', 0, MAX_TIME, 1)
+    .onChange((time) => {
+      cy.elements().scratch('time', time)
+    })
+  // animation.add({ animate }, 'animate')
 }
-const stop = () => {
-  if (layout !== null) {
-    layout.stop()
-    layout = null
-  }
-}
-gui.add({ start }, 'start')
-gui.add({ stop }, 'stop')
+
+
+
+
+// gui.add(params, 'copy_num').listen()
+// /**
+//  * edge width history
+//  */
+// gui.add(params, 'time', 0, MAX_TIME, 1)
+//   .listen()
+//   .onChange(() => {
+//     updateWidth()
+//   })
+// let timer = null;
+// const animate = () => {
+//   if (timer === null) {
+//     // start animation
+//     timer = setInterval(() => {
+//       updateWidth()
+//       params.time = (params.time + 1) % MAX_TIME
+//     }, 100)
+//   } else {
+//     // stop animation
+//     clearInterval(timer)
+//     timer = null
+//   }
+// }
+
+
