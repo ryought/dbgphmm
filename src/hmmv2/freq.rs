@@ -164,8 +164,9 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// `f[v]` = (How many times the hidden state `M_v, I_v, D_v` was used to emit the whole
     /// emissions?)
     ///
-    pub fn to_node_freqs(&self, state_probs: &StateProbs) -> NodeFreqs {
+    pub fn to_node_freqs(&self) -> NodeFreqs {
         // v is NodeVec<Prob>
+        let state_probs = self.to_state_probs();
         let v = state_probs.to_nodevec();
         // f is NodeVec<Freq>
         let mut f: NodeFreqs = NodeFreqs::new(state_probs.n_nodes(), 0.0);
@@ -310,7 +311,7 @@ mod tests {
         assert_abs_diff_eq!(sps.m[ni(4)], p(1.0), epsilon = 0.00001);
         assert_abs_diff_eq!(sps.m[ni(3)], p(1.0), epsilon = 0.00001);
 
-        let nf = o.to_node_freqs(&sps);
+        let nf = o.to_node_freqs();
         println!("{:?}", nf);
         assert_abs_diff_eq!(nf[ni(7)], 1.0, epsilon = 0.00001);
         assert_abs_diff_eq!(nf[ni(6)], 1.0, epsilon = 0.00001);
@@ -328,7 +329,7 @@ mod tests {
         let phmm = mock_linear_phmm(PHMMParams::default());
         let o = phmm.run(b"CGATC");
         let sps = o.to_state_probs();
-        let nf = o.to_node_freqs(&sps);
+        let nf = o.to_node_freqs();
         phmm.draw_node_vec(&nf);
         assert!(nf[ni(0)] < 0.01); // -
         assert!(nf[ni(1)] < 0.01); // -
@@ -348,7 +349,7 @@ mod tests {
         let es = b"ATTCGTCGT"; // have 1 deletion
         let o = phmm.run(es);
         let sps = o.to_state_probs();
-        let nf = o.to_node_freqs(&sps);
+        let nf = o.to_node_freqs();
         phmm.draw_node_vec(&nf);
         assert_abs_diff_eq!(
             o.to_full_prob_forward(),
