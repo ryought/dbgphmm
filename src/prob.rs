@@ -48,6 +48,13 @@ impl Prob {
     }
 }
 
+/// p=0 (Prob(-inf)) as a default value
+impl Default for Prob {
+    fn default() -> Self {
+        Prob(f64::NEG_INFINITY)
+    }
+}
+
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

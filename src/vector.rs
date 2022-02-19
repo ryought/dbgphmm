@@ -38,7 +38,7 @@ use std::marker::PhantomData;
 pub trait Storage: Clone + Sized + PartialEq {
     /// Item type that this storage stores.
     ///
-    type Item: Copy + PartialEq;
+    type Item: Copy + PartialEq + Default;
     ///
     /// Create a new storage with fixed size and filled with the default value
     fn new(size: usize, default_value: Self::Item) -> Self;
@@ -58,6 +58,10 @@ pub trait Storage: Clone + Sized + PartialEq {
     ///
     /// Get the mutable reference to the given index
     fn get_mut(&mut self, index: usize) -> &mut Self::Item;
+    // /// TODO
+    // fn get_default_value(&self) -> Self::Item;
+    // /// TODO
+    // fn set_default_value(&mut self, default_value: Self::Item) -> Self::Item;
     ///
     /// get an iterator of (usize, Self::Item) on the storage
     fn iter<'a>(&'a self) -> StorageIterator<'a, Self> {
@@ -387,6 +391,8 @@ where
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        /*
+         * TODO this may cause incorrect result
         let p1 = self
             .iter()
             .all(|(index, value)| S::Item::abs_diff_eq(&other[index], &value, epsilon));
@@ -394,5 +400,8 @@ where
             .iter()
             .all(|(index, value)| S::Item::abs_diff_eq(&self[index], &value, epsilon));
         p1 && p2
+        */
+        (0..self.len())
+            .all(|i| S::Item::abs_diff_eq(&self[Ix::new(i)], &other[Ix::new(i)], epsilon))
     }
 }

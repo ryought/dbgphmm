@@ -11,7 +11,7 @@ pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> DenseStorage<T> {

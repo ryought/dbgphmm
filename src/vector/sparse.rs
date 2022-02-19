@@ -31,7 +31,7 @@ pub struct SparseStorage<T> {
 
 impl<T> Storage for SparseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> SparseStorage<T> {
@@ -100,7 +100,7 @@ where
 // Custom Partial Eq for Sparse storage
 impl<T> PartialEq for SparseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
