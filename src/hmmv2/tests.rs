@@ -3,6 +3,7 @@ mod tests {
     use super::*;
     use crate::common::sequence_to_string;
     use crate::dbg::mocks::mock_random_with_seq;
+    use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::hmmv2::params::PHMMParams;
     use crate::hmmv2::result::PHMMResultLike;
     use crate::random_seq::generate;
@@ -24,5 +25,25 @@ mod tests {
             let d = r1.table(i).diff(&r2.table(i));
             println!("{} {}", i, d);
         }
+    }
+    #[test]
+    fn hmmv2_sample_freq() {
+        let phmm = mock_linear_phmm(PHMMParams::default());
+        // sample
+        let h = phmm.sample(10, 4);
+        println!("{}", h);
+        let r = h.to_sequence();
+        let nf_true = h.to_node_freqs(&phmm);
+        println!("{:?} {}", nf_true, nf_true.sum());
+
+        // infer
+        let o = phmm.run(&r);
+        let nf_infer = o.to_node_freqs();
+        println!("{:?} {}", nf_infer, nf_infer.sum());
+
+        // infer sparse
+        let o = phmm.run_sparse(&r);
+        let nf_infer_sparse = o.to_node_freqs();
+        println!("{:?} {}", nf_infer_sparse, nf_infer_sparse.sum());
     }
 }
