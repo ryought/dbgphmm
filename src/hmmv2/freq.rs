@@ -124,22 +124,6 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// * `k` is a node index
     /// * `P(x)` is the full probability of emissions
     ///
-    pub fn to_emit_probs(&self) -> EmitProbs {
-        let n = self.forward.n_emissions();
-        let p = self.to_full_prob_forward();
-        (0..n)
-            .map(|i| {
-                let f = self.forward.table(i);
-                let b = if i + 1 < n {
-                    self.backward.table(i + 1)
-                } else {
-                    self.backward.init_table()
-                };
-                (&f * &b) / p
-            })
-            // .map(|v| v.to_dense())
-            .collect()
-    }
     pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = StateProbs> + 'a {
         let n = self.forward.n_emissions();
         let p = self.to_full_prob_forward();
@@ -293,7 +277,7 @@ mod tests {
     fn hmm_freq_mock_linear_zero_error_node_freqs() {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let o = phmm.run(b"CGATC");
-        let eps = o.to_emit_probs();
+        let eps: Vec<StateProbs> = o.iter_emit_probs().collect();
         for ep in eps.iter() {
             println!("{}", ep);
         }
