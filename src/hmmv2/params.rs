@@ -87,6 +87,19 @@ impl PHMMParams {
             16,
         )
     }
+    /// PHMM Param for medium-error sequence
+    /// `p_mismatch = 5%`
+    ///
+    pub fn mid_error() -> PHMMParams {
+        PHMMParams::new(
+            Prob::from_prob(0.05),    // mismatch
+            Prob::from_prob(0.05),    // gap_open
+            Prob::from_prob(0.05),    // gap_ext
+            Prob::from_prob(0.00001), // end
+            40,
+            16,
+        )
+    }
     /// PHMM Param for highly-error sequence
     /// `p_mismatch = 10%`
     ///
