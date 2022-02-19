@@ -121,4 +121,16 @@ mod tests {
     fn dense_storage_dense_check() {
         assert!(DenseStorage::<u32>::is_dense());
     }
+    #[test]
+    fn dense_storage_partial_eq() {
+        let mut s1: DenseStorage<u32> = DenseStorage::new(10, 0);
+        *s1.get_mut(5) = 111;
+        *s1.get_mut(3) = 22;
+        let mut s2: DenseStorage<u32> = DenseStorage::new(10, 0);
+        *s2.get_mut(3) = 22;
+        *s2.get_mut(5) = 111;
+        println!("{:?}", s1);
+        println!("{:?}", s2);
+        assert!(s1 == s2);
+    }
 }

@@ -97,6 +97,19 @@ where
     }
 }
 
+// Custom Partial Eq for Sparse storage
+impl<T> PartialEq for SparseStorage<T>
+where
+    T: Copy + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.size == other.size
+            && self.default_value == other.default_value
+            && self.iter().all(|(i, x)| *other.get(i) == x)
+            && other.iter().all(|(i, x)| *self.get(i) == x)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::Vector;
@@ -164,7 +177,27 @@ mod tests {
         assert_eq!(*s2.get(2), *s.get(2));
         assert_eq!(*s2.get(3), *s.get(3));
     }
-    /*
+    #[test]
+    fn sparse_storage_dense_check() {
+        assert!(!SparseStorage::<u32>::is_dense());
+    }
+    #[test]
+    fn sparse_storage_partial_eq() {
+        let mut s1: SparseStorage<u32> = SparseStorage::new(10, 0);
+        *s1.get_mut(5) = 111;
+        *s1.get_mut(3) = 22;
+        let mut s2: SparseStorage<u32> = SparseStorage::new(10, 0);
+        *s2.get_mut(3) = 22;
+        *s2.get_mut(5) = 111;
+        println!("{:?}", s1);
+        println!("{:?}", s2);
+        assert!(s1 == s2);
+        let mut s3: SparseStorage<u32> = SparseStorage::new(10, 0);
+        *s2.get_mut(3) = 22;
+        *s2.get_mut(2) = 33;
+        println!("{}", s1 == s3);
+        assert!(!(s1 == s3));
+    }
     #[test]
     fn sparse_storage_vector() {
         let mut v: Vector<SparseStorage<u32>> = Vector::new(5, 0);
@@ -202,5 +235,4 @@ mod tests {
         assert_eq!(muled[2], 0 * 111);
         assert_eq!(muled[3], 111 * 1);
     }
-    */
 }

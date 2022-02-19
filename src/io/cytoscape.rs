@@ -1,5 +1,6 @@
 use crate::common::{CopyNum, Freq};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
@@ -50,7 +51,22 @@ pub enum NodeAttr {
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum EdgeAttr {
     TrueCopyNum(CopyNum),
+    Freq(Freq),
     CopyNums(Vec<CopyNum>),
+}
+
+#[derive(Debug, Clone)]
+/// struct for storing NodeAttr for all nodes
+pub enum NodeAttrVec {
+    CopyNum(NodeVec<DenseStorage<CopyNum>>),
+    Freq(NodeVec<DenseStorage<Freq>>),
+}
+
+#[derive(Debug, Clone)]
+/// struct for storing EdgeAttr for all edges
+pub enum EdgeAttrVec {
+    TrueCopyNum(EdgeVec<DenseStorage<CopyNum>>),
+    Freq(EdgeVec<DenseStorage<Freq>>),
 }
 
 #[serde_as]

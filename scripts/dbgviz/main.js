@@ -15,6 +15,7 @@ var global_state = {
   node_label_key: -1,
   node_color_key: -1,
   node_size_key: -1,
+  node_color_max: 1,
 }
 var node_attrs = {}
 var edge_attrs = {}
@@ -73,7 +74,7 @@ function get_attr(attrs, key, time) {
 
 function color(x, x_min, x_max) {
   const b = Math.floor(((x - x_min) / (x_max - x_min)) * 255)
-  return `rgb(100, 100, ${b})`
+  return `rgb(0, 0, ${b})`
 }
 
 
@@ -160,11 +161,12 @@ function init_cytoscape(elements) {
             const attrs = e.data('attrs')
             const time = e.scratch('time')
             const key = e.scratch('color_attr_key')
+            const x_max = e.scratch('color_max')
             const x = get_attr(attrs, key, time)
             if (x != null)  {
-              return color(x, 0, 5)
+              return color(x, 0, x_max)
             } else {
-              return '#444'
+              return '#000'
             }
           }
         }
@@ -233,6 +235,7 @@ function sync_states() {
   cy.nodes().scratch('label_attr_key', global_state.node_label_key)
   cy.nodes().scratch('color_attr_key', global_state.node_color_key)
   cy.nodes().scratch('size_attr_key', global_state.node_size_key)
+  cy.nodes().scratch('color_max', global_state.node_color_max)
   cy.elements().scratch('time', global_state.time)
 }
 
@@ -278,6 +281,8 @@ function init_controls() {
     .onChange((value) => cy.nodes().scratch('color_attr_key', value))
   attr.add(global_state, 'node_size_key', node_attrs)
     .onChange((value) => cy.nodes().scratch('size_attr_key', value))
+  attr.add(global_state, 'node_color_max', 0, 30, 0.001)
+    .onChange((value) => cy.nodes().scratch('color_max', value))
 
 
   // [4] animation related
