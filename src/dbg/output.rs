@@ -69,6 +69,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         elements
     }
     /// Convert de bruijn graph into
+    /// cytoscape-parsable JSON string
+    /// with node/edge attributes
+    pub fn to_cytoscape_with_attrs(
+        &self,
+        node_attrs: &[NodeAttrVec],
+        edge_attrs: &[EdgeAttrVec],
+    ) -> String {
+        let elements = self.to_cytoscape_elements_with_attrs(node_attrs, edge_attrs);
+        serde_json::to_string(&elements).unwrap()
+    }
+    /// Convert de bruijn graph into
     /// collection of elements for cytoscape parsing
     /// without any node/edge attributes
     fn to_cytoscape_elements(&self) -> Vec<ElementV2<N::Kmer>> {
@@ -77,8 +88,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert de bruijn graph into
     /// cytoscape-parsable JSON string
     pub fn to_cytoscape(&self) -> String {
-        let elements = self.to_cytoscape_elements();
-        serde_json::to_string(&elements).unwrap()
+        self.to_cytoscape_with_attrs(&[], &[])
     }
     // /// output as cytoscape json format
     // /// by converting into edge centric dbg
