@@ -31,6 +31,18 @@ pub enum State {
     End,
 }
 
+///
+/// Convert State (either Match/Ins/Del(NodeIndex) MatchBegin/InsBegin/End)
+/// into the wrapped NodeIndex.
+/// If state is begin/end, it returns None.
+///
+pub fn state_to_node_index(state: State) -> Option<NodeIndex> {
+    match state {
+        State::Match(v) | State::Ins(v) | State::Del(v) => Some(v),
+        _ => None,
+    }
+}
+
 impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -64,8 +76,9 @@ impl std::fmt::Display for Emission {
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
-    /// Generate a sequence of Emission and Hidden states
-    /// by running a profile HMM using rng(random number generator).
+    /// Generate a one-shot sequence of Emission and Hidden states
+    /// by running a profile HMM.
+    /// Random number generator will be created from the seed.
     ///
     pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
@@ -81,6 +94,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let history = self.sample(length, seed);
         history.to_sequence()
     }
+    ///
+    /// Generate a sequence of Emission and Hidden states
+    /// by running a profile HMM using the given rng(random number generator).
+    ///
     pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize) -> History {
         let mut history = History::new();
 
@@ -247,13 +264,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::sequence_to_string;
+    use crate::common::{ni, sequence_to_string};
     use crate::hmmv2::mocks::mock_linear_phmm;
 
     #[test]
     fn hmm_sample_state() {
         let s = State::Match(NodeIndex::new(10));
         println!("{:?}", s);
+    }
+    #[test]
+    fn hmm_sample_state_to_node_index() {
+        assert_eq!(state_to_node_index(State::Match(ni(10))), Some(ni(10)));
+        assert_eq!(state_to_node_index(State::Ins(ni(2))), Some(ni(2)));
+        assert_eq!(state_to_node_index(State::InsBegin), None);
     }
 
     #[test]

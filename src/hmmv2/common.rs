@@ -132,6 +132,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    ///
+    /// Get an index of the edge from a to b.
+    ///
+    pub fn edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
+        self.graph.find_edge(a, b)
+    }
     //
     // PHMM Specific methods
     //
