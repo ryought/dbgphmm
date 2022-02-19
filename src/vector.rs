@@ -183,8 +183,25 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
         }
         v
     }
+    /// internal storage is dense or sparse?
+    ///
     pub fn is_dense(&self) -> bool {
         S::is_dense()
+    }
+}
+
+impl<S, Ix> Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: std::iter::Sum,
+    Ix: Indexable,
+{
+    /// Calculate the sum of the elements
+    ///
+    /// TODO
+    /// This function can be slow when with sparse storage
+    pub fn sum(&self) -> S::Item {
+        (0..self.len()).map(|i| self[Ix::new(i)]).sum()
     }
 }
 
