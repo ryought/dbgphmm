@@ -137,6 +137,14 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
         }
         v
     }
+    /// Create a new Vector, from slice
+    pub fn from_slice(vec: &[S::Item], default_value: S::Item) -> Vector<S, Ix> {
+        let mut v = Vector::new(vec.len(), default_value);
+        for (index, value) in vec.iter().enumerate() {
+            v[Ix::new(index)] = *value;
+        }
+        v
+    }
     /// Get an (virtual) size of the storage
     pub fn len(&self) -> usize {
         self.storage.size()

@@ -136,31 +136,46 @@ End -> -
             println!("{} {}", i, hist);
         }
 
-        // seed=0
+        // seed=0 ni(3) -> ni(9)
         let h = phmm.sample(10, 0);
         println!("{}", h);
         let nf = h.to_node_freqs(&phmm);
-        println!("{:?}", nf);
+        assert_abs_diff_eq!(
+            nf,
+            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
+        );
         let ef = h.to_edge_freqs(&phmm);
-        println!("{:?}", ef);
+        assert_abs_diff_eq!(
+            ef,
+            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
+        );
 
-        // seed=2
+        // seed=2 ni(7) -> ni(9)
         let h = phmm.sample(10, 2);
         println!("{}", h);
-        println!("{:?}", h.to_node_freqs(&phmm));
-        println!("{:?}", h.to_edge_freqs(&phmm));
+        let nf = h.to_node_freqs(&phmm);
+        assert_abs_diff_eq!(
+            nf,
+            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], 0.0)
+        );
+        let ef = h.to_edge_freqs(&phmm);
+        assert_abs_diff_eq!(
+            ef,
+            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0], 0.0)
+        );
 
-        // seed=8
-        let h = phmm.sample(10, 8);
+        // seed=15 ni(0) -> ni(8)
+        let h = phmm.sample(10, 15);
         println!("{}", h);
-        println!("{:?}", h.to_node_freqs(&phmm));
-        println!("{:?}", h.to_edge_freqs(&phmm));
-
-        /*
-        // (1) seed=82
-        // (2) seed=85
-        let hist = phmm.sample(10, 55);
-        println!("{}", hist);
-        */
+        let nf = h.to_node_freqs(&phmm);
+        assert_abs_diff_eq!(
+            nf,
+            NodeFreqs::from_slice(&[1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
+        );
+        let ef = h.to_edge_freqs(&phmm);
+        assert_abs_diff_eq!(
+            ef,
+            EdgeFreqs::from_slice(&[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
+        );
     }
 }
