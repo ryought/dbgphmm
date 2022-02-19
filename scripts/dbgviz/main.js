@@ -235,6 +235,7 @@ function sync_states() {
   cy.nodes().scratch('label_attr_key', global_state.node_label_key)
   cy.nodes().scratch('color_attr_key', global_state.node_color_key)
   cy.nodes().scratch('size_attr_key', global_state.node_size_key)
+  cy.nodes().scratch('color_max', global_state.node_color_max)
   cy.elements().scratch('time', global_state.time)
 }
 
