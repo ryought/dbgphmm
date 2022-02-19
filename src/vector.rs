@@ -346,22 +346,28 @@ where
     }
 }
 
-/*
 /// for approx `assert_abs_diff_eq`
 use approx::AbsDiffEq;
 impl<S, Ix> AbsDiffEq for Vector<S, Ix>
 where
     S: Storage,
+    S::Item: AbsDiffEq,
+    <<S as Storage>::Item as AbsDiffEq>::Epsilon: Copy,
     Ix: Indexable,
 {
-    type Epsilon = f64;
+    type Epsilon = <<S as Storage>::Item as AbsDiffEq>::Epsilon;
 
     fn default_epsilon() -> Self::Epsilon {
-        f64::default_epsilon()
+        S::Item::default_epsilon()
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        f64::abs_diff_eq(&self.0, &other.0, epsilon)
+        let p1 = self
+            .iter()
+            .all(|(index, value)| S::Item::abs_diff_eq(&other[index], &value, epsilon));
+        let p2 = other
+            .iter()
+            .all(|(index, value)| S::Item::abs_diff_eq(&self[index], &value, epsilon));
+        p1 && p2
     }
 }
-*/

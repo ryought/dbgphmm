@@ -155,4 +155,30 @@ mod tests {
         let e: Vec<(usize, u32)> = w.iter().collect();
         assert_eq!(e, vec![(5, 110), (3, 55)]);
     }
+    #[test]
+    fn vector_approx_eq() {
+        // dense
+        let mut v: Vector<DenseStorage<f64>, usize> = Vector::new(10, 0.0);
+        v[0] = 99.9;
+        v[3] = 82.2;
+        let mut w: Vector<DenseStorage<f64>, usize> = Vector::new(10, 0.0);
+        w[0] = 99.899999;
+        w[3] = 82.2;
+        assert!(!abs_diff_eq!(v, w));
+        assert!(abs_diff_eq!(v, w, epsilon = 0.1));
+        let mut w2: Vector<DenseStorage<f64>, usize> = Vector::new(10, 0.0);
+        w2[0] = 99.9;
+        w2[3] = 82.2;
+        assert!(abs_diff_eq!(v, w2));
+
+        // sparse
+        let mut v: Vector<SparseStorage<f64>, usize> = Vector::new(10, 0.0);
+        v[0] = 99.9;
+        v[3] = 82.2;
+        let mut w: Vector<SparseStorage<f64>, usize> = Vector::new(10, 0.0);
+        w[0] = 99.899999;
+        w[3] = 82.2;
+        assert!(!abs_diff_eq!(v, w));
+        assert!(abs_diff_eq!(v, w, epsilon = 0.1));
+    }
 }
