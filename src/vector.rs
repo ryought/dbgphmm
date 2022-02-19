@@ -58,10 +58,12 @@ pub trait Storage: Clone + Sized + PartialEq {
     ///
     /// Get the mutable reference to the given index
     fn get_mut(&mut self, index: usize) -> &mut Self::Item;
-    // /// TODO
-    // fn get_default_value(&self) -> Self::Item;
-    // /// TODO
-    // fn set_default_value(&mut self, default_value: Self::Item) -> Self::Item;
+    ///
+    /// Get the current default value
+    fn default_value(&self) -> Self::Item;
+    ///
+    /// set the current default value
+    fn set_default_value(&mut self, default_value: Self::Item);
     ///
     /// get an iterator of (usize, Self::Item) on the storage
     fn iter<'a>(&'a self) -> StorageIterator<'a, Self> {
@@ -192,6 +194,10 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn is_dense(&self) -> bool {
         S::is_dense()
     }
+    /// Convert to normal vector
+    pub fn to_vec(&self) -> Vec<S::Item> {
+        (0..self.len()).map(|i| self[Ix::new(i)]).collect()
+    }
 }
 
 impl<S, Ix> Vector<S, Ix>
@@ -236,10 +242,17 @@ where
     type Output = Vector<Sb, Ix>;
     fn add(self, other: &'a Vector<Sa, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
-        let mut ret = self.clone();
+        let mut ret: Vector<Sb, Ix> = Vector::new(
+            self.len(),
+            self.storage.default_value() + other.storage.default_value(),
+        );
+        // fill for the used indexes of self
+        for (index, value) in self.iter() {
+            ret[index] = other[index] + value;
+        }
+        // fill for the used indexes of other
         for (index, value) in other.iter() {
-            let old_value = ret[index];
-            ret[index] = old_value + value;
+            ret[index] = self[index] + value;
         }
         ret
     }
@@ -299,10 +312,17 @@ where
     type Output = Vector<Sb, Ix>;
     fn mul(self, other: &'a Vector<Sa, Ix>) -> Self::Output {
         assert_eq!(self.len(), other.len());
-        let mut ret = self.clone();
+        let mut ret: Vector<Sb, Ix> = Vector::new(
+            self.len(),
+            self.storage.default_value() * other.storage.default_value(),
+        );
+        // fill for the used indexes of self
+        for (index, value) in self.iter() {
+            ret[index] = other[index] * value;
+        }
+        // fill for the used indexes of other
         for (index, value) in other.iter() {
-            let old_value = ret[index];
-            ret[index] = old_value * value;
+            ret[index] = self[index] * value;
         }
         ret
     }

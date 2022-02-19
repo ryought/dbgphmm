@@ -181,4 +181,63 @@ mod tests {
         assert!(!abs_diff_eq!(v, w));
         assert!(abs_diff_eq!(v, w, epsilon = 0.1));
     }
+    #[test]
+    fn vector_add_mul_more() {
+        // add
+        // Dense([10, 3, 3, 3, 10])
+        let mut a: Vector<DenseStorage<u32>, usize> = Vector::from_vec(5, 3, &[(0, 10), (4, 10)]);
+        // Sparse([2, 1, 1, 1, 1])
+        let mut b: Vector<SparseStorage<u32>, usize> = Vector::from_vec(5, 1, &[(0, 2)]);
+        let p1 = &a + &a;
+        let p2 = &a + &b;
+        let p3 = &b + &a;
+        let p4 = &b + &b;
+        println!("{:?}", p1);
+        println!("{:?}", p2);
+        println!("{:?}", p3);
+        println!("{:?}", p4);
+        assert_eq!(p1.to_vec(), vec![20, 6, 6, 6, 20]);
+        assert_eq!(p2.to_vec(), vec![12, 4, 4, 4, 11]);
+        assert_eq!(p3.to_vec(), vec![12, 4, 4, 4, 11]);
+        assert_eq!(p4.to_vec(), vec![4, 2, 2, 2, 2]);
+
+        // mul
+        // Dense([10, 0, 1, 0, 5])
+        let mut a: Vector<DenseStorage<u32>, usize> =
+            Vector::from_vec(5, 3, &[(0, 10), (1, 0), (2, 1), (3, 0), (4, 5)]);
+        // Sparse([0, 1, 10, 0, 1])
+        let mut b: Vector<SparseStorage<u32>, usize> =
+            Vector::from_vec(5, 0, &[(1, 1), (2, 10), (4, 1)]);
+        let p1 = &a * &a;
+        let p2 = &a * &b;
+        let p3 = &b * &a;
+        let p4 = &b * &b;
+        println!("{:?}", p1);
+        println!("{:?}", p2);
+        println!("{:?}", p3);
+        println!("{:?}", p4);
+        assert_eq!(p1.to_vec(), vec![100, 0, 1, 0, 25]);
+        assert_eq!(p2.to_vec(), vec![0, 0, 10, 0, 5]);
+        assert_eq!(p3.to_vec(), vec![0, 0, 10, 0, 5]);
+        assert_eq!(p4.to_vec(), vec![0, 1, 100, 0, 1]);
+
+        // mul
+        // Dense([10, 0, 1, 2, 5])
+        let mut a: Vector<DenseStorage<u32>, usize> =
+            Vector::from_vec(5, 3, &[(0, 10), (1, 0), (2, 1), (3, 2), (4, 5)]);
+        // Sparse([1, 1, 3, 1, 0])
+        let mut b: Vector<SparseStorage<u32>, usize> = Vector::from_vec(5, 1, &[(2, 3), (4, 0)]);
+        let p1 = &a * &a;
+        let p2 = &a * &b;
+        let p3 = &b * &a;
+        let p4 = &b * &b;
+        println!("{:?}", p1);
+        println!("{:?}", p2);
+        println!("{:?}", p3);
+        println!("{:?}", p4);
+        assert_eq!(p1.to_vec(), vec![100, 0, 1, 4, 25]);
+        assert_eq!(p2.to_vec(), vec![10, 0, 3, 2, 0]);
+        assert_eq!(p3.to_vec(), vec![10, 0, 3, 2, 0]);
+        assert_eq!(p4.to_vec(), vec![1, 1, 9, 1, 0]);
+    }
 }

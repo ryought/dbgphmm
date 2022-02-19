@@ -82,6 +82,12 @@ where
         let n = self.elements.len();
         return &mut self.elements[n - 1].1;
     }
+    fn default_value(&self) -> T {
+        self.default_value
+    }
+    fn set_default_value(&mut self, default_value: T) {
+        self.default_value = default_value;
+    }
     fn to_dense(&self) -> DenseStorage<T> {
         let mut s: DenseStorage<T> = DenseStorage::new(self.size(), self.default_value);
         for (index, value) in self.iter() {

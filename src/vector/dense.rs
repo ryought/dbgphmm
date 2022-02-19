@@ -39,6 +39,13 @@ where
     fn get_mut(&mut self, index: usize) -> &mut T {
         &mut self.0[index]
     }
+    fn default_value(&self) -> T {
+        // DenseStorage do not have default values, so the returned value has no meaning
+        T::default()
+    }
+    fn set_default_value(&mut self, _: T) {
+        // do nothing, because DenseStorage do not have default values
+    }
     fn to_dense(&self) -> Self {
         self.clone()
     }
