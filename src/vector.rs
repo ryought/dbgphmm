@@ -35,7 +35,7 @@ use std::marker::PhantomData;
 /// is stored with internal element id. (0 <= id < self.n_ids())
 /// (index) -> (id) -> (value)
 ///
-pub trait Storage: Clone + Sized {
+pub trait Storage: Clone + Sized + PartialEq {
     /// Item type that this storage stores.
     ///
     type Item: Copy + PartialEq;
@@ -345,3 +345,23 @@ where
         self
     }
 }
+
+/*
+/// for approx `assert_abs_diff_eq`
+use approx::AbsDiffEq;
+impl<S, Ix> AbsDiffEq for Vector<S, Ix>
+where
+    S: Storage,
+    Ix: Indexable,
+{
+    type Epsilon = f64;
+
+    fn default_epsilon() -> Self::Epsilon {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        f64::abs_diff_eq(&self.0, &other.0, epsilon)
+    }
+}
+*/
