@@ -29,8 +29,18 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 ///
 #[derive(Debug, Clone)]
 pub struct PHMMOutput<R: PHMMResultLike> {
+    /// PHMMResult for forward run
     forward: R,
+    /// PHMMResult for backward run
     backward: R,
+}
+
+/// Constructors
+impl<R: PHMMResultLike> PHMMOutput<R> {
+    fn new(forward: R, backward: R) -> Self {
+        // TODO check forward is created by phmm.forward()
+        PHMMOutput { forward, backward }
+    }
 }
 
 ///
@@ -43,7 +53,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn run(&self, emissions: &[u8]) -> PHMMOutput<PHMMResult> {
         let forward = self.forward(emissions);
         let backward = self.backward(emissions);
-        PHMMOutput { forward, backward }
+        PHMMOutput::new(forward, backward)
     }
     ///
     /// Run forward and backward with sparse calculation
@@ -52,7 +62,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn run_sparse(&self, emissions: &[u8]) -> PHMMOutput<PHMMResultSparse> {
         let forward = self.forward_sparse(emissions);
         let backward = self.backward_sparse(emissions);
-        PHMMOutput { forward, backward }
+        PHMMOutput::new(forward, backward)
     }
 }
 
