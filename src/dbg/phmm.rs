@@ -24,7 +24,7 @@ impl<E: DbgEdge> SeqEdge for E {
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert dbg into phmm
-    fn to_phmm(&self, param: PHMMParams) -> PModel {
+    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
     }
 }

@@ -69,23 +69,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        let mut history = History::new();
-
-        // (1) init
-        let (mut state, _) = self.sample_init(&mut rng);
-        let mut emission;
-
-        for _ in 0..length {
-            // (2) step
-            (state, emission) = self.sample_step(&mut rng, state);
-            history.push(state, emission);
-
-            if let State::End = state {
-                break;
-            }
-        }
-
-        history
+        self.sample_rng(&mut rng, length)
     }
     ///
     /// Generate a sequence of emissions
@@ -96,6 +80,25 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn sample_read(&self, length: usize, seed: u64) -> Sequence {
         let history = self.sample(length, seed);
         history.to_sequence()
+    }
+    pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize) -> History {
+        let mut history = History::new();
+
+        // (1) init
+        let (mut state, _) = self.sample_init(rng);
+        let mut emission;
+
+        for _ in 0..length {
+            // (2) step
+            (state, emission) = self.sample_step(rng, state);
+            history.push(state, emission);
+
+            if let State::End = state {
+                break;
+            }
+        }
+
+        history
     }
     fn sample_init<R: Rng>(&self, _rng: &mut R) -> (State, Emission) {
         (State::MatchBegin, Emission::Empty)

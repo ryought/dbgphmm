@@ -3,6 +3,7 @@
 //!
 //!
 use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign};
+pub mod bench;
 pub mod dense;
 pub mod diff;
 pub mod graph;
