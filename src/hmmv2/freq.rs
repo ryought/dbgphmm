@@ -140,12 +140,24 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             // .map(|v| v.to_dense())
             .collect()
     }
+    pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = StateProbs> + 'a {
+        let n = self.forward.n_emissions();
+        let p = self.to_full_prob_forward();
+        (0..n).map(move |i| {
+            let f = self.forward.table(i);
+            let b = if i + 1 < n {
+                self.backward.table(i + 1)
+            } else {
+                self.backward.init_table()
+            };
+            (&f * &b) / p
+        })
+    }
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.
     ///
     pub fn to_state_probs(&self) -> StateProbs {
-        // TODO to_emit_probs can be an iterator (storeing all temp vector is unnecessary).
-        self.to_emit_probs().into_iter().sum()
+        self.iter_emit_probs().sum()
     }
     /// Calculate the expected value of the usage frequency of each nodes
     /// by summing the emit probs of M/I/D states for each node.
