@@ -10,6 +10,7 @@ pub mod graph;
 pub mod index;
 pub mod sparse;
 pub mod test;
+pub mod unit;
 pub use dense::DenseStorage;
 pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
