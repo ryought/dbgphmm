@@ -16,6 +16,7 @@ pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
+use unit::{UnitAdd, UnitMul};
 
 /// Backend storage of `Vector`
 /// an abstruction of a vec with fixed size that is readable/writable
@@ -59,6 +60,13 @@ pub trait Storage: Clone + Sized + PartialEq {
     ///
     /// Get the mutable reference to the given index
     fn get_mut(&mut self, index: usize) -> &mut Self::Item;
+    ///
+    /// check if this storage has an element for the given index?
+    fn has(&self, index: usize) -> bool;
+    ///
+    /// if the value of the given index is stored in the storage,
+    /// then return Some(value)
+    fn try_get(&self, index: usize) -> Option<&Self::Item>;
     ///
     /// Get the current default value
     fn default_value(&self) -> Self::Item;
@@ -292,16 +300,77 @@ where
 /// Implement addition with assignment `+=` between two vecs
 /// if the item of vec supports addition
 /// This does not cause re-allocation
-impl<'a, S, Ix> AddAssign<&'a Vector<S, Ix>> for Vector<S, Ix>
+///
+/// `A += B`
+///
+/// * (A: Dense, B: Dense) -> Dense
+///     travarsing all index
+/// * (A: Dense, B: Sparse) -> Dense
+///     * if B.default_value.is_unit_add()
+///         only active elements in B should be considered
+///     * otherwise
+///         travarsing all index
+/// * (A: Sparse, B: Dense) -> Sparse
+///     first convert B into sparse
+///     then fallback to (A: Sparse, B: Sparse)
+/// * (A: Sparse, B: Sparse) -> Sparse
+///     merge both active indexes
+///
+impl<'a, Sa, S, Ix> AddAssign<&'a Vector<Sa, Ix>> for Vector<S, Ix>
 where
     S: Storage,
-    S::Item: Add<Output = S::Item>,
+    Sa: Storage<Item = S::Item>,
+    S::Item: Add<Output = S::Item> + UnitAdd,
     Ix: Indexable,
 {
-    fn add_assign(&mut self, other: &'a Vector<S, Ix>) {
+    fn add_assign(&mut self, other: &'a Vector<Sa, Ix>) {
         assert_eq!(self.len(), other.len());
-        for (index, value) in other.iter() {
-            self[index] = self[index] + value;
+
+        match (
+            self.is_dense(),
+            other.is_dense(),
+            other.storage.default_value().is_unit_add(),
+        ) {
+            // self is dense
+            (true, false, true) => {
+                // other is sparse with unit default value
+                // then it can only add only active indexes in other
+                for (index, value) in other.iter() {
+                    self[index] = self[index] + value;
+                }
+            }
+            (true, _, _) => {
+                // otherwise, all values in self will be modified
+                for i in 0..self.len() {
+                    let index = Ix::new(i);
+                    self[index] = self[index] + other[index];
+                }
+            }
+            (false, true, _) => {
+                // first convert other into sparse with unit default_value
+                let other_sparse = other.to_sparse(S::Item::unit_add());
+                // fallback to (sparse, sparse) add_assign
+                self.add_assign(&other_sparse);
+            }
+            (false, false, _) => {
+                // both is sparse
+                let default_value = other.storage.default_value();
+                // add the active indexes of other into self
+                for (index, value) in other.iter() {
+                    self[index] = self[index] + value;
+                }
+                // add to inactive indexes
+                // this will affect the index-access to non-stored element in self.
+                self.storage
+                    .set_default_value(self.storage.default_value() + default_value);
+                // add the default_value of other into the self-only elements
+                for id in 0..self.storage.n_ids() {
+                    let (index, value) = self.storage.get_by_id(id);
+                    if !other.storage.has(index) {
+                        *self.storage.get_mut(index) = value + default_value;
+                    }
+                }
+            }
         }
     }
 }

@@ -76,6 +76,47 @@ mod tests {
     }
 
     #[test]
+    fn vector_add_mul_assign() {
+        // Dense + Dense
+        let mut v: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[120, 0, 0, 111], 0);
+        let w: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[16, 0, 77, 0], 0);
+        v += &w;
+        assert_eq!(v.to_vec(), vec![136, 0, 77, 111]);
+
+        // Dense + Sparse(non unit)
+        let mut v: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[120, 0, 0, 111], 0);
+        let w: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[10, 5, 10, 20], 10);
+        v += &w;
+        assert_eq!(v.to_vec(), vec![130, 5, 10, 131]);
+
+        // Dense + Sparse(unit)
+        let mut v: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[120, 0, 0, 111], 0);
+        let w: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[1, 1, 0, 0], 0);
+        v += &w;
+        assert_eq!(v.to_vec(), vec![121, 1, 0, 111]);
+
+        // Sparse + Sparse
+        let mut v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[120, 111, 10, 10], 10);
+        let w: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[5, 2, 5, 2], 2);
+        println!("v={:?}", v);
+        println!("w={:?}", w);
+        v += &w;
+        println!("v+w={:?}", v);
+        assert_eq!(v.to_vec(), vec![125, 113, 15, 12]);
+        assert_eq!(v.storage.default_value(), 12);
+
+        // Sparse + Dense (0 is unit)
+        let mut v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[120, 111, 10, 10], 10);
+        let w: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[5, 0, 5, 0], 0);
+        println!("v={:?}", v);
+        println!("w={:?}", w);
+        v += &w;
+        println!("v+w={:?}", v);
+        assert_eq!(v.storage.default_value(), 10);
+        assert_eq!(v.to_vec(), vec![125, 111, 15, 10]);
+    }
+
+    #[test]
     fn sparse_vector() {
         let mut v: Vector<SparseStorage<u32>> = Vector::new(5, 0);
         v[0] = 100;

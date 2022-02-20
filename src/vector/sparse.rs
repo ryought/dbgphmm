@@ -82,6 +82,22 @@ where
         let n = self.elements.len();
         return &mut self.elements[n - 1].1;
     }
+    fn has(&self, index: usize) -> bool {
+        for i in 0..self.elements.len() {
+            if self.elements[i].0 == index {
+                return true;
+            }
+        }
+        false
+    }
+    fn try_get(&self, index: usize) -> Option<&T> {
+        for i in 0..self.elements.len() {
+            if self.elements[i].0 == index {
+                return Some(&self.elements[i].1);
+            }
+        }
+        None
+    }
     fn default_value(&self) -> T {
         self.default_value
     }

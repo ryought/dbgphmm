@@ -39,17 +39,31 @@ where
     fn get_mut(&mut self, index: usize) -> &mut T {
         &mut self.0[index]
     }
+    #[inline]
+    fn has(&self, _: usize) -> bool {
+        // dense storage has all element separatedly
+        true
+    }
+    #[inline]
+    fn try_get(&self, index: usize) -> Option<&T> {
+        // dense storage has all element separatedly
+        Some(&self.0[index])
+    }
+    #[inline]
     fn default_value(&self) -> T {
         // DenseStorage do not have default values, so the returned value has no meaning
         T::default()
     }
+    #[inline]
     fn set_default_value(&mut self, _: T) {
         // do nothing, because DenseStorage do not have default values
     }
+    #[inline]
     fn to_dense(&self) -> Self {
         self.clone()
     }
     fn to_sparse(&self, default_value: T) -> SparseStorage<T> {
+        // TODO use the most frequent values as the default_value
         let mut s: SparseStorage<T> = SparseStorage::new(self.size(), default_value);
         for (index, value) in self.iter() {
             if value != default_value {
@@ -58,6 +72,7 @@ where
         }
         s
     }
+    // TODO add try_to_sparse
     fn is_dense() -> bool {
         true
     }
