@@ -47,24 +47,32 @@ mod tests {
     }
 
     #[test]
-    fn dense_vector_add_mul_constant() {
-        let mut v1: Vector<DenseStorage<u32>> = Vector::new(4, 0);
-        v1[0] = 120;
-        v1[3] = 111;
-        let added = v1 + 10;
-        assert_eq!(added[0], 120 + 10);
-        assert_eq!(added[1], 10);
-        assert_eq!(added[2], 10);
-        assert_eq!(added[3], 111 + 10);
+    fn vector_add_mul_constant() {
+        // Dense
+        let v: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[120, 0, 0, 111], 0);
+        let added = v + 10;
+        assert_eq!(added.to_vec(), vec![130, 10, 10, 121]);
 
-        let mut v2: Vector<DenseStorage<u32>> = Vector::new(4, 0);
-        v2[0] = 16;
-        v2[2] = 77;
-        let muled = v2 * 10;
-        assert_eq!(muled[0], 160);
-        assert_eq!(muled[1], 0);
-        assert_eq!(muled[2], 770);
-        assert_eq!(muled[3], 0);
+        let v: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[16, 0, 77, 0], 0);
+        let muled = v * 10;
+        assert_eq!(muled.to_vec(), vec![160, 0, 770, 0]);
+
+        // Sparse
+        // default=0
+        let v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[16, 0, 77, 0], 0);
+        let w = v + 10;
+        println!("{:?}", w);
+        assert_eq!(w.to_vec(), vec![26, 10, 87, 10]);
+        let v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[16, 1, 77, 0], 0);
+        assert_eq!((v * 10).to_vec(), vec![160, 10, 770, 0]);
+
+        // default=2
+        let v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[16, 2, 77, 0], 2);
+        assert_eq!((v + 10).to_vec(), vec![26, 12, 87, 10]);
+        let v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[16, 2, 1, 0], 2);
+        assert_eq!((v * 10).to_vec(), vec![160, 20, 10, 0]);
+        let v: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[16, 2, 4, 0], 2);
+        assert_eq!((v / 2).to_vec(), vec![8, 1, 2, 0]);
     }
 
     #[test]

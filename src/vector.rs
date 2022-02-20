@@ -147,7 +147,9 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn from_slice(vec: &[S::Item], default_value: S::Item) -> Vector<S, Ix> {
         let mut v = Vector::new(vec.len(), default_value);
         for (index, value) in vec.iter().enumerate() {
-            v[Ix::new(index)] = *value;
+            if *value != default_value {
+                v[Ix::new(index)] = *value;
+            }
         }
         v
     }
@@ -261,9 +263,6 @@ where
 /// add constant to vector
 /// `Vector<S> + S::Item = Vector<S>`
 ///
-/// TODO
-/// does not calculate the correct values for `SparseStorage`
-/// because it cannot modify the `default_value`.
 impl<'a, 'b, S, Ix> Add<S::Item> for Vector<S, Ix>
 where
     S: Storage,
@@ -272,8 +271,11 @@ where
 {
     type Output = Vector<S, Ix>;
     fn add(mut self, other: S::Item) -> Self::Output {
-        // TODO if sparse, default value should be modified
-        // currently, Add<S::Item> can only be used with Vector<Dense>.
+        // add to inactive indexes
+        self.storage
+            .set_default_value(self.storage.default_value() + other);
+
+        // add other to active indexes of self
         let n = self.storage.n_ids();
         for id in 0..n {
             let (index, value) = self.storage.get_by_id(id);
@@ -348,9 +350,6 @@ where
 /// multiply a constant to vector
 /// `Vector<S> * S::Item = Vector<S>`
 ///
-/// TODO
-/// does not calculate the correct values for `SparseStorage`
-/// because it cannot modify the `default_value`.
 impl<'a, 'b, S, Ix> Mul<S::Item> for Vector<S, Ix>
 where
     S: Storage,
@@ -359,8 +358,11 @@ where
 {
     type Output = Vector<S, Ix>;
     fn mul(mut self, other: S::Item) -> Self::Output {
-        // TODO if sparse, default value should be modified
-        // currently, this can only be used with Vector<Dense>.
+        // add to inactive indexes
+        self.storage
+            .set_default_value(self.storage.default_value() * other);
+
+        // add other to active indexes of self
         let n = self.storage.n_ids();
         for id in 0..n {
             let (index, value) = self.storage.get_by_id(id);
@@ -373,9 +375,6 @@ where
 /// divide-by a constant to vector
 /// `Vector<S> / S::Item = Vector<S>`
 ///
-/// TODO
-/// does not calculate the correct values for `SparseStorage`
-/// because it cannot modify the `default_value`.
 impl<'a, 'b, S, Ix> Div<S::Item> for Vector<S, Ix>
 where
     S: Storage,
@@ -384,8 +383,11 @@ where
 {
     type Output = Vector<S, Ix>;
     fn div(mut self, other: S::Item) -> Self::Output {
-        // TODO if sparse, default value should be modified
-        // currently, this can only be used with Vector<Dense>.
+        // add to inactive indexes
+        self.storage
+            .set_default_value(self.storage.default_value() / other);
+
+        // add other to active indexes of self
         let n = self.storage.n_ids();
         for id in 0..n {
             let (index, value) = self.storage.get_by_id(id);
