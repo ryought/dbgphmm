@@ -39,8 +39,12 @@ impl UnitAdd for Prob {
 ///
 pub trait UnitMul: Copy + PartialEq {
     fn unit_mul() -> Self;
+    fn zero_mul() -> Self;
     fn is_unit_mul(&self) -> bool {
         *self == Self::unit_mul()
+    }
+    fn is_zero_mul(&self) -> bool {
+        *self == Self::zero_mul()
     }
 }
 
@@ -48,19 +52,31 @@ impl UnitMul for u32 {
     fn unit_mul() -> u32 {
         1
     }
+    fn zero_mul() -> u32 {
+        0
+    }
 }
 impl UnitMul for usize {
     fn unit_mul() -> usize {
         1
+    }
+    fn zero_mul() -> usize {
+        0
     }
 }
 impl UnitMul for f64 {
     fn unit_mul() -> f64 {
         1.0
     }
+    fn zero_mul() -> f64 {
+        0.0
+    }
 }
 impl UnitMul for Prob {
     fn unit_mul() -> Prob {
+        Prob::from_log_prob(f64::NEG_INFINITY)
+    }
+    fn zero_mul() -> Prob {
         Prob::from_log_prob(0.0)
     }
 }

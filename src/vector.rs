@@ -408,16 +408,78 @@ where
 /// Implement multiplication with assignment `*=` between two vecs
 /// if the item of vec supports multiplication
 /// This does not cause re-allocation
-impl<'a, S, Ix> MulAssign<&'a Vector<S, Ix>> for Vector<S, Ix>
+impl<'a, Sa, S, Ix> MulAssign<&'a Vector<Sa, Ix>> for Vector<S, Ix>
 where
     S: Storage,
-    S::Item: Mul<Output = S::Item>,
+    Sa: Storage<Item = S::Item>,
+    S::Item: Mul<Output = S::Item> + UnitMul,
     Ix: Indexable,
 {
-    fn mul_assign(&mut self, other: &'a Vector<S, Ix>) {
+    fn mul_assign(&mut self, other: &'a Vector<Sa, Ix>) {
         assert_eq!(self.len(), other.len());
-        for (index, value) in other.iter() {
-            self[index] = self[index] * value;
+        if self.is_dense() {
+            // self is dense
+            if !other.is_dense() && other.storage.default_value().is_unit_mul() {
+                // other is sparse with unit default value
+                // then it can only add only active indexes in other
+                println!("fast");
+                for (index, value) in other.iter() {
+                    self[index] = self[index] * value;
+                }
+            } else {
+                // otherwise, all values in self will be modified
+                for i in 0..self.len() {
+                    let index = Ix::new(i);
+                    self[index] = self[index] * other[index];
+                }
+            }
+        } else {
+            // self is sparse
+            if other.is_dense() {
+                // if other is dense, first convert other into sparse with unit default_value
+                // TODO should use zero_mul?
+                let other_sparse = other.to_sparse(S::Item::zero_mul());
+                // fallback to (sparse, sparse) add_assign
+                self.mul_assign(&other_sparse);
+            } else {
+                // both is sparse
+                if other.storage.default_value().is_zero_mul()
+                    || self.storage.default_value().is_zero_mul()
+                {
+                    // if the default_value of either self/other is zero
+                    // then the resulting vector has element on indexes
+                    // which has a element both in self and other.
+                    self.storage.set_default_value(S::Item::zero_mul());
+                    for id in 0..self.storage.n_ids() {
+                        let (index, self_value) = self.storage.get_by_id(id);
+                        match other.storage.try_get(index) {
+                            Some(&other_value) => {
+                                *self.storage.get_mut(index) = self_value * other_value;
+                            }
+                            None => {
+                                *self.storage.get_mut(index) = S::Item::zero_mul();
+                            }
+                        }
+                    }
+                } else {
+                    let default_value = other.storage.default_value();
+                    // add the active indexes of other into self
+                    for (index, value) in other.iter() {
+                        self[index] = self[index] * value;
+                    }
+                    // add to inactive indexes
+                    // this will affect the index-access to non-stored element in self.
+                    self.storage
+                        .set_default_value(self.storage.default_value() * default_value);
+                    // add the default_value of other into the self-only elements
+                    for id in 0..self.storage.n_ids() {
+                        let (index, value) = self.storage.get_by_id(id);
+                        if !other.storage.has(index) {
+                            *self.storage.get_mut(index) = value * default_value;
+                        }
+                    }
+                }
+            }
         }
     }
 }
