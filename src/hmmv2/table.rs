@@ -255,9 +255,9 @@ where
         self.m += &other.m;
         self.i += &other.i;
         self.d += &other.d;
-        self.mb = self.mb + other.mb;
-        self.ib = self.ib + other.ib;
-        self.e = self.e + other.e;
+        self.mb += other.mb;
+        self.ib += other.ib;
+        self.e += other.e;
     }
 }
 
@@ -290,9 +290,9 @@ where
         self.m *= &other.m;
         self.i *= &other.i;
         self.d *= &other.d;
-        self.mb = self.mb * other.mb;
-        self.ib = self.ib * other.ib;
-        self.e = self.e * other.e;
+        self.mb *= other.mb;
+        self.ib *= other.ib;
+        self.e *= other.e;
     }
 }
 
