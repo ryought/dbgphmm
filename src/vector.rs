@@ -253,8 +253,11 @@ where
             ret[index] = other[index] + value;
         }
         // fill for the used indexes of other
-        for (index, value) in other.iter() {
-            ret[index] = self[index] + value;
+        // if self is dense, both loop travarses the all indexes
+        if !self.is_dense() {
+            for (index, value) in other.iter() {
+                ret[index] = self[index] + value;
+            }
         }
         ret
     }
@@ -322,9 +325,11 @@ where
         for (index, value) in self.iter() {
             ret[index] = other[index] * value;
         }
-        // fill for the used indexes of other
-        for (index, value) in other.iter() {
-            ret[index] = self[index] * value;
+        if !self.is_dense() {
+            // fill for the used indexes of other
+            for (index, value) in other.iter() {
+                ret[index] = self[index] * value;
+            }
         }
         ret
     }
