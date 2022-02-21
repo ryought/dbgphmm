@@ -257,4 +257,38 @@ mod tests {
         assert_eq!(muled[2], 0 * 111);
         assert_eq!(muled[3], 111 * 1);
     }
+    #[test]
+    fn arrayvec_retain_test() {
+        let b: Vec<usize> = vec![0, 4, 8, 12, 16];
+        // (1) arrayvec
+        let mut a = ArrayVec::<usize, 10>::new();
+        for i in 0..10 {
+            a.push(i);
+        }
+        a.retain(|x| {
+            if *x % 2 == 0 {
+                *x *= 2;
+                true
+            } else {
+                false
+            }
+        });
+        let av: Vec<usize> = a.into_iter().collect();
+        assert_eq!(av, b);
+
+        // (2) std::vec
+        let mut v = Vec::new();
+        for i in 0..10 {
+            v.push(i);
+        }
+        v.retain_mut(|x| {
+            if *x % 2 == 0 {
+                *x *= 2;
+                true
+            } else {
+                false
+            }
+        });
+        assert_eq!(v, b);
+    }
 }
