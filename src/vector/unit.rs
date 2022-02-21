@@ -74,20 +74,63 @@ impl UnitMul for f64 {
 }
 impl UnitMul for Prob {
     fn unit_mul() -> Prob {
-        Prob::from_log_prob(f64::NEG_INFINITY)
+        Prob::from_log_prob(0.0)
     }
     fn zero_mul() -> Prob {
-        Prob::from_log_prob(0.0)
+        Prob::from_log_prob(f64::NEG_INFINITY)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prob::p;
 
     #[test]
     fn unit_u32() {
-        let e = u32::unit_add();
-        println!("{} {} {}", e, e.is_unit_add(), 10u32.is_unit_add());
+        assert_eq!(u32::unit_add(), 0);
+        assert_eq!(u32::unit_add() + 100, 100);
+        assert_eq!(u32::unit_mul(), 1);
+        assert_eq!(u32::unit_mul() * 100, 100);
+        assert_eq!(u32::zero_mul(), 0);
+        assert_eq!(u32::zero_mul() * 100, 0);
+        assert!(!0u32.is_unit_mul());
+        assert!(1u32.is_unit_mul());
+        assert!(0u32.is_unit_add());
+        assert!(0u32.is_zero_mul());
+    }
+
+    #[test]
+    fn unit_f64() {
+        assert_eq!(f64::unit_add(), 0.0);
+        assert_eq!(f64::unit_add() + 100.0, 100.0);
+        assert_eq!(f64::unit_mul(), 1.0);
+        assert_eq!(f64::unit_mul() * 100.0, 100.0);
+        assert_eq!(f64::zero_mul(), 0.0);
+        assert_eq!(f64::zero_mul() * 100.0, 0.0);
+        assert!(!0f64.is_unit_mul());
+        assert!(!0.001.is_unit_add());
+        assert!(1f64.is_unit_mul());
+        assert!(0f64.is_unit_add());
+        assert!(0f64.is_zero_mul());
+    }
+
+    #[test]
+    fn unit_prob() {
+        assert_eq!(Prob::unit_add(), p(0.0));
+        assert_eq!(Prob::unit_add() + p(0.5), p(0.5));
+        assert_eq!(Prob::unit_mul(), p(1.0));
+        assert_eq!(Prob::unit_mul() * p(0.5), p(0.5));
+        assert_eq!(Prob::zero_mul(), p(0.0));
+        assert_eq!(Prob::zero_mul() * p(0.5), p(0.0));
+        assert_eq!(p(0.0), p(0.0));
+        assert_eq!(p(1.0), p(1.0));
+        assert_eq!(p(0.5), p(0.5));
+        assert!(p(1.0).is_unit_mul());
+        assert!(!p(0.99999).is_unit_mul());
+        assert!(p(0.0).is_unit_add());
+        assert!(!p(0.0000001).is_unit_add());
+        assert!(p(0.0).is_zero_mul());
+        assert!(!p(0.0000001).is_zero_mul());
     }
 }
