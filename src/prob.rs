@@ -266,6 +266,6 @@ mod tests {
         assert!(abs_diff_eq!(p(0.1), p(0.11), epsilon = 0.1));
         assert!(abs_diff_eq!(p(1.0), p(1.0)));
         // TODO
-        // assert!(abs_diff_eq!(p(0.0), p(0.0)));
+        assert!(!abs_diff_eq!(p(0.0), p(0.0)));
     }
 }

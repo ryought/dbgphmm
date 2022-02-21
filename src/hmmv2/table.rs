@@ -193,6 +193,28 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     }
 }
 
+/*
+/// for approx `assert_abs_diff_eq`
+use approx::AbsDiffEq;
+impl<S: Storage<Item = Prob>> AbsDiffEq for PHMMTable<S> {
+    type Epsilon = <<S as Storage>::Item as AbsDiffEq>::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        S::Item::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let m = NodeVec::abs_diff_eq(&self.m, &other.m, epsilon);
+        let i = NodeVec::abs_diff_eq(&self.i, &other.i, epsilon);
+        let d = NodeVec::abs_diff_eq(&self.d, &other.d, epsilon);
+        let ib = Prob::abs_diff_eq(&self.ib, &other.ib, epsilon);
+        let mb = Prob::abs_diff_eq(&self.mb, &other.mb, epsilon);
+        println!("{} {} {} {} {}", m, i, d, ib, mb);
+        m && i && d
+    }
+}
+*/
+
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header
@@ -525,5 +547,10 @@ mod tests {
         println!("d(t2,t1)={}", t2.diff(&t1));
         assert_abs_diff_eq!(t1.diff(&t2), 0.03);
         assert_abs_diff_eq!(t2.diff(&t1), 0.03);
+        // use approx
+        println!("{}", t1);
+        println!("{}", t2);
+        // assert!(abs_diff_eq!(t1, t1));
+        // assert!(abs_diff_eq!(t1, t1, epsilon = 1.0));
     }
 }

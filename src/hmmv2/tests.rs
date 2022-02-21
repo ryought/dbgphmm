@@ -47,14 +47,15 @@ mod tests {
         println!("{:?} {}", nf_infer_sparse, nf_infer_sparse.sum());
     }
     #[test]
+    #[ignore]
     fn hmmv2_linear_long_node_freq_similarity() {
         // assert that node_freq of
         // * true: determined from the sampling history
         // * dense: estimated with dense calculation
         // * sparse: estimated with sparse calculation
-        let phmm = mock_linear_random_phmm(100, 0, PHMMParams::default());
+        let phmm = mock_linear_random_phmm(1000, 2, PHMMParams::default());
         // sample
-        let h = phmm.sample(50, 4);
+        let h = phmm.sample(500, 4);
         let r = h.to_sequence();
         let nf_true = h.to_node_freqs(&phmm);
         println!("{}", nf_true.sum());
@@ -68,9 +69,6 @@ mod tests {
         let o_sparse = phmm.run_sparse(&r);
         let nf_sparse = o_sparse.to_node_freqs();
         println!("{}", nf_sparse.sum());
-
-        // assert node_freq between dense and sparse is similar
-        assert_abs_diff_eq!(nf_dense.sum(), nf_sparse.sum(), epsilon = 0.0000001);
 
         // forward and backward is consistent in dense
         assert_abs_diff_eq!(
@@ -86,6 +84,20 @@ mod tests {
             epsilon = 0.1
         );
 
+        // forward/backward table is similar regardless of dense/sparse calculation
+        for i in 0..r.len() {
+            let df = o_dense.forward.table(i);
+            let db = o_dense.backward.table(i);
+            let sf = o_sparse.forward.table(i);
+            let sb = o_sparse.backward.table(i);
+            let diff1 = df.diff(&sf);
+            let diff2 = db.diff(&sb);
+            println!("forward_dense-forward_sparse = {}", diff1);
+            println!("backward_dense-backward_sparse = {}", diff1);
+            assert!(diff1 < 0.000000001);
+            assert!(diff2 < 0.000000001);
+        }
+
         // full prob of dense and sparse is similar
         assert_abs_diff_eq!(
             o_dense.to_full_prob_forward(),
@@ -100,15 +112,7 @@ mod tests {
             assert!(diff < 0.000000001);
         }
 
-        for i in 0..r.len() {
-            let df = o_dense.forward.table(i);
-            let db = o_dense.backward.table(i);
-            let sf = o_sparse.forward.table(i);
-            let sb = o_sparse.backward.table(i);
-            let diff1 = df.diff(&sf);
-            let diff2 = db.diff(&sb);
-            assert!(diff1 < 0.000000001);
-            assert!(diff2 < 0.000000001);
-        }
+        // assert node_freq between dense and sparse is similar
+        assert_abs_diff_eq!(nf_dense.sum(), nf_sparse.sum(), epsilon = 0.0000001);
     }
 }
