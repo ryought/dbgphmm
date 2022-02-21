@@ -298,11 +298,7 @@ where
             .set_default_value(self.storage.default_value() + other);
 
         // add other to active indexes of self
-        let n = self.storage.n_ids();
-        for id in 0..n {
-            let (index, value) = self.storage.get_by_id(id);
-            *self.storage.get_mut(index) = value + other;
-        }
+        self.storage.mutate(|_, x| *x = *x + other);
         self
     }
 }
@@ -351,10 +347,8 @@ where
             }
             (true, _, _) => {
                 // otherwise, all values in self will be modified
-                for i in 0..self.len() {
-                    let index = Ix::new(i);
-                    self[index] = self[index] + other[index];
-                }
+                self.storage
+                    .mutate(|i, x| *x = *x + (*other.storage.get(i)));
             }
             (false, true, _) => {
                 // first convert other into sparse with unit default_value
@@ -374,12 +368,11 @@ where
                 self.storage
                     .set_default_value(self.storage.default_value() + default_value);
                 // add the default_value of other into the self-only elements
-                for id in 0..self.storage.n_ids() {
-                    let (index, value) = self.storage.get_by_id(id);
-                    if !other.storage.has(index) {
-                        *self.storage.get_mut(index) = value + default_value;
+                self.storage.mutate(|i, x| {
+                    if !other.storage.has(i) {
+                        *x = *x + default_value;
                     }
-                }
+                });
             }
         }
     }
@@ -511,11 +504,7 @@ where
             .set_default_value(self.storage.default_value() * other);
 
         // add other to active indexes of self
-        let n = self.storage.n_ids();
-        for id in 0..n {
-            let (index, value) = self.storage.get_by_id(id);
-            *self.storage.get_mut(index) = value * other;
-        }
+        self.storage.mutate(|_, x| *x = *x * other);
         self
     }
 }
@@ -536,11 +525,7 @@ where
             .set_default_value(self.storage.default_value() / other);
 
         // add other to active indexes of self
-        let n = self.storage.n_ids();
-        for id in 0..n {
-            let (index, value) = self.storage.get_by_id(id);
-            *self.storage.get_mut(index) = value / other;
-        }
+        self.storage.mutate(|_, x| *x = *x / other);
         self
     }
 }
