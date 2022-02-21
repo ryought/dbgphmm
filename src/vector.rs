@@ -61,12 +61,18 @@ pub trait Storage: Clone + Sized + PartialEq {
     /// Get the mutable reference to the given index
     fn get_mut(&mut self, index: usize) -> &mut Self::Item;
     ///
+    /// Store the value to the given index
+    fn set(&mut self, index: usize, value: Self::Item);
+    ///
     /// check if this storage has an element for the given index?
     fn has(&self, index: usize) -> bool;
     ///
     /// if the value of the given index is stored in the storage,
     /// then return Some(value)
     fn try_get(&self, index: usize) -> Option<&Self::Item>;
+    ///
+    /// mutate all elements
+    fn mutate<F: FnMut(usize, &mut Self::Item)>(&mut self, f: F);
     ///
     /// Get the current default value
     fn default_value(&self) -> Self::Item;

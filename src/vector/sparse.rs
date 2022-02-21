@@ -82,6 +82,21 @@ where
         let n = self.elements.len();
         return &mut self.elements[n - 1].1;
     }
+    fn set(&mut self, index: usize, value: T) {
+        assert!(index < self.size());
+        if value == self.default_value {
+            // delete existing element if exists
+            for i in 0..self.elements.len() {
+                if self.elements[i].0 == index {
+                    self.elements.remove(i);
+                    break;
+                }
+            }
+        } else {
+            // store the value using get_mut
+            *self.get_mut(index) = value;
+        }
+    }
     fn has(&self, index: usize) -> bool {
         for i in 0..self.elements.len() {
             if self.elements[i].0 == index {
@@ -97,6 +112,14 @@ where
             }
         }
         None
+    }
+    fn mutate<F: FnMut(usize, &mut T)>(&mut self, mut f: F) {
+        let default_value = self.default_value;
+        self.elements.retain(|(i, x)| {
+            f(*i, x);
+            // retain if x is not default_value
+            *x != default_value
+        })
     }
     fn default_value(&self) -> T {
         self.default_value
@@ -198,6 +221,26 @@ mod tests {
         assert_eq!(*s2.get(1), *s.get(1));
         assert_eq!(*s2.get(2), *s.get(2));
         assert_eq!(*s2.get(3), *s.get(3));
+    }
+    #[test]
+    fn sparse_storage_mutate() {
+        let mut s: SparseStorage<u32> = SparseStorage::new(4, 0);
+        *s.get_mut(0) = 111;
+        *s.get_mut(1) = 222;
+        *s.get_mut(2) = 10;
+        println!("{:?}", s);
+        s.mutate(|i, x| {
+            if i % 2 == 0 {
+                *x = *x + 10;
+            } else {
+                *x = 0;
+            }
+        });
+        println!("{:?}", s);
+        assert_eq!(*s.get(0), 121);
+        assert_eq!(*s.get(1), 0);
+        assert_eq!(*s.get(2), 20);
+        assert_eq!(*s.get(3), 0);
     }
     #[test]
     fn sparse_storage_dense_check() {
