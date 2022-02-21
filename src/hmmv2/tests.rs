@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::common::{ni, sequence_to_string};
     use crate::dbg::mocks::mock_random_with_seq;
     use crate::hmmv2::mocks::{mock_linear_phmm, mock_linear_random_phmm};

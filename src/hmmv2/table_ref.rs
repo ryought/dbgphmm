@@ -52,6 +52,13 @@ impl<'a> PHMMTableRef<'a> {
             PHMMTableRef::Sparse(_) => false,
         }
     }
+    /// convert to dense backed table
+    pub fn to_dense(&self) -> PHMMTable<DenseStorage<Prob>> {
+        match self {
+            PHMMTableRef::Dense(t) => t.to_dense(),
+            PHMMTableRef::Sparse(t) => t.to_dense(),
+        }
+    }
 }
 
 //
