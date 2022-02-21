@@ -30,9 +30,9 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 #[derive(Debug, Clone)]
 pub struct PHMMOutput<R: PHMMResultLike> {
     /// PHMMResult for forward run
-    forward: R,
+    pub forward: R,
     /// PHMMResult for backward run
-    backward: R,
+    pub backward: R,
 }
 
 /// Constructors

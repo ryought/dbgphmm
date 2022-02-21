@@ -23,7 +23,7 @@ pub const MAX_DEL: usize = 4;
 /// Corresponds to a vector `T[node, type]`
 /// `node` is either normal or begin or end node.
 /// `type` is either Match, Ins, Del.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PHMMTable<S: Storage<Item = Prob>> {
     /// Match node probability
     pub m: NodeVec<S>,
