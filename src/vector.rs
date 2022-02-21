@@ -217,6 +217,10 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     }
 }
 
+/// private associated functions
+/// to use math ops between two vector
+impl<S: Storage, Ix: Indexable> Vector<S, Ix> {}
+
 impl<S, Ix> Vector<S, Ix>
 where
     S: Storage,
@@ -434,40 +438,42 @@ where
                 }
             } else {
                 // otherwise, all values in self will be modified
-                for i in 0..self.len() {
-                    let index = Ix::new(i);
-                    self[index] = self[index] * other[index];
-                }
+                self.storage
+                    .mutate(|i, x| *x = *x * (*other.storage.get(i)));
             }
         } else {
             // self is sparse
             if other.is_dense() {
                 // if other is dense, first convert other into sparse with unit default_value
                 // TODO should use zero_mul?
+                // count zero/unit and use it as a default_value
                 let other_sparse = other.to_sparse(S::Item::zero_mul());
                 // fallback to (sparse, sparse) add_assign
                 self.mul_assign(&other_sparse);
             } else {
                 // both is sparse
-                if other.storage.default_value().is_zero_mul()
-                    || self.storage.default_value().is_zero_mul()
-                {
-                    // if the default_value of either self/other is zero
-                    // then the resulting vector has element on indexes
-                    // which has a element both in self and other.
-                    self.storage.set_default_value(S::Item::zero_mul());
-                    for id in 0..self.storage.n_ids() {
-                        let (index, self_value) = self.storage.get_by_id(id);
-                        match other.storage.try_get(index) {
-                            Some(&other_value) => {
-                                *self.storage.get_mut(index) = self_value * other_value;
-                            }
-                            None => {
-                                *self.storage.get_mut(index) = S::Item::zero_mul();
-                            }
+                if self.storage.default_value().is_zero_mul() {
+                    println!("sparse(zero) x sparse");
+                    // only active nodes of self will be remains.
+                    self.storage
+                        .mutate(|i, x| *x = *x * (*other.storage.get(i)));
+                } else if other.storage.default_value().is_zero_mul() {
+                    println!("sparse x sparse(zero)");
+                    // purge active nodes of self, which is not active in other (=zero)
+                    self.storage.mutate(|i, x| {
+                        if !other.storage.has(i) {
+                            *x = S::Item::zero_mul();
                         }
+                    });
+                    // set for active nodes of other.
+                    for id in 0..other.storage.n_ids() {
+                        let (index, other_value) = other.storage.get_by_id(id);
+                        *self.storage.get_mut(index) = other_value * *self.storage.get(index);
                     }
+                    // only active nodes of other will be remains.
+                    self.storage.set_default_value(S::Item::zero_mul());
                 } else {
+                    println!("sparse x sparse");
                     let default_value = other.storage.default_value();
                     // add the active indexes of other into self
                     for (index, value) in other.iter() {
@@ -478,12 +484,11 @@ where
                     self.storage
                         .set_default_value(self.storage.default_value() * default_value);
                     // add the default_value of other into the self-only elements
-                    for id in 0..self.storage.n_ids() {
-                        let (index, value) = self.storage.get_by_id(id);
-                        if !other.storage.has(index) {
-                            *self.storage.get_mut(index) = value * default_value;
+                    self.storage.mutate(|i, x| {
+                        if !other.storage.has(i) {
+                            *x = *x * default_value;
                         }
-                    }
+                    });
                 }
             }
         }

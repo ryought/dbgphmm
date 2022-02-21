@@ -149,6 +149,29 @@ mod tests {
         vx *= &vy;
         println!("{:?}", vx);
         assert_eq!(vx.to_vec(), xy.to_vec());
+
+        // Sparse(default=unit_mul) + Sparse(default=zero_mul)
+        let mut vx: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&x, 1);
+        let vy: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&y, 0);
+        println!("vx={:?}", vx);
+        println!("vy={:?}", vy);
+        vx *= &vy;
+        println!("vx={:?}", vx);
+        assert_eq!(vx.to_vec(), xy.to_vec());
+
+        // Sparse(default=zero_mul) + Sparse(default=unit_mul)
+        let mut vx: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&x, 0);
+        let vy: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&y, 1);
+        vx *= &vy;
+        println!("{:?}", vx);
+        assert_eq!(vx.to_vec(), xy.to_vec());
+
+        // Sparse(default=unit_mul) + Sparse(default=unit_mul)
+        let mut vx: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&x, 1);
+        let vy: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&y, 1);
+        vx *= &vy;
+        println!("{:?}", vx);
+        assert_eq!(vx.to_vec(), xy.to_vec());
     }
 
     #[test]
