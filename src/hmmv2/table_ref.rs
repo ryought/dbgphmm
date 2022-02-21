@@ -45,6 +45,13 @@ impl<'a> PHMMTableRef<'a> {
             PHMMTableRef::Sparse(t) => t.d[node],
         }
     }
+    /// check if backend is dense or sparse?
+    pub fn is_dense(&self) -> bool {
+        match self {
+            PHMMTableRef::Dense(_) => true,
+            PHMMTableRef::Sparse(_) => false,
+        }
+    }
 }
 
 //
@@ -139,6 +146,8 @@ mod tests {
         t2.m[ni(1)] = p(1.0);
         let r1 = PHMMTableRef::Dense(&t1);
         let r2 = PHMMTableRef::Sparse(&t2);
+        assert!(r1.is_dense());
+        assert!(!r2.is_dense());
         println!("{}", &t1 * &t2);
         println!("{}", &r1 * &r2);
         // TODO
