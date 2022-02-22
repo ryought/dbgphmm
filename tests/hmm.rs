@@ -143,8 +143,7 @@ fn hmmv2_linear_long_node_freq_similarity() {
 fn hmmv2_backward_dense_and_sparse() {
     let n_read_bases = 100;
     let n_genome_bases = 1000;
-    let mut param = PHMMParams::default();
-    let mut phmm = mock_linear_random_phmm(n_genome_bases, 2, param);
+    let mut phmm = mock_linear_random_phmm(n_genome_bases, 2, PHMMParams::default());
     for seed in 0..10 {
         let h = phmm.sample(n_read_bases, seed);
         let r = h.to_sequence();

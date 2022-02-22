@@ -13,7 +13,11 @@ mod tests {
         let w: Vec<(usize, u32)> = v.iter().collect();
         println!("{:?}", v);
         println!("{:?}", w);
-        assert_eq!(w, vec![(0, 100), (1, 0), (2, 0), (3, 222), (4, 0),]);
+        assert_eq!(w, vec![(0, 100), (1, 0), (2, 0), (3, 222), (4, 0)]);
+
+        let w: Vec<(usize, u32)> = v.iter_all().collect();
+        println!("{:?}", w);
+        assert_eq!(w, vec![(0, 100), (1, 0), (2, 0), (3, 222), (4, 0)]);
     }
 
     #[test]
@@ -185,6 +189,10 @@ mod tests {
         println!("{:?}", v);
         println!("{:?}", w);
         assert_eq!(w, vec![(0, 100), (3, 222)]);
+
+        let w: Vec<(usize, u32)> = v.iter_all().collect();
+        println!("{:?}", w);
+        assert_eq!(w, vec![(0, 100), (1, 0), (2, 0), (3, 222), (4, 0)]);
     }
 
     #[test]

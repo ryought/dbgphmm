@@ -172,9 +172,13 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn len(&self) -> usize {
         self.storage.size()
     }
-    /// Get an iterator on (index, item).
+    /// Get an (sparse) iterator on (index, item).
     pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = (Ix, S::Item)> {
         self.storage.iter().map(|(i, v)| (Ix::new(i), v))
+    }
+    /// Get an exhaustive iterator on (index, item).
+    pub fn iter_all<'a>(&'a self) -> impl 'a + Iterator<Item = (Ix, S::Item)> {
+        (0..self.len()).map(move |i| (Ix::new(i), *self.storage.get(i)))
     }
     /// Convert to the DenseStorage-backed vector.
     pub fn to_dense(&self) -> Vector<DenseStorage<S::Item>, Ix> {

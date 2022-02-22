@@ -3,7 +3,7 @@
 //!
 use super::{Indexable, Storage, Vector};
 use crate::prob::Prob;
-use itertools::{chain, Itertools};
+use itertools::{chain, izip, Itertools};
 
 impl<S, Ix> Vector<S, Ix>
 where
@@ -14,13 +14,39 @@ where
     /// return the maximum probability and its index of the vector.
     ///
     pub fn max(&self) -> Option<(Ix, Prob)> {
-        self.iter().max_by_key(|(_, p)| *p)
+        self.iter_all().max_by_key(|(_, p)| *p)
     }
     ///
     /// return the minimum probability and its index of the vector.
     ///
     pub fn min(&self) -> Option<(Ix, Prob)> {
-        self.iter().min_by_key(|(_, p)| *p)
+        self.iter_all().min_by_key(|(_, p)| *p)
+    }
+    ///
+    /// get the sorted iterator on element (in a descending order)
+    ///
+    pub fn iter_sorted_desc<'a>(&'a self) -> impl Iterator<Item = (Ix, Prob)> + 'a {
+        self.iter_all()
+            .sorted_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap())
+    }
+    ///
+    /// check if elements in vector whose probability satisfies `p > min_prob`
+    /// has same index?
+    ///
+    pub fn is_same_ranking<T>(&self, other: &Vector<T, Ix>, min_prob: Prob) -> bool
+    where
+        T: Storage<Item = Prob>,
+    {
+        for ((ia, pa), (ib, pb)) in izip!(
+            self.iter_sorted_desc().filter(|(_, p)| *p >= min_prob),
+            other.iter_sorted_desc().filter(|(_, p)| *p >= min_prob)
+        ) {
+            // println!("{:?} {} {:?} {}", ia, pa, ib, pb);
+            if ia != ib {
+                return false;
+            }
+        }
+        true
     }
     ///
     /// Log difference score of two vectors whose item is prob.
@@ -112,15 +138,52 @@ mod tests {
         v1.show_diff(&v2);
     }
     #[test]
-    fn vector_min_max() {
-        let mut v: Vector<DenseStorage<Prob>, usize> = Vector::new(5, p(0.0));
-        v[0] = p(0.3);
-        v[1] = p(0.0);
-        v[2] = p(1.0);
-        v[3] = p(0.8);
+    fn vector_min_max_sorted() {
+        // dense
+        let mut v: Vector<DenseStorage<Prob>, usize> =
+            Vector::from_slice(&[p(0.3), p(0.0), p(1.0), p(0.8), p(0.0)], p(0.0));
         assert_eq!(v.max(), Some((2, p(1.0))));
-        println!("{:?}", v.max());
         assert_eq!(v.min(), Some((1, p(0.0))));
-        println!("{:?}", v.min());
+        let sorted: Vec<_> = v.iter_sorted_desc().collect();
+        assert_eq!(
+            sorted,
+            vec![
+                (2, p(1.0)),
+                (3, p(0.8)),
+                (0, p(0.3)),
+                (1, p(0.0)),
+                (4, p(0.0))
+            ]
+        );
+
+        // sparse
+        let mut v: Vector<SparseStorage<Prob>, usize> =
+            Vector::from_slice(&[p(0.3), p(0.0), p(1.0), p(0.8), p(0.0)], p(0.0));
+        assert_eq!(v.max(), Some((2, p(1.0))));
+        assert_eq!(v.min(), Some((1, p(0.0))));
+        let sorted: Vec<_> = v.iter_sorted_desc().collect();
+        assert_eq!(
+            sorted,
+            vec![
+                (2, p(1.0)),
+                (3, p(0.8)),
+                (0, p(0.3)),
+                (1, p(0.0)),
+                (4, p(0.0))
+            ]
+        );
+    }
+    #[test]
+    fn vector_compare() {
+        let mut v: Vector<SparseStorage<Prob>, usize> =
+            Vector::from_slice(&[p(0.3), p(0.011), p(1.0), p(0.8), p(0.0), p(0.11)], p(0.0));
+        let mut w: Vector<DenseStorage<Prob>, usize> =
+            Vector::from_slice(&[p(0.3), p(0.022), p(1.0), p(0.8), p(0.0), p(0.01)], p(0.0));
+        assert!(v.is_same_ranking(&w, p(0.2)));
+        assert!(!v.is_same_ranking(&w, p(0.0)));
+
+        let mut w: Vector<SparseStorage<Prob>, usize> =
+            Vector::from_slice(&[p(0.3), p(0.022), p(1.0), p(0.2), p(0.0), p(0.12)], p(0.0));
+        assert!(!v.is_same_ranking(&w, p(0.2)));
     }
 }

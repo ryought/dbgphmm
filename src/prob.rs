@@ -266,6 +266,11 @@ mod tests {
         assert_eq!(*max, p(1.0));
         let min = ps.iter().min().unwrap();
         assert_eq!(*min, p(0.0));
+
+        assert!(p(0.1) > p(0.09999));
+        assert!(p(0.1) < p(0.100001));
+        assert!(p(0.0) < p(0.01));
+        assert!(p(1.0) > p(0.01));
     }
     #[test]
     fn prob_assert_eq() {
