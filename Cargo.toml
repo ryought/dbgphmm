@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Ryo Nakabayashi <ryonakabayashi@gmail.com>"]
 edition = "2018"
 
+[dev-dependencies]
+test-case = "1.2.3"
+
 [dependencies]
 bio = "*"
 rand = "0.8"
