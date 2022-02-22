@@ -50,6 +50,20 @@ where
     }
     ///
     /// Log difference score of two vectors whose item is prob.
+    /// it checks only on active values
+    ///
+    pub fn diff_on_active<T>(&self, other: &Vector<T, Ix>) -> f64
+    where
+        T: Storage<Item = Prob>,
+    {
+        let mut diff = 0f64;
+        for (_, d) in self.iter_diff_on_active(other) {
+            diff += d
+        }
+        diff
+    }
+    ///
+    /// Log difference score of two vectors whose item is prob.
     ///
     pub fn diff<T>(&self, other: &Vector<T, Ix>) -> f64
     where

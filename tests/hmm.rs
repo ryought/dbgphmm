@@ -140,6 +140,7 @@ fn hmmv2_linear_long_node_freq_similarity() {
 }
 
 #[test]
+#[ignore]
 fn hmmv2_backward_dense_and_sparse() {
     let n_read_bases = 100;
     let n_genome_bases = 1000;
