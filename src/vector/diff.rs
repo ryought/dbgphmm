@@ -24,9 +24,9 @@ where
         diff
     }
     ///
-    /// Calculate `\sum_i |p[i]-p[i]|`
+    /// Calculate `\sum_i |p[i]-p[i]|` for all active i
     ///
-    pub fn iter_diff<'a, T>(
+    pub fn iter_diff_on_active<'a, T>(
         &'a self,
         other: &'a Vector<T, Ix>,
     ) -> impl Iterator<Item = (Ix, f64)> + 'a
@@ -40,6 +40,23 @@ where
                 let diff = (self[i].to_value() - other[i].to_value()).abs();
                 (i, diff)
             })
+    }
+    ///
+    /// Calculate `\sum_i |p[i]-p[i]|` for all i
+    ///
+    pub fn iter_diff<'a, T>(
+        &'a self,
+        other: &'a Vector<T, Ix>,
+    ) -> impl Iterator<Item = (Ix, f64)> + 'a
+    where
+        T: Storage<Item = Prob>,
+    {
+        assert_eq!(self.len(), other.len());
+        (0..self.len()).map(move |i| {
+            let index = Ix::new(i);
+            let diff = (self[index].to_value() - other[index].to_value()).abs();
+            (index, diff)
+        })
     }
     ///
     /// visualize difference of two vectors
