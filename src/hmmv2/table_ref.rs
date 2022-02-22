@@ -45,6 +45,20 @@ impl<'a> PHMMTableRef<'a> {
             PHMMTableRef::Sparse(t) => t.d[node],
         }
     }
+    /// check if backend is dense or sparse?
+    pub fn is_dense(&self) -> bool {
+        match self {
+            PHMMTableRef::Dense(_) => true,
+            PHMMTableRef::Sparse(_) => false,
+        }
+    }
+    /// convert to dense backed table
+    pub fn to_dense(&self) -> PHMMTable<DenseStorage<Prob>> {
+        match self {
+            PHMMTableRef::Dense(t) => t.to_dense(),
+            PHMMTableRef::Sparse(t) => t.to_dense(),
+        }
+    }
 }
 
 //
@@ -99,5 +113,51 @@ impl<'a> PHMMTableRef<'a> {
             (&PHMMTableRef::Sparse(s), &PHMMTableRef::Dense(o)) => s.diff(o),
             (&PHMMTableRef::Sparse(s), &PHMMTableRef::Sparse(o)) => s.diff(o),
         }
+    }
+}
+
+//
+// Display
+//
+impl<'a> std::fmt::Display for PHMMTableRef<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            PHMMTableRef::Dense(t) => write!(f, "{}", t),
+            PHMMTableRef::Sparse(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+//
+// tests
+//
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::ni;
+    use crate::prob::p;
+
+    #[test]
+    fn hmmv2_table_ref_add_mul() {
+        let mut t1: PHMMTable<DenseStorage<Prob>> = PHMMTable::zero(5);
+        t1.m[ni(0)] = p(0.5);
+        t1.d[ni(0)] = p(0.01);
+        t1.i[ni(0)] = p(0.02);
+        t1.i[ni(1)] = p(0.2);
+        t1.m[ni(1)] = p(1.0);
+        let mut t2: PHMMTable<SparseStorage<Prob>> = PHMMTable::zero(5);
+        t2.m[ni(0)] = p(0.5);
+        t2.d[ni(0)] = p(0.01);
+        t2.i[ni(0)] = p(0.02);
+        t2.i[ni(1)] = p(0.2);
+        t2.m[ni(1)] = p(1.0);
+        let r1 = PHMMTableRef::Dense(&t1);
+        let r2 = PHMMTableRef::Sparse(&t2);
+        assert!(r1.is_dense());
+        assert!(!r2.is_dense());
+        println!("{}", &t1 * &t2);
+        println!("{}", &r1 * &r2);
+        // TODO
+        // assert_eq!(&t1 * &t2, &r1 * &r2);
     }
 }

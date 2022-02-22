@@ -1,6 +1,21 @@
 //!
 //! Mock PHMMs for testing
 //!
+//! * linear
+//!     simplest phmm with 10bp linear sequence
+//! * linear_big
+//!     1000bp linear sequence
+//! * branching (edge_weighted = true/false)
+//!     X-like topology (each segment is 200bp) phmm
+//! * looping
+//!     tandem loop like segment
+//! * dbg
+//!     simplest de bruijn graph from 10bp sequence with no branch
+//! * dbg_big
+//!     1000bp k=8 (with loop structure)
+//! * dbg_big_error
+//!     1000bp k=8 (with loop structure) constructed from raw read
+//!
 use super::common::PModel;
 use crate::graph::mocks::*;
 use crate::graph::seq_graph::SeqGraph;

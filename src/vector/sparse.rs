@@ -5,7 +5,7 @@ use super::{DenseStorage, Storage};
 use arrayvec::ArrayVec;
 
 /// SparseStorage max index size parameter
-pub const SIZE: usize = 200;
+pub const SIZE: usize = 400;
 
 /// Sparse storage powered by `ArrayVec`
 /// A type of items is represented as `T`.
@@ -31,7 +31,7 @@ pub struct SparseStorage<T> {
 
 impl<T> Storage for SparseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> SparseStorage<T> {
@@ -82,6 +82,51 @@ where
         let n = self.elements.len();
         return &mut self.elements[n - 1].1;
     }
+    fn set(&mut self, index: usize, value: T) {
+        assert!(index < self.size());
+        if value == self.default_value {
+            // delete existing element if exists
+            for i in 0..self.elements.len() {
+                if self.elements[i].0 == index {
+                    self.elements.remove(i);
+                    break;
+                }
+            }
+        } else {
+            // store the value using get_mut
+            *self.get_mut(index) = value;
+        }
+    }
+    fn has(&self, index: usize) -> bool {
+        for i in 0..self.elements.len() {
+            if self.elements[i].0 == index {
+                return true;
+            }
+        }
+        false
+    }
+    fn try_get(&self, index: usize) -> Option<&T> {
+        for i in 0..self.elements.len() {
+            if self.elements[i].0 == index {
+                return Some(&self.elements[i].1);
+            }
+        }
+        None
+    }
+    fn mutate<F: FnMut(usize, &mut T)>(&mut self, mut f: F) {
+        let default_value = self.default_value;
+        self.elements.retain(|(i, x)| {
+            f(*i, x);
+            // retain if x is not default_value
+            *x != default_value
+        })
+    }
+    fn default_value(&self) -> T {
+        self.default_value
+    }
+    fn set_default_value(&mut self, default_value: T) {
+        self.default_value = default_value;
+    }
     fn to_dense(&self) -> DenseStorage<T> {
         let mut s: DenseStorage<T> = DenseStorage::new(self.size(), self.default_value);
         for (index, value) in self.iter() {
@@ -100,7 +145,7 @@ where
 // Custom Partial Eq for Sparse storage
 impl<T> PartialEq for SparseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
@@ -178,6 +223,26 @@ mod tests {
         assert_eq!(*s2.get(3), *s.get(3));
     }
     #[test]
+    fn sparse_storage_mutate() {
+        let mut s: SparseStorage<u32> = SparseStorage::new(4, 0);
+        *s.get_mut(0) = 111;
+        *s.get_mut(1) = 222;
+        *s.get_mut(2) = 10;
+        println!("{:?}", s);
+        s.mutate(|i, x| {
+            if i % 2 == 0 {
+                *x = *x + 10;
+            } else {
+                *x = 0;
+            }
+        });
+        println!("{:?}", s);
+        assert_eq!(*s.get(0), 121);
+        assert_eq!(*s.get(1), 0);
+        assert_eq!(*s.get(2), 20);
+        assert_eq!(*s.get(3), 0);
+    }
+    #[test]
     fn sparse_storage_dense_check() {
         assert!(!SparseStorage::<u32>::is_dense());
     }
@@ -234,5 +299,39 @@ mod tests {
         assert_eq!(muled[1], 0 * 0);
         assert_eq!(muled[2], 0 * 111);
         assert_eq!(muled[3], 111 * 1);
+    }
+    #[test]
+    fn arrayvec_retain_test() {
+        let b: Vec<usize> = vec![0, 4, 8, 12, 16];
+        // (1) arrayvec
+        let mut a = ArrayVec::<usize, 10>::new();
+        for i in 0..10 {
+            a.push(i);
+        }
+        a.retain(|x| {
+            if *x % 2 == 0 {
+                *x *= 2;
+                true
+            } else {
+                false
+            }
+        });
+        let av: Vec<usize> = a.into_iter().collect();
+        assert_eq!(av, b);
+
+        // (2) std::vec
+        let mut v = Vec::new();
+        for i in 0..10 {
+            v.push(i);
+        }
+        v.retain_mut(|x| {
+            if *x % 2 == 0 {
+                *x *= 2;
+                true
+            } else {
+                false
+            }
+        });
+        assert_eq!(v, b);
     }
 }

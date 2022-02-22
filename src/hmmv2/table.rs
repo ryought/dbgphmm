@@ -23,7 +23,7 @@ pub const MAX_DEL: usize = 4;
 /// Corresponds to a vector `T[node, type]`
 /// `node` is either normal or begin or end node.
 /// `type` is either Match, Ins, Del.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PHMMTable<S: Storage<Item = Prob>> {
     /// Match node probability
     pub m: NodeVec<S>,
@@ -193,6 +193,28 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     }
 }
 
+/*
+/// for approx `assert_abs_diff_eq`
+use approx::AbsDiffEq;
+impl<S: Storage<Item = Prob>> AbsDiffEq for PHMMTable<S> {
+    type Epsilon = <<S as Storage>::Item as AbsDiffEq>::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        S::Item::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let m = NodeVec::abs_diff_eq(&self.m, &other.m, epsilon);
+        let i = NodeVec::abs_diff_eq(&self.i, &other.i, epsilon);
+        let d = NodeVec::abs_diff_eq(&self.d, &other.d, epsilon);
+        let ib = Prob::abs_diff_eq(&self.ib, &other.ib, epsilon);
+        let mb = Prob::abs_diff_eq(&self.mb, &other.mb, epsilon);
+        println!("{} {} {} {} {}", m, i, d, ib, mb);
+        m && i && d
+    }
+}
+*/
+
 impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Header
@@ -255,9 +277,9 @@ where
         self.m += &other.m;
         self.i += &other.i;
         self.d += &other.d;
-        self.mb = self.mb + other.mb;
-        self.ib = self.ib + other.ib;
-        self.e = self.e + other.e;
+        self.mb += other.mb;
+        self.ib += other.ib;
+        self.e += other.e;
     }
 }
 
@@ -290,9 +312,9 @@ where
         self.m *= &other.m;
         self.i *= &other.i;
         self.d *= &other.d;
-        self.mb = self.mb * other.mb;
-        self.ib = self.ib * other.ib;
-        self.e = self.e * other.e;
+        self.mb *= other.mb;
+        self.ib *= other.ib;
+        self.e *= other.e;
     }
 }
 
@@ -525,5 +547,10 @@ mod tests {
         println!("d(t2,t1)={}", t2.diff(&t1));
         assert_abs_diff_eq!(t1.diff(&t2), 0.03);
         assert_abs_diff_eq!(t2.diff(&t1), 0.03);
+        // use approx
+        println!("{}", t1);
+        println!("{}", t2);
+        // assert!(abs_diff_eq!(t1, t1));
+        // assert!(abs_diff_eq!(t1, t1, epsilon = 1.0));
     }
 }

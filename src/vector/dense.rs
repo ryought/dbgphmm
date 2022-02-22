@@ -11,7 +11,7 @@ pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + Default,
 {
     type Item = T;
     fn new(size: usize, default_value: T) -> DenseStorage<T> {
@@ -39,10 +39,44 @@ where
     fn get_mut(&mut self, index: usize) -> &mut T {
         &mut self.0[index]
     }
+    #[inline]
+    fn set(&mut self, index: usize, value: T) {
+        self.0[index] = value;
+    }
+    #[inline]
+    fn has(&self, _: usize) -> bool {
+        // dense storage has all element separatedly
+        true
+    }
+    #[inline]
+    fn try_get(&self, index: usize) -> Option<&T> {
+        // dense storage has all element separatedly
+        Some(&self.0[index])
+    }
+    fn mutate<F: FnMut(usize, &mut T)>(&mut self, mut f: F) {
+        let mut i = 0;
+        self.0.retain_mut(|x| {
+            // do some modification
+            f(i, x);
+            i += 1;
+            true
+        })
+    }
+    #[inline]
+    fn default_value(&self) -> T {
+        // DenseStorage do not have default values, so the returned value has no meaning
+        T::default()
+    }
+    #[inline]
+    fn set_default_value(&mut self, _: T) {
+        // do nothing, because DenseStorage do not have default values
+    }
+    #[inline]
     fn to_dense(&self) -> Self {
         self.clone()
     }
     fn to_sparse(&self, default_value: T) -> SparseStorage<T> {
+        // TODO use the most frequent values as the default_value
         let mut s: SparseStorage<T> = SparseStorage::new(self.size(), default_value);
         for (index, value) in self.iter() {
             if value != default_value {
@@ -51,6 +85,7 @@ where
         }
         s
     }
+    // TODO add try_to_sparse
     fn is_dense() -> bool {
         true
     }
@@ -116,6 +151,25 @@ mod tests {
         assert_eq!(*s2.get(1), *s.get(1));
         assert_eq!(*s2.get(2), *s.get(2));
         assert_eq!(*s2.get(3), *s.get(3));
+    }
+    #[test]
+    fn dense_storage_mutate() {
+        let mut s: DenseStorage<u32> = DenseStorage::new(4, 5);
+        *s.get_mut(0) = 111;
+        *s.get_mut(2) = 10;
+        println!("{:?}", s);
+        s.mutate(|i, x| {
+            if i % 2 == 0 {
+                *x = *x + 10;
+            } else {
+                *x = 0;
+            }
+        });
+        println!("{:?}", s);
+        assert_eq!(*s.get(0), 121);
+        assert_eq!(*s.get(1), 0);
+        assert_eq!(*s.get(2), 20);
+        assert_eq!(*s.get(3), 0);
     }
     #[test]
     fn dense_storage_dense_check() {

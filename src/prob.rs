@@ -48,6 +48,13 @@ impl Prob {
     }
 }
 
+/// p=0 (Prob(-inf)) as a default value
+impl Default for Prob {
+    fn default() -> Self {
+        Prob(f64::NEG_INFINITY)
+    }
+}
+
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -133,82 +140,11 @@ impl AbsDiffEq for Prob {
     }
 }
 
-// TODO
 impl Eq for Prob {}
 impl Ord for Prob {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
-}
-
-pub fn test() {
-    let z0 = Prob::from_prob(0.0);
-    let z1 = Prob::from_prob(1.0);
-    let x = Prob::from_prob(0.3);
-    let y = Prob::from_prob(0.3);
-    let _a2 = Prob::from_prob(0.6);
-    let a = x + y;
-    let b2 = Prob::from_prob(0.09);
-    let b = x * y;
-    println!(
-        "{} {} {} {} {} {} {}",
-        x.to_value(),
-        y.to_value(),
-        a.to_value(),
-        b.to_value(),
-        z0.0,
-        z1.0,
-        (z0 + z1).to_value(),
-    );
-    assert_abs_diff_eq!(b2.0, b.0);
-
-    let x = Prob::from_prob(0.3);
-    let e = Prob::from_prob(0.0);
-    assert_relative_eq!((x + e).0, x.0);
-    assert_relative_eq!((x * e).0, e.0);
-    println!("{} == {}", (x + e).to_value(), x.to_value());
-    println!("{} == {}", (x * e).to_value(), e.to_value());
-
-    // sum
-    let xs = vec![
-        Prob::from_prob(0.1),
-        Prob::from_prob(0.1),
-        Prob::from_prob(0.1),
-        Prob::from_prob(0.1),
-    ];
-    let s: Prob = xs.iter().sum();
-    let p: Prob = xs.iter().product();
-    let x = xs.iter().fold(Prob::from_prob(0.0), |sum, i| sum + *i);
-    let y = Prob::from_prob(0.4);
-    assert_relative_eq!(x.0, y.0);
-    println!(
-        "{} {} {} {}",
-        x.to_value(),
-        s.to_value(),
-        y.to_value(),
-        p.to_value()
-    );
-
-    let xs: Vec<Prob> = vec![];
-    let s: Prob = xs.iter().sum();
-    let p: Prob = xs.iter().product();
-    println!("0={} 1={}", s, p);
-
-    let xs: Vec<Prob> = vec![Prob::from_prob(0.0)];
-    let s: Prob = xs.iter().sum();
-    let p: Prob = xs.iter().product();
-    println!("0={} 1={}", s, p);
-
-    let e = Prob::from_prob(0.0);
-    println!("0+0={} {}", e, e + e);
-
-    println!("test passed");
-}
-
-pub fn test2() {
-    let _x = bio::stats::LogProb::from(bio::stats::Prob(0.5));
-    // XXX cannot multiply bio::stats::LogProb
-    // println!("x*x={}", x * x);
 }
 
 #[cfg(test)]
@@ -252,11 +188,37 @@ mod tests {
         assert_relative_eq!(x.to_value(), y.to_value());
     }
     #[test]
+    fn prob_add_mul() {
+        assert_eq!(p(0.0) + p(1.0), p(1.0));
+        assert_eq!(p(0.0) * p(1.0), p(0.0));
+        assert_abs_diff_eq!((p(0.3) + p(0.3)).0, p(0.6).0);
+        assert_abs_diff_eq!((p(0.3) * p(0.3)).0, p(0.09).0);
+        assert_abs_diff_eq!((p(0.5) + p(0.00001)).0, p(0.50001).0);
+        assert_abs_diff_eq!((p(0.5) * p(0.00001)).0, p(0.000005).0);
+    }
+    #[test]
+    fn prob_sum_prod() {
+        // sum/prod of zero element vec
+        let xs: Vec<Prob> = vec![];
+        let sum: Prob = xs.iter().sum();
+        let product: Prob = xs.iter().product();
+        assert_eq!(sum, p(0.0));
+        assert_eq!(product, p(1.0));
+
+        // sum/prod of vec of p=0
+        let xs: Vec<Prob> = vec![p(0.0), p(0.0)];
+        let sum: Prob = xs.iter().sum();
+        let product: Prob = xs.iter().product();
+        assert_eq!(sum, p(0.0));
+        assert_eq!(product, p(0.0));
+    }
+    #[test]
     fn test_reflect() {
         let x = Prob::from_prob(1.0);
         let e = Prob::from_prob(0.0);
         assert_relative_eq!((x + e).0, x.0);
         assert_relative_eq!((x * e).0, e.0);
+        assert_relative_eq!((e * e).0, e.0);
     }
     #[test]
     fn test_zero() {
@@ -287,12 +249,37 @@ mod tests {
     #[test]
     fn prob_sort() {
         // Sort by Ord and Eq
-        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1)];
+        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1), p(1.0), p(0.0)];
         ps.sort();
         println!("{:?}", ps);
-        assert_abs_diff_eq!(ps[0], p(0.1));
-        assert_abs_diff_eq!(ps[1], p(0.2));
-        assert_abs_diff_eq!(ps[2], p(0.5));
-        assert_abs_diff_eq!(ps[3], p(0.9));
+        assert_eq!(ps[0], p(0.0));
+        assert_eq!(ps[1], p(0.1));
+        assert_eq!(ps[2], p(0.2));
+        assert_eq!(ps[3], p(0.5));
+        assert_eq!(ps[4], p(0.9));
+        assert_eq!(ps[5], p(1.0));
+    }
+    #[test]
+    fn prob_max_min() {
+        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1), p(1.0), p(0.0)];
+        let max = ps.iter().max().unwrap();
+        assert_eq!(*max, p(1.0));
+        let min = ps.iter().min().unwrap();
+        assert_eq!(*min, p(0.0));
+
+        assert!(p(0.1) > p(0.09999));
+        assert!(p(0.1) < p(0.100001));
+        assert!(p(0.0) < p(0.01));
+        assert!(p(1.0) > p(0.01));
+    }
+    #[test]
+    fn prob_assert_eq() {
+        assert!(abs_diff_eq!(p(0.1), p(0.1)));
+        assert!(!abs_diff_eq!(p(0.1), p(0.2)));
+        assert!(!abs_diff_eq!(p(0.1), p(0.11)));
+        assert!(abs_diff_eq!(p(0.1), p(0.11), epsilon = 0.1));
+        assert!(abs_diff_eq!(p(1.0), p(1.0)));
+        // TODO
+        assert!(!abs_diff_eq!(p(0.0), p(0.0)));
     }
 }

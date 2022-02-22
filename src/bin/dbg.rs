@@ -24,10 +24,8 @@ fn main() {
     // println!("{}", json);
     let phmm = dbg.to_phmm(PHMMParams::default());
     let r = b"GCTTGA";
-    let rf = phmm.forward(r);
-    let rb = phmm.backward(r);
-    let state_probs = phmm.to_state_probs(&rf, &rb);
-    let node_freqs = phmm.to_node_freqs(&state_probs);
+    let o = phmm.run(r);
+    let node_freqs = o.to_node_freqs();
     let json = dbg.to_cytoscape_with_attrs(&[NodeAttrVec::Freq(node_freqs)], &[]);
     println!("{}", json);
 }

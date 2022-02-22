@@ -83,6 +83,19 @@ impl PHMMParams {
             Prob::from_prob(0.01),    // gap_open
             Prob::from_prob(0.01),    // gap_ext
             Prob::from_prob(0.00001), // end
+            40,                       // active nodes
+            16,                       // warm up
+        )
+    }
+    /// PHMM Param for medium-error sequence
+    /// `p_mismatch = 5%`
+    ///
+    pub fn mid_error() -> PHMMParams {
+        PHMMParams::new(
+            Prob::from_prob(0.05),    // mismatch
+            Prob::from_prob(0.05),    // gap_open
+            Prob::from_prob(0.05),    // gap_ext
+            Prob::from_prob(0.00001), // end
             40,
             16,
         )

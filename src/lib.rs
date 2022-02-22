@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(vec_retain_mut)]
 pub mod cli;
 pub mod common;
 pub mod compressed_dbg;

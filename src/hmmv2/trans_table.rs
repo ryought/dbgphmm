@@ -5,7 +5,7 @@ use crate::common::Freq;
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec};
 
-#[derive(Debug, Copy, PartialEq, Clone)]
+#[derive(Debug, Copy, PartialEq, Clone, Default)]
 pub struct TransProb {
     /// Mk -> Ml transition
     pub mm: Prob,
