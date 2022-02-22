@@ -141,6 +141,43 @@ fn hmmv2_linear_long_node_freq_similarity() {
 
 #[test]
 #[ignore]
+fn hmmv2_forward_dense_and_sparse() {
+    let n_read_bases = 100;
+    let n_genome_bases = 1000;
+    let mut phmm = mock_linear_random_phmm(n_genome_bases, 2, PHMMParams::default());
+    for seed in 0..10 {
+        let h = phmm.sample(n_read_bases, seed);
+        let r = h.to_sequence();
+        for (n_warmup, n_active_nodes) in [(10, 10), (20, 10), (40, 10), (40, 40), (40, 80)] {
+            phmm.param.n_warmup = n_warmup;
+            phmm.param.n_active_nodes = n_active_nodes;
+            // println!("{}", h);
+            let dense = phmm.forward(&r);
+            let sparse = phmm.forward_sparse(&r);
+            for i in 0..dense.n_emissions() {
+                let td = dense.table(i);
+                let ts = sparse.table(i);
+                let d1 = td.diff(&ts);
+                let d2 = ts.diff(&td);
+                // |s-d| should be equal to |d-s|
+                assert_abs_diff_eq!(d1, d2);
+                // Since the last n_active_nodes tables will be calculated
+                // using same dense method, so the table should be exactly same.
+                if i < n_warmup {
+                    assert_eq!(d1, 0.0)
+                }
+            }
+            let d = dense.last_table().diff(&sparse.last_table());
+            println!(
+                "n_w={} n_a={} seed={} d={}",
+                n_warmup, n_active_nodes, seed, d
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore]
 fn hmmv2_backward_dense_and_sparse() {
     let n_read_bases = 100;
     let n_genome_bases = 1000;
