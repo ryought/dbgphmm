@@ -11,6 +11,18 @@ where
     Ix: Indexable,
 {
     ///
+    /// return the maximum probability and its index of the vector.
+    ///
+    pub fn max(&self) -> Option<(Ix, Prob)> {
+        self.iter().max_by_key(|(_, p)| *p)
+    }
+    ///
+    /// return the minimum probability and its index of the vector.
+    ///
+    pub fn min(&self) -> Option<(Ix, Prob)> {
+        self.iter().min_by_key(|(_, p)| *p)
+    }
+    ///
     /// Log difference score of two vectors whose item is prob.
     ///
     pub fn diff<T>(&self, other: &Vector<T, Ix>) -> f64
@@ -98,5 +110,17 @@ mod tests {
         assert_abs_diff_eq!(d, 0.8);
 
         v1.show_diff(&v2);
+    }
+    #[test]
+    fn vector_min_max() {
+        let mut v: Vector<DenseStorage<Prob>, usize> = Vector::new(5, p(0.0));
+        v[0] = p(0.3);
+        v[1] = p(0.0);
+        v[2] = p(1.0);
+        v[3] = p(0.8);
+        assert_eq!(v.max(), Some((2, p(1.0))));
+        println!("{:?}", v.max());
+        assert_eq!(v.min(), Some((1, p(0.0))));
+        println!("{:?}", v.min());
     }
 }

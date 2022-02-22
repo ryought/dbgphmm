@@ -140,7 +140,6 @@ impl AbsDiffEq for Prob {
     }
 }
 
-// TODO
 impl Eq for Prob {}
 impl Ord for Prob {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -250,13 +249,23 @@ mod tests {
     #[test]
     fn prob_sort() {
         // Sort by Ord and Eq
-        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1)];
+        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1), p(1.0), p(0.0)];
         ps.sort();
         println!("{:?}", ps);
-        assert_abs_diff_eq!(ps[0], p(0.1));
-        assert_abs_diff_eq!(ps[1], p(0.2));
-        assert_abs_diff_eq!(ps[2], p(0.5));
-        assert_abs_diff_eq!(ps[3], p(0.9));
+        assert_eq!(ps[0], p(0.0));
+        assert_eq!(ps[1], p(0.1));
+        assert_eq!(ps[2], p(0.2));
+        assert_eq!(ps[3], p(0.5));
+        assert_eq!(ps[4], p(0.9));
+        assert_eq!(ps[5], p(1.0));
+    }
+    #[test]
+    fn prob_max_min() {
+        let mut ps = vec![p(0.9), p(0.2), p(0.5), p(0.1), p(1.0), p(0.0)];
+        let max = ps.iter().max().unwrap();
+        assert_eq!(*max, p(1.0));
+        let min = ps.iter().min().unwrap();
+        assert_eq!(*min, p(0.0));
     }
     #[test]
     fn prob_assert_eq() {
