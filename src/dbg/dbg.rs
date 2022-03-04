@@ -156,7 +156,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let mut graph = DiGraph::new();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
-        for (node, weight) in self.nodes() {
+        for (_node, weight) in self.nodes() {
             let kmer = weight.kmer().clone();
             let copy_num = weight.copy_num();
 
@@ -186,6 +186,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num));
         }
         SimpleEDbg::new(self.k(), graph)
+    }
+    ///
+    /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
+    /// consistently assigned.
+    ///
+    pub fn extend(&self) -> Dbg<N, E> {
+        unimplemented!();
     }
 }
 
