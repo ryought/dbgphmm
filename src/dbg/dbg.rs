@@ -119,12 +119,47 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 }
 
 ///
+/// For Node/Edge CopyNums vector
+///
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// Get a vector of node copy numbers
+    ///
+    pub fn to_node_copy_nums(&self) -> NodeCopyNums {
+        unimplemented!();
+    }
+    ///
+    /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
+    ///
+    pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
+        // make sure that
+        // * all edges has copynums
+        // * copy nums are consistent
+        unimplemented!();
+    }
+    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {}
+    pub fn set_edge_copy_nums(&mut self, copy_nums: &EdgeCopyNums) {}
+}
+
+///
+/// Seq addition
+///
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {}
+
+///
 /// Basic constructors
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// plain constructor of dbg
-    pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
+    pub fn from_digraph(k: usize, graph: DiGraph<N, E>) -> Self {
         Dbg { k, graph }
+    }
+    /// Create an empty de bruijn graph with no nodes and edges.
+    pub fn empty(k: usize) -> Self {
+        Dbg {
+            k,
+            graph: DiGraph::new(),
+        }
     }
     /// Convert HashDbg<K> into Dbg
     pub fn from_hashdbg(d: &HashDbg<N::Kmer>) -> Self {
@@ -147,7 +182,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
 
-        Self::new(d.k(), graph)
+        Self::from_digraph(d.k(), graph)
     }
     ///
     /// Convert into edge-centric de bruijn graph
@@ -224,5 +259,11 @@ mod tests {
         println!("{}", dbg);
         let edbg = dbg.to_edbg();
         println!("{}", edbg);
+    }
+    #[test]
+    fn upgrade_dbg() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+        println!("{}", dbg);
     }
 }
