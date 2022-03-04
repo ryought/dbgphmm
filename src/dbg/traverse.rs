@@ -18,7 +18,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         self.traverse_from(NodeIndex::new(0))
     }
     fn traverse_from(&self, from: NodeIndex) -> Traverser<N, E> {
-        Traverser::new(self, self.to_copy_nums(), from)
+        Traverser::new(self, self.to_node_copy_nums(), from)
     }
     pub fn traverse_all(&self) -> Traveller<N, E> {
         Traveller {
@@ -33,16 +33,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     fn cycle_as_sequence(&self, cycle: &Cycle) -> Sequence {
         assert!(self.is_valid_cycle(cycle));
         cycle.iter().map(|&node| self.emission(node)).collect()
-    }
-    ///
-    /// Create the NodeVec with copy numbers of each node
-    ///
-    pub fn to_copy_nums(&self) -> NodeCopyNums {
-        let mut v: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
-        for (node, weight) in self.nodes() {
-            v[node] = weight.copy_num();
-        }
-        v
     }
 }
 

@@ -123,10 +123,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
-    /// Get a vector of node copy numbers
+    /// Create the NodeVec with copy numbers of each node
     ///
     pub fn to_node_copy_nums(&self) -> NodeCopyNums {
-        unimplemented!();
+        let mut v: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
+        for (node, weight) in self.nodes() {
+            v[node] = weight.copy_num();
+        }
+        v
     }
     ///
     /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
