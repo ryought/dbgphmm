@@ -88,6 +88,9 @@ impl<K: KmerLike> HashDbg<K> {
             n1 == n2
         })
     }
+    ///
+    /// add all kmers in linear seq (with leading/trailing NNN kmers)
+    ///
     pub fn add_seq(&mut self, seq: &[u8]) {
         for kmer in sequence_to_kmers(seq, self.k()) {
             self.add(kmer, 1);

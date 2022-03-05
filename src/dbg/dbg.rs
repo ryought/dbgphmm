@@ -152,8 +152,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // * (edge copy nums are consistent)
         unimplemented!();
     }
-    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {}
-    pub fn set_edge_copy_nums(&mut self, copy_nums: &EdgeCopyNums) {}
+    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
+        unimplemented!();
+    }
+    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
+        unimplemented!();
+        match copy_nums {
+            None => {
+                // purge assigned copy numbers
+            }
+            Some(copy_nums) => {
+                //
+                //
+            }
+        }
+    }
+    /// generate node/edge copy numbers of the given sequence
+    ///
+    pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> (NodeCopyNums, EdgeCopyNums) {
+        unimplemented!();
+    }
 }
 
 ///
@@ -170,12 +188,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .map(|(node, _)| node)
     }
     ///
+    /// create hashmap from kmer to node index in the dbg.
+    ///
+    pub fn to_kmer_map(&self) -> HashMap<N::Kmer, NodeIndex> {
+        let mut hm = HashMap::default();
+        for (node, weight) in self.nodes() {
+            hm.insert(weight.kmer().clone(), node);
+        }
+        hm
+    }
+    ///
+    /// WIP
+    ///
     /// add kmer to the de bruijn graph, if not exists.
     ///
     /// # TODOs
     ///
     /// * determine the correct behaviour when the same kmer exists?
-    /// *
+    /// * after this addition, the copy-number consistency will be broken.
     ///
     pub fn add_kmer(&mut self, kmer: N::Kmer, copy_num: CopyNum) -> Option<NodeIndex> {
         match self.get_kmer(&kmer) {
@@ -279,6 +309,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     use crate::kmer::veckmer::VecKmer;
 
     #[test]
@@ -306,11 +337,19 @@ mod tests {
         println!("{}", edbg);
     }
     #[test]
-    fn upgrade_dbg() {
+    fn dbg_kmer() {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
-        println!("{}", dbg.is_edge_copy_nums_assigned());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+        println!("{:?}", dbg.get_kmer(&VecKmer::from_bases(b"ATCG")));
+        assert_eq!(dbg.get_kmer(&VecKmer::from_bases(b"ATCA")), None);
+        assert_eq!(dbg.get_kmer(&VecKmer::from_bases(b"ATCG")), Some(ni(9)));
+
+        let m = dbg.to_kmer_map();
+        assert_eq!(m.get(&VecKmer::from_bases(b"ATCA")).copied(), None);
+        assert_eq!(m.get(&VecKmer::from_bases(b"TCGG")).copied(), Some(ni(5)));
+        println!("{:?}", m);
     }
     #[test]
     fn manual_dbg() {
