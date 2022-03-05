@@ -415,13 +415,21 @@ mod tests {
     #[test]
     fn dbg_copy_numbers() {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
-        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+        let mut dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
-        assert_eq!(
-            dbg.to_node_copy_nums().to_vec(),
-            vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        );
+        assert_eq!(dbg.to_node_copy_nums().to_vec(), vec![1; dbg.n_nodes()]);
         assert_eq!(dbg.to_edge_copy_nums(), None);
+
+        // node copy numbers assignment
+        dbg.set_node_copy_nums(&NodeCopyNums::from_slice(&vec![0; dbg.n_nodes()], 0));
+        assert_eq!(dbg.to_node_copy_nums().to_vec(), vec![0; dbg.n_nodes()],);
+
+        // edge copy numbers assignment
+        dbg.set_edge_copy_nums(Some(&EdgeCopyNums::from_slice(&vec![1; dbg.n_edges()], 0)));
+        assert_eq!(
+            dbg.to_edge_copy_nums().unwrap().to_vec(),
+            vec![1; dbg.n_edges()]
+        );
 
         // println!("nodes={:?}", dbg.to_nodes_of_seq(b"ATCGGCT"));
     }
