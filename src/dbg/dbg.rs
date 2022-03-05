@@ -37,6 +37,9 @@ pub trait DbgNode {
     /// Copy number count of this node in Dbg
     fn copy_num(&self) -> CopyNum;
     ///
+    /// Modify copy number count of this node
+    fn set_copy_num(&mut self, copy_num: CopyNum);
+    ///
     /// Single base assigned to this node in Dbg
     /// Last base of kmer will be used as an emission
     fn emission(&self) -> u8 {
@@ -49,7 +52,13 @@ pub trait DbgNode {
 ///
 pub trait DbgEdge {
     fn new(copy_num: Option<CopyNum>) -> Self;
+    ///
+    /// Copy number count of this edge in Dbg
+    /// None if number is not assigned. (i.e. random transition)
     fn copy_num(&self) -> Option<CopyNum>;
+    ///
+    /// Modify copy number count of this edge
+    fn set_copy_num(&mut self, copy_num: Option<CopyNum>);
 }
 
 ///
@@ -147,26 +156,40 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
     ///
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
-        // make sure that
-        // * all edges has copynums
-        // * (edge copy nums are consistent)
-        unimplemented!();
-    }
-    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
-        unimplemented!();
-    }
-    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
-        unimplemented!();
-        match copy_nums {
-            None => {
-                // purge assigned copy numbers
+        // TODO assert edge copy nums are consistent
+        if self.is_edge_copy_nums_assigned() {
+            let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_nodes(), 0);
+            for (edge, _, _, weight) in self.edges() {
+                v[edge] = weight.copy_num().unwrap();
             }
-            Some(copy_nums) => {
-                //
-                //
-            }
+            Some(v)
+        } else {
+            None
         }
     }
+    ///
+    /// Assign copy numbers to all nodes at a time, specified by copy_nums NodeCopyNums vector.
+    ///
+    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
+        for (i, node_weight_mut) in self.graph.node_weights_mut().enumerate() {
+            let node = NodeIndex::new(i);
+            node_weight_mut.set_copy_num(copy_nums[node])
+        }
+    }
+    ///
+    /// Assign copy numbers to all edges at a time, specified by copy_nums EdgeCopyNums vector.
+    ///
+    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
+        for (i, edge_weight_mut) in self.graph.edge_weights_mut().enumerate() {
+            let edge = EdgeIndex::new(i);
+            let copy_num = match copy_nums {
+                None => None,
+                Some(copy_nums) => Some(copy_nums[edge]),
+            };
+            edge_weight_mut.set_copy_num(copy_num)
+        }
+    }
+    ///
     /// generate node/edge copy numbers of the given sequence
     ///
     pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> (NodeCopyNums, EdgeCopyNums) {
@@ -350,6 +373,14 @@ mod tests {
         assert_eq!(m.get(&VecKmer::from_bases(b"ATCA")).copied(), None);
         assert_eq!(m.get(&VecKmer::from_bases(b"TCGG")).copied(), Some(ni(5)));
         println!("{:?}", m);
+    }
+    #[test]
+    fn dbg_copy_numbers() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+        println!("{}", dbg);
+        println!("{:?}", dbg.to_node_copy_nums());
+        println!("{:?}", dbg.to_edge_copy_nums());
     }
     #[test]
     fn manual_dbg() {

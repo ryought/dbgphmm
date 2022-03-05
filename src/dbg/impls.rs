@@ -22,6 +22,9 @@ impl<K: KmerLike> DbgNode for SimpleDbgNode<K> {
     fn copy_num(&self) -> CopyNum {
         self.copy_num
     }
+    fn set_copy_num(&mut self, copy_num: CopyNum) {
+        self.copy_num = copy_num;
+    }
 }
 
 /// Basic implementations of DbgNode
@@ -35,6 +38,9 @@ impl DbgEdge for SimpleDbgEdge {
     }
     fn copy_num(&self) -> Option<CopyNum> {
         self.copy_num
+    }
+    fn set_copy_num(&mut self, copy_num: Option<CopyNum>) {
+        self.copy_num = copy_num;
     }
 }
 
