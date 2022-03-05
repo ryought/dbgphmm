@@ -31,3 +31,38 @@ pub fn ni(index: usize) -> NodeIndex {
 pub fn ei(index: usize) -> EdgeIndex {
     EdgeIndex::new(index)
 }
+
+///
+///
+///
+#[derive(Clone, Copy, Debug)]
+pub enum SeqStyle {
+    /// circular sequence
+    Circular,
+    /// circularized linear sequence
+    Linear,
+    /// naive linear sequence which is not circular
+    LinearFragment,
+}
+
+impl SeqStyle {
+    /// check if this style is circular or not.
+    pub fn is_circular(&self) -> bool {
+        match self {
+            SeqStyle::Circular => true,
+            _ => false,
+        }
+    }
+    pub fn has_prefix(&self) -> bool {
+        match self {
+            SeqStyle::Linear => true,
+            _ => false,
+        }
+    }
+    pub fn has_suffix(&self) -> bool {
+        match self {
+            SeqStyle::Linear | SeqStyle::Circular => true,
+            _ => false,
+        }
+    }
+}

@@ -1,6 +1,7 @@
 //!
 //! Kmer definitions
 //!
+use crate::common::SeqStyle;
 
 pub trait NullableKmer {
     ///
@@ -151,37 +152,6 @@ pub trait KmerBase {
 //
 // Sequence <-> Kmers conversion
 //
-#[derive(Clone, Copy, Debug)]
-enum SeqStyle {
-    /// circular sequence
-    Circular,
-    /// circularized linear sequence
-    Linear,
-    /// naive linear sequence which is not circular
-    LinearFragment,
-}
-
-impl SeqStyle {
-    /// check if this style is circular or not.
-    fn is_circular(&self) -> bool {
-        match self {
-            SeqStyle::Circular => true,
-            _ => false,
-        }
-    }
-    fn has_prefix(&self) -> bool {
-        match self {
-            SeqStyle::Linear => true,
-            _ => false,
-        }
-    }
-    fn has_suffix(&self) -> bool {
-        match self {
-            SeqStyle::Linear | SeqStyle::Circular => true,
-            _ => false,
-        }
-    }
-}
 
 /// Convert linear sequence to a list of kmers
 pub fn linear_sequence_to_kmers<'a, K: KmerLike>(
