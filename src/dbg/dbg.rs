@@ -113,8 +113,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 /// Basic properties
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    pub fn is_consistent(&self) {
+    /// CopyNums of nodes are consistent, that is
+    /// 'sum of copynums of childs' == 'sum of copynums of siblings'
+    /// for each kmers
+    fn has_consistent_node_copy_nums(&self) -> bool {
         unimplemented!();
+    }
+    fn has_consistent_edge_copy_nums(&self) -> bool {
+        unimplemented!();
+    }
+    /// Check if all the edges has a copy number
+    fn is_edge_copy_nums_assigned(&self) -> bool {
+        self.edges().all(|(_, _, _, ew)| ew.copy_num().is_some())
     }
 }
 
@@ -126,6 +136,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create the NodeVec with copy numbers of each node
     ///
     pub fn to_node_copy_nums(&self) -> NodeCopyNums {
+        // TODO assert that node copy nums are consistent
         let mut v: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         for (node, weight) in self.nodes() {
             v[node] = weight.copy_num();
@@ -138,7 +149,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
         // make sure that
         // * all edges has copynums
-        // * copy nums are consistent
+        // * (edge copy nums are consistent)
         unimplemented!();
     }
     pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {}
@@ -147,8 +158,38 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
 ///
 /// Seq addition
+/// TODO
 ///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {}
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// find the kmer in the de bruijn graph
+    ///
+    pub fn get_kmer(&self, kmer: &N::Kmer) -> Option<NodeIndex> {
+        self.nodes()
+            .find(|(_, weight)| weight.kmer() == kmer)
+            .map(|(node, _)| node)
+    }
+    ///
+    /// add kmer to the de bruijn graph, if not exists.
+    ///
+    /// # TODOs
+    ///
+    /// * determine the correct behaviour when the same kmer exists?
+    /// *
+    ///
+    pub fn add_kmer(&mut self, kmer: N::Kmer, copy_num: CopyNum) -> Option<NodeIndex> {
+        match self.get_kmer(&kmer) {
+            Some(node) => {
+                panic!("kmer {} is already exists as node {:?}", kmer, node);
+            }
+            None => {
+                let node = self.graph.add_node(N::new(kmer, copy_num));
+                // TODO add edges between parents/childs
+                Some(node)
+            }
+        }
+    }
+}
 
 ///
 /// Basic constructors
@@ -269,5 +310,12 @@ mod tests {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
+        println!("{}", dbg.is_edge_copy_nums_assigned());
+    }
+    #[test]
+    fn manual_dbg() {
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::empty(4);
+        // dbg.add_node();
+        // dbg.add_seq(b"ATCGAT");
     }
 }
