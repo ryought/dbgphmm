@@ -7,9 +7,10 @@ use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::{CopyNum, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::kmer::kmer::{linear_fragment_sequence_to_kmers, Kmer, KmerLike};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
+use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
@@ -116,6 +117,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
     }
+    /// Lookup an edge from `a: NodeIndex` to `b: NodeIndex`.
+    pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
+        self.graph.find_edge(a, b)
+    }
 }
 
 ///
@@ -158,7 +163,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
         // TODO assert edge copy nums are consistent
         if self.is_edge_copy_nums_assigned() {
-            let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_nodes(), 0);
+            let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
             for (edge, _, _, weight) in self.edges() {
                 v[edge] = weight.copy_num().unwrap();
             }
@@ -189,11 +194,44 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             edge_weight_mut.set_copy_num(copy_num)
         }
     }
+    fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
+        let m = self.to_kmer_map();
+        let mut nodes: Vec<NodeIndex> = Vec::new();
+        for kmer in linear_fragment_sequence_to_kmers(seq, self.k()) {
+            match m.get(&kmer) {
+                None => return None,
+                Some(&node) => nodes.push(node),
+            }
+        }
+        Some(nodes)
+    }
     ///
     /// generate node/edge copy numbers of the given sequence
     ///
-    pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> (NodeCopyNums, EdgeCopyNums) {
-        unimplemented!();
+    pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> Option<(NodeCopyNums, EdgeCopyNums)> {
+        // vectors to be returned
+        let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
+        let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
+
+        match self.to_nodes_of_seq(seq) {
+            None => None,
+            Some(nodes) => {
+                // add node counts
+                for &node in nodes.iter() {
+                    nc[node] += 1;
+                }
+
+                // add edge counts
+                for (&node_a, &node_b) in nodes.iter().tuple_windows() {
+                    let edge = self
+                        .find_edge(node_a, node_b)
+                        .expect("there is no corresponding edge in the dbg");
+                    ec[edge] += 1;
+                }
+
+                Some((nc, ec))
+            }
+        }
     }
 }
 
@@ -379,8 +417,13 @@ mod tests {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
         println!("{}", dbg);
-        println!("{:?}", dbg.to_node_copy_nums());
-        println!("{:?}", dbg.to_edge_copy_nums());
+        assert_eq!(
+            dbg.to_node_copy_nums().to_vec(),
+            vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        );
+        assert_eq!(dbg.to_edge_copy_nums(), None);
+
+        // println!("nodes={:?}", dbg.to_nodes_of_seq(b"ATCGGCT"));
     }
     #[test]
     fn manual_dbg() {
