@@ -156,21 +156,32 @@ pub fn linear_sequence_to_kmers<'a, K: KmerLike>(
     seq: &'a [u8],
     k: usize,
 ) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(seq, k, false)
+}
+
+/// Convert circular sequence to a list of kmers
+pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(seq, k, true)
+}
+
+/// Convert circular or linear sequence to a list of kmers
+pub fn sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+    is_circular: bool,
+) -> MarginKmerIterator<'a, K> {
     MarginKmerIterator {
         k,
+        is_circular,
         index_prefix: 0,
         index_suffix: 0,
         index: 0,
         seq,
         ph: std::marker::PhantomData::<K>,
     }
-}
-
-pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
-    seq: &'a [u8],
-    k: usize,
-) -> MarginKmerIterator<'a, K> {
-    unimplemented!();
 }
 
 ///
@@ -180,6 +191,7 @@ pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
 ///
 pub struct MarginKmerIterator<'a, K: KmerLike> {
     k: usize,
+    is_circular: bool,
     index_prefix: usize,
     index_suffix: usize,
     index: usize,
@@ -192,8 +204,8 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
     fn next(&mut self) -> Option<K> {
         let k = self.k;
         let l = self.seq.len();
-        if self.index_prefix < k - 1 {
-            // NNNTTT
+        if !self.is_circular && self.index_prefix < k - 1 {
+            // NNNTTT if linear
             let n_prefix = k - 1 - self.index_prefix;
             let n_body = k - n_prefix;
             let mut bases = vec![b'N'; n_prefix];
@@ -208,11 +220,16 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             self.index += 1;
             Some(K::from_bases(&bases))
         } else if self.index_suffix < k - 1 {
-            // TTTNNN
+            // TTTNNN if linear
+            // TTTSSS if circular
             let n_suffix = self.index_suffix + 1;
             let n_body = k - n_suffix;
             let mut bases = self.seq[l - n_body..].to_vec();
-            bases.extend_from_slice(&vec![b'N'; n_suffix]);
+            if self.is_circular {
+                bases.extend_from_slice(&self.seq[..n_suffix]);
+            } else {
+                bases.extend_from_slice(&vec![b'N'; n_suffix]);
+            }
             self.index_suffix += 1;
             Some(K::from_bases(&bases))
         } else {
@@ -233,6 +250,7 @@ mod tests {
     #[test]
     fn seq_to_kmers() {
         let seq = b"ATCATCG";
+        println!("linear");
         for kmer in linear_sequence_to_kmers::<VecKmer>(seq, 4) {
             println!("{}", kmer);
         }
@@ -250,6 +268,25 @@ mod tests {
                 VecKmer::from_bases(b"TCGN"),
                 VecKmer::from_bases(b"CGNN"),
                 VecKmer::from_bases(b"GNNN"),
+            ]
+        );
+
+        let seq = b"ATCATCG";
+        println!("circular");
+        for kmer in circular_sequence_to_kmers::<VecKmer>(seq, 4) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = circular_sequence_to_kmers::<VecKmer>(seq, 4).collect();
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"ATCA"),
+                VecKmer::from_bases(b"TCAT"),
+                VecKmer::from_bases(b"CATC"),
+                VecKmer::from_bases(b"ATCG"),
+                VecKmer::from_bases(b"TCGA"),
+                VecKmer::from_bases(b"CGAT"),
+                VecKmer::from_bases(b"GATC"),
             ]
         );
     }
