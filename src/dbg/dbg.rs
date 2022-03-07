@@ -138,14 +138,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// CopyNums of nodes are consistent, that is
     /// 'sum of copynums of childs' == 'sum of copynums of siblings'
     /// for each kmers
-    fn has_consistent_node_copy_nums(&self) -> bool {
+    pub fn has_consistent_node_copy_nums(&self) -> bool {
         unimplemented!();
     }
-    fn has_consistent_edge_copy_nums(&self) -> bool {
+    pub fn has_consistent_edge_copy_nums(&self) -> bool {
         unimplemented!();
     }
     /// Check if all the edges has a copy number
-    fn is_edge_copy_nums_assigned(&self) -> bool {
+    pub fn is_edge_copy_nums_assigned(&self) -> bool {
         self.edges().all(|(_, _, _, ew)| ew.copy_num().is_some())
     }
 }
@@ -216,6 +216,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// generate node/edge copy numbers of the given sequence
     ///
+    /// TODO assert that seq forms cycle
+    ///
     pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> Option<(NodeCopyNums, EdgeCopyNums)> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
@@ -236,6 +238,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         .expect("there is no corresponding edge in the dbg");
                     ec[edge] += 1;
                 }
+
+                // add edge between tail and head.
+                let head = nodes.first().unwrap();
+                let tail = nodes.last().unwrap();
+                let edge = self
+                    .find_edge(*tail, *head)
+                    .expect("there is no corresponding edge in the dbg");
+                ec[edge] += 1;
 
                 Some((nc, ec))
             }
@@ -461,6 +471,10 @@ mod tests {
         );
         println!("{}", sequence_to_string(&dbg.path_as_sequence(&nodes)));
         assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTNNN");
+
+        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATCGGCT").unwrap();
+        assert_eq!(ncn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        assert_eq!(ecn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     }
     #[test]
     fn manual_dbg() {
@@ -470,7 +484,12 @@ mod tests {
     }
     #[test]
     fn dbg_extension() {
-        let dbg = mock_intersection();
-        println!("{}", dbg);
+        let mut dbg = mock_intersection();
+        // println!("{}", dbg);
+        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
+        dbg.set_node_copy_nums(&ncn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        // println!("{}", dbg);
+        println!("{}", dbg.to_cytoscape());
     }
 }
