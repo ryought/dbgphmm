@@ -5,6 +5,7 @@ pub mod traverse;
 pub use hashdbg::{DbgHash, DBG};
 pub mod edge_centric;
 pub mod impls;
+pub mod intersections;
 pub mod mocks;
 pub mod output;
 pub mod phmm;
