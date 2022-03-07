@@ -118,6 +118,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn edge(&self, edge: EdgeIndex) -> &E {
         self.graph.edge_weight(edge).unwrap()
     }
+    /// convert node to kmer reference
+    pub fn kmer(&self, node: NodeIndex) -> &N::Kmer {
+        self.graph.node_weight(node).unwrap().kmer()
+    }
     /// convert node to emission
     pub fn emission(&self, node: NodeIndex) -> u8 {
         self.graph.node_weight(node).unwrap().emission()
@@ -174,7 +178,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create the NodeVec with copy numbers of each node
     ///
     pub fn to_node_copy_nums(&self) -> NodeCopyNums {
-        // TODO assert that node copy nums are consistent
         let mut v: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         for (node, weight) in self.nodes() {
             v[node] = weight.copy_num();
@@ -185,7 +188,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
     ///
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
-        // TODO assert edge copy nums are consistent
         if self.is_edge_copy_nums_assigned() {
             let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
             for (edge, _, _, weight) in self.edges() {
@@ -396,8 +398,48 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
     /// consistently assigned.
     ///
+    /// * Nodes in k+1-dbg
+    ///     an edge in k-dbg represents a k+1-mer, and it will correspond to a node in k+1-dbg.
+    /// * Edges in k+1-dbg
+    ///     a pair of edges (e1, e2) whose end-point and start-point is the same, has an edge in
+    ///     k+1-dbg.
+    ///
+    /// ## TODOs
+    ///
+    /// * NNNN should be treated specially.
+    /// * zero-copy-number nodes should be purged.
+    ///
     pub fn to_kp1_dbg(&self) -> Dbg<N, E> {
-        unimplemented!();
+        assert!(self.is_edge_copy_nums_assigned());
+        assert!(self.has_consistent_edge_copy_nums());
+
+        let mut graph = DiGraph::new();
+
+        // mapping from "edge in k-dbg" into "node in k+1-dbg".
+        let mut ids: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
+
+        // (1) a edge in k-dbg is corresponds to a node in k+1-dbg.
+        for (edge, s, t, weight) in self.edges() {
+            let kmer = self.kmer(s).join(self.kmer(t));
+            let copy_num = weight.copy_num().unwrap();
+            let node = graph.add_node(N::new(kmer, copy_num));
+            ids.insert(edge, node);
+        }
+
+        // (2) add an edge between all in-edges and out-edges pair.
+        for (node, _) in self.nodes() {
+            // --e1--> node --e2--> in k-dbg
+            for (e1, _, _) in self.parents(node) {
+                let v1 = ids.get(&e1).unwrap();
+                for (e2, _, _) in self.childs(node) {
+                    let v2 = ids.get(&e2).unwrap();
+                    // copy numbers of edges in k+1 is ambiguous.
+                    graph.add_edge(*v1, *v2, E::new(None));
+                }
+            }
+        }
+
+        Self::from_digraph(self.k() + 1, graph)
     }
 }
 
@@ -530,5 +572,7 @@ mod tests {
         dbg.set_edge_copy_nums(Some(&ecn));
         println!("{}", dbg);
         // println!("{}", dbg.to_cytoscape());
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
     }
 }
