@@ -14,8 +14,10 @@ use crate::common::CopyNum;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::Direction;
 pub mod impls;
 pub mod output;
+use super::intersections::Intersection;
 pub use impls::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
 
 ///
@@ -103,6 +105,31 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// check if two nodes `a, b: NodeIndex` is connected or not
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
+    }
+    /// convert a node into an intersection information
+    pub fn intersection(&self, node: NodeIndex) -> Intersection<N::Kmer> {
+        let node_weight = self
+            .graph
+            .node_weight(node)
+            .expect("node is not in the graph");
+
+        // list of in/out node indexes
+        let in_nodes: Vec<NodeIndex> = self
+            .graph
+            .edges_directed(node, Direction::Incoming)
+            .map(|e| e.weight().origin_node())
+            .collect();
+        let out_nodes: Vec<NodeIndex> = self
+            .graph
+            .edges_directed(node, Direction::Outgoing)
+            .map(|e| e.weight().origin_node())
+            .collect();
+
+        Intersection {
+            km1mer: node_weight.km1mer().clone(),
+            in_nodes,
+            out_nodes,
+        }
     }
 }
 

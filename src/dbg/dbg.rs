@@ -109,6 +109,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    /// Get a reference of node weight
+    pub fn node(&self, node: NodeIndex) -> &N {
+        self.graph.node_weight(node).unwrap()
+    }
+    /// Get a reference of edge weight
+    pub fn edge(&self, edge: EdgeIndex) -> &E {
+        self.graph.edge_weight(edge).unwrap()
+    }
     /// convert node to emission
     pub fn emission(&self, node: NodeIndex) -> u8 {
         self.graph.node_weight(node).unwrap().emission()
