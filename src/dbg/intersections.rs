@@ -1,5 +1,5 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use super::edge_centric::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
+use super::edge_centric::SimpleEDbg;
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::NodeIndex;
 

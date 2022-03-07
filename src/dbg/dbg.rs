@@ -370,7 +370,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
     /// consistently assigned.
     ///
-    pub fn extend(&self) -> Dbg<N, E> {
+    pub fn to_kp1_dbg(&self) -> Dbg<N, E> {
         unimplemented!();
     }
 }
