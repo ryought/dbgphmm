@@ -12,6 +12,7 @@ use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::Direction;
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
 pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
@@ -139,10 +140,25 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// 'sum of copynums of childs' == 'sum of copynums of siblings'
     /// for each kmers
     pub fn has_consistent_node_copy_nums(&self) -> bool {
-        unimplemented!();
+        self.to_edbg().has_consistent_copy_nums()
     }
+    /// CopyNums of edges are consistent?
+    /// i.e. the sum of copy numbers on in-edges and out-edges
+    /// are equal to the copy numbers of the node.
     pub fn has_consistent_edge_copy_nums(&self) -> bool {
-        unimplemented!();
+        self.nodes().all(|(node, _)| {
+            let in_copy_nums: Option<CopyNum> = self
+                .graph
+                .edges_directed(node, Direction::Incoming)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            let out_copy_nums: Option<CopyNum> = self
+                .graph
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            in_copy_nums == out_copy_nums
+        })
     }
     /// Check if all the edges has a copy number
     pub fn is_edge_copy_nums_assigned(&self) -> bool {
@@ -440,6 +456,7 @@ mod tests {
         println!("{}", dbg);
         assert_eq!(dbg.to_node_copy_nums().to_vec(), vec![1; dbg.n_nodes()]);
         assert_eq!(dbg.to_edge_copy_nums(), None);
+        assert_eq!(dbg.is_edge_copy_nums_assigned(), false);
 
         // node copy numbers assignment
         dbg.set_node_copy_nums(&NodeCopyNums::from_slice(&vec![0; dbg.n_nodes()], 0));
@@ -451,6 +468,7 @@ mod tests {
             dbg.to_edge_copy_nums().unwrap().to_vec(),
             vec![1; dbg.n_edges()]
         );
+        assert_eq!(dbg.is_edge_copy_nums_assigned(), true);
 
         let nodes = dbg.to_nodes_of_seq(b"ATCGGCT").unwrap();
         println!("nodes={:?}", nodes);
@@ -475,6 +493,27 @@ mod tests {
         let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATCGGCT").unwrap();
         assert_eq!(ncn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(ecn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+        assert_eq!(dbg.has_consistent_node_copy_nums(), true);
+        assert_eq!(dbg.has_consistent_edge_copy_nums(), true);
+
+        dbg.set_edge_copy_nums(Some(&EdgeCopyNums::from_slice(
+            &vec![1, 1, 1, 3, 1, 1, 3, 1, 1, 1],
+            0,
+        )));
+        assert_eq!(dbg.has_consistent_edge_copy_nums(), false);
+
+        dbg.set_edge_copy_nums(Some(&EdgeCopyNums::from_slice(
+            &vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            0,
+        )));
+        assert_eq!(dbg.has_consistent_edge_copy_nums(), true);
+
+        dbg.set_node_copy_nums(&NodeCopyNums::from_slice(
+            &vec![1, 1, 1, 3, 1, 1, 3, 1, 1, 1],
+            0,
+        ));
+        assert_eq!(dbg.has_consistent_node_copy_nums(), false);
     }
     #[test]
     fn manual_dbg() {
@@ -489,7 +528,7 @@ mod tests {
         let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
         dbg.set_node_copy_nums(&ncn);
         dbg.set_edge_copy_nums(Some(&ecn));
-        // println!("{}", dbg);
-        println!("{}", dbg.to_cytoscape());
+        println!("{}", dbg);
+        // println!("{}", dbg.to_cytoscape());
     }
 }

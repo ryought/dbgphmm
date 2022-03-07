@@ -133,6 +133,32 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     }
 }
 
+///
+/// Basic properties
+///
+impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
+    ///
+    /// check if the CopyNum of edges are consistent,
+    /// i.e., the sum of copy numbers of in-edges and out-edges
+    /// are the same (for all nodes).
+    ///
+    pub fn has_consistent_copy_nums(&self) -> bool {
+        self.nodes().all(|(node, _)| {
+            let in_copy_nums: CopyNum = self
+                .graph
+                .edges_directed(node, Direction::Incoming)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            let out_copy_nums: CopyNum = self
+                .graph
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            in_copy_nums == out_copy_nums
+        })
+    }
+}
+
 impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// plain constructor of edbg
     pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
