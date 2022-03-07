@@ -377,6 +377,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::mocks::*;
     use super::*;
     use crate::common::ni;
     use crate::kmer::veckmer::VecKmer;
@@ -447,5 +448,10 @@ mod tests {
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::empty(4);
         // dbg.add_node();
         // dbg.add_seq(b"ATCGAT");
+    }
+    #[test]
+    fn dbg_extension() {
+        let dbg = mock_intersection();
+        println!("{}", dbg);
     }
 }

@@ -1,6 +1,6 @@
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::impls::SimpleDbg;
-use dbgphmm::dbg::mocks::{mock_random, mock_simple};
+use dbgphmm::dbg::mocks::{mock_intersection, mock_random, mock_simple};
 use dbgphmm::graph::mocks::mock_crossing;
 use dbgphmm::graph::seq_graph::SeqGraph;
 use dbgphmm::hmmv2::mocks::mock_linear_random_phmm;
@@ -18,6 +18,8 @@ fn main() {
         .to_phmm(PHMMParams::default());
     println!("{}", g1);
     */
+
+    /*
     // let dbg = mock_random(8, 1000);
     let dbg = mock_simple();
     // let json = dbg.to_edbg().to_cytoscape();
@@ -28,4 +30,8 @@ fn main() {
     let node_freqs = o.to_node_freqs();
     let json = dbg.to_cytoscape_with_attrs(&[NodeAttrVec::Freq(node_freqs)], &[]);
     println!("{}", json);
+    */
+
+    let dbg = mock_intersection();
+    println!("{}", dbg.to_cytoscape());
 }

@@ -87,14 +87,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 mod tests {
     use super::*;
     use crate::common::ni;
-    use crate::dbg::hashdbg_v2::HashDbg;
-    use crate::dbg::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
+    use crate::dbg::mocks::{mock_base, mock_intersection};
     use crate::kmer::veckmer::VecKmer;
 
     #[test]
-    fn dbg_intersections() {
-        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
-        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+    fn dbg_intersections_simple() {
+        let dbg = mock_base();
         println!("{}", dbg);
         for i in dbg.iter_intersections() {
             for &in_node in i.in_nodes.iter() {
@@ -105,6 +103,30 @@ mod tests {
             }
             assert_eq!(i.n_in_nodes(), 1);
             assert_eq!(i.n_out_nodes(), 1);
+            println!("{}", i);
+        }
+    }
+    #[test]
+    fn dbg_intersections_twoseqs() {
+        let dbg = mock_intersection();
+        for i in dbg.iter_intersections() {
+            if i.km1mer == VecKmer::from_bases(b"NNN") {
+                assert_eq!(i.n_in_nodes(), 2);
+                assert_eq!(i.n_out_nodes(), 2);
+            } else if i.km1mer == VecKmer::from_bases(b"TAG") {
+                assert_eq!(i.n_in_nodes(), 2);
+                assert_eq!(i.n_out_nodes(), 2);
+            } else {
+                assert_eq!(i.n_in_nodes(), 1);
+                assert_eq!(i.n_out_nodes(), 1);
+            }
+
+            for &in_node in i.in_nodes.iter() {
+                assert_eq!(dbg.node(in_node).kmer().suffix(), i.km1mer);
+            }
+            for &out_node in i.out_nodes.iter() {
+                assert_eq!(dbg.node(out_node).kmer().prefix(), i.km1mer);
+            }
             println!("{}", i);
         }
     }
