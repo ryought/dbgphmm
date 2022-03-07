@@ -7,7 +7,7 @@ use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::{CopyNum, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::kmer::kmer::{linear_fragment_sequence_to_kmers, Kmer, KmerLike};
+use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
@@ -205,7 +205,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
-        for kmer in linear_fragment_sequence_to_kmers(seq, self.k()) {
+        for kmer in sequence_to_kmers(seq, self.k()) {
             match m.get(&kmer) {
                 None => return None,
                 Some(&node) => nodes.push(node),
@@ -380,6 +380,7 @@ mod tests {
     use super::super::mocks::*;
     use super::*;
     use crate::common::ni;
+    use crate::common::sequence_to_string;
     use crate::kmer::veckmer::VecKmer;
 
     #[test]
@@ -441,7 +442,25 @@ mod tests {
             vec![1; dbg.n_edges()]
         );
 
-        // println!("nodes={:?}", dbg.to_nodes_of_seq(b"ATCGGCT"));
+        let nodes = dbg.to_nodes_of_seq(b"ATCGGCT").unwrap();
+        println!("nodes={:?}", nodes);
+        assert_eq!(
+            nodes,
+            vec![
+                ni(7),
+                ni(3),
+                ni(4),
+                ni(9),
+                ni(5),
+                ni(8),
+                ni(0),
+                ni(1),
+                ni(2),
+                ni(6)
+            ]
+        );
+        println!("{}", sequence_to_string(&dbg.path_as_sequence(&nodes)));
+        assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTNNN");
     }
     #[test]
     fn manual_dbg() {
