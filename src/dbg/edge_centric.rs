@@ -29,7 +29,12 @@ pub struct EDbg<N: EDbgNode, E: EDbgEdge> {
 ///
 /// Trait for nodes in edge-centric dbg `EDbg`
 ///
-pub trait EDbgNode {}
+pub trait EDbgNode {
+    type Kmer: KmerLike;
+    ///
+    /// k-1-mer overlap of this node
+    fn km1mer(&self) -> &Self::Kmer;
+}
 
 ///
 /// Trait for edges in edge-centric dbg `EDbg`
@@ -42,6 +47,10 @@ pub trait EDbgEdge {
     ///
     /// Copy number count of this edge in EDbg
     fn copy_num(&self) -> CopyNum;
+    ///
+    /// Index of the node in (node-centric) dbg which this edge is
+    /// originated from.
+    fn origin_node(&self) -> NodeIndex;
 }
 
 ///

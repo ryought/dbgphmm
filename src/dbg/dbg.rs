@@ -327,7 +327,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let mut graph = DiGraph::new();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
-        for (_node, weight) in self.nodes() {
+        for (node, weight) in self.nodes() {
             let kmer = weight.kmer().clone();
             let copy_num = weight.copy_num();
 
@@ -335,7 +335,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let prefix = kmer.prefix();
             let v = match nodes.get(&prefix) {
                 None => {
-                    let node = graph.add_node(SimpleEDbgNode::new());
+                    let node = graph.add_node(SimpleEDbgNode::new(prefix.clone()));
                     nodes.insert(prefix, node);
                     node
                 }
@@ -346,7 +346,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let suffix = kmer.suffix();
             let w = match nodes.get(&suffix) {
                 None => {
-                    let node = graph.add_node(SimpleEDbgNode::new());
+                    let node = graph.add_node(SimpleEDbgNode::new(suffix.clone()));
                     nodes.insert(suffix, node);
                     node
                 }
@@ -354,7 +354,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             };
 
             // add an edge for this kmer
-            graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num));
+            graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num, node));
         }
         SimpleEDbg::new(self.k(), graph)
     }
@@ -396,6 +396,7 @@ mod tests {
         println!("{}", dbg);
         let edbg = dbg.to_edbg();
         println!("{}", edbg);
+        assert_eq!(edbg.n_edges(), dbg.n_nodes());
     }
     #[test]
     fn dbg_kmer() {
