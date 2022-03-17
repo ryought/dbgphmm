@@ -5,7 +5,11 @@ use crate::common::SeqStyle;
 
 pub trait NullableKmer {
     ///
-    /// null <==> NNNNN
+    /// Create a null kmer with specified k
+    ///
+    fn null_kmer(k: usize) -> Self;
+    ///
+    /// check if this is null-kmer <==> NNNNN
     ///
     fn is_null(&self) -> bool;
 }

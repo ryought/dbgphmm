@@ -8,7 +8,9 @@ use super::common::{KmerLike, NullableKmer};
 pub struct VecKmer(pub Vec<u8>);
 
 impl NullableKmer for VecKmer {
-    /// check if NNNNNN
+    fn null_kmer(k: usize) -> Self {
+        VecKmer(vec![b'N'; k])
+    }
     fn is_null(&self) -> bool {
         self.0.iter().all(|&x| x == b'N')
     }
