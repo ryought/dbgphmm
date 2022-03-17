@@ -32,10 +32,6 @@ pub struct Dbg<N: DbgNode, E: DbgEdge> {
     /// backend DiGraph with node-centric representation
     ///
     pub graph: DiGraph<N, E>,
-    ///
-    /// NodeIndex(s) of heads/tails
-    ///
-    pub tips: Intersection<N::Kmer>,
 }
 
 ///
@@ -113,6 +109,23 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * `EdgeWeight` is of the edge transition
     pub fn parents(&self, node: NodeIndex) -> ParentEdges<E> {
         ParentEdges::new(&self.graph, node)
+    }
+    ///
+    /// NodeIndex(s) of heads/tails
+    ///
+    pub fn tips(&self) -> Intersection<N::Kmer> {
+        let mut tips = Intersection::empty(N::Kmer::null_kmer(self.k()));
+        for (node, weight) in self.nodes() {
+            // ANNN
+            if weight.kmer().is_tail() {
+                tips.in_nodes.push(node);
+            }
+            // NNNA
+            if weight.kmer().is_head() {
+                tips.out_nodes.push(node);
+            }
+        }
+        tips
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {
@@ -336,18 +349,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// plain constructor of dbg
     pub fn from_digraph(k: usize, graph: DiGraph<N, E>) -> Self {
-        Dbg {
-            k,
-            graph,
-            tips: Intersection::empty(N::Kmer::null_kmer(k)),
-        }
+        Dbg { k, graph }
     }
     /// Create an empty de bruijn graph with no nodes and edges.
     pub fn empty(k: usize) -> Self {
         Dbg {
             k,
             graph: DiGraph::new(),
-            tips: Intersection::empty(N::Kmer::null_kmer(k)),
         }
     }
     /// Convert HashDbg<K> into Dbg
@@ -579,6 +587,32 @@ mod tests {
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::empty(4);
         // dbg.add_node();
         // dbg.add_seq(b"ATCGAT");
+    }
+    #[test]
+    fn dbg_tips() {
+        // base
+        let dbg = mock_base();
+        let tips = dbg.tips();
+        println!("{}", dbg);
+        println!("{}", tips);
+        assert_eq!(tips.in_nodes.len(), 1);
+        assert_eq!(tips.in_nodes[0], ni(6));
+        assert_eq!(tips.out_nodes.len(), 1);
+        assert_eq!(tips.out_nodes[0], ni(7));
+        assert!(tips.km1mer.is_null());
+
+        // intersection
+        let dbg = mock_intersection();
+        let tips = dbg.tips();
+        println!("{}", dbg);
+        println!("{}", tips);
+        assert_eq!(tips.in_nodes.len(), 2);
+        assert_eq!(tips.in_nodes[0], ni(3));
+        assert_eq!(tips.in_nodes[1], ni(7));
+        assert_eq!(tips.out_nodes.len(), 2);
+        assert_eq!(tips.out_nodes[0], ni(8));
+        assert_eq!(tips.out_nodes[1], ni(14));
+        assert!(tips.km1mer.is_null());
     }
     #[test]
     fn dbg_extension() {
