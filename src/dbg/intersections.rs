@@ -21,6 +21,13 @@ pub struct Intersection<K: KmerLike> {
 }
 
 impl<K: KmerLike> Intersection<K> {
+    pub fn empty(km1mer: K) -> Intersection<K> {
+        Intersection {
+            km1mer,
+            in_nodes: Vec::new(),
+            out_nodes: Vec::new(),
+        }
+    }
     pub fn n_in_nodes(&self) -> usize {
         self.in_nodes.len()
     }

@@ -4,10 +4,12 @@
 //!
 use super::edge_centric::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
+use super::intersections::Intersection;
 use crate::common::{CopyNum, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
+use crate::kmer::kmer::sequence_to_kmers;
+use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
@@ -22,15 +24,25 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// k
 ///
 pub struct Dbg<N: DbgNode, E: DbgEdge> {
+    ///
+    /// k-mer size
+    ///
     k: usize,
+    ///
+    /// backend DiGraph with node-centric representation
+    ///
     pub graph: DiGraph<N, E>,
+    ///
+    /// NodeIndex(s) of heads/tails
+    ///
+    pub tips: Intersection<N::Kmer>,
 }
 
 ///
 /// Trait for nodes in Dbg
 ///
 pub trait DbgNode {
-    type Kmer: KmerLike;
+    type Kmer: KmerLike + NullableKmer;
     fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
     ///
     /// Kmer of this node of the Dbg
@@ -324,13 +336,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// plain constructor of dbg
     pub fn from_digraph(k: usize, graph: DiGraph<N, E>) -> Self {
-        Dbg { k, graph }
+        Dbg {
+            k,
+            graph,
+            tips: Intersection::empty(N::Kmer::null_kmer(k)),
+        }
     }
     /// Create an empty de bruijn graph with no nodes and edges.
     pub fn empty(k: usize) -> Self {
         Dbg {
             k,
             graph: DiGraph::new(),
+            tips: Intersection::empty(N::Kmer::null_kmer(k)),
         }
     }
     /// Convert HashDbg<K> into Dbg
