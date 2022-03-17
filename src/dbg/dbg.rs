@@ -12,7 +12,7 @@ use crate::kmer::kmer::sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
-use itertools::Itertools;
+use itertools::{iproduct, izip, Itertools};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
 
@@ -54,6 +54,18 @@ pub trait DbgNode {
     /// Last base of kmer will be used as an emission
     fn emission(&self) -> u8 {
         self.kmer().last()
+    }
+    ///
+    /// check if k-mer of this node is head (NNNNA)
+    ///
+    fn is_head(&self) -> bool {
+        self.kmer().is_head()
+    }
+    ///
+    /// check if k-mer of this node is tail (ANNNN)
+    ///
+    fn is_tail(&self) -> bool {
+        self.kmer().is_tail()
     }
 }
 
@@ -158,6 +170,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Lookup an edge from `a: NodeIndex` to `b: NodeIndex`.
     pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         self.graph.find_edge(a, b)
+    }
+    /// Check if the edge is a warping edge or not.
+    /// warping edge is edges like `ANNNN -> NNNNC`
+    pub fn is_warp_edge(&self, edge: EdgeIndex) -> bool {
+        let (v, w) = self.graph.edge_endpoints(edge).unwrap();
+        self.kmer(v).is_tail() && self.kmer(w).is_head()
     }
 }
 
@@ -431,8 +449,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// ## TODOs
     ///
-    /// * NNNN should be treated specially.
-    /// * zero-copy-number nodes should be purged.
+    /// * NNNN should be treated specially. (required)
+    /// * zero-copy-number nodes should be purged. (not required)
     ///
     pub fn to_kp1_dbg(&self) -> Dbg<N, E> {
         assert!(self.is_edge_copy_nums_assigned());
@@ -443,24 +461,77 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // mapping from "edge in k-dbg" into "node in k+1-dbg".
         let mut ids: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
 
-        // (1) a edge in k-dbg is corresponds to a node in k+1-dbg.
+        // a edge in k-dbg is corresponds to a node in k+1-dbg.
         for (edge, s, t, weight) in self.edges() {
-            let kmer = self.kmer(s).join(self.kmer(t));
-            let copy_num = weight.copy_num().unwrap();
-            let node = graph.add_node(N::new(kmer, copy_num));
-            ids.insert(edge, node);
+            if !self.is_warp_edge(edge) {
+                let kmer = self.kmer(s).join(self.kmer(t));
+                let copy_num = weight.copy_num().unwrap();
+                let node = graph.add_node(N::new(kmer, copy_num));
+                ids.insert(edge, node);
+            }
         }
 
-        // (2) add an edge between all in-edges and out-edges pair.
-        for (node, _) in self.nodes() {
-            // --e1--> node --e2--> in k-dbg
-            for (e1, _, _) in self.parents(node) {
-                let v1 = ids.get(&e1).unwrap();
-                for (e2, _, _) in self.childs(node) {
-                    let v2 = ids.get(&e2).unwrap();
-                    // copy numbers of edges in k+1 is ambiguous.
-                    graph.add_edge(*v1, *v2, E::new(None));
+        for (node, weight) in self.nodes() {
+            match (weight.is_head(), weight.is_tail()) {
+                (false, false) => {
+                    // add an edge between all in-edges and out-edges pair.
+                    // --e1--> node --e2--> in k-dbg
+                    for (e1, _, _) in self.parents(node) {
+                        let v1 = ids.get(&e1).unwrap();
+                        for (e2, _, _) in self.childs(node) {
+                            let v2 = ids.get(&e2).unwrap();
+                            // copy numbers of edges in k+1 is ambiguous.
+                            graph.add_edge(*v1, *v2, E::new(None));
+                        }
+                    }
                 }
+                _ => {}
+            }
+        }
+
+        // intersections
+        let tips = self.tips();
+        let in_nodes: Vec<NodeIndex> = tips
+            .in_nodes
+            .iter()
+            .map(|&v| {
+                // add a node of in_node
+                graph.add_node(N::new(
+                    self.node(v).kmer().extend_tail(),
+                    self.node(v).copy_num(),
+                ))
+            })
+            .collect();
+        let out_nodes: Vec<NodeIndex> = tips
+            .out_nodes
+            .iter()
+            .map(|&v| {
+                // add a node of out_node
+                graph.add_node(N::new(
+                    self.node(v).kmer().extend_head(),
+                    self.node(v).copy_num(),
+                ))
+            })
+            .collect();
+        for (&w1, &w2) in iproduct!(in_nodes.iter(), out_nodes.iter()) {
+            graph.add_edge(w1, w2, E::new(None));
+        }
+
+        // add an edge for a in_edges of tail nodes
+        for (&v, &w) in izip!(tips.in_nodes.iter(), in_nodes.iter()) {
+            for (e, _, _) in self.parents(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w2: parent(YXNN) -> w: tail(XNNN)
+                graph.add_edge(*w2, w, E::new(None));
+            }
+        }
+
+        // add an edge for a out_edges of head nodes
+        for (&v, &w) in izip!(tips.out_nodes.iter(), out_nodes.iter()) {
+            for (e, _, _) in self.childs(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w: head(NNNX) -> w2: child(NNXY)
+                graph.add_edge(w, *w2, E::new(None));
             }
         }
 
