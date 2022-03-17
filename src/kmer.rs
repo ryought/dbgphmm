@@ -7,5 +7,5 @@ pub mod segment;
 pub mod veckmer;
 // pub mod kmer_with_size;
 
-pub use common::{KmerBase, KmerLike, NullableKmer};
+pub use common::{KmerLike, NullableKmer};
 pub use veckmer::VecKmer;

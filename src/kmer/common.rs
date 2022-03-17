@@ -136,17 +136,29 @@ pub trait KmerLike:
         }
         self.extend_last(other.last())
     }
+    ///
+    /// upgrade k-mer head into k+1-mer
+    ///
+    /// NNX -> NNNX
+    /// k-mer  k+1-mer
+    ///
+    fn extend_head(&self) -> Self {
+        assert!(self.is_head());
+        self.extend_first(b'N')
+    }
+    ///
+    /// upgrade k-mer tail into k+1-mer
+    ///
+    /// XNN -> XNNN
+    /// k-mer  k+1-mer
+    ///
+    fn extend_tail(&self) -> Self {
+        assert!(self.is_tail());
+        self.extend_last(b'N')
+    }
     // construction
     fn from_bases(bases: &[u8]) -> Self;
     fn to_bases(&self) -> Vec<u8>;
-}
-
-///
-/// Most fundamental k-mer trait
-/// TODO
-///
-pub trait KmerBase {
-    fn k(&self) -> usize;
 }
 
 //
@@ -315,5 +327,28 @@ mod tests {
                 VecKmer::from_bases(b"ATCG"),
             ]
         );
+    }
+    #[test]
+    fn kmer_extend() {
+        let a = VecKmer::from_bases(b"ATCA");
+        assert_eq!(a.extend_first(b'A'), VecKmer::from_bases(b"AATCA"));
+        assert_eq!(a.extend_last(b'G'), VecKmer::from_bases(b"ATCAG"));
+
+        let a = VecKmer::from_bases(b"NNNA");
+        assert!(a.is_head());
+        assert_eq!(a.k(), 4);
+        let b = a.extend_head();
+        assert!(b.is_head());
+        assert!(!b.is_tail());
+        assert_eq!(b, VecKmer::from_bases(b"NNNNA"));
+        assert_eq!(b.k(), 5);
+
+        let a = VecKmer::from_bases(b"ANNN");
+        assert!(a.is_tail());
+        assert_eq!(a.k(), 4);
+        let b = a.extend_tail();
+        assert!(b.is_tail());
+        assert_eq!(b, VecKmer::from_bases(b"ANNNN"));
+        assert_eq!(b.k(), 5);
     }
 }
