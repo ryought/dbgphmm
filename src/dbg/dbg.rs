@@ -11,7 +11,7 @@ use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEd
 use crate::kmer::kmer::sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
-use fnv::FnvHashMap as HashMap;
+use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
@@ -210,6 +210,25 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Check if all the edges has a copy number
     pub fn is_edge_copy_nums_assigned(&self) -> bool {
         self.edges().all(|(_, _, _, ew)| ew.copy_num().is_some())
+    }
+    /// Check if there is no node duplicates.
+    pub fn has_no_duplicated_node(&self) -> bool {
+        let mut s = HashSet::default();
+        for (_, weight) in self.nodes() {
+            let kmer = weight.kmer().clone();
+            if s.contains(&kmer) {
+                return false;
+            } else {
+                s.insert(kmer);
+            }
+        }
+        true
+    }
+    /// Check if backend-graph is valid.
+    ///
+    /// Complexity: O(|V|^2)
+    pub fn is_graph_valid(&self) -> bool {
+        unimplemented!();
     }
 }
 
@@ -696,5 +715,16 @@ mod tests {
         // println!("{}", dbg.to_cytoscape());
         let dbg2 = dbg.to_kp1_dbg();
         println!("{}", dbg2);
+        assert!(dbg2.has_consistent_node_copy_nums());
+
+        let seqs = dbg.to_seqs();
+        for seq in seqs.iter() {
+            println!("dbg={}", sequence_to_string(seq));
+        }
+
+        let seqs = dbg2.to_seqs();
+        for seq in seqs.iter() {
+            println!("dbg2={}", sequence_to_string(seq));
+        }
     }
 }

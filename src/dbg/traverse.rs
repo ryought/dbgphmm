@@ -30,12 +30,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    /// TODO
+    /// Convert dbg into sequences
+    ///
     pub fn to_seqs(&self) -> Vec<Sequence> {
-        unimplemented!();
+        self.traverse_all()
+            .map(|circle| self.path_as_sequence(&circle))
+            .collect()
     }
+    /// Traverse all nodes
     ///
+    /// ## TODO
     ///
+    /// * always should start from head nodes.
     ///
     pub fn traverse(&self) -> Traverser<N, E> {
         self.traverse_from(NodeIndex::new(0))
@@ -153,6 +159,12 @@ mod tests {
     #[test]
     fn dbg_traverse_simple() {
         let dbg = mock_simple();
+        let seqs = dbg.to_seqs();
+        println!("{}", dbg);
+        for seq in seqs.iter() {
+            println!("{}", sequence_to_string(seq));
+        }
+        assert_eq!(seqs, vec![b"NNAAAGCTTGATTN"]);
     }
     #[test]
     fn dbg_traverse_rep() {

@@ -32,9 +32,21 @@ fn main() {
     println!("{}", json);
     */
 
+    /*
     let mut dbg = mock_intersection();
     let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
     dbg.set_node_copy_nums(&ncn);
     dbg.set_edge_copy_nums(Some(&ecn));
     println!("{}", dbg.to_cytoscape());
+    */
+
+    let mut dbg = mock_intersection();
+    // println!("{}", dbg);
+    let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
+    dbg.set_node_copy_nums(&ncn);
+    dbg.set_edge_copy_nums(Some(&ecn));
+    // println!("{}", dbg);
+    let dbg2 = dbg.to_kp1_dbg();
+    println!("{}", dbg2.to_cytoscape());
+    // println!("{}", dbg2);
 }
