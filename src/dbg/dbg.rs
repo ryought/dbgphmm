@@ -2,7 +2,9 @@
 //! De bruijn graph definitions
 //!
 //!
-use super::edge_centric::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
+use super::edge_centric::{
+    SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
+};
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
 use crate::common::{CopyNum, Sequence};
@@ -422,6 +424,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert into edge-centric de bruijn graph
     ///
     pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
+        self.to_edbg_with_attr(None)
+    }
+    ///
+    /// Convert into edge-centric de bruijn graph with attributes
+    ///
+    pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
+        &self,
+        attrs: Option<&NodeVec<DenseStorage<A>>>,
+    ) -> SimpleEDbgWithAttr<N::Kmer, A> {
         let mut graph = DiGraph::new();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
@@ -452,9 +463,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             };
 
             // add an edge for this kmer
-            graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num, node));
+            let attr = match attrs {
+                Some(attrs) => attrs[node],
+                None => A::default(),
+            };
+            graph.add_edge(
+                v,
+                w,
+                SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr),
+            );
         }
-        SimpleEDbg::new(self.k(), graph)
+        SimpleEDbgWithAttr::new(self.k(), graph)
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are

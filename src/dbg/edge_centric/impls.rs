@@ -9,6 +9,9 @@ use petgraph::graph::NodeIndex;
 /// Basic implementations of EDbg
 pub type SimpleEDbg<K> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>;
 
+/// Basic implementations of EDbg, with edge attributes
+pub type SimpleEDbgWithAttr<K, A> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdgeWithAttr<K, A>>;
+
 /// Basic implementations of EDbgNode
 pub struct SimpleEDbgNode<K: KmerLike> {
     km1mer: K,
@@ -52,6 +55,17 @@ impl<K: KmerLike, A> EDbgEdge for SimpleEDbgEdgeWithAttr<K, A> {
     }
 }
 
+impl<K: KmerLike, A> SimpleEDbgEdgeWithAttr<K, A> {
+    pub fn new_with_attr(kmer: K, copy_num: CopyNum, origin_node: NodeIndex, attribute: A) -> Self {
+        SimpleEDbgEdgeWithAttr {
+            kmer,
+            copy_num,
+            origin_node,
+            attribute,
+        }
+    }
+}
+
 impl<K: KmerLike> SimpleEDbgEdge<K> {
     pub fn new(kmer: K, copy_num: CopyNum, origin_node: NodeIndex) -> Self {
         SimpleEDbgEdgeWithAttr {
@@ -89,17 +103,6 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
 /// Basic implementations of EDbgEdge, with frequency info.
 ///
 pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
-
-impl<K: KmerLike> SimpleEDbgEdgeWithFreq<K> {
-    pub fn new(kmer: K, copy_num: CopyNum, origin_node: NodeIndex, freq: Freq) -> Self {
-        SimpleEDbgEdgeWithAttr {
-            kmer,
-            copy_num,
-            origin_node,
-            attribute: freq,
-        }
-    }
-}
 
 ///
 /// maximum copy number

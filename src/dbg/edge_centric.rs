@@ -18,7 +18,9 @@ use petgraph::Direction;
 pub mod impls;
 pub mod output;
 use super::intersections::Intersection;
-pub use impls::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
+pub use impls::{
+    SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
+};
 
 ///
 /// (Edge-centric) De bruijn graph struct
