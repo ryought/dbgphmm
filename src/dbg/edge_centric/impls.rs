@@ -3,6 +3,7 @@ use crate::common::{CopyNum, Freq, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::{Cost, FlowRate};
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 
@@ -124,19 +125,19 @@ pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
 ///
 /// this corresponds to the capacity of edbg min-flow calculation.
 ///
-const MAX_COPY_NUM_OF_EDGE: u32 = 1000;
+const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
 impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
-    fn demand(&self) -> u32 {
+    fn demand(&self) -> usize {
         0
     }
-    fn capacity(&self) -> u32 {
+    fn capacity(&self) -> usize {
         MAX_COPY_NUM_OF_EDGE
     }
 }
 
 impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithFreq<K> {
-    fn convex_cost(&self, flow: u32) -> f64 {
+    fn convex_cost(&self, flow: usize) -> f64 {
         (flow as f64 - self.attribute).powi(2)
     }
 }

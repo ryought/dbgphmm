@@ -4,6 +4,7 @@
 use super::flow::Flow;
 use super::mocks;
 use super::{find_initial_flow, min_cost_flow};
+use super::{Cost, FlowRate};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, Graph};
 use petgraph::EdgeType;
@@ -15,7 +16,7 @@ use petgraph::EdgeType;
 /// it will check `f(x + 1) - f(x)` is monotonically increasing
 /// for increasing `x`s
 ///
-pub fn is_convex<F: Fn(u32) -> f64>(f: F, x_min: u32, x_max: u32) -> bool {
+pub fn is_convex<F: Fn(usize) -> f64>(f: F, x_min: usize, x_max: usize) -> bool {
     let mut y_prev = f64::MIN;
 
     (x_min..x_max).map(|x| f(x + 1) - f(x)).all(|y| {
@@ -28,7 +29,7 @@ pub fn is_convex<F: Fn(u32) -> f64>(f: F, x_min: u32, x_max: u32) -> bool {
 
 /// Avoid `ln(0) = -\infty`
 /// by setting ln(0) = (some constant < 0)
-pub fn clamped_log(x: u32) -> f64 {
+pub fn clamped_log(x: usize) -> f64 {
     if x == 0 {
         -1000.0
     } else {
@@ -59,7 +60,7 @@ where
 
 #[derive(Debug, Copy, Clone)]
 struct EdgeWithFlow<T> {
-    flow: u32,
+    flow: FlowRate,
     info: T,
 }
 

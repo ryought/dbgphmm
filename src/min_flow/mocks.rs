@@ -1,4 +1,5 @@
 use super::flow::{Flow, FlowEdgeBase, FlowGraph};
+use super::{Cost, FlowRate};
 use petgraph::graph::{EdgeIndex, Graph};
 
 ///
@@ -38,7 +39,7 @@ pub fn mock_flow_network2() -> (FlowGraph, Flow) {
     let e = g.add_node(());
     let f = g.add_node(());
     let t = g.add_node(());
-    const INF: u32 = 100000;
+    const INF: FlowRate = 100000;
     let e0 = g.add_edge(s, a, FlowEdgeBase::new(0, INF, 0.0));
     let e1 = g.add_edge(a, b, FlowEdgeBase::new(2, 4, 2.0));
     let e2 = g.add_edge(a, d, FlowEdgeBase::new(9, 13, 1.0));
