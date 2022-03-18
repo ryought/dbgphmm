@@ -101,26 +101,27 @@ impl<K: KmerLike> SimpleEDbgEdgeWithFreq<K> {
     }
 }
 
+///
+/// maximum copy number
+///
+/// this corresponds to the capacity of edbg min-flow calculation.
+///
+const MAX_COPY_NUM_OF_EDGE: u32 = 1000;
+
 impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
     fn demand(&self) -> u32 {
         0
     }
     fn capacity(&self) -> u32 {
-        1000
+        MAX_COPY_NUM_OF_EDGE
     }
-}
-
-/*
-fn squared_error_cost(freq: Freq) -> fn(u32) -> f64 {
-    |flow| (flow as f64 - freq).powi(2)
 }
 
 impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithFreq<K> {
-    fn convex_cost(&self) -> fn(u32) -> f64 {
-        squared_error_cost(self.attribute)
+    fn convex_cost(&self, flow: u32) -> f64 {
+        (flow as f64 - self.attribute).powi(2)
     }
 }
-*/
 
 //
 // tests
