@@ -15,7 +15,7 @@ use petgraph::EdgeType;
 /// it will check `f(x + 1) - f(x)` is monotonically increasing
 /// for increasing `x`s
 ///
-pub fn is_convex(f: fn(u32) -> f64, x_min: u32, x_max: u32) -> bool {
+pub fn is_convex<F: Fn(u32) -> f64>(f: F, x_min: u32, x_max: u32) -> bool {
     let mut y_prev = f64::MIN;
 
     (x_min..x_max).map(|x| f(x + 1) - f(x)).all(|y| {

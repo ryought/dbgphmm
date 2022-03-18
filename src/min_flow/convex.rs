@@ -14,7 +14,7 @@ pub trait ConvexCost: FlowEdge {
     ///
     /// cost function
     /// it is a convex function of the current flow
-    fn convex_cost(&self) -> fn(u32) -> f64;
+    fn convex_cost(&self, flow: u32) -> f64;
     ///
     /// check if this edge has a finite capacity (`capacity < 100`).
     fn is_finite_capacity(&self) -> bool {
@@ -23,13 +23,17 @@ pub trait ConvexCost: FlowEdge {
     ///
     /// check if the cost function of the edge is actually convex function
     fn is_convex(&self) -> bool {
-        is_convex(self.convex_cost(), self.demand(), self.capacity())
+        is_convex(
+            |flow| self.convex_cost(flow),
+            self.demand(),
+            self.capacity(),
+        )
     }
 }
 
 impl<E: ConvexCost> EdgeCost for E {
     fn cost(&self, flow: u32) -> f64 {
-        self.convex_cost()(flow)
+        self.convex_cost(flow)
     }
 }
 
@@ -53,7 +57,7 @@ pub struct BaseConvexFlowEdge {
     pub capacity: u32,
     /// cost function
     /// it is a convex function of the current flow
-    pub convex_cost: fn(u32) -> f64,
+    pub convex_cost_fn: fn(u32) -> f64,
 }
 
 impl FlowEdge for BaseConvexFlowEdge {
@@ -66,17 +70,17 @@ impl FlowEdge for BaseConvexFlowEdge {
 }
 
 impl ConvexCost for BaseConvexFlowEdge {
-    fn convex_cost(&self) -> fn(u32) -> f64 {
-        self.convex_cost
+    fn convex_cost(&self, flow: u32) -> f64 {
+        (self.convex_cost_fn)(flow)
     }
 }
 
 impl BaseConvexFlowEdge {
-    pub fn new(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
+    pub fn new(demand: u32, capacity: u32, convex_cost_fn: fn(u32) -> f64) -> BaseConvexFlowEdge {
         BaseConvexFlowEdge {
             demand,
             capacity,
-            convex_cost,
+            convex_cost_fn,
         }
     }
 }
@@ -289,10 +293,11 @@ mod tests {
     #[test]
     fn convex_flow_edge_new() {
         let e = BaseConvexFlowEdge::new(1, 5, |f| 10.0 * f as f64);
-        assert_eq!(50.0, (e.convex_cost)(5));
+        assert_eq!(50.0, e.convex_cost(5));
         assert_eq!(50.0, e.cost(5));
         assert_eq!(1, e.demand);
         assert_eq!(5, e.capacity);
+        assert_eq!(true, e.is_convex());
     }
 
     #[test]
