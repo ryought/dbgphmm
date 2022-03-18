@@ -47,6 +47,9 @@ fn compression_e_step<N: DbgNode, E: DbgEdge>(
 ///
 /// M-step of compression
 ///
+/// * convert into edge-centric dbg (with freq)
+/// * solve min-flow with demand=0 capacity=infty cost=squared-error-from-freq
+///
 fn compression_m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     node_freqs: &NodeFreqs,
