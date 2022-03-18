@@ -534,6 +534,42 @@ where
     }
 }
 
+/// sum of vectors
+///
+impl<S, Ix> std::iter::Sum for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Add<Output = S::Item> + UnitAdd + Copy,
+    Ix: Indexable,
+{
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|mut a, b| {
+            a += &b;
+            a
+        })
+        .unwrap()
+    }
+}
+
+//
+// Display
+//
+impl<S, Ix> std::fmt::Display for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: std::fmt::Display,
+    Ix: Indexable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "[")?;
+        for i in 0..self.len() {
+            write!(f, "{}, ", self[Ix::new(i)])?;
+        }
+        write!(f, "]")?;
+        Ok(())
+    }
+}
+
 /// for approx `assert_abs_diff_eq`
 use approx::AbsDiffEq;
 impl<S, Ix> AbsDiffEq for Vector<S, Ix>
