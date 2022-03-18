@@ -173,6 +173,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         self.graph.find_edge(a, b)
     }
+    /// The number of edges from `a: NodeIndex` to `b: NodeIndex`.
+    pub fn count_edge(&self, a: NodeIndex, b: NodeIndex) -> usize {
+        self.graph.edges_connecting(a, b).count()
+    }
     /// Check if the edge is a warping edge or not.
     /// warping edge is edges like `ANNNN -> NNNNC`
     pub fn is_warp_edge(&self, edge: EdgeIndex) -> bool {
@@ -226,11 +230,41 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         true
     }
+    ///
+    /// Check if there is no parallel edges.
+    ///
+    pub fn has_no_parallel_edge(&self) -> bool {
+        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
+    }
+    ///
     /// Check if backend-graph is valid.
     ///
     /// Complexity: O(|V|^2)
+    ///
     pub fn is_graph_valid(&self) -> bool {
-        unimplemented!();
+        let m = self.to_kmer_map();
+        for (v, weight) in self.nodes() {
+            // if graph has child kmer, the graph should have an edge
+            // from the node to the child.
+            for child in weight.kmer().childs() {
+                if let Some(&w) = m.get(&child) {
+                    if !self.contains_edge(v, w) {
+                        return false;
+                    }
+                }
+            }
+
+            // if graph has parent kmer, the graph should have an edge
+            // from the parent to the node.
+            for parent in weight.kmer().parents() {
+                if let Some(&w) = m.get(&parent) {
+                    if !self.contains_edge(w, v) {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 }
 
