@@ -141,7 +141,8 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
                 // XXX assume their consistency on the graph
                 let parent_weight = self.node_weight(parent).unwrap();
                 let parent_copy_num = parent_weight.copy_num();
-                let trans_prob = if child_weight.is_emittable() {
+                let trans_prob = if child_weight.is_emittable() && copy_num > 0 {
+                    assert!(parent_copy_num > 0);
                     Prob::from_prob(copy_num as f64 / parent_copy_num as f64)
                 } else {
                     Prob::from_prob(0.0)
