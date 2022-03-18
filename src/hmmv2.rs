@@ -12,4 +12,5 @@ pub mod sample;
 pub mod table;
 pub mod table_ref;
 pub mod tests;
+pub mod tests_dbg;
 pub mod trans_table;
