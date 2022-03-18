@@ -331,4 +331,15 @@ mod tests {
         assert_eq!((&b * &a).to_vec(), vec![10, 0, 3, 2, 0]);
         assert_eq!((&b * &b).to_vec(), vec![1, 1, 9, 1, 0]);
     }
+    #[test]
+    fn vector_div_constant() {
+        let x = [8, 2, 4, 5, 1, 0, 100];
+        let vx: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&x, 0);
+        println!("{}", vx);
+        let vy = vx / 2;
+        println!("{}", vy);
+        // vx cannot be borrowed again
+        // println!("{}", vx);
+        assert_eq!(vy.to_vec(), vec![4, 1, 2, 2, 0, 0, 50]);
+    }
 }

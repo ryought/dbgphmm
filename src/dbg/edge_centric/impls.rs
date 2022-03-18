@@ -136,9 +136,19 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
     }
 }
 
+///
+/// Use edbg edge (with a freq) in min-flow.
+///
+/// if the kmer corresponding to the edge is not emittable, the cost
+/// should be ignored.
+///
 impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithFreq<K> {
     fn convex_cost(&self, flow: usize) -> f64 {
-        (flow as f64 - self.attribute).powi(2)
+        if self.kmer().is_emitable() {
+            (flow as f64 - self.attribute).powi(2)
+        } else {
+            0.0
+        }
     }
 }
 
