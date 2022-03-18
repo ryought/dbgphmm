@@ -20,7 +20,7 @@ use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
-use crate::common::Freq;
+use crate::common::{Freq, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -43,6 +43,13 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     }
 }
 
+/// Struct for storing multiple emissions, reads.
+///
+#[derive(Debug, Clone)]
+pub struct Reads {
+    pub reads: Vec<Sequence>,
+}
+
 ///
 /// methods to generate PHMMOutput from PHMMModel
 ///
@@ -63,6 +70,25 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let forward = self.forward_sparse(emissions);
         let backward = self.backward_sparse(emissions);
         PHMMOutput::new(forward, backward)
+    }
+}
+
+///
+/// methods for calculating probabilities
+/// with PHMMModel and Reads
+///
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    /// calculate node freqs of multiple emission sequences (`Reads`).
+    pub fn to_node_freqs(&self, r: &Reads) -> NodeFreqs {
+        r.reads
+            .iter()
+            .map(|read| {
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_node_freqs()
+            })
+            .sum()
     }
 }
 
@@ -430,5 +456,9 @@ mod tests {
         for (e, _, _, _) in phmm.edges() {
             assert_abs_diff_eq!(efs[e], 0.99, epsilon = 0.01);
         }
+    }
+    #[test]
+    fn hmm_to_node_freqs() {
+        let phmm = mock_linear_phmm(PHMMParams::default());
     }
 }
