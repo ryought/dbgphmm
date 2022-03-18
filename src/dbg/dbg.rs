@@ -429,6 +429,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Convert into edge-centric de bruijn graph with attributes
     ///
+    /// if no attributes vector is given, the default value of the type
+    /// will be assigned to `edge.attribute`.
+    ///
     pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
         &self,
         attrs: Option<&NodeVec<DenseStorage<A>>>,
@@ -583,6 +586,7 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::common::sequence_to_string;
+    use crate::dbg::edge_centric::EDbgEdge;
     use crate::kmer::veckmer::VecKmer;
 
     #[test]
@@ -609,6 +613,26 @@ mod tests {
         let edbg = dbg.to_edbg();
         println!("{}", edbg);
         assert_eq!(edbg.n_edges(), dbg.n_nodes());
+    }
+    #[test]
+    fn dbg_to_edbg_with_attr() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+
+        let a = 10.1;
+        let b = 1.1;
+        let mut v: NodeVec<DenseStorage<f64>> = NodeVec::new(dbg.n_nodes(), a);
+        v[ni(1)] = b;
+
+        let edbg = dbg.to_edbg_with_attr(Some(&v));
+        println!("{}", edbg);
+        for (edge, v, w, weight) in edbg.edges() {
+            if weight.origin_node() == ni(1) {
+                assert_eq!(weight.attribute, b);
+            } else {
+                assert_eq!(weight.attribute, a);
+            }
+        }
     }
     #[test]
     fn dbg_kmer() {

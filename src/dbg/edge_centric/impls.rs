@@ -39,7 +39,7 @@ pub struct SimpleEDbgEdgeWithAttr<K: KmerLike, A> {
     kmer: K,
     copy_num: CopyNum,
     origin_node: NodeIndex,
-    attribute: A,
+    pub attribute: A,
 }
 
 impl<K: KmerLike, A> EDbgEdge for SimpleEDbgEdgeWithAttr<K, A> {
@@ -83,6 +83,19 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgNode<K> {
     }
 }
 
+impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdgeWithFreq<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (x{}) (n{}) (freq={})",
+            self.kmer,
+            self.copy_num,
+            self.origin_node.index(),
+            self.attribute,
+        )
+    }
+}
+
 impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -90,7 +103,7 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
             "{} (x{}) ({})",
             self.kmer,
             self.copy_num,
-            self.origin_node.index()
+            self.origin_node.index(),
         )
     }
 }
