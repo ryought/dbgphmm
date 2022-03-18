@@ -12,6 +12,7 @@
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::freq::{NodeFreqs, Reads};
 use crate::hmmv2::params::PHMMParams;
+use crate::min_flow::min_cost_flow_convex_fast;
 
 ///
 ///
@@ -54,5 +55,8 @@ fn compression_m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     node_freqs: &NodeFreqs,
 ) -> NodeCopyNums {
+    let edbg = dbg.to_edbg_with_attr(Some(node_freqs));
+    let flow = min_cost_flow_convex_fast(&edbg.graph);
+
     unimplemented!();
 }

@@ -15,7 +15,14 @@ pub trait NullableKmer {
 }
 
 pub trait KmerLike:
-    std::marker::Sized + PartialEq + NullableKmer + Eq + std::hash::Hash + Clone + std::fmt::Display
+    std::marker::Sized
+    + PartialEq
+    + NullableKmer
+    + Eq
+    + std::hash::Hash
+    + Clone
+    + std::fmt::Display
+    + std::fmt::Debug
 {
     ///
     /// k of the k-mer

@@ -13,6 +13,7 @@ pub type SimpleEDbg<K> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>;
 pub type SimpleEDbgWithAttr<K, A> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdgeWithAttr<K, A>>;
 
 /// Basic implementations of EDbgNode
+#[derive(Clone, Debug)]
 pub struct SimpleEDbgNode<K: KmerLike> {
     km1mer: K,
 }
@@ -35,6 +36,7 @@ impl<K: KmerLike> SimpleEDbgNode<K> {
 pub type SimpleEDbgEdge<K> = SimpleEDbgEdgeWithAttr<K, ()>;
 
 /// Basic implementations of EDbgEdge
+#[derive(Clone, Debug)]
 pub struct SimpleEDbgEdgeWithAttr<K: KmerLike, A> {
     kmer: K,
     copy_num: CopyNum,
