@@ -1,5 +1,5 @@
 //! VecKmer definitions
-use super::common::{KmerBase, KmerLike, NullableKmer};
+use super::common::{KmerLike, NullableKmer};
 
 ///
 /// Kmer for any k, by using Vec<u8> as a internal struct
@@ -8,7 +8,9 @@ use super::common::{KmerBase, KmerLike, NullableKmer};
 pub struct VecKmer(pub Vec<u8>);
 
 impl NullableKmer for VecKmer {
-    /// check if NNNNNN
+    fn null_kmer(k: usize) -> Self {
+        VecKmer(vec![b'N'; k])
+    }
     fn is_null(&self) -> bool {
         self.0.iter().all(|&x| x == b'N')
     }
@@ -148,12 +150,6 @@ impl KmerLike for VecKmer {
     ///
     fn to_bases(&self) -> Vec<u8> {
         self.0.to_vec()
-    }
-}
-
-impl KmerBase for VecKmer {
-    fn k(&self) -> usize {
-        self.0.len()
     }
 }
 

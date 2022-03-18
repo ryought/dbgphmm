@@ -1,10 +1,15 @@
 //!
 //! Kmer definitions
 //!
+use crate::common::SeqStyle;
 
 pub trait NullableKmer {
     ///
-    /// null <==> NNNNN
+    /// Create a null kmer with specified k
+    ///
+    fn null_kmer(k: usize) -> Self;
+    ///
+    /// check if this is null-kmer <==> NNNNN
     ///
     fn is_null(&self) -> bool;
 }
@@ -135,42 +140,74 @@ pub trait KmerLike:
         }
         self.extend_last(other.last())
     }
+    ///
+    /// upgrade k-mer head into k+1-mer
+    ///
+    /// NNX -> NNNX
+    /// k-mer  k+1-mer
+    ///
+    fn extend_head(&self) -> Self {
+        assert!(self.is_head());
+        self.extend_first(b'N')
+    }
+    ///
+    /// upgrade k-mer tail into k+1-mer
+    ///
+    /// XNN -> XNNN
+    /// k-mer  k+1-mer
+    ///
+    fn extend_tail(&self) -> Self {
+        assert!(self.is_tail());
+        self.extend_last(b'N')
+    }
     // construction
     fn from_bases(bases: &[u8]) -> Self;
     fn to_bases(&self) -> Vec<u8>;
 }
 
-///
-/// Most fundamental k-mer trait
-/// TODO
-///
-pub trait KmerBase {
-    fn k(&self) -> usize;
-}
-
 //
 // Sequence <-> Kmers conversion
 //
+
 /// Convert linear sequence to a list of kmers
 pub fn linear_sequence_to_kmers<'a, K: KmerLike>(
     seq: &'a [u8],
     k: usize,
 ) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(seq, k, SeqStyle::Linear)
+}
+
+/// Convert linear fragment sequence to a list of kmers
+pub fn linear_fragment_sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(seq, k, SeqStyle::LinearFragment)
+}
+
+/// Convert circular sequence to a list of kmers
+pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(seq, k, SeqStyle::Circular)
+}
+
+/// Convert circular or linear sequence to a list of kmers
+fn sequence_to_kmers<'a, K: KmerLike>(
+    seq: &'a [u8],
+    k: usize,
+    seq_style: SeqStyle,
+) -> MarginKmerIterator<'a, K> {
     MarginKmerIterator {
         k,
+        seq_style,
         index_prefix: 0,
         index_suffix: 0,
         index: 0,
         seq,
         ph: std::marker::PhantomData::<K>,
     }
-}
-
-pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
-    seq: &'a [u8],
-    k: usize,
-) -> MarginKmerIterator<'a, K> {
-    unimplemented!();
 }
 
 ///
@@ -180,6 +217,7 @@ pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
 ///
 pub struct MarginKmerIterator<'a, K: KmerLike> {
     k: usize,
+    seq_style: SeqStyle,
     index_prefix: usize,
     index_suffix: usize,
     index: usize,
@@ -192,8 +230,8 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
     fn next(&mut self) -> Option<K> {
         let k = self.k;
         let l = self.seq.len();
-        if self.index_prefix < k - 1 {
-            // NNNTTT
+        if self.seq_style.has_prefix() && self.index_prefix < k - 1 {
+            // NNNTTT if linear
             let n_prefix = k - 1 - self.index_prefix;
             let n_body = k - n_prefix;
             let mut bases = vec![b'N'; n_prefix];
@@ -207,12 +245,17 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             let bases = self.seq[start..end].to_vec();
             self.index += 1;
             Some(K::from_bases(&bases))
-        } else if self.index_suffix < k - 1 {
-            // TTTNNN
+        } else if self.seq_style.has_suffix() && self.index_suffix < k - 1 {
+            // TTTNNN if linear
+            // TTTSSS if circular
             let n_suffix = self.index_suffix + 1;
             let n_body = k - n_suffix;
             let mut bases = self.seq[l - n_body..].to_vec();
-            bases.extend_from_slice(&vec![b'N'; n_suffix]);
+            if self.seq_style.is_circular() {
+                bases.extend_from_slice(&self.seq[..n_suffix]);
+            } else {
+                bases.extend_from_slice(&vec![b'N'; n_suffix]);
+            }
             self.index_suffix += 1;
             Some(K::from_bases(&bases))
         } else {
@@ -233,6 +276,7 @@ mod tests {
     #[test]
     fn seq_to_kmers() {
         let seq = b"ATCATCG";
+        println!("linear");
         for kmer in linear_sequence_to_kmers::<VecKmer>(seq, 4) {
             println!("{}", kmer);
         }
@@ -252,5 +296,63 @@ mod tests {
                 VecKmer::from_bases(b"GNNN"),
             ]
         );
+
+        let seq = b"ATCATCG";
+        println!("circular");
+        for kmer in circular_sequence_to_kmers::<VecKmer>(seq, 4) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = circular_sequence_to_kmers::<VecKmer>(seq, 4).collect();
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"ATCA"),
+                VecKmer::from_bases(b"TCAT"),
+                VecKmer::from_bases(b"CATC"),
+                VecKmer::from_bases(b"ATCG"),
+                VecKmer::from_bases(b"TCGA"),
+                VecKmer::from_bases(b"CGAT"),
+                VecKmer::from_bases(b"GATC"),
+            ]
+        );
+
+        let seq = b"ATCATCG";
+        println!("linear fragment");
+        let kmers: Vec<VecKmer> = linear_fragment_sequence_to_kmers::<VecKmer>(seq, 4).collect();
+        for kmer in kmers.iter() {
+            println!("{}", kmer);
+        }
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"ATCA"),
+                VecKmer::from_bases(b"TCAT"),
+                VecKmer::from_bases(b"CATC"),
+                VecKmer::from_bases(b"ATCG"),
+            ]
+        );
+    }
+    #[test]
+    fn kmer_extend() {
+        let a = VecKmer::from_bases(b"ATCA");
+        assert_eq!(a.extend_first(b'A'), VecKmer::from_bases(b"AATCA"));
+        assert_eq!(a.extend_last(b'G'), VecKmer::from_bases(b"ATCAG"));
+
+        let a = VecKmer::from_bases(b"NNNA");
+        assert!(a.is_head());
+        assert_eq!(a.k(), 4);
+        let b = a.extend_head();
+        assert!(b.is_head());
+        assert!(!b.is_tail());
+        assert_eq!(b, VecKmer::from_bases(b"NNNNA"));
+        assert_eq!(b.k(), 5);
+
+        let a = VecKmer::from_bases(b"ANNN");
+        assert!(a.is_tail());
+        assert_eq!(a.k(), 4);
+        let b = a.extend_tail();
+        assert!(b.is_tail());
+        assert_eq!(b, VecKmer::from_bases(b"ANNNN"));
+        assert_eq!(b.k(), 5);
     }
 }

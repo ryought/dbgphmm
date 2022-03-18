@@ -6,43 +6,53 @@ use crate::common::{CopyNum, Sequence};
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
+///
+/// list of NodeIndex
+///
+pub type Path = Vec<NodeIndex>;
+
+/// Path related methods
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    /// TODO
-    pub fn to_seqs(&self) -> Vec<Sequence> {
-        unimplemented!();
+    ///
+    /// check if the given path (node list) is cycle.
+    ///
+    pub fn is_cycle(&self, path: &Path) -> bool {
+        let head = path.first().unwrap();
+        let tail = path.last().unwrap();
+        self.contains_edge(*tail, *head)
     }
     ///
+    /// convert node list into bases
     ///
+    pub fn path_as_sequence(&self, path: &Path) -> Sequence {
+        path.iter().map(|&node| self.emission(node)).collect()
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    /// Convert dbg into sequences
+    ///
+    pub fn to_seqs(&self) -> Vec<Sequence> {
+        self.traverse_all()
+            .map(|circle| self.path_as_sequence(&circle))
+            .collect()
+    }
+    /// Traverse all nodes
+    ///
+    /// ## TODO
+    ///
+    /// * always should start from head nodes.
     ///
     pub fn traverse(&self) -> Traverser<N, E> {
         self.traverse_from(NodeIndex::new(0))
     }
     fn traverse_from(&self, from: NodeIndex) -> Traverser<N, E> {
-        Traverser::new(self, self.to_copy_nums(), from)
+        Traverser::new(self, self.to_node_copy_nums(), from)
     }
     pub fn traverse_all(&self) -> Traveller<N, E> {
         Traveller {
             traverser: self.traverse(),
         }
-    }
-    fn is_valid_cycle(&self, cycle: &Cycle) -> bool {
-        let head = cycle.first().unwrap();
-        let tail = cycle.last().unwrap();
-        self.contains_edge(*tail, *head)
-    }
-    fn cycle_as_sequence(&self, cycle: &Cycle) -> Sequence {
-        assert!(self.is_valid_cycle(cycle));
-        cycle.iter().map(|&node| self.emission(node)).collect()
-    }
-    ///
-    /// Create the NodeVec with copy numbers of each node
-    ///
-    pub fn to_copy_nums(&self) -> NodeCopyNums {
-        let mut v: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
-        for (node, weight) in self.nodes() {
-            v[node] = weight.copy_num();
-        }
-        v
     }
 }
 
@@ -105,8 +115,6 @@ where
     }
 }
 
-pub type Cycle = Vec<NodeIndex>;
-
 pub struct Traveller<'a, N: DbgNode, E: DbgEdge> {
     traverser: Traverser<'a, N, E>,
 }
@@ -123,15 +131,16 @@ where
     N: DbgNode,
     E: DbgEdge,
 {
-    type Item = Cycle;
+    type Item = Path;
     fn next(&mut self) -> Option<Self::Item> {
         // pick a start node
         match self.traverser.find_unvisited_node() {
             Some(node) => {
                 // if found, traverse the nodes from the starting node
                 self.traverser.set_next_node(node);
-                let cycle: Cycle = self.traverser.by_ref().collect();
+                let cycle: Path = self.traverser.by_ref().collect();
                 // check if this is circular
+                assert!(self.traverser.dbg.is_cycle(&cycle));
                 Some(cycle)
             }
             None => None,
@@ -150,6 +159,12 @@ mod tests {
     #[test]
     fn dbg_traverse_simple() {
         let dbg = mock_simple();
+        let seqs = dbg.to_seqs();
+        println!("{}", dbg);
+        for seq in seqs.iter() {
+            println!("{}", sequence_to_string(seq));
+        }
+        assert_eq!(seqs, vec![b"NNAAAGCTTGATTN"]);
     }
     #[test]
     fn dbg_traverse_rep() {
@@ -158,11 +173,11 @@ mod tests {
         assert_eq!(circles.len(), 3);
         for circle in circles.iter() {
             println!("{:?}", circle);
-            println!("{:?}", sequence_to_string(&dbg.cycle_as_sequence(circle)));
+            println!("{:?}", sequence_to_string(&dbg.path_as_sequence(circle)));
         }
-        assert_eq!(dbg.cycle_as_sequence(&circles[0]), b"NNCCCN");
-        assert_eq!(dbg.cycle_as_sequence(&circles[1]), b"ANNNAAAAAAAAAAAA");
-        assert_eq!(dbg.cycle_as_sequence(&circles[2]), b"CCCCCCCCCCC");
+        assert_eq!(dbg.path_as_sequence(&circles[0]), b"NNCCCN");
+        assert_eq!(dbg.path_as_sequence(&circles[1]), b"ANNNAAAAAAAAAAAA");
+        assert_eq!(dbg.path_as_sequence(&circles[2]), b"CCCCCCCCCCC");
         assert_eq!(circles[0].len() + circles[1].len() + circles[2].len(), 33);
     }
 }

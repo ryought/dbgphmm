@@ -4,6 +4,11 @@ use crate::common::Sequence;
 use crate::kmer::veckmer::VecKmer;
 use crate::random_seq::generate;
 
+pub fn mock_base() -> SimpleDbg<VecKmer> {
+    let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+    SimpleDbg::from_hashdbg(&hd)
+}
+
 pub fn mock_simple() -> SimpleDbg<VecKmer> {
     let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"AAAGCTTGATT");
     SimpleDbg::from_hashdbg(&hd)
@@ -20,6 +25,19 @@ pub fn mock_rep() -> SimpleDbg<VecKmer> {
     let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
     hd.add_seq(b"AAAAAAAAAAAAA");
     hd.add_seq(b"CCCCCCCCCCCCCC");
+    SimpleDbg::from_hashdbg(&hd)
+}
+
+///
+/// AACTAGCTT x1
+/// CCGTAGGGC x1
+///
+/// `TAG` is intersecting k-1mer.
+///
+pub fn mock_intersection() -> SimpleDbg<VecKmer> {
+    let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
+    hd.add_seq(b"AACTAGCTT");
+    hd.add_seq(b"CCGTAGGGC");
     SimpleDbg::from_hashdbg(&hd)
 }
 

@@ -6,6 +6,10 @@ use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;
 
+///
+/// De Bruijn graph structure that is implemented with a HashMap storing
+/// `KmerLike -> CopyNum` mapping.
+///
 #[derive(Debug)]
 pub struct HashDbg<K: KmerLike> {
     k: usize,
@@ -84,6 +88,9 @@ impl<K: KmerLike> HashDbg<K> {
             n1 == n2
         })
     }
+    ///
+    /// add all kmers in linear seq (with leading/trailing NNN kmers)
+    ///
     pub fn add_seq(&mut self, seq: &[u8]) {
         for kmer in sequence_to_kmers(seq, self.k()) {
             self.add(kmer, 1);

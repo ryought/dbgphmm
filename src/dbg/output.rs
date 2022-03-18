@@ -47,10 +47,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add edges
-        let n = self.n_nodes();
+        let has_copy_nums = self.is_edge_copy_nums_assigned();
         for (edge, s, t, weight) in self.edges() {
             // attrs for the edge
             let mut attrs = vec![];
+            if has_copy_nums {
+                attrs.push(EdgeAttr::TrueCopyNum(weight.copy_num().unwrap()));
+            }
             for edge_attr in edge_attrs {
                 match edge_attr {
                     EdgeAttrVec::TrueCopyNum(v) => attrs.push(EdgeAttr::TrueCopyNum(v[edge])),

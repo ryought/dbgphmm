@@ -14,8 +14,10 @@ use crate::common::CopyNum;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::Direction;
 pub mod impls;
 pub mod output;
+use super::intersections::Intersection;
 pub use impls::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
 
 ///
@@ -29,7 +31,12 @@ pub struct EDbg<N: EDbgNode, E: EDbgEdge> {
 ///
 /// Trait for nodes in edge-centric dbg `EDbg`
 ///
-pub trait EDbgNode {}
+pub trait EDbgNode {
+    type Kmer: KmerLike;
+    ///
+    /// k-1-mer overlap of this node
+    fn km1mer(&self) -> &Self::Kmer;
+}
 
 ///
 /// Trait for edges in edge-centric dbg `EDbg`
@@ -42,6 +49,10 @@ pub trait EDbgEdge {
     ///
     /// Copy number count of this edge in EDbg
     fn copy_num(&self) -> CopyNum;
+    ///
+    /// Index of the node in (node-centric) dbg which this edge is
+    /// originated from.
+    fn origin_node(&self) -> NodeIndex;
 }
 
 ///
@@ -94,6 +105,57 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// check if two nodes `a, b: NodeIndex` is connected or not
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
+    }
+    /// convert a node into an intersection information
+    pub fn intersection(&self, node: NodeIndex) -> Intersection<N::Kmer> {
+        let node_weight = self
+            .graph
+            .node_weight(node)
+            .expect("node is not in the graph");
+
+        // list of in/out node indexes
+        let in_nodes: Vec<NodeIndex> = self
+            .graph
+            .edges_directed(node, Direction::Incoming)
+            .map(|e| e.weight().origin_node())
+            .collect();
+        let out_nodes: Vec<NodeIndex> = self
+            .graph
+            .edges_directed(node, Direction::Outgoing)
+            .map(|e| e.weight().origin_node())
+            .collect();
+
+        Intersection {
+            km1mer: node_weight.km1mer().clone(),
+            in_nodes,
+            out_nodes,
+        }
+    }
+}
+
+///
+/// Basic properties
+///
+impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
+    ///
+    /// check if the CopyNum of edges are consistent,
+    /// i.e., the sum of copy numbers of in-edges and out-edges
+    /// are the same (for all nodes).
+    ///
+    pub fn has_consistent_copy_nums(&self) -> bool {
+        self.nodes().all(|(node, _)| {
+            let in_copy_nums: CopyNum = self
+                .graph
+                .edges_directed(node, Direction::Incoming)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            let out_copy_nums: CopyNum = self
+                .graph
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| e.weight().copy_num())
+                .sum();
+            in_copy_nums == out_copy_nums
+        })
     }
 }
 
