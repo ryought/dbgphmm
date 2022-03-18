@@ -17,6 +17,7 @@ pub type EdgeVec<S> = Vector<S, EdgeIndex>;
 mod tests {
     use super::super::dense::DenseStorage;
     use super::*;
+    use crate::common::{ei, ni};
     use crate::prob::Prob;
 
     #[test]
@@ -58,5 +59,16 @@ mod tests {
         v2[NodeIndex::new(4)] = Prob::from_prob(0.3);
         // v1 += &v2;
         println!("{:?}", v1);
+    }
+    #[test]
+    fn nodevec_to_edgevec() {
+        let mut v: NodeVec<DenseStorage<u32>> = NodeVec::new(5, 0);
+        v[ni(1)] = 100;
+        let w: EdgeVec<DenseStorage<u32>> = v.switch_index();
+        println!("{}", w);
+        println!("{}", w[ei(1)]);
+        assert_eq!(w[ei(0)], 0);
+        assert_eq!(w[ei(1)], 100);
+        assert_eq!(w.len(), 5);
     }
 }

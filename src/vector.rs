@@ -219,6 +219,13 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn to_vec(&self) -> Vec<S::Item> {
         (0..self.len()).map(|i| self[Ix::new(i)]).collect()
     }
+    /// Change index
+    pub fn switch_index<Jx: Indexable>(self) -> Vector<S, Jx> {
+        Vector {
+            storage: self.storage,
+            ty: PhantomData,
+        }
+    }
 }
 
 /// private associated functions
