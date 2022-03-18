@@ -60,7 +60,7 @@ fn to_zero_demand_graph<N, E: FlowEdge + std::fmt::Debug>(
     for e in graph.edge_indices() {
         let ew = graph.edge_weight(e).unwrap();
         let (v, w) = graph.edge_endpoints(e).unwrap();
-        println!("{:?} {:?}", e, ew);
+        // println!("{:?} {:?}", e, ew);
 
         zdg.extend_with_edges(&[
             (
@@ -120,7 +120,7 @@ pub fn find_initial_flow<N, E: FlowEdge + std::fmt::Debug>(graph: &DiGraph<N, E>
     // utils::draw(&zdg);
     let zd_flow = min_cost_flow_from_zero(&zdg);
 
-    println!("sum_of_demand={:?}", sum_of_demand(&graph));
+    // println!("sum_of_demand={:?}", sum_of_demand(&graph));
     if total_cost(&zdg, &zd_flow) > sum_of_demand(&graph) as Cost {
         // valid flow does not exists
         None

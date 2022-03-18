@@ -325,7 +325,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
 fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
-    draw(&rg);
+    // draw(&rg);
 
     match path {
         Some(nodes) => {
@@ -336,7 +336,7 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
 
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
-            println!("{:?}", new_flow);
+            // println!("{:?}", new_flow);
             Some(new_flow)
         }
         None => None,

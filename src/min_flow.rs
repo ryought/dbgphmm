@@ -80,7 +80,7 @@ where
     // (2) upgrade the flow, by finding a negative cycle in residue graph.
     match init_flow {
         Some(flow) => {
-            draw_with_flow(graph, &flow);
+            // draw_with_flow(graph, &flow);
             Some(min_cost_flow_from_convex(graph, &flow))
         }
         None => None,

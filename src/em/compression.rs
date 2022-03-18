@@ -57,6 +57,23 @@ fn compression_m_step<N: DbgNode, E: DbgEdge>(
 ) -> NodeCopyNums {
     let edbg = dbg.to_edbg_with_attr(Some(node_freqs));
     let flow = min_cost_flow_convex_fast(&edbg.graph);
+    match flow {
+        None => panic!(),
+        Some(copy_nums) => copy_nums.switch_index(),
+    }
+}
 
-    unimplemented!();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dbg::mocks::*;
+
+    #[test]
+    fn compression_m_step_dbg() {
+        let mut dbg = mock_base();
+        let node_freqs = NodeFreqs::new(dbg.n_nodes(), 1.9);
+        let copy_nums = compression_m_step(&dbg, &node_freqs);
+        println!("{}", copy_nums);
+        assert_eq!(copy_nums.to_vec(), vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
+    }
 }
