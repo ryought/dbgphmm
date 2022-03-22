@@ -11,7 +11,7 @@ use itertools::Itertools;
 ///
 /// Struct for storing sampling results from HMM
 ///
-pub struct History(Vec<(State, Emission)>);
+pub struct History(pub Vec<(State, Emission)>);
 
 impl History {
     ///

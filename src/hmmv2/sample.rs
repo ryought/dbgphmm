@@ -400,6 +400,13 @@ mod tests {
             println!("{}", i);
             let hist = phmm.sample_rng_full_length(&mut rng, 100, NodeIndex::new(0));
             println!("{}", hist);
+            // first is ni(0)
+            assert_eq!(hist.0[0].0.to_node_index(), Some(NodeIndex::new(0)));
+            // 2nd-last is ni(9)
+            assert_eq!(
+                hist.0[hist.0.len() - 2].0.to_node_index(),
+                Some(NodeIndex::new(9))
+            );
         }
     }
 }
