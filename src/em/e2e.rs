@@ -47,6 +47,6 @@ mod tests {
         println!("{}", dbg);
 
         // (3) do the inference.
-        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), depth);
+        // let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), depth);
     }
 }
