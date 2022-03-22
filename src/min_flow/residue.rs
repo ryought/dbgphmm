@@ -6,6 +6,7 @@
 use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
+use super::{Cost, FlowRate};
 use itertools::Itertools; // for tuple_windows
 use petgraph::algo::find_negative_cycle;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -19,9 +20,9 @@ use std::cmp::Ordering;
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ResidueEdge {
     /// The movable amount of the flow
-    pub count: u32,
+    pub count: FlowRate,
     /// Cost of the unit change of this flow
-    pub weight: f64,
+    pub weight: Cost,
     /// Original edge index of the source graph
     pub target: EdgeIndex,
     /// +1 or -1
@@ -30,8 +31,8 @@ pub struct ResidueEdge {
 
 impl ResidueEdge {
     pub fn new(
-        count: u32,
-        weight: f64,
+        count: FlowRate,
+        weight: Cost,
         target: EdgeIndex,
         direction: ResidueDirection,
     ) -> ResidueEdge {
@@ -42,7 +43,7 @@ impl ResidueEdge {
             direction,
         }
     }
-    pub fn only_weight(weight: f64) -> ResidueEdge {
+    pub fn only_weight(weight: Cost) -> ResidueEdge {
         ResidueEdge {
             weight,
             // filled by default values
@@ -201,7 +202,7 @@ where
 }
 
 #[allow(dead_code)]
-fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), f64> {
+fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), Cost> {
     graph.map(|_, _| (), |_, ew| ew.weight)
 }
 
@@ -247,7 +248,7 @@ fn node_list_to_edge_list(graph: &ResidueGraph, nodes: &[NodeIndex]) -> Vec<Edge
 }
 
 fn is_negative_cycle(graph: &ResidueGraph, edges: &[EdgeIndex]) -> bool {
-    let total_weight: f64 = edges
+    let total_weight: Cost = edges
         .iter()
         .map(|&e| {
             let ew = graph.edge_weight(e).unwrap();
@@ -324,7 +325,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
 fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
-    draw(&rg);
+    // draw(&rg);
 
     match path {
         Some(nodes) => {
@@ -335,7 +336,7 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
 
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
-            println!("{:?}", new_flow);
+            // println!("{:?}", new_flow);
             Some(new_flow)
         }
         None => None,

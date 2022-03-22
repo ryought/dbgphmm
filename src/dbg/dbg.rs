@@ -2,7 +2,9 @@
 //! De bruijn graph definitions
 //!
 //!
-use super::edge_centric::{SimpleEDbg, SimpleEDbgEdge, SimpleEDbgNode};
+use super::edge_centric::{
+    SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
+};
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
 use crate::common::{CopyNum, Sequence};
@@ -23,6 +25,7 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// (Node-centric) De bruijn graph struct
 /// k
 ///
+#[derive(Clone)]
 pub struct Dbg<N: DbgNode, E: DbgEdge> {
     ///
     /// k-mer size
@@ -37,7 +40,7 @@ pub struct Dbg<N: DbgNode, E: DbgEdge> {
 ///
 /// Trait for nodes in Dbg
 ///
-pub trait DbgNode {
+pub trait DbgNode: Clone {
     type Kmer: KmerLike + NullableKmer;
     fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
     ///
@@ -72,7 +75,7 @@ pub trait DbgNode {
 ///
 /// Trait for edges in Dbg
 ///
-pub trait DbgEdge {
+pub trait DbgEdge: Clone {
     fn new(copy_num: Option<CopyNum>) -> Self;
     ///
     /// Copy number count of this edge in Dbg
@@ -171,6 +174,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         self.graph.find_edge(a, b)
     }
+    /// The number of edges from `a: NodeIndex` to `b: NodeIndex`.
+    pub fn count_edge(&self, a: NodeIndex, b: NodeIndex) -> usize {
+        self.graph.edges_connecting(a, b).count()
+    }
     /// Check if the edge is a warping edge or not.
     /// warping edge is edges like `ANNNN -> NNNNC`
     pub fn is_warp_edge(&self, edge: EdgeIndex) -> bool {
@@ -224,11 +231,41 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         true
     }
+    ///
+    /// Check if there is no parallel edges.
+    ///
+    pub fn has_no_parallel_edge(&self) -> bool {
+        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
+    }
+    ///
     /// Check if backend-graph is valid.
     ///
     /// Complexity: O(|V|^2)
+    ///
     pub fn is_graph_valid(&self) -> bool {
-        unimplemented!();
+        let m = self.to_kmer_map();
+        for (v, weight) in self.nodes() {
+            // if graph has child kmer, the graph should have an edge
+            // from the node to the child.
+            for child in weight.kmer().childs() {
+                if let Some(&w) = m.get(&child) {
+                    if !self.contains_edge(v, w) {
+                        return false;
+                    }
+                }
+            }
+
+            // if graph has parent kmer, the graph should have an edge
+            // from the parent to the node.
+            for parent in weight.kmer().parents() {
+                if let Some(&w) = m.get(&parent) {
+                    if !self.contains_edge(w, v) {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 }
 
@@ -422,6 +459,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert into edge-centric de bruijn graph
     ///
     pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
+        self.to_edbg_with_attr(None)
+    }
+    ///
+    /// Convert into edge-centric de bruijn graph with attributes
+    ///
+    /// if no attributes vector is given, the default value of the type
+    /// will be assigned to `edge.attribute`.
+    ///
+    /// EdgeIndex of edges in edbg corresponds to NodeIndex of nodes in dbg.
+    ///
+    pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
+        &self,
+        attrs: Option<&NodeVec<DenseStorage<A>>>,
+    ) -> SimpleEDbgWithAttr<N::Kmer, A> {
         let mut graph = DiGraph::new();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
@@ -452,9 +503,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             };
 
             // add an edge for this kmer
-            graph.add_edge(v, w, SimpleEDbgEdge::new(kmer, copy_num, node));
+            let attr = match attrs {
+                Some(attrs) => attrs[node],
+                None => A::default(),
+            };
+            graph.add_edge(
+                v,
+                w,
+                SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr),
+            );
         }
-        SimpleEDbg::new(self.k(), graph)
+        SimpleEDbgWithAttr::new(self.k(), graph)
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
@@ -564,6 +623,7 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::common::sequence_to_string;
+    use crate::dbg::edge_centric::EDbgEdge;
     use crate::kmer::veckmer::VecKmer;
 
     #[test]
@@ -590,6 +650,26 @@ mod tests {
         let edbg = dbg.to_edbg();
         println!("{}", edbg);
         assert_eq!(edbg.n_edges(), dbg.n_nodes());
+    }
+    #[test]
+    fn dbg_to_edbg_with_attr() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_hashdbg(&hd);
+
+        let a = 10.1;
+        let b = 1.1;
+        let mut v: NodeVec<DenseStorage<f64>> = NodeVec::new(dbg.n_nodes(), a);
+        v[ni(1)] = b;
+
+        let edbg = dbg.to_edbg_with_attr(Some(&v));
+        println!("{}", edbg);
+        for (edge, v, w, weight) in edbg.edges() {
+            if weight.origin_node() == ni(1) {
+                assert_eq!(weight.attribute, b);
+            } else {
+                assert_eq!(weight.attribute, a);
+            }
+        }
     }
     #[test]
     fn dbg_kmer() {
@@ -726,5 +806,21 @@ mod tests {
         for seq in seqs.iter() {
             println!("dbg2={}", sequence_to_string(seq));
         }
+    }
+    #[test]
+    fn dbg_clone() {
+        let mut g: DiGraph<u32, ()> = DiGraph::new();
+        let v = g.add_node(10);
+        println!("{}", g.node_count());
+        println!("{}", g.edge_count());
+
+        let g2 = (&g).clone();
+        let v = g.add_node(11);
+
+        println!("{}", g.node_count());
+        println!("{}", g.edge_count());
+
+        println!("{}", g2.node_count());
+        println!("{}", g2.edge_count());
     }
 }

@@ -219,6 +219,13 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     pub fn to_vec(&self) -> Vec<S::Item> {
         (0..self.len()).map(|i| self[Ix::new(i)]).collect()
     }
+    /// Change index
+    pub fn switch_index<Jx: Indexable>(self) -> Vector<S, Jx> {
+        Vector {
+            storage: self.storage,
+            ty: PhantomData,
+        }
+    }
 }
 
 /// private associated functions
@@ -531,6 +538,42 @@ where
         // add other to active indexes of self
         self.storage.mutate(|_, x| *x = *x / other);
         self
+    }
+}
+
+/// sum of vectors
+///
+impl<S, Ix> std::iter::Sum for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: Add<Output = S::Item> + UnitAdd + Copy,
+    Ix: Indexable,
+{
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|mut a, b| {
+            a += &b;
+            a
+        })
+        .unwrap()
+    }
+}
+
+//
+// Display
+//
+impl<S, Ix> std::fmt::Display for Vector<S, Ix>
+where
+    S: Storage,
+    S::Item: std::fmt::Display,
+    Ix: Indexable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "[")?;
+        for i in 0..self.len() {
+            write!(f, "{}, ", self[Ix::new(i)])?;
+        }
+        write!(f, "]")?;
+        Ok(())
     }
 }
 

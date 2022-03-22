@@ -4,6 +4,7 @@
 pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
 use super::utils::{clamped_log, is_convex};
+use super::{Cost, FlowRate};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Edge of FlowGraph with convex function cost
@@ -14,7 +15,7 @@ pub trait ConvexCost: FlowEdge {
     ///
     /// cost function
     /// it is a convex function of the current flow
-    fn convex_cost(&self) -> fn(u32) -> f64;
+    fn convex_cost(&self, flow: FlowRate) -> Cost;
     ///
     /// check if this edge has a finite capacity (`capacity < 100`).
     fn is_finite_capacity(&self) -> bool {
@@ -23,13 +24,17 @@ pub trait ConvexCost: FlowEdge {
     ///
     /// check if the cost function of the edge is actually convex function
     fn is_convex(&self) -> bool {
-        is_convex(self.convex_cost(), self.demand(), self.capacity())
+        is_convex(
+            |flow| self.convex_cost(flow),
+            self.demand(),
+            self.capacity(),
+        )
     }
 }
 
 impl<E: ConvexCost> EdgeCost for E {
-    fn cost(&self, flow: u32) -> f64 {
-        self.convex_cost()(flow)
+    fn cost(&self, flow: FlowRate) -> Cost {
+        self.convex_cost(flow)
     }
 }
 
@@ -48,41 +53,49 @@ impl<E: ConvexCost> EdgeCost for E {
 #[derive(Debug, Copy, Clone)]
 pub struct BaseConvexFlowEdge {
     /// demand (lower limit of flow) of the edge l(e)
-    pub demand: u32,
+    pub demand: FlowRate,
     /// capacity (upper limit of flow) of the edge u(e)
-    pub capacity: u32,
+    pub capacity: FlowRate,
     /// cost function
     /// it is a convex function of the current flow
-    pub convex_cost: fn(u32) -> f64,
+    pub convex_cost_fn: fn(FlowRate) -> Cost,
 }
 
 impl FlowEdge for BaseConvexFlowEdge {
-    fn demand(&self) -> u32 {
+    fn demand(&self) -> FlowRate {
         self.demand
     }
-    fn capacity(&self) -> u32 {
+    fn capacity(&self) -> FlowRate {
         self.capacity
     }
 }
 
 impl ConvexCost for BaseConvexFlowEdge {
-    fn convex_cost(&self) -> fn(u32) -> f64 {
-        self.convex_cost
+    fn convex_cost(&self, flow: FlowRate) -> Cost {
+        (self.convex_cost_fn)(flow)
     }
 }
 
 impl BaseConvexFlowEdge {
-    pub fn new(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
+    pub fn new(
+        demand: FlowRate,
+        capacity: FlowRate,
+        convex_cost_fn: fn(FlowRate) -> Cost,
+    ) -> BaseConvexFlowEdge {
         BaseConvexFlowEdge {
             demand,
             capacity,
-            convex_cost,
+            convex_cost_fn,
         }
     }
 }
 
 /// short version of BaseConvexFlowEdge::new
-fn cfe(demand: u32, capacity: u32, convex_cost: fn(u32) -> f64) -> BaseConvexFlowEdge {
+fn cfe(
+    demand: FlowRate,
+    capacity: FlowRate,
+    convex_cost: fn(FlowRate) -> Cost,
+) -> BaseConvexFlowEdge {
     BaseConvexFlowEdge::new(demand, capacity, convex_cost)
 }
 
@@ -99,18 +112,18 @@ pub struct ConvexFlowEdgeInfo {
     /// The FixedCostFlowEdge has demand=0 and capacity=1.
     /// if this edge has flow=1, the original edge in ConvexFlowGraph
     /// should have flow=flow_offset+1.
-    flow_offset: u32,
+    flow_offset: FlowRate,
 }
 
 pub type FixedCostFlowEdge = FlowEdgeRaw<ConvexFlowEdgeInfo>;
 
 impl FixedCostFlowEdge {
     pub fn new(
-        demand: u32,
-        capacity: u32,
-        cost: f64,
+        demand: FlowRate,
+        capacity: FlowRate,
+        cost: Cost,
         origin: EdgeIndex,
-        flow_offset: u32,
+        flow_offset: FlowRate,
     ) -> FixedCostFlowEdge {
         FixedCostFlowEdge {
             demand,
@@ -181,7 +194,11 @@ where
     Some(g)
 }
 
-fn get_flow_in_fixed(edge: EdgeIndex, fixed_flow: &Flow, fixed_graph: &FixedCostFlowGraph) -> u32 {
+fn get_flow_in_fixed(
+    edge: EdgeIndex,
+    fixed_flow: &Flow,
+    fixed_graph: &FixedCostFlowGraph,
+) -> FlowRate {
     // for original edge e (with EdgeIndex edge) in ConvexFlowGraph
     // the flow is the sum of the flow on the edges whose FixedCostFlowEdge.info.origin == edge
     fixed_graph
@@ -289,10 +306,11 @@ mod tests {
     #[test]
     fn convex_flow_edge_new() {
         let e = BaseConvexFlowEdge::new(1, 5, |f| 10.0 * f as f64);
-        assert_eq!(50.0, (e.convex_cost)(5));
+        assert_eq!(50.0, e.convex_cost(5));
         assert_eq!(50.0, e.cost(5));
         assert_eq!(1, e.demand);
         assert_eq!(5, e.capacity);
+        assert_eq!(true, e.is_convex());
     }
 
     #[test]

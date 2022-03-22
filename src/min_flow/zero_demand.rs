@@ -4,6 +4,7 @@
 //!
 use super::flow::{total_cost, Flow, FlowEdge, FlowEdgeRaw, FlowGraphRaw};
 use super::min_cost_flow_from_zero;
+use super::{Cost, FlowRate};
 use petgraph::graph::{DiGraph, EdgeIndex};
 
 // basic definitions
@@ -30,9 +31,9 @@ pub type ZeroDemandFlowEdge = FlowEdgeRaw<ZeroDemandEdgeInfo>;
 
 impl ZeroDemandFlowEdge {
     pub fn new(
-        demand: u32,
-        capacity: u32,
-        cost: f64,
+        demand: FlowRate,
+        capacity: FlowRate,
+        cost: Cost,
         origin: EdgeIndex,
         kind: ZeroDemandEdgeKind,
     ) -> ZeroDemandFlowEdge {
@@ -59,7 +60,7 @@ fn to_zero_demand_graph<N, E: FlowEdge + std::fmt::Debug>(
     for e in graph.edge_indices() {
         let ew = graph.edge_weight(e).unwrap();
         let (v, w) = graph.edge_endpoints(e).unwrap();
-        println!("{:?} {:?}", e, ew);
+        // println!("{:?} {:?}", e, ew);
 
         zdg.extend_with_edges(&[
             (
@@ -119,8 +120,8 @@ pub fn find_initial_flow<N, E: FlowEdge + std::fmt::Debug>(graph: &DiGraph<N, E>
     // utils::draw(&zdg);
     let zd_flow = min_cost_flow_from_zero(&zdg);
 
-    println!("sum_of_demand={:?}", sum_of_demand(&graph));
-    if total_cost(&zdg, &zd_flow) > sum_of_demand(&graph) as f64 {
+    // println!("sum_of_demand={:?}", sum_of_demand(&graph));
+    if total_cost(&zdg, &zd_flow) > sum_of_demand(&graph) as Cost {
         // valid flow does not exists
         None
     } else {
@@ -147,7 +148,7 @@ pub fn is_zero_demand_flow_graph<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> bool 
 ///
 /// sum of edge demand
 ///
-fn sum_of_demand<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> u32 {
+fn sum_of_demand<N, E: FlowEdge>(graph: &DiGraph<N, E>) -> FlowRate {
     graph
         .edge_indices()
         .map(|e| {

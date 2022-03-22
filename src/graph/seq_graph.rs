@@ -141,7 +141,8 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
                 // XXX assume their consistency on the graph
                 let parent_weight = self.node_weight(parent).unwrap();
                 let parent_copy_num = parent_weight.copy_num();
-                let trans_prob = if child_weight.is_emittable() {
+                let trans_prob = if child_weight.is_emittable() && copy_num > 0 {
+                    assert!(parent_copy_num > 0);
                     Prob::from_prob(copy_num as f64 / parent_copy_num as f64)
                 } else {
                     Prob::from_prob(0.0)
@@ -275,12 +276,78 @@ impl std::fmt::Display for SimpleSeqEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ni;
+    use crate::common::{ei, ni};
     use crate::graph::mocks::{mock_crossing, mock_linear};
     use crate::hmmv2::params::PHMMParams;
     use crate::prob::p;
     #[test]
     fn trait_test() {
         let sg = mock_linear().to_seq_graph();
+    }
+    #[test]
+    fn seq_graph_edge_copy_num() {
+        let m1 = mock_crossing(false);
+        let g1 = m1.to_seq_graph().to_phmm(PHMMParams::default());
+        println!("{}", m1);
+        let m2 = mock_crossing(true);
+        let g2 = m2.to_seq_graph().to_phmm(PHMMParams::default());
+        println!("{}", m2);
+
+        let ra = b"ATTAGGAGCA";
+        let rb = b"ATTAGGAGCAGCTGATAGGG";
+
+        let o1a = g1.run(ra);
+        let o1b = g1.run(rb);
+        println!("{}", o1a.to_full_prob_forward());
+        println!("{}", o1b.to_full_prob_backward());
+        // assert similarity between forward and backward
+        assert_abs_diff_eq!(
+            o1a.to_full_prob_forward(),
+            o1a.to_full_prob_backward(),
+            epsilon = 0.1
+        );
+        assert_abs_diff_eq!(
+            o1b.to_full_prob_forward(),
+            o1b.to_full_prob_backward(),
+            epsilon = 0.1
+        );
+
+        let o2a = g2.run(ra);
+        let o2b = g2.run(rb);
+        println!("{}", o2a.to_full_prob_forward());
+        println!("{}", o2b.to_full_prob_backward());
+        // assert similarity between forward and backward
+        assert_abs_diff_eq!(
+            o2a.to_full_prob_forward(),
+            o2a.to_full_prob_backward(),
+            epsilon = 0.1
+        );
+        assert_abs_diff_eq!(
+            o2b.to_full_prob_forward(),
+            o2b.to_full_prob_backward(),
+            epsilon = 0.1
+        );
+
+        // assert crossing
+        assert_abs_diff_eq!(
+            o1a.to_full_prob_forward(),
+            o2a.to_full_prob_forward(),
+            epsilon = 0.1
+        );
+        // assert crossing
+        assert!(o1b.to_full_prob_forward().to_log_value() > -17.0);
+        assert!(o2b.to_full_prob_forward().to_log_value() < -39.0);
+
+        println!("{}", g1);
+        let efo1b = o1b.to_edge_freqs(&g1, rb);
+        println!("{} {}", efo1b.len(), efo1b);
+        assert!(efo1b[ei(36)] < 0.0001);
+        assert!(efo1b[ei(37)] > 0.9);
+        assert!(efo1b[ei(38)] < 0.0001);
+        assert!(efo1b[ei(39)] < 0.0001);
+        let efo2b = o2b.to_edge_freqs(&g2, rb);
+        println!("{} {}", efo2b.len(), efo2b);
+        assert!(efo2b[ei(37)] == 0.0);
+        assert!(efo2b[ei(38)] == 0.0);
     }
 }

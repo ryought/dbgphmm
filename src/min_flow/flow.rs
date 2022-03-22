@@ -2,6 +2,7 @@
 //! - FlowEdge, FlowEdgeRaw<T>
 //! - FlowGraph, FlowGraphRaw<T>
 //! - Flow
+use super::{Cost, FlowRate};
 use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()
@@ -17,9 +18,9 @@ use petgraph::Direction;
 /// `[l, u], c`
 pub trait FlowEdge {
     /// Demand of the edge, Lower limit of the flow
-    fn demand(&self) -> u32;
+    fn demand(&self) -> FlowRate;
     /// Capacity of the edge, Upper limit of the flow
-    fn capacity(&self) -> u32;
+    fn capacity(&self) -> FlowRate;
 }
 
 /// Edge of FlowGraph with constant cost
@@ -29,7 +30,7 @@ pub trait FlowEdge {
 /// `[l, u], c`
 pub trait ConstCost {
     /// constant Cost-per-unit-flow of the edge
-    fn cost(&self) -> f64;
+    fn cost(&self) -> Cost;
 }
 
 /// Edge attributes used in FlowGraph
@@ -43,11 +44,11 @@ pub trait ConstCost {
 #[derive(Debug, Copy, Clone)]
 pub struct FlowEdgeRaw<T> {
     /// demand (lower limit of flow) of the edge l(e)
-    pub demand: u32,
+    pub demand: FlowRate,
     /// capacity (upper limit of flow) of the edge u(e)
-    pub capacity: u32,
+    pub capacity: FlowRate,
     /// cost per unit flow
-    pub cost: f64,
+    pub cost: Cost,
     /// auxiliary informations
     pub info: T,
 }
@@ -55,7 +56,7 @@ pub struct FlowEdgeRaw<T> {
 pub type FlowEdgeBase = FlowEdgeRaw<()>;
 
 impl FlowEdgeBase {
-    pub fn new(demand: u32, capacity: u32, cost: f64) -> FlowEdgeBase {
+    pub fn new(demand: FlowRate, capacity: FlowRate, cost: Cost) -> FlowEdgeBase {
         FlowEdgeBase {
             demand,
             capacity,
@@ -72,16 +73,16 @@ impl<T> std::fmt::Display for FlowEdgeRaw<T> {
 }
 
 impl<T> FlowEdge for FlowEdgeRaw<T> {
-    fn demand(&self) -> u32 {
+    fn demand(&self) -> FlowRate {
         self.demand
     }
-    fn capacity(&self) -> u32 {
+    fn capacity(&self) -> FlowRate {
         self.capacity
     }
 }
 
 impl<T> ConstCost for FlowEdgeRaw<T> {
-    fn cost(&self) -> f64 {
+    fn cost(&self) -> Cost {
         self.cost
     }
 }
@@ -92,8 +93,8 @@ pub type FlowGraphRaw<T> = DiGraph<(), FlowEdgeRaw<T>>;
 
 /// Flow definitions
 ///
-/// Flow f is a mapping of u32 f(e) to each edge e
-pub type Flow = EdgeVec<DenseStorage<u32>>;
+/// Flow f is a mapping of FlowRate(u32) f(e) to each edge e
+pub type Flow = EdgeVec<DenseStorage<FlowRate>>;
 
 ///
 /// Check if the flow is valid, i.e. it satisfies
@@ -132,11 +133,11 @@ pub fn is_in_demand_and_capacity<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N,
 ///
 pub fn is_satisfying_flow_constraint<N, E: FlowEdge>(flow: &Flow, graph: &DiGraph<N, E>) -> bool {
     graph.node_indices().all(|v| {
-        let in_flow: u32 = graph
+        let in_flow: FlowRate = graph
             .edges_directed(v, Direction::Incoming)
             .map(|er| flow[er.id()])
             .sum();
-        let out_flow: u32 = graph
+        let out_flow: FlowRate = graph
             .edges_directed(v, Direction::Outgoing)
             .map(|er| flow[er.id()])
             .sum();
@@ -148,16 +149,16 @@ pub fn is_satisfying_flow_constraint<N, E: FlowEdge>(flow: &Flow, graph: &DiGrap
 /// cost trait
 ///
 pub trait EdgeCost {
-    fn cost(&self, flow: u32) -> f64;
+    fn cost(&self, flow: FlowRate) -> Cost;
 }
 
 impl<T> EdgeCost for FlowEdgeRaw<T> {
-    fn cost(&self, flow: u32) -> f64 {
-        self.cost * flow as f64
+    fn cost(&self, flow: FlowRate) -> Cost {
+        self.cost * flow as Cost
     }
 }
 
-pub fn total_cost<N, E: EdgeCost>(graph: &DiGraph<N, E>, flow: &Flow) -> f64 {
+pub fn total_cost<N, E: EdgeCost>(graph: &DiGraph<N, E>, flow: &Flow) -> Cost {
     graph
         .edge_indices()
         .map(|e| {

@@ -1,13 +1,20 @@
 use super::{EDbg, EDbgEdge, EDbgNode};
-use crate::common::{CopyNum, Sequence};
+use crate::common::{CopyNum, Freq, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::min_flow::convex::ConvexCost;
+use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::{Cost, FlowRate};
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 
 /// Basic implementations of EDbg
 pub type SimpleEDbg<K> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>;
 
+/// Basic implementations of EDbg, with edge attributes
+pub type SimpleEDbgWithAttr<K, A> = EDbg<SimpleEDbgNode<K>, SimpleEDbgEdgeWithAttr<K, A>>;
+
 /// Basic implementations of EDbgNode
+#[derive(Clone, Debug)]
 pub struct SimpleEDbgNode<K: KmerLike> {
     km1mer: K,
 }
@@ -25,14 +32,20 @@ impl<K: KmerLike> SimpleEDbgNode<K> {
     }
 }
 
-/// Basic implementations of EDbgNode
-pub struct SimpleEDbgEdge<K: KmerLike> {
+/// Basic implementations of EDbgEdge, with no attributes
+///
+pub type SimpleEDbgEdge<K> = SimpleEDbgEdgeWithAttr<K, ()>;
+
+/// Basic implementations of EDbgEdge
+#[derive(Clone, Debug)]
+pub struct SimpleEDbgEdgeWithAttr<K: KmerLike, A> {
     kmer: K,
     copy_num: CopyNum,
     origin_node: NodeIndex,
+    pub attribute: A,
 }
 
-impl<K: KmerLike> EDbgEdge for SimpleEDbgEdge<K> {
+impl<K: KmerLike, A> EDbgEdge for SimpleEDbgEdgeWithAttr<K, A> {
     type Kmer = K;
     fn kmer(&self) -> &K {
         &self.kmer
@@ -45,12 +58,24 @@ impl<K: KmerLike> EDbgEdge for SimpleEDbgEdge<K> {
     }
 }
 
-impl<K: KmerLike> SimpleEDbgEdge<K> {
-    pub fn new(kmer: K, copy_num: CopyNum, origin_node: NodeIndex) -> Self {
-        SimpleEDbgEdge {
+impl<K: KmerLike, A> SimpleEDbgEdgeWithAttr<K, A> {
+    pub fn new_with_attr(kmer: K, copy_num: CopyNum, origin_node: NodeIndex, attribute: A) -> Self {
+        SimpleEDbgEdgeWithAttr {
             kmer,
             copy_num,
             origin_node,
+            attribute,
+        }
+    }
+}
+
+impl<K: KmerLike> SimpleEDbgEdge<K> {
+    pub fn new(kmer: K, copy_num: CopyNum, origin_node: NodeIndex) -> Self {
+        SimpleEDbgEdgeWithAttr {
+            kmer,
+            copy_num,
+            origin_node,
+            attribute: (),
         }
     }
 }
@@ -61,6 +86,19 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgNode<K> {
     }
 }
 
+impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdgeWithFreq<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (x{}) (n{}) (freq={})",
+            self.kmer,
+            self.copy_num,
+            self.origin_node.index(),
+            self.attribute,
+        )
+    }
+}
+
 impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -68,8 +106,49 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
             "{} (x{}) ({})",
             self.kmer,
             self.copy_num,
-            self.origin_node.index()
+            self.origin_node.index(),
         )
+    }
+}
+
+//
+// edbg edge with freq
+//
+
+///
+/// Basic implementations of EDbgEdge, with frequency info.
+///
+pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
+
+///
+/// maximum copy number
+///
+/// this corresponds to the capacity of edbg min-flow calculation.
+///
+const MAX_COPY_NUM_OF_EDGE: usize = 1000;
+
+impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
+    fn demand(&self) -> usize {
+        0
+    }
+    fn capacity(&self) -> usize {
+        MAX_COPY_NUM_OF_EDGE
+    }
+}
+
+///
+/// Use edbg edge (with a freq) in min-flow.
+///
+/// if the kmer corresponding to the edge is not emittable, the cost
+/// should be ignored.
+///
+impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithFreq<K> {
+    fn convex_cost(&self, flow: usize) -> f64 {
+        if self.kmer().is_emitable() {
+            (flow as f64 - self.attribute).powi(2)
+        } else {
+            0.0
+        }
     }
 }
 

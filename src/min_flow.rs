@@ -13,6 +13,12 @@ use residue::{improve_flow, improve_flow_convex};
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 
+/// type of a flow (on edges) in min-flow.
+pub type FlowRate = usize;
+
+/// type of a cost (of edges per unit flow) in min-flow.
+pub type Cost = f64;
+
 //
 // public functions
 //
@@ -74,7 +80,7 @@ where
     // (2) upgrade the flow, by finding a negative cycle in residue graph.
     match init_flow {
         Some(flow) => {
-            draw_with_flow(graph, &flow);
+            // draw_with_flow(graph, &flow);
             Some(min_cost_flow_from_convex(graph, &flow))
         }
         None => None,

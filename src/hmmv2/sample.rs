@@ -6,6 +6,7 @@
 //! * create a special struct for storeing the sampling result instead of `Vec<(State, Emission)>`
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::freq::Reads;
 use crate::common::Sequence;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
@@ -16,7 +17,7 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 pub mod history;
 pub mod picker;
 pub mod utils;
-pub use history::History;
+pub use history::{History, Historys};
 
 ///
 /// HMM hidden states
@@ -31,15 +32,17 @@ pub enum State {
     End,
 }
 
-///
-/// Convert State (either Match/Ins/Del(NodeIndex) MatchBegin/InsBegin/End)
-/// into the wrapped NodeIndex.
-/// If state is begin/end, it returns None.
-///
-pub fn state_to_node_index(state: State) -> Option<NodeIndex> {
-    match state {
-        State::Match(v) | State::Ins(v) | State::Del(v) => Some(v),
-        _ => None,
+impl State {
+    ///
+    /// Convert State (either Match/Ins/Del(NodeIndex) MatchBegin/InsBegin/End)
+    /// into the wrapped NodeIndex.
+    /// If state is begin/end, it returns None.
+    ///
+    pub fn to_node_index(&self) -> Option<NodeIndex> {
+        match self {
+            State::Match(v) | State::Ins(v) | State::Del(v) => Some(*v),
+            _ => None,
+        }
     }
 }
 
@@ -85,6 +88,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         self.sample_rng(&mut rng, length)
     }
     ///
+    /// Generate a one-shot sequence of Emission and Hidden states
+    /// by running a profile HMM.
+    /// Random number generator will be created from the seed.
+    ///
+    pub fn sample_many(&self, length: usize, seed: u64, n_samples: usize) -> Historys {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        Historys(
+            (0..n_samples)
+                .map(|_| self.sample_rng(&mut rng, length))
+                .collect(),
+        )
+    }
+    ///
     /// Generate a sequence of emissions
     /// by running a profile HMM using rng(random number generator).
     ///
@@ -95,19 +111,70 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         history.to_sequence()
     }
     ///
+    /// Generate reads from sampling.
+    ///
+    pub fn sample_reads(&self, length: usize, seed: u64, n_reads: usize) -> Reads {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let reads = (0..n_reads)
+            .map(|_| self.sample_rng(&mut rng, length))
+            .map(|history| history.to_sequence())
+            .collect();
+        Reads { reads }
+    }
+    ///
     /// Generate a sequence of Emission and Hidden states
     /// by running a profile HMM using the given rng(random number generator).
     ///
     pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize) -> History {
+        self.sample_rng_from(rng, length, State::MatchBegin, true)
+    }
+    ///
+    /// Generate full length sample
+    ///
+    /// * from
+    ///     index of the starting node.
+    ///
+    pub fn sample_rng_full_length<R: Rng>(
+        &self,
+        rng: &mut R,
+        length: usize,
+        from: NodeIndex,
+    ) -> History {
+        self.sample_rng_from(rng, length, State::Match(from), false)
+    }
+    ///
+    /// Generate a sequence of Emission and Hidden states
+    /// by running a profile HMM using the given rng(random number generator).
+    ///
+    /// * from
+    ///     a state the sampling starts from. Usually it will set to MatchBegin or the starting node.
+    /// * endable
+    ///     if true, it allows a transition to End state while sampling, so
+    ///     the sampled sequence can be shorter than the given length.
+    ///
+    pub fn sample_rng_from<R: Rng>(
+        &self,
+        rng: &mut R,
+        length: usize,
+        from: State,
+        endable: bool,
+    ) -> History {
         let mut history = History::new();
 
         // (1) init
-        let (mut state, _) = self.sample_init(rng);
+        let mut state = from;
         let mut emission;
+        match from {
+            State::MatchBegin => {}
+            _ => {
+                emission = self.make_emission(rng, from);
+                history.push(state, emission);
+            }
+        }
 
         for _ in 0..length {
             // (2) step
-            (state, emission) = self.sample_step(rng, state);
+            (state, emission) = self.sample_step(rng, state, endable);
             history.push(state, emission);
 
             if let State::End = state {
@@ -117,12 +184,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         history
     }
-    fn sample_init<R: Rng>(&self, _rng: &mut R) -> (State, Emission) {
-        (State::MatchBegin, Emission::Empty)
-    }
-    fn sample_step<R: Rng>(&self, rng: &mut R, now: State) -> (State, Emission) {
+    fn sample_step<R: Rng>(&self, rng: &mut R, now: State, endable: bool) -> (State, Emission) {
         // (1) transition to the next state
-        let next = self.make_transition(rng, now);
+        let next = self.make_transition(rng, now, endable);
         // (2) emission from the next state
         let emission = self.make_emission(rng, next);
 
@@ -131,8 +195,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// do a transition from `now: State` to `next: State` in PHMM
     ///
-    fn make_transition<R: Rng>(&self, rng: &mut R, now: State) -> State {
+    /// * now
+    /// * endable
+    ///
+    fn make_transition<R: Rng>(&self, rng: &mut R, now: State, endable: bool) -> State {
         let param = &self.param;
+        let p_end = if endable {
+            param.p_end
+        } else {
+            Prob::from_prob(0.0)
+        };
         match now {
             State::Match(node) => {
                 let child = self.pick_child(rng, node);
@@ -142,7 +214,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                             (State::Match(child), param.p_MM),
                             (State::Ins(node), param.p_MI),
                             (State::Del(child), param.p_MD),
-                            (State::End, param.p_end),
+                            (State::End, p_end),
                         ];
                         pick_with_prob(rng, &choices)
                     }
@@ -157,7 +229,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                             (State::Match(child), param.p_IM),
                             (State::Ins(node), param.p_II),
                             (State::Del(child), param.p_ID),
-                            (State::End, param.p_end),
+                            (State::End, p_end),
                         ];
                         pick_with_prob(rng, &choices)
                     }
@@ -172,7 +244,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                             (State::Match(child), param.p_DM),
                             (State::Ins(node), param.p_DI),
                             (State::Del(child), param.p_DD),
-                            (State::End, param.p_end),
+                            (State::End, p_end),
                         ];
                         pick_with_prob(rng, &choices)
                     }
@@ -274,9 +346,9 @@ mod tests {
     }
     #[test]
     fn hmm_sample_state_to_node_index() {
-        assert_eq!(state_to_node_index(State::Match(ni(10))), Some(ni(10)));
-        assert_eq!(state_to_node_index(State::Ins(ni(2))), Some(ni(2)));
-        assert_eq!(state_to_node_index(State::InsBegin), None);
+        assert_eq!(State::Match(ni(10)).to_node_index(), Some(ni(10)));
+        assert_eq!(State::Ins(ni(2)).to_node_index(), Some(ni(2)));
+        assert_eq!(State::InsBegin.to_node_index(), None);
     }
 
     #[test]
@@ -318,5 +390,23 @@ mod tests {
         let read = hist.to_sequence();
         println!("{}", hist);
         assert_eq!(read, b"CACAACGT");
+    }
+    #[test]
+    fn hmm_sample_mock_linear_full_length() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(3);
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
+        println!("{}", phmm);
+        for i in 0..10 {
+            println!("{}", i);
+            let hist = phmm.sample_rng_full_length(&mut rng, 100, NodeIndex::new(0));
+            println!("{}", hist);
+            // first is ni(0)
+            assert_eq!(hist.0[0].0.to_node_index(), Some(NodeIndex::new(0)));
+            // 2nd-last is ni(9)
+            assert_eq!(
+                hist.0[hist.0.len() - 2].0.to_node_index(),
+                Some(NodeIndex::new(9))
+            );
+        }
     }
 }

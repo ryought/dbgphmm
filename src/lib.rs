@@ -6,6 +6,7 @@ pub mod compressed_dbg;
 pub mod cycles;
 pub mod dbg;
 pub mod distribution;
+pub mod em;
 pub mod graph;
 pub mod hmm;
 pub mod hmmv2;
