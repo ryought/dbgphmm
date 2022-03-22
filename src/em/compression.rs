@@ -20,7 +20,7 @@ use crate::min_flow::min_cost_flow_convex_fast;
 ///
 /// ## TODOs
 ///
-/// * dbg should be copied?
+/// * avoid dbg copy?
 ///
 pub fn compression<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -38,7 +38,9 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     let copy_nums = compression_m_step(dbg, &node_freqs, depth);
     println!("copy_nums={}", copy_nums);
 
-    unimplemented!();
+    let mut new_dbg = dbg.clone();
+    new_dbg.set_node_copy_nums(&copy_nums);
+    new_dbg
 }
 
 ///
@@ -85,6 +87,8 @@ fn compression_m_step<N: DbgNode, E: DbgEdge>(
     let flow = min_cost_flow_convex_fast(&edbg.graph);
     match flow {
         None => panic!(),
+        // an edge in edbg corresponds to a node in dbg
+        // so edgevec for edbg can be converted to nodevec for dbg.
         Some(copy_nums) => copy_nums.switch_index(),
     }
 }
@@ -119,6 +123,6 @@ mod tests {
             ],
         };
         let params = PHMMParams::default();
-        compression(&dbg, &reads, &params, 3.0);
+        let dbg = compression(&dbg, &reads, &params, 3.0);
     }
 }

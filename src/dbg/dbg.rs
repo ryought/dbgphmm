@@ -25,6 +25,7 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// (Node-centric) De bruijn graph struct
 /// k
 ///
+#[derive(Clone)]
 pub struct Dbg<N: DbgNode, E: DbgEdge> {
     ///
     /// k-mer size
@@ -39,7 +40,7 @@ pub struct Dbg<N: DbgNode, E: DbgEdge> {
 ///
 /// Trait for nodes in Dbg
 ///
-pub trait DbgNode {
+pub trait DbgNode: Clone {
     type Kmer: KmerLike + NullableKmer;
     fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
     ///
@@ -74,7 +75,7 @@ pub trait DbgNode {
 ///
 /// Trait for edges in Dbg
 ///
-pub trait DbgEdge {
+pub trait DbgEdge: Clone {
     fn new(copy_num: Option<CopyNum>) -> Self;
     ///
     /// Copy number count of this edge in Dbg
@@ -466,6 +467,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// if no attributes vector is given, the default value of the type
     /// will be assigned to `edge.attribute`.
     ///
+    /// EdgeIndex of edges in edbg corresponds to NodeIndex of nodes in dbg.
+    ///
     pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
         &self,
         attrs: Option<&NodeVec<DenseStorage<A>>>,
@@ -803,5 +806,21 @@ mod tests {
         for seq in seqs.iter() {
             println!("dbg2={}", sequence_to_string(seq));
         }
+    }
+    #[test]
+    fn dbg_clone() {
+        let mut g: DiGraph<u32, ()> = DiGraph::new();
+        let v = g.add_node(10);
+        println!("{}", g.node_count());
+        println!("{}", g.edge_count());
+
+        let g2 = (&g).clone();
+        let v = g.add_node(11);
+
+        println!("{}", g.node_count());
+        println!("{}", g.edge_count());
+
+        println!("{}", g2.node_count());
+        println!("{}", g2.edge_count());
     }
 }
