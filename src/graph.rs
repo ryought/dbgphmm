@@ -2,6 +2,7 @@ use forceatlas2;
 use log::info;
 use serde::Serialize;
 pub mod active_nodes;
+pub mod bipartite;
 pub mod genome_graph;
 pub mod iterators;
 pub mod mocks;
