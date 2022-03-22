@@ -81,6 +81,26 @@ impl<I, N, E> Bipartite<I, N, E> {
     }
 }
 
+impl<I, N, E> std::fmt::Display for Bipartite<I, N, E>
+where
+    I: std::fmt::Display,
+    N: std::fmt::Display,
+    E: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for i in 0..self.n_in() {
+            write!(f, "in\t{}\t{}\n", i, self.in_node(i))?;
+        }
+        for j in 0..self.n_out() {
+            write!(f, "out\t{}\t{}\n", j, self.out_node(j))?;
+        }
+        for (i, j) in iproduct!(0..self.n_in(), 0..self.n_out()) {
+            write!(f, "in{}\tout{}\t{}\n", i, j, self.edge(i, j))?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,6 +127,8 @@ mod tests {
         assert_eq!(*bi.out_node(2), 13);
         assert_eq!(*bi.edge(0, 1), 13);
         assert_eq!(*bi.edge(3, 2), 17);
+
+        println!("{}", bi);
     }
     #[test]
     fn iproduct_test() {
