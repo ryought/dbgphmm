@@ -15,9 +15,9 @@ use petgraph::graph::NodeIndex;
 ///
 #[derive(Debug, Clone)]
 pub struct Intersection<K: KmerLike> {
-    pub km1mer: K,
-    pub in_nodes: Vec<NodeIndex>,
-    pub out_nodes: Vec<NodeIndex>,
+    km1mer: K,
+    in_nodes: Vec<NodeIndex>,
+    out_nodes: Vec<NodeIndex>,
 }
 
 impl<K: KmerLike> Intersection<K> {
@@ -27,6 +27,21 @@ impl<K: KmerLike> Intersection<K> {
             in_nodes,
             out_nodes,
         }
+    }
+    pub fn km1mer(&self) -> &K {
+        &self.km1mer
+    }
+    pub fn iter_in_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.in_nodes.iter().copied()
+    }
+    pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.out_nodes.iter().copied()
+    }
+    pub fn in_node(&self, index: usize) -> NodeIndex {
+        self.in_nodes[index]
+    }
+    pub fn out_node(&self, index: usize) -> NodeIndex {
+        self.out_nodes[index]
     }
     pub fn n_in_nodes(&self) -> usize {
         self.in_nodes.len()
@@ -102,10 +117,10 @@ mod tests {
         let dbg = mock_base();
         println!("{}", dbg);
         for i in dbg.iter_intersections() {
-            for &in_node in i.in_nodes.iter() {
+            for in_node in i.iter_in_nodes() {
                 assert_eq!(dbg.node(in_node).kmer().suffix(), i.km1mer);
             }
-            for &out_node in i.out_nodes.iter() {
+            for out_node in i.iter_out_nodes() {
                 assert_eq!(dbg.node(out_node).kmer().prefix(), i.km1mer);
             }
             assert_eq!(i.n_in_nodes(), 1);
@@ -128,10 +143,10 @@ mod tests {
                 assert_eq!(i.n_out_nodes(), 1);
             }
 
-            for &in_node in i.in_nodes.iter() {
+            for in_node in i.iter_in_nodes() {
                 assert_eq!(dbg.node(in_node).kmer().suffix(), i.km1mer);
             }
-            for &out_node in i.out_nodes.iter() {
+            for out_node in i.iter_out_nodes() {
                 assert_eq!(dbg.node(out_node).kmer().prefix(), i.km1mer);
             }
             println!("{}", i);
