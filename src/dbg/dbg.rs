@@ -129,18 +129,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// NodeIndex(s) of heads/tails
     ///
     pub fn tips(&self) -> Intersection<N::Kmer> {
-        let mut tips = Intersection::empty(N::Kmer::null_kmer(self.k()));
+        let mut in_nodes = Vec::new();
+        let mut out_nodes = Vec::new();
+
         for (node, weight) in self.nodes() {
             // ANNN
             if weight.kmer().is_tail() {
-                tips.in_nodes.push(node);
+                in_nodes.push(node);
             }
             // NNNA
             if weight.kmer().is_head() {
-                tips.out_nodes.push(node);
+                out_nodes.push(node);
             }
         }
-        tips
+
+        Intersection::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {

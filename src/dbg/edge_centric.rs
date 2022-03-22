@@ -127,11 +127,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
             .map(|e| e.weight().origin_node())
             .collect();
 
-        Intersection {
-            km1mer: node_weight.km1mer().clone(),
-            in_nodes,
-            out_nodes,
-        }
+        Intersection::new(node_weight.km1mer().clone(), in_nodes, out_nodes)
     }
 }
 
