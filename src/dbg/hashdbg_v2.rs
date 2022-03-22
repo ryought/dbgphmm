@@ -2,6 +2,7 @@
 //! HashDbg
 //!
 use crate::common::CopyNum;
+use crate::hmmv2::freq::Reads;
 use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;
@@ -92,6 +93,7 @@ impl<K: KmerLike> HashDbg<K> {
     /// add all kmers in linear seq (with leading/trailing NNN kmers)
     ///
     pub fn add_seq(&mut self, seq: &[u8]) {
+        println!("seq len={}", seq.len());
         for kmer in sequence_to_kmers(seq, self.k()) {
             self.add(kmer, 1);
         }
@@ -126,6 +128,13 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn from_seq(k: usize, seq: &[u8]) -> Self {
         let mut d = HashDbg::new(k);
         d.add_seq(seq);
+        d
+    }
+    pub fn from_reads(k: usize, reads: &Reads) -> Self {
+        let mut d = HashDbg::new(k);
+        for read in reads.reads.iter() {
+            d.add_seq(read);
+        }
         d
     }
 }

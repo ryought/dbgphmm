@@ -201,6 +201,11 @@ pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
 }
 
 /// Convert circular or linear sequence to a list of kmers
+///
+/// # Known Bugs
+///
+/// * it does not works when `length of seq > k`.
+///
 fn sequence_to_kmers<'a, K: KmerLike>(
     seq: &'a [u8],
     k: usize,
