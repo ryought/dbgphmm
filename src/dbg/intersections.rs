@@ -1,5 +1,6 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use super::edge_centric::SimpleEDbg;
+use crate::graph::Bipartite;
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::NodeIndex;
 
@@ -15,48 +16,48 @@ use petgraph::graph::NodeIndex;
 ///
 #[derive(Debug, Clone)]
 pub struct Intersection<K: KmerLike> {
-    km1mer: K,
-    in_nodes: Vec<NodeIndex>,
-    out_nodes: Vec<NodeIndex>,
+    bi: Bipartite<K, NodeIndex, ()>,
 }
 
 impl<K: KmerLike> Intersection<K> {
     pub fn new(km1mer: K, in_nodes: Vec<NodeIndex>, out_nodes: Vec<NodeIndex>) -> Intersection<K> {
         Intersection {
-            km1mer,
-            in_nodes,
-            out_nodes,
+            bi: Bipartite::from(km1mer, in_nodes, out_nodes, |_, _| ()),
         }
     }
     pub fn km1mer(&self) -> &K {
-        &self.km1mer
+        &self.bi.id
     }
     pub fn iter_in_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
-        self.in_nodes.iter().copied()
+        self.bi.in_nodes.iter().copied()
     }
     pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
-        self.out_nodes.iter().copied()
+        self.bi.out_nodes.iter().copied()
     }
     pub fn in_node(&self, index: usize) -> NodeIndex {
-        self.in_nodes[index]
+        *self.bi.in_node(index)
     }
     pub fn out_node(&self, index: usize) -> NodeIndex {
-        self.out_nodes[index]
+        *self.bi.out_node(index)
     }
     pub fn n_in_nodes(&self) -> usize {
-        self.in_nodes.len()
+        self.bi.n_in()
     }
     pub fn n_out_nodes(&self) -> usize {
-        self.out_nodes.len()
+        self.bi.n_out()
     }
 }
 
 impl<K: KmerLike> std::fmt::Display for Intersection<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let in_nodes: Vec<NodeIndex> = self.iter_in_nodes().collect();
+        let out_nodes: Vec<NodeIndex> = self.iter_out_nodes().collect();
         write!(
             f,
             "Intersection({}) in:{:?} out:{:?}",
-            self.km1mer, self.in_nodes, self.out_nodes
+            self.km1mer(),
+            in_nodes,
+            out_nodes
         )
     }
 }
@@ -118,10 +119,10 @@ mod tests {
         println!("{}", dbg);
         for i in dbg.iter_intersections() {
             for in_node in i.iter_in_nodes() {
-                assert_eq!(dbg.node(in_node).kmer().suffix(), i.km1mer);
+                assert_eq!(&dbg.node(in_node).kmer().suffix(), i.km1mer());
             }
             for out_node in i.iter_out_nodes() {
-                assert_eq!(dbg.node(out_node).kmer().prefix(), i.km1mer);
+                assert_eq!(&dbg.node(out_node).kmer().prefix(), i.km1mer());
             }
             assert_eq!(i.n_in_nodes(), 1);
             assert_eq!(i.n_out_nodes(), 1);
@@ -132,10 +133,10 @@ mod tests {
     fn dbg_intersections_twoseqs() {
         let dbg = mock_intersection();
         for i in dbg.iter_intersections() {
-            if i.km1mer == VecKmer::from_bases(b"NNN") {
+            if i.km1mer() == &VecKmer::from_bases(b"NNN") {
                 assert_eq!(i.n_in_nodes(), 2);
                 assert_eq!(i.n_out_nodes(), 2);
-            } else if i.km1mer == VecKmer::from_bases(b"TAG") {
+            } else if i.km1mer() == &VecKmer::from_bases(b"TAG") {
                 assert_eq!(i.n_in_nodes(), 2);
                 assert_eq!(i.n_out_nodes(), 2);
             } else {
@@ -144,10 +145,10 @@ mod tests {
             }
 
             for in_node in i.iter_in_nodes() {
-                assert_eq!(dbg.node(in_node).kmer().suffix(), i.km1mer);
+                assert_eq!(&dbg.node(in_node).kmer().suffix(), i.km1mer());
             }
             for out_node in i.iter_out_nodes() {
-                assert_eq!(dbg.node(out_node).kmer().prefix(), i.km1mer);
+                assert_eq!(&dbg.node(out_node).kmer().prefix(), i.km1mer());
             }
             println!("{}", i);
         }

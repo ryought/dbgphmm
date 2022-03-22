@@ -79,6 +79,12 @@ impl<I, N, E> Bipartite<I, N, E> {
         assert!(index_out < self.n_out());
         &self.edges[index_in * self.n_out() + index_out]
     }
+    pub fn iter_in_nodes(&self) -> impl Iterator<Item = &N> + '_ {
+        self.in_nodes.iter()
+    }
+    pub fn iter_out_nodes(&self) -> impl Iterator<Item = &N> + '_ {
+        self.out_nodes.iter()
+    }
 }
 
 impl<I, N, E> std::fmt::Display for Bipartite<I, N, E>
