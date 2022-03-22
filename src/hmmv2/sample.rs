@@ -116,7 +116,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn sample_reads(&self, length: usize, seed: u64, n_reads: usize) -> Reads {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let reads = (0..n_reads)
-            .map(|_| self.sample_rng(&mut rng, length))
+            .map(|_| self.sample_rng_full_length(&mut rng, length, NodeIndex::new(0)))
             .map(|history| history.to_sequence())
             .collect();
         Reads { reads }

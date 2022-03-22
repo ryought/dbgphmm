@@ -71,6 +71,16 @@ impl std::fmt::Display for GenomeGraph {
 }
 
 impl GenomeGraph {
+    ///
+    /// Create `GenomeGraph` from the sequences
+    ///
+    pub fn from_seqs(seqs: &[Sequence]) -> Self {
+        let mut g = DiGraph::new();
+        for seq in seqs {
+            g.add_node(GenomeNode::new(seq, 1));
+        }
+        GenomeGraph(g)
+    }
     /// Get the number of nodes in the GenomeGraph
     pub fn node_count(&self) -> usize {
         self.0.node_count()
@@ -169,5 +179,13 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 5);
         assert_eq!(sg.edge_count(), 5);
+    }
+
+    #[test]
+    fn genome_graph_from_seqs() {
+        let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
+        let gg = GenomeGraph::from_seqs(&seqs);
+        assert_eq!(gg.node_count(), 2);
+        assert_eq!(gg.edge_count(), 0);
     }
 }

@@ -90,6 +90,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .sum()
     }
+    /// calculate edge freqs of multiple emission sequences (`Reads`).
+    pub fn to_edge_freqs(&self, r: &Reads) -> EdgeFreqs {
+        r.reads
+            .iter()
+            .map(|read| {
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_edge_freqs(self, read)
+            })
+            .sum()
+    }
 }
 
 //
