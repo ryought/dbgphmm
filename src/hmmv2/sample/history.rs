@@ -4,7 +4,7 @@
 use super::super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::super::freq::NodeFreqs;
 use super::super::trans_table::EdgeFreqs;
-use super::{state_to_node_index, Emission, State};
+use super::{Emission, State};
 use crate::common::Sequence;
 use itertools::Itertools;
 
@@ -49,7 +49,7 @@ impl History {
     {
         let mut nf = NodeFreqs::new(phmm.n_nodes(), 0.0);
         for (state, _) in self.0.iter() {
-            match state_to_node_index(*state) {
+            match state.to_node_index() {
                 Some(v) => nf[v] += 1.0,
                 _ => {}
             }
@@ -66,7 +66,7 @@ impl History {
     {
         let mut ef = EdgeFreqs::new(phmm.n_edges(), 0.0);
         for ((s1, _), (s2, _)) in self.0.iter().tuple_windows() {
-            match (state_to_node_index(*s1), state_to_node_index(*s2)) {
+            match (s1.to_node_index(), s2.to_node_index()) {
                 (Some(v1), Some(v2)) => {
                     // There can be self transition (such as Match(v) -> Ins(v))
                     if v1 != v2 {

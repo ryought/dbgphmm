@@ -32,15 +32,17 @@ pub enum State {
     End,
 }
 
-///
-/// Convert State (either Match/Ins/Del(NodeIndex) MatchBegin/InsBegin/End)
-/// into the wrapped NodeIndex.
-/// If state is begin/end, it returns None.
-///
-pub fn state_to_node_index(state: State) -> Option<NodeIndex> {
-    match state {
-        State::Match(v) | State::Ins(v) | State::Del(v) => Some(v),
-        _ => None,
+impl State {
+    ///
+    /// Convert State (either Match/Ins/Del(NodeIndex) MatchBegin/InsBegin/End)
+    /// into the wrapped NodeIndex.
+    /// If state is begin/end, it returns None.
+    ///
+    pub fn to_node_index(&self) -> Option<NodeIndex> {
+        match self {
+            State::Match(v) | State::Ins(v) | State::Del(v) => Some(*v),
+            _ => None,
+        }
     }
 }
 
@@ -344,9 +346,9 @@ mod tests {
     }
     #[test]
     fn hmm_sample_state_to_node_index() {
-        assert_eq!(state_to_node_index(State::Match(ni(10))), Some(ni(10)));
-        assert_eq!(state_to_node_index(State::Ins(ni(2))), Some(ni(2)));
-        assert_eq!(state_to_node_index(State::InsBegin), None);
+        assert_eq!(State::Match(ni(10)).to_node_index(), Some(ni(10)));
+        assert_eq!(State::Ins(ni(2)).to_node_index(), Some(ni(2)));
+        assert_eq!(State::InsBegin.to_node_index(), None);
     }
 
     #[test]
