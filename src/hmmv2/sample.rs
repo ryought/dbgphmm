@@ -16,7 +16,7 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 pub mod history;
 pub mod picker;
 pub mod utils;
-pub use history::History;
+pub use history::{History, Historys};
 
 ///
 /// HMM hidden states
@@ -83,6 +83,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         self.sample_rng(&mut rng, length)
+    }
+    ///
+    /// Generate a one-shot sequence of Emission and Hidden states
+    /// by running a profile HMM.
+    /// Random number generator will be created from the seed.
+    ///
+    pub fn sample_many(&self, length: usize, seed: u64, n_samples: usize) -> Historys {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        Historys(
+            (0..n_samples)
+                .map(|_| self.sample_rng(&mut rng, length))
+                .collect(),
+        )
     }
     ///
     /// Generate a sequence of emissions

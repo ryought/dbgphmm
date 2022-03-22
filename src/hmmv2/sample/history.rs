@@ -93,6 +93,20 @@ impl std::fmt::Display for History {
     }
 }
 
+///
+/// Vector of multiple historys
+///
+pub struct Historys(pub Vec<History>);
+
+impl Historys {
+    pub fn n_history(&self) -> usize {
+        self.0.len()
+    }
+    pub fn to_sequence(&self, index: usize) -> Sequence {
+        self.0[index].to_sequence()
+    }
+}
+
 //
 // tests
 //
