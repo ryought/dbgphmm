@@ -7,6 +7,7 @@
 //! * iterators on in_nodes out_nodes edges
 //! * access by index
 //!
+// use arrayvec::ArrayVec;
 use itertools::iproduct;
 
 ///
@@ -16,6 +17,10 @@ use itertools::iproduct;
 /// in_nodes:  AXXX, CXXX, GXXX, TXXX
 /// out_nodes: XXXA, XXXC, XXXG, XXXT
 /// ```
+///
+/// ## TODO
+///
+/// * change Vec into ArrayVec to avoid heap allocation.
 ///
 #[derive(Debug, Clone)]
 pub struct Bipartite<I, N, E> {
@@ -94,6 +99,7 @@ where
     E: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "id\t{}\n", self.id)?;
         for i in 0..self.n_in() {
             write!(f, "in\t{}\t{}\n", i, self.in_node(i))?;
         }
