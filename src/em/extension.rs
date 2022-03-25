@@ -14,7 +14,11 @@ use crate::hmmv2::freq::Reads;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
-use petgraph::graph::{EdgeIndex, NodeIndex};
+use crate::min_flow::convex::ConvexCost;
+use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::utils::clamped_log;
+use petgraph::dot::Dot;
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 ///
 /// Extension algorithm
@@ -148,6 +152,59 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
 }
 
+const MAX_COPY_NUM_OF_EDGE: usize = 1000;
+pub type IntersectionGraph = DiGraph<IntersectionGraphNode, IntersectionGraphEdge>;
+
+#[derive(Clone, Debug)]
+pub enum IntersectionGraphNode {
+    Source,
+    Terminal,
+    Left(NodeIndex),
+    Right(NodeIndex),
+}
+
+#[derive(Clone, Debug)]
+pub enum IntersectionGraphEdge {
+    /// Loop back edge from t (terminal) to s (source).
+    ///
+    /// demand=0, capacity=inf, cost=0
+    LoopBack,
+    /// Node edge
+    /// * from s to v (left nodes in bipartite)
+    /// * from w (right nodes in bipartite) to t
+    ///
+    /// demand=copy_num, capacity=copy_num, cost=0
+    Node { copy_num: CopyNum },
+    /// Spanning edge between v and w (left/right nodes in bipartite)
+    ///
+    /// demand=0, capacity=inf, cost=-freq*log(flow)
+    Spanning { freq: Freq, edge_index: EdgeIndex },
+}
+
+impl FlowEdge for IntersectionGraphEdge {
+    fn demand(&self) -> usize {
+        match self {
+            IntersectionGraphEdge::Node { copy_num } => *copy_num,
+            _ => 0,
+        }
+    }
+    fn capacity(&self) -> usize {
+        match self {
+            IntersectionGraphEdge::Node { copy_num } => *copy_num,
+            _ => MAX_COPY_NUM_OF_EDGE,
+        }
+    }
+}
+
+impl ConvexCost for IntersectionGraphEdge {
+    fn convex_cost(&self, flow: usize) -> f64 {
+        match self {
+            IntersectionGraphEdge::Spanning { freq, .. } => -(*freq) * clamped_log(flow),
+            _ => 0.0,
+        }
+    }
+}
+
 impl<K: KmerLike> FlowIntersection<K> {
     /// Get optimized copy numbers of edges.
     /// by converting the bipartite into flow network definitions
@@ -156,6 +213,68 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// * what is the return type?
     pub fn optimize(&self) {
         unimplemented!();
+    }
+    ///
+    /// Convert FlowIntersection into DiGraph
+    /// that can be solved as a convex min flow problem.
+    ///
+    pub fn to_flow_graph(&self) -> IntersectionGraph {
+        let mut g = IntersectionGraph::new();
+
+        // (1) Node
+        // (1-a) source and terminal
+        let s = g.add_node(IntersectionGraphNode::Source);
+        let t = g.add_node(IntersectionGraphNode::Terminal);
+        // (1-b) left/right nodes
+        let vs: Vec<NodeIndex> = self
+            .bi
+            .iter_in_nodes()
+            .map(|v| g.add_node(IntersectionGraphNode::Left(v.index)))
+            .collect();
+        let ws: Vec<NodeIndex> = self
+            .bi
+            .iter_out_nodes()
+            .map(|w| g.add_node(IntersectionGraphNode::Right(w.index)))
+            .collect();
+
+        // (2) Edge
+        // (2-a) LoopBack
+        g.add_edge(t, s, IntersectionGraphEdge::LoopBack);
+        // (2-b) Node
+        for (i, n) in self.bi.iter_in_nodes().enumerate() {
+            g.add_edge(
+                s,
+                vs[i],
+                IntersectionGraphEdge::Node {
+                    copy_num: n.copy_num,
+                },
+            );
+        }
+        for (i, n) in self.bi.iter_out_nodes().enumerate() {
+            g.add_edge(
+                ws[i],
+                t,
+                IntersectionGraphEdge::Node {
+                    copy_num: n.copy_num,
+                },
+            );
+        }
+        // (2-c) Spanning
+        for i in 0..self.bi.n_in() {
+            for j in 0..self.bi.n_out() {
+                let e = self.bi.edge(i, j);
+                g.add_edge(
+                    vs[i],
+                    ws[j],
+                    IntersectionGraphEdge::Spanning {
+                        freq: e.freq,
+                        edge_index: e.index,
+                    },
+                );
+            }
+        }
+
+        g
     }
 }
 
@@ -193,5 +312,7 @@ mod tests {
         ];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
         println!("{}", fi);
+        let g = fi.to_flow_graph();
+        println!("{:?}", Dot::with_config(&g, &[]));
     }
 }
