@@ -110,18 +110,27 @@ impl std::fmt::Display for FlowIntersectionNode {
 pub struct FlowIntersectionEdge {
     index: EdgeIndex,
     freq: Freq,
+    copy_num: Option<CopyNum>,
 }
 
 impl FlowIntersectionEdge {
     /// Constructor
-    pub fn new(index: EdgeIndex, freq: Freq) -> Self {
-        FlowIntersectionEdge { index, freq }
+    pub fn new(index: EdgeIndex, freq: Freq, copy_num: Option<CopyNum>) -> Self {
+        FlowIntersectionEdge {
+            index,
+            freq,
+            copy_num,
+        }
     }
 }
 
 impl std::fmt::Display for FlowIntersectionEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", self.index.index(), self.freq)
+        write!(f, "{}({})", self.index.index(), self.freq)?;
+        match self.copy_num {
+            Some(copy_num) => write!(f, "(x{})", copy_num),
+            None => write!(f, "(x?)"),
+        }
     }
 }
 
@@ -314,10 +323,10 @@ mod tests {
             FlowIntersectionNode::new(ni(4), 5),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 5.1),
-            FlowIntersectionEdge::new(ei(1), 5.0),
-            FlowIntersectionEdge::new(ei(2), 4.9),
-            FlowIntersectionEdge::new(ei(3), 4.8),
+            FlowIntersectionEdge::new(ei(0), 5.1, None),
+            FlowIntersectionEdge::new(ei(1), 5.0, None),
+            FlowIntersectionEdge::new(ei(2), 4.9, None),
+            FlowIntersectionEdge::new(ei(3), 4.8, None),
         ];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
         println!("{}", fi);
