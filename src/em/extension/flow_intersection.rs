@@ -184,6 +184,9 @@ impl<K: KmerLike> FlowIntersection<K> {
 
         g
     }
+    fn to_edge_copy_nums(&self) -> Vec<Option<CopyNum>> {
+        self.bi.edges.iter().map(|e| e.copy_num).collect()
+    }
 }
 
 impl<K: KmerLike> std::fmt::Display for FlowIntersection<K> {
@@ -232,5 +235,53 @@ mod tests {
             assert_eq!(e.freq, fi.bi.edges[i].freq);
             assert_eq!(e.copy_num, Some(edge_copy_nums_true[i]));
         }
+    }
+    #[test]
+    fn flow_intersection_one() {
+        let in_nodes = vec![
+            FlowIntersectionNode::new(ni(10), 1),
+            FlowIntersectionNode::new(ni(11), 1),
+        ];
+        let out_nodes = vec![
+            FlowIntersectionNode::new(ni(13), 1),
+            FlowIntersectionNode::new(ni(14), 1),
+        ];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(20), 0.9, None),
+            FlowIntersectionEdge::new(ei(21), 0.0, None),
+            FlowIntersectionEdge::new(ei(22), 0.0, None),
+            FlowIntersectionEdge::new(ei(23), 1.1, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        let fi_opt = fi.optimize();
+        println!("{}", fi_opt);
+        assert_eq!(
+            fi_opt.to_edge_copy_nums(),
+            vec![Some(1), Some(0), Some(0), Some(1)]
+        );
+
+        let in_nodes = vec![
+            FlowIntersectionNode::new(ni(10), 1),
+            FlowIntersectionNode::new(ni(11), 1),
+        ];
+        let out_nodes = vec![
+            FlowIntersectionNode::new(ni(13), 1),
+            FlowIntersectionNode::new(ni(14), 1),
+        ];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(20), 0.1, None),
+            FlowIntersectionEdge::new(ei(21), 1.1, None),
+            FlowIntersectionEdge::new(ei(22), 0.5, None),
+            FlowIntersectionEdge::new(ei(23), 0.5, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        let fi_opt = fi.optimize();
+        println!("{}", fi_opt);
+        assert_eq!(
+            fi_opt.to_edge_copy_nums(),
+            vec![Some(0), Some(1), Some(1), Some(0)]
+        );
     }
 }
