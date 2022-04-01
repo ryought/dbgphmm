@@ -16,6 +16,7 @@ use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::min_cost_flow_convex_fast;
 use crate::min_flow::utils::clamped_log;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -212,7 +213,15 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// ## TODOs
     /// * what is the return type?
     pub fn optimize(&self) {
-        unimplemented!();
+        let flow_graph = self.to_flow_graph();
+        match min_cost_flow_convex_fast(&flow_graph) {
+            Some(flow) => {
+                println!("flow_found = {}", flow);
+            }
+            None => {
+                println!("flow notfound");
+            }
+        }
     }
     ///
     /// Convert FlowIntersection into DiGraph
@@ -306,13 +315,15 @@ mod tests {
         ];
         let edges = vec![
             FlowIntersectionEdge::new(ei(0), 5.1),
-            FlowIntersectionEdge::new(ei(1), 5.1),
-            FlowIntersectionEdge::new(ei(2), 5.1),
-            FlowIntersectionEdge::new(ei(3), 5.1),
+            FlowIntersectionEdge::new(ei(1), 5.0),
+            FlowIntersectionEdge::new(ei(2), 4.9),
+            FlowIntersectionEdge::new(ei(3), 4.8),
         ];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
         println!("{}", fi);
         let g = fi.to_flow_graph();
         println!("{:?}", Dot::with_config(&g, &[]));
+
+        fi.optimize();
     }
 }
