@@ -73,16 +73,22 @@ impl<I, N, E> Bipartite<I, N, E> {
     ///
     /// Get an edge between in_node and out_node, specified by two indexs.
     ///
+    pub fn edge(&self, index_in: usize, index_out: usize) -> &E {
+        let i = self.edge_index(index_in, index_out);
+        &self.edges[i]
+    }
+    /// Get an index of an edge, by (i: index of in-node, j: index of out-node).
+    ///
     /// ## Implementation details
     ///
     /// For example, in the case of `n_in=2, n_out=3`,
     /// the edges are stored as `[a00, a01, a02, a10, a11, a12]`
     /// (first index is `in` and the last index is `out`).
     ///
-    pub fn edge(&self, index_in: usize, index_out: usize) -> &E {
+    pub fn edge_index(&self, index_in: usize, index_out: usize) -> usize {
         assert!(index_in < self.n_in());
         assert!(index_out < self.n_out());
-        &self.edges[index_in * self.n_out() + index_out]
+        index_in * self.n_out() + index_out
     }
     pub fn iter_in_nodes(&self) -> impl Iterator<Item = &N> + '_ {
         self.in_nodes.iter()

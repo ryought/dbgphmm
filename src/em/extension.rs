@@ -188,7 +188,11 @@ pub enum IntersectionGraphEdge {
     /// Spanning edge between v and w (left/right nodes in bipartite)
     ///
     /// demand=0, capacity=inf, cost=-freq*log(flow)
-    Spanning { freq: Freq, edge_index: EdgeIndex },
+    Spanning {
+        freq: Freq,
+        edge_index: EdgeIndex,
+        edge_index_in_intersection: usize,
+    },
 }
 
 impl FlowEdge for IntersectionGraphEdge {
@@ -216,19 +220,37 @@ impl ConvexCost for IntersectionGraphEdge {
 }
 
 impl<K: KmerLike> FlowIntersection<K> {
+    ///
     /// Get optimized copy numbers of edges.
     /// by converting the bipartite into flow network definitions
     ///
-    /// ## TODOs
-    /// * what is the return type?
-    pub fn optimize(&self) {
+    pub fn optimize(&self) -> FlowIntersection<K> {
         let flow_graph = self.to_flow_graph();
         match min_cost_flow_convex_fast(&flow_graph) {
             Some(flow) => {
                 println!("flow_found = {}", flow);
+                let mut opt = self.clone();
+
+                for e in flow_graph.edge_indices() {
+                    let ew = flow_graph.edge_weight(e).unwrap();
+                    match ew {
+                        IntersectionGraphEdge::Spanning {
+                            freq,
+                            edge_index,
+                            edge_index_in_intersection,
+                        } => {
+                            // modify copy_num in FlowIntersectionEdge by optimized one
+                            let copy_num = flow[e];
+                            opt.bi.edges[*edge_index_in_intersection].copy_num = Some(copy_num);
+                        }
+                        _ => {}
+                    };
+                }
+                opt
             }
             None => {
                 println!("flow notfound");
+                self.clone()
             }
         }
     }
@@ -281,12 +303,14 @@ impl<K: KmerLike> FlowIntersection<K> {
         for i in 0..self.bi.n_in() {
             for j in 0..self.bi.n_out() {
                 let e = self.bi.edge(i, j);
+                let ei = self.bi.edge_index(i, j);
                 g.add_edge(
                     vs[i],
                     ws[j],
                     IntersectionGraphEdge::Spanning {
                         freq: e.freq,
                         edge_index: e.index,
+                        edge_index_in_intersection: ei,
                     },
                 );
             }
@@ -315,24 +339,25 @@ mod tests {
     #[test]
     fn flow_intersection_construction() {
         let in_nodes = vec![
-            FlowIntersectionNode::new(ni(0), 2),
-            FlowIntersectionNode::new(ni(1), 4),
+            FlowIntersectionNode::new(ni(10), 2),
+            FlowIntersectionNode::new(ni(11), 4),
         ];
         let out_nodes = vec![
-            FlowIntersectionNode::new(ni(3), 1),
-            FlowIntersectionNode::new(ni(4), 5),
+            FlowIntersectionNode::new(ni(13), 1),
+            FlowIntersectionNode::new(ni(14), 5),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 5.1, None),
-            FlowIntersectionEdge::new(ei(1), 5.0, None),
-            FlowIntersectionEdge::new(ei(2), 4.9, None),
-            FlowIntersectionEdge::new(ei(3), 4.8, None),
+            FlowIntersectionEdge::new(ei(20), 5.1, None),
+            FlowIntersectionEdge::new(ei(21), 5.0, None),
+            FlowIntersectionEdge::new(ei(22), 4.9, None),
+            FlowIntersectionEdge::new(ei(23), 4.8, None),
         ];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
         println!("{}", fi);
         let g = fi.to_flow_graph();
         println!("{:?}", Dot::with_config(&g, &[]));
 
-        fi.optimize();
+        let fi_opt = fi.optimize();
+        println!("{}", fi_opt);
     }
 }

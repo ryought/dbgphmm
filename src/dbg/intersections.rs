@@ -100,6 +100,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             current_node: 0,
         }
     }
+    /// WIP
+    ///
+    /// get an iterator over intersections (k-1-mer)
+    /// **with flow and copy_nums information**
+    ///
+    pub fn iter_augmented_intersections(&self) -> Intersections<N::Kmer> {
+        Intersections {
+            edbg: self.to_edbg(),
+            current_node: 0,
+        }
+    }
 }
 
 //
