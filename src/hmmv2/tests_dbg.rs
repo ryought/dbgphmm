@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::{ei, ni};
+    use crate::common::{ei, ni, Reads};
     use crate::dbg::mocks::*;
-    use crate::hmmv2::freq::Reads;
     use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::hmmv2::params::PHMMParams;
     use crate::io::cytoscape::NodeAttrVec;

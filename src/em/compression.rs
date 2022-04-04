@@ -97,7 +97,6 @@ fn compression_m_step<N: DbgNode, E: DbgEdge>(
 mod tests {
     use super::*;
     use crate::dbg::mocks::*;
-    use crate::hmmv2::freq::Reads;
 
     #[test]
     fn compression_m_step_dbg() {
