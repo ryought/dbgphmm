@@ -9,9 +9,9 @@
 //!
 //! Solve min-flow and determine node copy number.
 //!
-use crate::common::Freq;
+use crate::common::{Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::hmmv2::freq::{NodeFreqs, Reads};
+use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
 

@@ -7,9 +7,8 @@
 //! ## M-step
 //!
 //!
-use crate::common::{CopyNum, Freq};
+use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
-use crate::hmmv2::freq::Reads;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;

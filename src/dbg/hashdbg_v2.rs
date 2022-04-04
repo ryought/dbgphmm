@@ -1,8 +1,7 @@
 //!
 //! HashDbg
 //!
-use crate::common::CopyNum;
-use crate::hmmv2::freq::Reads;
+use crate::common::{CopyNum, Reads};
 use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;

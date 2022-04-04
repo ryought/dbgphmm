@@ -1,9 +1,9 @@
+use dbgphmm::common::Reads;
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::impls::SimpleDbg;
 use dbgphmm::dbg::mocks::{mock_intersection, mock_random, mock_simple};
 use dbgphmm::graph::mocks::mock_crossing;
 use dbgphmm::graph::seq_graph::SeqGraph;
-use dbgphmm::hmmv2::freq::Reads;
 use dbgphmm::hmmv2::mocks::mock_linear_random_phmm;
 use dbgphmm::hmmv2::params::PHMMParams;
 use dbgphmm::io::cytoscape::NodeAttrVec;
