@@ -8,6 +8,7 @@ pub use hashdbg::{DbgHash, DBG};
 pub mod edge_centric;
 pub mod impls;
 pub use impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
+pub mod flow_intersections;
 pub mod intersections;
 pub mod mocks;
 pub mod output;

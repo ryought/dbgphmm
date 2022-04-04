@@ -184,6 +184,11 @@ impl<K: KmerLike> FlowIntersection<K> {
 
         g
     }
+    /// (For debug)
+    /// convert into copy numbers list
+    ///
+    /// TODO convert `Vec<Option<T>>` into `Option<Vec<T>>`.
+    ///
     fn to_edge_copy_nums(&self) -> Vec<Option<CopyNum>> {
         self.bi.edges.iter().map(|e| e.copy_num).collect()
     }

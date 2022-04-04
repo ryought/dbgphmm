@@ -1,5 +1,7 @@
 //!
-//! Extension
+//! **Extension**
+//!
+//! convert k-dbg into k+1-dbg.
 //!
 //! ## E-step
 //!
@@ -13,9 +15,9 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-mod flow_intersection;
+pub mod flow_intersection;
 use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
-mod intersection_graph;
+pub mod intersection_graph;
 
 ///
 /// Extension algorithm
@@ -37,6 +39,8 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
 ) -> Dbg<N, E> {
+    // (1) infer edge freqs
+    // (2) infer the best copy nums
     unimplemented!();
 }
 
