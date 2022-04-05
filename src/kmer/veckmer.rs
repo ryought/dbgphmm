@@ -14,6 +14,9 @@ impl NullableKmer for VecKmer {
     fn is_null(&self) -> bool {
         self.0.iter().all(|&x| x == b'N')
     }
+    fn has_null(&self) -> bool {
+        self.0.iter().any(|&x| x == b'N')
+    }
 }
 
 impl KmerLike for VecKmer {
