@@ -4,12 +4,11 @@
 //! 1. generate genome
 //! 2. generate reads from linear graph
 //!
-use crate::common::{sequence_to_string, Sequence};
+use crate::common::{sequence_to_string, Reads, Sequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::em::compression::compression;
 use crate::graph::genome_graph::GenomeGraph;
 use crate::graph::seq_graph::SeqGraph;
-use crate::hmmv2::freq::Reads;
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::VecKmer;
 use crate::random_seq::generate;
@@ -47,6 +46,6 @@ mod tests {
         println!("{}", dbg);
 
         // (3) do the inference.
-        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), depth);
+        // let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), depth);
     }
 }

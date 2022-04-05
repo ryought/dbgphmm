@@ -20,7 +20,7 @@ use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
-use crate::common::{Freq, Sequence};
+use crate::common::{Freq, Reads, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -41,13 +41,6 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         // TODO check forward is created by phmm.forward()
         PHMMOutput { forward, backward }
     }
-}
-
-/// Struct for storing multiple emissions, reads.
-///
-#[derive(Debug, Clone)]
-pub struct Reads {
-    pub reads: Vec<Sequence>,
 }
 
 ///

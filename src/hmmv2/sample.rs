@@ -6,8 +6,7 @@
 //! * create a special struct for storeing the sampling result instead of `Vec<(State, Emission)>`
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::freq::Reads;
-use crate::common::Sequence;
+use crate::common::{Reads, Sequence};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};

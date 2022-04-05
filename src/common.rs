@@ -18,6 +18,13 @@ pub fn sequence_to_string(seq: &Sequence) -> &str {
     std::str::from_utf8(seq).unwrap()
 }
 
+/// Struct for storing multiple emissions, reads.
+///
+#[derive(Debug, Clone)]
+pub struct Reads {
+    pub reads: Vec<Sequence>,
+}
+
 ///
 /// short-hand of `NodeIndex::new`
 ///

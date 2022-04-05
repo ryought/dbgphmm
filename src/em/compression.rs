@@ -9,9 +9,9 @@
 //!
 //! Solve min-flow and determine node copy number.
 //!
-use crate::common::Freq;
+use crate::common::{Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::hmmv2::freq::{NodeFreqs, Reads};
+use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
 
@@ -97,7 +97,6 @@ fn compression_m_step<N: DbgNode, E: DbgEdge>(
 mod tests {
     use super::*;
     use crate::dbg::mocks::*;
-    use crate::hmmv2::freq::Reads;
 
     #[test]
     fn compression_m_step_dbg() {

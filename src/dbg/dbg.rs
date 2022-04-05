@@ -129,18 +129,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// NodeIndex(s) of heads/tails
     ///
     pub fn tips(&self) -> Intersection<N::Kmer> {
-        let mut tips = Intersection::empty(N::Kmer::null_kmer(self.k()));
+        let mut in_nodes = Vec::new();
+        let mut out_nodes = Vec::new();
+
         for (node, weight) in self.nodes() {
             // ANNN
             if weight.kmer().is_tail() {
-                tips.in_nodes.push(node);
+                in_nodes.push(node);
             }
             // NNNA
             if weight.kmer().is_head() {
-                tips.out_nodes.push(node);
+                out_nodes.push(node);
             }
         }
-        tips
+
+        Intersection::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {
@@ -570,9 +573,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // intersections
         let tips = self.tips();
         let in_nodes: Vec<NodeIndex> = tips
-            .in_nodes
-            .iter()
-            .map(|&v| {
+            .iter_in_nodes()
+            .map(|v| {
                 // add a node of in_node
                 graph.add_node(N::new(
                     self.node(v).kmer().extend_tail(),
@@ -581,9 +583,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .collect();
         let out_nodes: Vec<NodeIndex> = tips
-            .out_nodes
-            .iter()
-            .map(|&v| {
+            .iter_out_nodes()
+            .map(|v| {
                 // add a node of out_node
                 graph.add_node(N::new(
                     self.node(v).kmer().extend_head(),
@@ -596,7 +597,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a in_edges of tail nodes
-        for (&v, &w) in izip!(tips.in_nodes.iter(), in_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_in_nodes(), in_nodes.iter()) {
             for (e, _, _) in self.parents(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w2: parent(YXNN) -> w: tail(XNNN)
@@ -605,7 +606,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a out_edges of head nodes
-        for (&v, &w) in izip!(tips.out_nodes.iter(), out_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_out_nodes(), out_nodes.iter()) {
             for (e, _, _) in self.childs(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w: head(NNNX) -> w2: child(NNXY)
@@ -765,24 +766,24 @@ mod tests {
         let tips = dbg.tips();
         println!("{}", dbg);
         println!("{}", tips);
-        assert_eq!(tips.in_nodes.len(), 1);
-        assert_eq!(tips.in_nodes[0], ni(6));
-        assert_eq!(tips.out_nodes.len(), 1);
-        assert_eq!(tips.out_nodes[0], ni(7));
-        assert!(tips.km1mer.is_null());
+        assert_eq!(tips.n_in_nodes(), 1);
+        assert_eq!(tips.in_node(0), ni(6));
+        assert_eq!(tips.n_out_nodes(), 1);
+        assert_eq!(tips.out_node(0), ni(7));
+        assert!(tips.km1mer().is_null());
 
         // intersection
         let dbg = mock_intersection();
         let tips = dbg.tips();
         println!("{}", dbg);
         println!("{}", tips);
-        assert_eq!(tips.in_nodes.len(), 2);
-        assert_eq!(tips.in_nodes[0], ni(3));
-        assert_eq!(tips.in_nodes[1], ni(7));
-        assert_eq!(tips.out_nodes.len(), 2);
-        assert_eq!(tips.out_nodes[0], ni(8));
-        assert_eq!(tips.out_nodes[1], ni(14));
-        assert!(tips.km1mer.is_null());
+        assert_eq!(tips.n_in_nodes(), 2);
+        assert_eq!(tips.in_node(0), ni(3));
+        assert_eq!(tips.in_node(1), ni(7));
+        assert_eq!(tips.n_out_nodes(), 2);
+        assert_eq!(tips.out_node(0), ni(8));
+        assert_eq!(tips.out_node(1), ni(14));
+        assert!(tips.km1mer().is_null());
     }
     #[test]
     fn dbg_extension() {

@@ -12,15 +12,20 @@
 //!
 use crate::common::CopyNum;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
 pub mod impls;
 pub mod output;
 use super::intersections::Intersection;
+use crate::em::extension::flow_intersection::{
+    FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode,
+};
 pub use impls::{
     SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
 };
+use itertools::iproduct;
 
 ///
 /// (Edge-centric) De bruijn graph struct
@@ -127,11 +132,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
             .map(|e| e.weight().origin_node())
             .collect();
 
-        Intersection {
-            km1mer: node_weight.km1mer().clone(),
-            in_nodes,
-            out_nodes,
-        }
+        Intersection::new(node_weight.km1mer().clone(), in_nodes, out_nodes)
     }
 }
 
