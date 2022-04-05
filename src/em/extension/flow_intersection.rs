@@ -8,6 +8,14 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::min_cost_flow_convex_fast;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
+pub type FlowIntersectionV2<K> = Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>;
+
+impl<K: KmerLike> FlowIntersectionV2<K> {
+    pub fn hoge(&self) {
+        println!("hoge");
+    }
+}
+
 /// Node info
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlowIntersectionNode {
