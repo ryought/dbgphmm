@@ -9,7 +9,7 @@ use crate::min_flow::min_cost_flow_convex_fast;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Node info
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FlowIntersectionNode {
     pub index: NodeIndex,
     pub copy_num: CopyNum,
@@ -29,7 +29,7 @@ impl std::fmt::Display for FlowIntersectionNode {
 }
 
 /// Edge between in-node and out-node
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FlowIntersectionEdge {
     pub index: EdgeIndex,
     pub freq: Freq,
@@ -85,7 +85,70 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
 }
 
+///
+/// Property getters
+///
 impl<K: KmerLike> FlowIntersection<K> {
+    pub fn n_in_nodes(&self) -> usize {
+        self.bi.n_in()
+    }
+    pub fn n_out_nodes(&self) -> usize {
+        self.bi.n_out()
+    }
+}
+
+///
+/// Upconvert related
+///
+impl<K: KmerLike> FlowIntersection<K> {
+    ///
+    /// sum of copynums of in_nodes/out_nodes are the same?
+    ///
+    pub fn has_valid_node_copy_nums(&self) -> bool {
+        let sum_in_nodes: usize = self.bi.iter_in_nodes().map(|n| n.copy_num).sum();
+        let sum_out_nodes: usize = self.bi.iter_out_nodes().map(|n| n.copy_num).sum();
+        sum_in_nodes == sum_out_nodes
+    }
+    fn can_uniquely_convertable(&self) -> bool {
+        self.n_in_nodes() == 1 || self.n_out_nodes() == 1
+    }
+    fn all_edges_has_copy_num(&self) -> bool {
+        self.bi.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
+    }
+    /// Do appropriate conversion.
+    /// * if uniquly convertable, do a simple conversion
+    /// * otherwise, do a optimize conversion using min flow.
+    pub fn convert(&self) -> FlowIntersection<K> {
+        if self.can_uniquely_convertable() {
+            self.unique_convert()
+        } else {
+            self.optimize()
+        }
+    }
+    /// Get copy-number-resolved FlowIntersection by applying unique (obvious)
+    /// conversion.
+    ///
+    /// If `n_in == 1 or n_out == 1`, a copy number of each edge `in -> out`
+    /// should have the same copy number of in/out.
+    ///
+    pub fn unique_convert(&self) -> FlowIntersection<K> {
+        assert!(self.can_uniquely_convertable());
+        let mut opt = self.clone();
+
+        if self.n_in_nodes() == 1 {
+            for i in 0..self.n_out_nodes() {
+                opt.bi.edges[i].copy_num = Some(opt.bi.out_node(i).copy_num);
+            }
+        } else if self.n_out_nodes() == 1 {
+            for i in 0..self.n_in_nodes() {
+                opt.bi.edges[i].copy_num = Some(opt.bi.in_node(i).copy_num);
+            }
+        }
+
+        // check if all edges have its copy num
+        assert!(opt.all_edges_has_copy_num());
+        opt
+    }
     ///
     /// Get optimized copy numbers of edges.
     /// by converting the bipartite into flow network definitions
@@ -288,5 +351,71 @@ mod tests {
             fi_opt.to_edge_copy_nums(),
             vec![Some(0), Some(1), Some(1), Some(0)]
         );
+    }
+    #[test]
+    fn flow_intersection_convert_unique() {
+        // (0)
+        let in_nodes = vec![FlowIntersectionNode::new(ni(0), 5)];
+        let out_nodes = vec![FlowIntersectionNode::new(ni(1), 2)];
+        let edges = vec![FlowIntersectionEdge::new(ei(0), 0.9, None)];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        assert!(!fi.has_valid_node_copy_nums());
+
+        // (1) obviously converable case (n_in = 1)
+        let in_nodes = vec![FlowIntersectionNode::new(ni(0), 5)];
+        let out_nodes = vec![
+            FlowIntersectionNode::new(ni(1), 2),
+            FlowIntersectionNode::new(ni(2), 3),
+        ];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(0), 0.9, None),
+            FlowIntersectionEdge::new(ei(1), 0.0, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        println!("{}", fi);
+        assert!(!fi.all_edges_has_copy_num());
+        assert!(fi.has_valid_node_copy_nums());
+        assert!(fi.can_uniquely_convertable());
+        let fio = fi.unique_convert();
+        println!("{}", fio);
+        assert_eq!(
+            fio.bi.edges,
+            vec![
+                FlowIntersectionEdge::new(ei(0), 0.9, Some(2)),
+                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+            ]
+        );
+        let fio2 = fi.convert();
+        assert_eq!(fio.bi.edges, fio2.bi.edges);
+
+        // (3) obviously converable case (n_out = 1)
+        let in_nodes = vec![
+            FlowIntersectionNode::new(ni(0), 5),
+            FlowIntersectionNode::new(ni(1), 3),
+        ];
+        let out_nodes = vec![FlowIntersectionNode::new(ni(2), 8)];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(0), 0.9, None),
+            FlowIntersectionEdge::new(ei(1), 0.0, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        println!("{}", fi);
+        assert!(!fi.all_edges_has_copy_num());
+        assert!(fi.has_valid_node_copy_nums());
+        assert!(fi.can_uniquely_convertable());
+        let fio = fi.unique_convert();
+        println!("{}", fio);
+        assert_eq!(
+            fio.bi.edges,
+            vec![
+                FlowIntersectionEdge::new(ei(0), 0.9, Some(5)),
+                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+            ]
+        );
+        let fio2 = fi.convert();
+        assert_eq!(fio.bi.edges, fio2.bi.edges);
     }
 }

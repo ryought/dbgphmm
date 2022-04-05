@@ -96,6 +96,9 @@ impl<I, N, E> Bipartite<I, N, E> {
     pub fn iter_out_nodes(&self) -> impl Iterator<Item = &N> + '_ {
         self.out_nodes.iter()
     }
+    pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize, &E)> + '_ {
+        iproduct!(0..self.n_in(), 0..self.n_out()).map(move |(i, j)| (i, j, self.edge(i, j)))
+    }
 }
 
 impl<I, N, E> std::fmt::Display for Bipartite<I, N, E>
