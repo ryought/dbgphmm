@@ -78,5 +78,20 @@ fn extension_m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     edge_freqs: &EdgeFreqs,
 ) -> EdgeCopyNums {
-    unimplemented!();
+    let default_value = 0;
+    let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
+    for fi in dbg.iter_flow_intersections(edge_freqs) {
+        let fio = fi.convert();
+
+        // check if there is no inconsistent edge copy numbers.
+        assert!(fio.has_valid_node_copy_nums());
+        assert!(fio.all_edges_has_copy_num());
+
+        // store fio's edge copy number information into ecn vector.
+        for (_, _, e) in fio.bi.iter_edges() {
+            assert!(ecn[e.index] == default_value);
+            ecn[e.index] = e.copy_num.unwrap();
+        }
+    }
+    ecn
 }

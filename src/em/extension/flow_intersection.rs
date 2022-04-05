@@ -112,7 +112,7 @@ impl<K: KmerLike> FlowIntersection<K> {
     fn can_uniquely_convertable(&self) -> bool {
         self.n_in_nodes() == 1 || self.n_out_nodes() == 1
     }
-    fn all_edges_has_copy_num(&self) -> bool {
+    pub fn all_edges_has_copy_num(&self) -> bool {
         self.bi.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
     }
     /// Do appropriate conversion.
