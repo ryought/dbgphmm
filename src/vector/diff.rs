@@ -7,6 +7,27 @@ use itertools::{chain, izip, Itertools};
 
 impl<S, Ix> Vector<S, Ix>
 where
+    S: Storage<Item = f64>,
+    Ix: Indexable,
+{
+    ///
+    /// diff of two vectors whose element is f64.
+    ///
+    pub fn diff_f64<T>(&self, other: &Vector<T, Ix>) -> f64
+    where
+        T: Storage<Item = f64>,
+    {
+        assert_eq!(self.len(), other.len());
+        let mut diff = 0f64;
+        for i in 0..self.len() {
+            diff += (self[Ix::new(i)] - other[Ix::new(i)]).abs();
+        }
+        diff
+    }
+}
+
+impl<S, Ix> Vector<S, Ix>
+where
     S: Storage<Item = Prob>,
     Ix: Indexable,
 {
