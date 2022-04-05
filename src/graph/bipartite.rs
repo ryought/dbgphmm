@@ -107,10 +107,10 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "id\t{}\n", self.id)?;
         for i in 0..self.n_in() {
-            write!(f, "in\t{}\t{}\n", i, self.in_node(i))?;
+            write!(f, "in{}\t{}\n", i, self.in_node(i))?;
         }
         for j in 0..self.n_out() {
-            write!(f, "out\t{}\t{}\n", j, self.out_node(j))?;
+            write!(f, "out{}\t{}\n", j, self.out_node(j))?;
         }
         for (i, j) in iproduct!(0..self.n_in(), 0..self.n_out()) {
             write!(f, "in{}\tout{}\t{}\n", i, j, self.edge(i, j))?;

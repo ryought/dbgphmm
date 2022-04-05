@@ -196,7 +196,7 @@ impl<K: KmerLike> FlowIntersection<K> {
 
 impl<K: KmerLike> std::fmt::Display for FlowIntersection<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.bi)
+        write!(f, "FlowIntersection\n{}", self.bi)
     }
 }
 

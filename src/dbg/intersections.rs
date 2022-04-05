@@ -1,7 +1,12 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use super::edge_centric::SimpleEDbg;
+use crate::em::extension::flow_intersection::{
+    FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode,
+};
 use crate::graph::Bipartite;
+use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
+use itertools::iproduct;
 use petgraph::graph::NodeIndex;
 
 ///
@@ -45,6 +50,34 @@ impl<K: KmerLike> Intersection<K> {
     }
     pub fn n_out_nodes(&self) -> usize {
         self.bi.n_out()
+    }
+}
+
+impl<K: KmerLike> Intersection<K> {
+    /// convert a (simple) intersection into the augumented intersection
+    /// with flow and freq information.
+    pub fn to_flow_intersection<N, E>(
+        &self,
+        dbg: &Dbg<N, E>,
+        freqs: &EdgeFreqs,
+    ) -> FlowIntersection<K>
+    where
+        N: DbgNode,
+        E: DbgEdge,
+    {
+        let in_nodes: Vec<FlowIntersectionNode> = self
+            .iter_in_nodes()
+            .map(|v| FlowIntersectionNode::new(v, dbg.node(v).copy_num()))
+            .collect();
+        let out_nodes: Vec<FlowIntersectionNode> = self
+            .iter_out_nodes()
+            .map(|v| FlowIntersectionNode::new(v, dbg.node(v).copy_num()))
+            .collect();
+        let edges: Vec<FlowIntersectionEdge> = iproduct!(in_nodes.iter(), out_nodes.iter())
+            .map(|(in_node, out_node)| dbg.find_edge(in_node.index, out_node.index).unwrap())
+            .map(|e| FlowIntersectionEdge::new(e, freqs[e], dbg.edge(e).copy_num()))
+            .collect();
+        FlowIntersection::new(self.km1mer().clone(), in_nodes, out_nodes, edges)
     }
 }
 
@@ -162,6 +195,27 @@ mod tests {
                 assert_eq!(&dbg.node(out_node).kmer().prefix(), i.km1mer());
             }
             println!("{}", i);
+        }
+    }
+    #[test]
+    fn dbg_flow_intersections_simple() {
+        let dbg = mock_base();
+        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
+        println!("{}", dbg);
+        println!("{}", freqs);
+        for i in dbg.iter_intersections() {
+            println!("{}", i);
+            let fi = i.to_flow_intersection(&dbg, &freqs);
+            println!("{}", fi);
+
+            for (i, j) in iproduct!(0..fi.bi.n_in(), 0..fi.bi.n_out()) {
+                let v = fi.bi.in_node(i);
+                let w = fi.bi.out_node(j);
+                let vw = fi.bi.edge(i, j);
+                assert!(dbg.contains_edge(v.index, w.index));
+                let e = dbg.find_edge(v.index, w.index).unwrap();
+                assert_eq!(freqs[e], vw.freq);
+            }
         }
     }
 }
