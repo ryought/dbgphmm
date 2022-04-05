@@ -81,7 +81,10 @@ fn extension_m_step<N: DbgNode, E: DbgEdge>(
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
     for fi in dbg.iter_flow_intersections(edge_freqs) {
+        // get an optimized flow intersection
         let fio = fi.convert();
+
+        println!("extension iter m {} {}", fi, fio);
 
         // check if there is no inconsistent edge copy numbers.
         assert!(fio.has_valid_node_copy_nums());
@@ -94,4 +97,69 @@ fn extension_m_step<N: DbgNode, E: DbgEdge>(
         }
     }
     ecn
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dbg::mocks::{mock_base, mock_intersection};
+    use crate::hmmv2::trans_table::EdgeFreqs;
+
+    #[test]
+    fn em_extension_m_mock_base() {
+        let dbg = mock_base();
+        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
+        println!("{}", dbg);
+        println!("{}", freqs);
+        let copy_nums = extension_m_step(&dbg, &freqs);
+        println!("{}", copy_nums);
+        assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn em_extension_e_mock_intersection() {
+        let dbg = mock_intersection();
+        let read = b"AACTAGCTT";
+        let reads = Reads {
+            reads: vec![read.to_vec()],
+        };
+        println!("{}", dbg);
+        let params = PHMMParams::default();
+
+        let freqs = extension_e_step(&dbg, &reads, &params);
+        let freqs_true = EdgeFreqs::from_slice(
+            &[
+                0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+            ],
+            0.0,
+        );
+        println!("{}", freqs);
+        println!("{}", freqs.diff_f64(&freqs_true));
+        assert!(freqs.diff_f64(&freqs_true) < 0.05);
+
+        // TODO allow fragmented seq in to_copy_nums_of_seq
+        let (_, ecn_true) = dbg.to_copy_nums_of_seq(read).unwrap();
+        println!("{}", ecn_true);
+    }
+
+    #[test]
+    fn em_extension_m_mock_intersection() {
+        let dbg = mock_intersection();
+        println!("{}", dbg);
+        let freqs = EdgeFreqs::from_slice(
+            &[
+                0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+            ],
+            0.0,
+        );
+        let copy_nums = extension_m_step(&dbg, &freqs);
+        println!("{}", copy_nums);
+        // assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    }
 }

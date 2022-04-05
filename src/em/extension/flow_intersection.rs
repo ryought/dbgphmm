@@ -109,7 +109,7 @@ impl<K: KmerLike> FlowIntersection<K> {
         let sum_out_nodes: usize = self.bi.iter_out_nodes().map(|n| n.copy_num).sum();
         sum_in_nodes == sum_out_nodes
     }
-    fn can_uniquely_convertable(&self) -> bool {
+    pub fn can_uniquely_convertable(&self) -> bool {
         self.n_in_nodes() == 1 || self.n_out_nodes() == 1
     }
     pub fn all_edges_has_copy_num(&self) -> bool {
@@ -154,6 +154,7 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// by converting the bipartite into flow network definitions
     ///
     pub fn optimize(&self) -> FlowIntersection<K> {
+        println!("optimizing: {}", self);
         let flow_graph = self.to_flow_graph();
         match min_cost_flow_convex_fast(&flow_graph) {
             Some(flow) => {
@@ -176,6 +177,7 @@ impl<K: KmerLike> FlowIntersection<K> {
                     };
                 }
                 assert!(opt.all_edges_has_copy_num());
+                println!("optimized: {}", opt);
                 opt
             }
             None => {
