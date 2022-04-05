@@ -133,16 +133,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             current_node: 0,
         }
     }
-    /// WIP
     ///
     /// get an iterator over intersections (k-1-mer)
     /// **with flow and copy_nums information**
     ///
-    pub fn iter_augmented_intersections(&self) -> Intersections<N::Kmer> {
-        Intersections {
-            edbg: self.to_edbg(),
-            current_node: 0,
-        }
+    pub fn iter_flow_intersections<'a>(
+        &'a self,
+        freqs: &'a EdgeFreqs,
+    ) -> impl Iterator<Item = FlowIntersection<N::Kmer>> + 'a {
+        self.iter_intersections()
+            .map(move |i| i.to_flow_intersection(self, freqs))
     }
 }
 
@@ -216,6 +216,16 @@ mod tests {
                 let e = dbg.find_edge(v.index, w.index).unwrap();
                 assert_eq!(freqs[e], vw.freq);
             }
+        }
+    }
+    #[test]
+    fn dbg_flow_intersections_simple_iter() {
+        let dbg = mock_base();
+        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
+        println!("{}", dbg);
+        println!("{}", freqs);
+        for fi in dbg.iter_flow_intersections(&freqs) {
+            println!("{}", fi);
         }
     }
 }
