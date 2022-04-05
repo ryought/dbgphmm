@@ -76,6 +76,15 @@ impl std::fmt::Display for Emission {
     }
 }
 
+/// Specs for read sampling
+///
+#[derive(Clone, Debug)]
+pub struct SampleProfile {
+    pub n_reads: usize,
+    pub seed: u64,
+    pub length: usize,
+}
+
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Generate a one-shot sequence of Emission and Hidden states
@@ -112,10 +121,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Generate reads from sampling.
     ///
-    pub fn sample_reads(&self, length: usize, seed: u64, n_reads: usize) -> Reads {
-        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        let reads = (0..n_reads)
-            .map(|_| self.sample_rng_full_length(&mut rng, length, NodeIndex::new(0)))
+    pub fn sample_reads(&self, profile: &SampleProfile) -> Reads {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
+        let reads = (0..profile.n_reads)
+            .map(|_| self.sample_rng_full_length(&mut rng, profile.length, NodeIndex::new(0)))
             .map(|history| history.to_sequence())
             .collect();
         Reads { reads }

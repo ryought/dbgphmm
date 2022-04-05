@@ -4,13 +4,24 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, Sequence};
+use crate::common::{CopyNum, Reads, Sequence};
+use crate::graph::seq_graph::SeqGraph;
+use crate::hmmv2::params::PHMMParams;
+use crate::hmmv2::sample::SampleProfile;
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::visit::IntoNodeReferences;
 use std::collections::HashMap;
+
+/// Read sampling profile
+///
+#[derive(Clone, Debug)]
+pub struct ReadProfile {
+    pub sample_profile: SampleProfile,
+    pub phmm_params: PHMMParams,
+}
 
 /// GenomeGraph
 pub struct GenomeGraph(pub DiGraph<GenomeNode, GenomeEdge>);
@@ -139,6 +150,14 @@ impl GenomeGraph {
         }
 
         graph
+    }
+    /// Sample reads from the genome graph.
+    pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
+        // convert to phmm
+        let phmm = self.to_seq_graph().to_phmm(prof.phmm_params.clone());
+
+        // sample reads using profile
+        phmm.sample_reads(&prof.sample_profile)
     }
 }
 
