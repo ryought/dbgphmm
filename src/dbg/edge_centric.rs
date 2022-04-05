@@ -134,45 +134,6 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
 
         Intersection::new(node_weight.km1mer().clone(), in_nodes, out_nodes)
     }
-    /// convert a node into an intersection information
-    pub fn flow_intersection(
-        &self,
-        node: NodeIndex,
-        freqs: &EdgeFreqs,
-    ) -> FlowIntersection<N::Kmer> {
-        let node_weight = self
-            .graph
-            .node_weight(node)
-            .expect("node is not in the graph");
-
-        // list of in/out node indexes
-        let in_nodes: Vec<FlowIntersectionNode> = self
-            .graph
-            .edges_directed(node, Direction::Incoming)
-            .map(|e| FlowIntersectionNode::new(e.weight().origin_node(), e.weight().copy_num()))
-            .collect();
-        let out_nodes: Vec<FlowIntersectionNode> = self
-            .graph
-            .edges_directed(node, Direction::Outgoing)
-            .map(|e| FlowIntersectionNode::new(e.weight().origin_node(), e.weight().copy_num()))
-            .collect();
-
-        /*
-        // edges
-        let edges: Vec<FlowIntersectionEdge> = iproduct!(in_nodes.iter(), out_nodes.iter())
-            .map(|(in_node, out_node)| self.graph.find_edge(in_node.index, out_node.index).unwrap())
-            .map(|e| {
-                let ew = self.graph.edge_weight(e).unwrap();
-                // TODO
-                // edge centric should have original edge index
-                FlowIntersectionEdge::new(e)
-            })
-            .collect();
-
-        FlowIntersection::new(node_weight.km1mer().clone(), in_nodes, out_nodes, edges)
-        */
-        unimplemented!();
-    }
 }
 
 ///
