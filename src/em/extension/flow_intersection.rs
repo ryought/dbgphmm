@@ -175,11 +175,11 @@ impl<K: KmerLike> FlowIntersection<K> {
                         _ => {}
                     };
                 }
+                assert!(opt.all_edges_has_copy_num());
                 opt
             }
             None => {
-                println!("flow notfound");
-                self.clone()
+                panic!("flow not found");
             }
         }
     }
