@@ -260,7 +260,13 @@ impl SeqEdge for SimpleSeqEdge {
 
 impl std::fmt::Display for SimpleSeqNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} (x{})", self.base() as char, self.copy_num())
+        write!(
+            f,
+            "{} (x{}) (starting={})",
+            self.base() as char,
+            self.copy_num(),
+            self.is_start_point()
+        )
     }
 }
 

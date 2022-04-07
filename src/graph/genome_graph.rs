@@ -13,6 +13,7 @@ use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::visit::IntoNodeReferences;
+use petgraph::Direction;
 use std::collections::HashMap;
 
 /// Read sampling profile
@@ -100,6 +101,10 @@ impl GenomeGraph {
     pub fn edge_count(&self) -> usize {
         self.0.edge_count()
     }
+    /// if node has no incoming edge, it is a start point node
+    pub fn is_start_point_node(&self, node: NodeIndex) -> bool {
+        self.0.edges_directed(node, Direction::Incoming).count() == 0
+    }
     ///
     /// Convert `GenomeGraph` into `SimpleSeqGraph`
     /// split a node containing bases into multiple nodes corresponding each bases
@@ -115,12 +120,13 @@ impl GenomeGraph {
 
             // add a new node for each bases
             // TODO move this to seq_graph.rs?
+            let is_start_point_node = self.is_start_point_node(node);
             let nodes: Vec<NodeIndex> = seq
                 .iter()
-                .map(|&base| {
-                    graph.add_node(SimpleSeqNode::new(
-                        copy_num, base, false, // FIXME
-                    ))
+                .enumerate()
+                .map(|(i, &base)| {
+                    let is_start_point = is_start_point_node && (i == 0);
+                    graph.add_node(SimpleSeqNode::new(copy_num, base, is_start_point))
                 })
                 .collect();
 
@@ -183,6 +189,7 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 10);
         assert_eq!(sg.edge_count(), 9);
+        println!("{}", Dot::with_config(&sg, &[]));
     }
 
     #[test]
@@ -197,6 +204,7 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 12);
         assert_eq!(sg.edge_count(), 11);
+        println!("{}", Dot::with_config(&sg, &[]));
     }
 
     #[test]
@@ -208,6 +216,7 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 5);
         assert_eq!(sg.edge_count(), 5);
+        println!("{}", Dot::with_config(&sg, &[]));
     }
 
     #[test]
