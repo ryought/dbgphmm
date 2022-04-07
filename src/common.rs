@@ -25,6 +25,12 @@ pub struct Reads {
     pub reads: Vec<Sequence>,
 }
 
+impl Reads {
+    pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
+        self.reads.iter()
+    }
+}
+
 ///
 /// short-hand of `NodeIndex::new`
 ///

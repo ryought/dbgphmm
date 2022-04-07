@@ -185,7 +185,7 @@ impl GenomeGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ni;
+    use crate::common::{ni, sequence_to_string};
 
     #[test]
     fn genome_graph_linear() {
@@ -244,12 +244,16 @@ mod tests {
         let graph = GenomeGraph::from_seqs(&seqs);
         let reads = graph.sample_reads(&ReadProfile {
             sample_profile: SampleProfile {
-                n_reads: 1,
+                n_reads: 10,
                 seed: 0,
                 length: 1000,
-                start_points: StartPoints::Random,
+                // start_points: StartPoints::Random,
+                start_points: StartPoints::AllStartPoints,
             },
             phmm_params: PHMMParams::default(),
         });
+        for read in reads.iter() {
+            println!("{}", sequence_to_string(read));
+        }
     }
 }
