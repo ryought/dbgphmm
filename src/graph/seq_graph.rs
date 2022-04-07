@@ -213,11 +213,19 @@ pub type SimpleSeqGraph = DiGraph<SimpleSeqNode, SimpleSeqEdge>;
 pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
+    is_start_point: bool,
 }
 
 impl SimpleSeqNode {
-    pub fn new(copy_num: CopyNum, base: u8) -> SimpleSeqNode {
-        SimpleSeqNode { copy_num, base }
+    pub fn new(copy_num: CopyNum, base: u8, is_start_point: bool) -> SimpleSeqNode {
+        SimpleSeqNode {
+            copy_num,
+            base,
+            is_start_point,
+        }
+    }
+    pub fn is_start_point(&self) -> bool {
+        self.is_start_point
     }
 }
 

@@ -117,7 +117,11 @@ impl GenomeGraph {
             // TODO move this to seq_graph.rs?
             let nodes: Vec<NodeIndex> = seq
                 .iter()
-                .map(|&base| graph.add_node(SimpleSeqNode::new(copy_num, base)))
+                .map(|&base| {
+                    graph.add_node(SimpleSeqNode::new(
+                        copy_num, base, false, // FIXME
+                    ))
+                })
                 .collect();
 
             // add edges between adjacent two bases
@@ -156,6 +160,10 @@ impl GenomeGraph {
         // convert to phmm
         let phmm = self.to_seq_graph().to_phmm(prof.phmm_params.clone());
         println!("{}", phmm);
+
+        // determine automatically the starting node list
+        // as a vector of node index in seqgraph.
+        // and purge into prof.sample_profile.
 
         // sample reads using profile
         phmm.sample_by_profile(&prof.sample_profile).to_reads()
