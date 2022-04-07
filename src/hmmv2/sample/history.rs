@@ -70,7 +70,7 @@ impl History {
                 (Some(v1), Some(v2)) => {
                     // There can be self transition (such as Match(v) -> Ins(v))
                     if v1 != v2 {
-                        let e = phmm.edge(v1, v2).unwrap();
+                        let e = phmm.find_edge(v1, v2).unwrap();
                         ef[e] += 1.0;
                     }
                 }

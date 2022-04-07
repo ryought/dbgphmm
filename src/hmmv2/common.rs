@@ -135,7 +135,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Get an index of the edge from a to b.
     ///
-    pub fn edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
+    pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         self.graph.find_edge(a, b)
     }
     //
