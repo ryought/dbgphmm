@@ -155,15 +155,17 @@ impl GenomeGraph {
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
         // convert to phmm
         let phmm = self.to_seq_graph().to_phmm(prof.phmm_params.clone());
+        println!("{}", phmm);
 
         // sample reads using profile
-        phmm.sample_reads(&prof.sample_profile)
+        phmm.sample_by_profile(&prof.sample_profile).to_reads()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
 
     #[test]
     fn genome_graph_linear() {
@@ -206,5 +208,20 @@ mod tests {
         let gg = GenomeGraph::from_seqs(&seqs);
         assert_eq!(gg.node_count(), 2);
         assert_eq!(gg.edge_count(), 0);
+    }
+
+    #[test]
+    fn genome_graph_sampling() {
+        let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
+        let graph = GenomeGraph::from_seqs(&seqs);
+        let reads = graph.sample_reads(&ReadProfile {
+            sample_profile: SampleProfile {
+                n_reads: 1,
+                seed: 0,
+                length: 1000,
+                start_points: None,
+            },
+            phmm_params: PHMMParams::default(),
+        });
     }
 }

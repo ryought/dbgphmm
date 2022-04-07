@@ -21,7 +21,7 @@ pub use history::{History, Historys};
 ///
 /// HMM hidden states
 ///
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum State {
     Match(NodeIndex),
     Ins(NodeIndex),
@@ -80,9 +80,27 @@ impl std::fmt::Display for Emission {
 ///
 #[derive(Clone, Debug)]
 pub struct SampleProfile {
+    ///
+    /// how many reads will be sampled?
+    ///
     pub n_reads: usize,
+    ///
+    /// seed of rng
+    ///
     pub seed: u64,
+    ///
+    /// length (i.e. bases) of reads
+    ///
     pub length: usize,
+    ///
+    /// start points of reads.
+    ///
+    /// * if `None`, start point will be determined randomly.
+    /// * if `Some(nodes)`
+    ///   * start point will be one of nodes.
+    ///   * intermediate stop will be disabled.
+    ///
+    pub start_points: Option<Vec<NodeIndex>>,
 }
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
@@ -119,16 +137,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         history.to_sequence()
     }
     ///
-    /// Generate reads from sampling.
+    /// Generate reads from sampling from profile
     ///
-    pub fn sample_reads(&self, profile: &SampleProfile) -> Reads {
+    pub fn sample_by_profile(&self, profile: &SampleProfile) -> Historys {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
-        let reads = (0..profile.n_reads)
-            // TODO start indexes should be specified in profile
-            .map(|_| self.sample_rng_from_nodes(&mut rng, profile.length, &[NodeIndex::new(0)]))
-            .map(|history| history.to_sequence())
-            .collect();
-        Reads { reads }
+        Historys(
+            (0..profile.n_reads)
+                .map(|_| match &profile.start_points {
+                    Some(nodes) => self.sample_rng_from_nodes(&mut rng, profile.length, nodes),
+                    None => self.sample_rng(&mut rng, profile.length),
+                })
+                .collect(),
+        )
     }
     ///
     /// Generate a sequence of Emission and Hidden states
@@ -469,5 +489,21 @@ mod tests {
         println!("{:?}", count);
         assert!(40 <= count.0 && count.0 <= 60);
         assert!(40 <= count.1 && count.1 <= 60);
+    }
+    #[test]
+    fn hmm_sample_mock_linear_by_profile() {
+        let phmm = mock_linear_phmm(PHMMParams::default());
+        let start_point = ni(3);
+        let hists = phmm.sample_by_profile(&SampleProfile {
+            n_reads: 10,
+            seed: 0,
+            length: 100,
+            start_points: Some(vec![start_point]),
+        });
+        for hist in hists.iter() {
+            println!("{} {}", hist, hist.to_sequence().len());
+            assert_eq!(hist.0[0].0, State::Match(start_point));
+            assert_eq!(hist.to_sequence().len(), 7);
+        }
     }
 }

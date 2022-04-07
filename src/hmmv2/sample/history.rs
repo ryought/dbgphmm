@@ -5,7 +5,7 @@ use super::super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::super::freq::NodeFreqs;
 use super::super::trans_table::EdgeFreqs;
 use super::{Emission, State};
-use crate::common::Sequence;
+use crate::common::{Reads, Sequence};
 use itertools::Itertools;
 
 ///
@@ -104,6 +104,13 @@ impl Historys {
     }
     pub fn to_sequence(&self, index: usize) -> Sequence {
         self.0[index].to_sequence()
+    }
+    pub fn to_reads(&self) -> Reads {
+        let reads: Vec<Sequence> = self.0.iter().map(|history| history.to_sequence()).collect();
+        Reads { reads }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &History> + '_ {
+        self.0.iter()
     }
 }
 

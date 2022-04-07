@@ -32,6 +32,7 @@ mod tests {
                 n_reads: 1,
                 seed: 0,
                 length: 1000,
+                start_points: None,
             },
             phmm_params: PHMMParams::default(),
         };
