@@ -3,7 +3,7 @@
 //! Node: linear sequence
 //! Edge: its adjacency
 //!
-use super::seq_graph::{SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
+use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
 use crate::common::{CopyNum, Reads, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
@@ -164,12 +164,18 @@ impl GenomeGraph {
     /// Sample reads from the genome graph.
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
         // convert to phmm
-        let phmm = self.to_seq_graph().to_phmm(prof.phmm_params.clone());
+        let sg = self.to_seq_graph();
+        let phmm = sg.to_phmm(prof.phmm_params.clone());
         println!("{}", phmm);
 
         // determine automatically the starting node list
         // as a vector of node index in seqgraph.
         // and purge into prof.sample_profile.
+        let mut prof = prof.clone();
+        if let StartPoints::AllStartPoints = prof.sample_profile.start_points {
+            let start_points = get_start_points(&sg);
+            prof.sample_profile.start_points = StartPoints::Custom(start_points);
+        }
 
         // sample reads using profile
         phmm.sample_by_profile(&prof.sample_profile).to_reads()
@@ -190,6 +196,7 @@ mod tests {
         assert_eq!(sg.node_count(), 10);
         assert_eq!(sg.edge_count(), 9);
         println!("{}", Dot::with_config(&sg, &[]));
+        assert_eq!(get_start_points(&sg), vec![ni(0)]);
     }
 
     #[test]
@@ -205,6 +212,8 @@ mod tests {
         assert_eq!(sg.node_count(), 12);
         assert_eq!(sg.edge_count(), 11);
         println!("{}", Dot::with_config(&sg, &[]));
+        println!("{:?}", get_start_points(&sg));
+        assert_eq!(get_start_points(&sg), vec![ni(0), ni(5)]);
     }
 
     #[test]
@@ -217,6 +226,8 @@ mod tests {
         assert_eq!(sg.node_count(), 5);
         assert_eq!(sg.edge_count(), 5);
         println!("{}", Dot::with_config(&sg, &[]));
+        println!("{:?}", get_start_points(&sg));
+        assert_eq!(get_start_points(&sg), vec![]);
     }
 
     #[test]

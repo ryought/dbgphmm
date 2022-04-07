@@ -210,6 +210,13 @@ pub trait SeqEdge {
 ///
 pub type SimpleSeqGraph = DiGraph<SimpleSeqNode, SimpleSeqEdge>;
 
+/// Get a vector of start point node index
+pub fn get_start_points(g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>) -> Vec<NodeIndex> {
+    g.node_indices()
+        .filter(|&v| g.node_weight(v).unwrap().is_start_point())
+        .collect()
+}
+
 pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
