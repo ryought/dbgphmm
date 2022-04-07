@@ -124,7 +124,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn sample_reads(&self, profile: &SampleProfile) -> Reads {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
         let reads = (0..profile.n_reads)
-            .map(|_| self.sample_rng_full_length(&mut rng, profile.length, NodeIndex::new(0)))
+            .map(|_| self.sample_rng_from_nodes(&mut rng, profile.length, &[NodeIndex::new(0)]))
             .map(|history| history.to_sequence())
             .collect();
         Reads { reads }
@@ -140,15 +140,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Generate full length sample
     ///
     /// * from
-    ///     index of the starting node.
+    ///     list of index of the starting nodes
     ///
-    pub fn sample_rng_full_length<R: Rng>(
+    pub fn sample_rng_from_nodes<R: Rng>(
         &self,
         rng: &mut R,
         length: usize,
-        from: NodeIndex,
+        from: &[NodeIndex],
     ) -> History {
-        self.sample_rng_from(rng, length, State::Match(from), false)
+        self.sample_rng_from(rng, length, State::Match(from[0]), false)
     }
     ///
     /// Generate a sequence of Emission and Hidden states
@@ -424,7 +424,7 @@ mod tests {
         println!("{}", phmm);
         for i in 0..10 {
             println!("{}", i);
-            let hist = phmm.sample_rng_full_length(&mut rng, 100, NodeIndex::new(0));
+            let hist = phmm.sample_rng_from_nodes(&mut rng, 100, &[NodeIndex::new(0)]);
             println!("{}", hist);
             // first is ni(0)
             assert_eq!(hist.0[0].0.to_node_index(), Some(NodeIndex::new(0)));
