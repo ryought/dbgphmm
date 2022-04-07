@@ -339,6 +339,24 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Some(pick_with_prob(rng, &choices))
         }
     }
+    ///
+    /// randomly-picks a transition to a initial node
+    /// from the choices given.
+    ///
+    fn pick_init_node_from<R: Rng>(&self, rng: &mut R, nodes: &[NodeIndex]) -> Option<NodeIndex> {
+        let choices: Vec<(NodeIndex, Prob)> = nodes
+            .iter()
+            .map(|&v| (v, self.node(v).init_prob()))
+            .filter(|(_, prob)| !prob.is_zero())
+            .collect();
+
+        if choices.len() == 0 {
+            // there is no child (with >0 transition probability)
+            None
+        } else {
+            Some(pick_with_prob(rng, &choices))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -416,5 +434,35 @@ mod tests {
                 Some(NodeIndex::new(9))
             );
         }
+    }
+    #[test]
+    fn hmm_sample_mock_linear_picker_from() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+        let phmm = mock_linear_phmm(PHMMParams::default());
+        println!("{}", phmm);
+
+        // if choices are only node2
+        for i in 0..10 {
+            let node = phmm.pick_init_node_from(&mut rng, &[ni(2)]);
+            assert_eq!(node, Some(ni(2)));
+        }
+
+        // if choices are only node0 and node1
+        let mut count = (0, 0);
+        for i in 0..100 {
+            let node = phmm.pick_init_node_from(&mut rng, &[ni(0), ni(1)]);
+            assert!(node.is_some());
+            let v = node.unwrap();
+            assert!(v == ni(0) || v == ni(1));
+            println!("{:?}", v);
+            if v == ni(0) {
+                count.0 += 1;
+            } else if v == ni(1) {
+                count.1 += 1;
+            };
+        }
+        println!("{:?}", count);
+        assert!(40 <= count.0 && count.0 <= 60);
+        assert!(40 <= count.1 && count.1 <= 60);
     }
 }
