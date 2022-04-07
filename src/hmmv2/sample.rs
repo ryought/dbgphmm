@@ -95,12 +95,20 @@ pub struct SampleProfile {
     ///
     /// start points of reads.
     ///
-    /// * if `None`, start point will be determined randomly.
-    /// * if `Some(nodes)`
-    ///   * start point will be one of nodes.
-    ///   * intermediate stop will be disabled.
-    ///
-    pub start_points: Option<Vec<NodeIndex>>,
+    pub start_points: StartPoints,
+}
+
+///
+/// enum for storing start points.
+#[derive(Clone, Debug)]
+pub enum StartPoints {
+    /// all nodes in graph can be a start point.
+    /// pick a start node uniformly random
+    Random,
+    /// all endpoint node in graph
+    AllStartPoints,
+    /// allow only custom node index
+    Custom(Vec<NodeIndex>),
 }
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
@@ -144,8 +152,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         Historys(
             (0..profile.n_reads)
                 .map(|_| match &profile.start_points {
-                    Some(nodes) => self.sample_rng_from_nodes(&mut rng, profile.length, nodes),
-                    None => self.sample_rng(&mut rng, profile.length),
+                    StartPoints::Custom(nodes) => {
+                        self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
+                    }
+                    StartPoints::Random => self.sample_rng(&mut rng, profile.length),
+                    StartPoints::AllStartPoints => panic!(
+                        "StartPoints::AllStartPoints is not resolved until sample_by_profile"
+                    ),
                 })
                 .collect(),
         )
@@ -498,7 +511,7 @@ mod tests {
             n_reads: 10,
             seed: 0,
             length: 100,
-            start_points: Some(vec![start_point]),
+            start_points: StartPoints::Custom(vec![start_point]),
         });
         for hist in hists.iter() {
             println!("{} {}", hist, hist.to_sequence().len());

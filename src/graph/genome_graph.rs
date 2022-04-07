@@ -7,7 +7,7 @@ use super::seq_graph::{SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
 use crate::common::{CopyNum, Reads, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::SampleProfile;
+use crate::hmmv2::sample::{SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -236,7 +236,7 @@ mod tests {
                 n_reads: 1,
                 seed: 0,
                 length: 1000,
-                start_points: None,
+                start_points: StartPoints::Random,
             },
             phmm_params: PHMMParams::default(),
         });

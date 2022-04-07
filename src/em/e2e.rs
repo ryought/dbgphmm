@@ -10,7 +10,7 @@ use crate::em::compression::compression;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::SampleProfile;
+use crate::hmmv2::sample::{SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::random_seq::generate;
 
@@ -32,7 +32,7 @@ mod tests {
                 n_reads: 1,
                 seed: 0,
                 length: 1000,
-                start_points: None,
+                start_points: StartPoints::Random,
             },
             phmm_params: PHMMParams::default(),
         };
