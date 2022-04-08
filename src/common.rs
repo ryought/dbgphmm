@@ -26,8 +26,13 @@ pub struct Reads {
 }
 
 impl Reads {
+    /// get an iterator over the reads
     pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
         self.reads.iter()
+    }
+    /// the number of reads.
+    pub fn len(&self) -> usize {
+        self.reads.len()
     }
 }
 

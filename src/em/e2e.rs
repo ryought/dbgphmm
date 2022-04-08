@@ -37,7 +37,7 @@ mod tests {
             phmm_params: PHMMParams::default(),
         };
         let reads = g.sample_reads(&profile);
-        println!("reads: {}", reads.reads.len());
+        println!("n_reads: {}", reads.len());
 
         // (2) crate dbg from the reads.
         //
