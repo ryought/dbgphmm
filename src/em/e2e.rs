@@ -10,7 +10,7 @@ use crate::em::compression::compression;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::random_seq::generate;
 
@@ -29,7 +29,7 @@ mod tests {
         let g = GenomeGraph::from_seqs(genome);
         let profile = ReadProfile {
             sample_profile: SampleProfile {
-                n_reads: 10,
+                read_amount: ReadAmount::Count(10),
                 seed: 0,
                 length: 1000,
                 start_points: StartPoints::AllStartPoints,
@@ -47,7 +47,7 @@ mod tests {
         println!("{}", dbg);
 
         // (3) do the inference.
-        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), 10.0);
+        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), 1.0);
         println!("{}", dbg2);
     }
 }
