@@ -178,6 +178,9 @@ impl GenomeGraph {
         }
 
         // sample reads using profile
+        //
+        // TODO convert to genome graph position
+        // store the originated genome graph position in seqgraph
         phmm.sample_by_profile(&prof.sample_profile).to_reads()
     }
 }
