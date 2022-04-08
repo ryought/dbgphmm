@@ -133,9 +133,21 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         self.graph.edge_count()
     }
     ///
+    /// Get a reference of node weight
+    ///
+    pub fn node(&self, node: NodeIndex) -> &N {
+        self.graph.node_weight(node).unwrap()
+    }
+    ///
+    /// Get a reference of edge weight
+    ///
+    pub fn edge(&self, edge: EdgeIndex) -> &E {
+        self.graph.edge_weight(edge).unwrap()
+    }
+    ///
     /// Get an index of the edge from a to b.
     ///
-    pub fn edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
+    pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         self.graph.find_edge(a, b)
     }
     //

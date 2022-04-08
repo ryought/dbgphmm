@@ -21,7 +21,7 @@ pub use history::{History, Historys};
 ///
 /// HMM hidden states
 ///
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum State {
     Match(NodeIndex),
     Ins(NodeIndex),
@@ -76,6 +76,41 @@ impl std::fmt::Display for Emission {
     }
 }
 
+/// Specs for read sampling
+///
+#[derive(Clone, Debug)]
+pub struct SampleProfile {
+    ///
+    /// how many reads will be sampled?
+    ///
+    pub n_reads: usize,
+    ///
+    /// seed of rng
+    ///
+    pub seed: u64,
+    ///
+    /// length (i.e. bases) of reads
+    ///
+    pub length: usize,
+    ///
+    /// start points of reads.
+    ///
+    pub start_points: StartPoints,
+}
+
+///
+/// enum for storing start points.
+#[derive(Clone, Debug)]
+pub enum StartPoints {
+    /// all nodes in graph can be a start point.
+    /// pick a start node uniformly random
+    Random,
+    /// all endpoint node in graph
+    AllStartPoints,
+    /// allow only custom node index
+    Custom(Vec<NodeIndex>),
+}
+
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Generate a one-shot sequence of Emission and Hidden states
@@ -110,15 +145,23 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         history.to_sequence()
     }
     ///
-    /// Generate reads from sampling.
+    /// Generate reads from sampling from profile
     ///
-    pub fn sample_reads(&self, length: usize, seed: u64, n_reads: usize) -> Reads {
-        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        let reads = (0..n_reads)
-            .map(|_| self.sample_rng_full_length(&mut rng, length, NodeIndex::new(0)))
-            .map(|history| history.to_sequence())
-            .collect();
-        Reads { reads }
+    pub fn sample_by_profile(&self, profile: &SampleProfile) -> Historys {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
+        Historys(
+            (0..profile.n_reads)
+                .map(|_| match &profile.start_points {
+                    StartPoints::Custom(nodes) => {
+                        self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
+                    }
+                    StartPoints::Random => self.sample_rng(&mut rng, profile.length),
+                    StartPoints::AllStartPoints => panic!(
+                        "StartPoints::AllStartPoints is not resolved until sample_by_profile"
+                    ),
+                })
+                .collect(),
+        )
     }
     ///
     /// Generate a sequence of Emission and Hidden states
@@ -131,14 +174,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Generate full length sample
     ///
     /// * from
-    ///     index of the starting node.
+    ///     list of index of the starting nodes
     ///
-    pub fn sample_rng_full_length<R: Rng>(
+    pub fn sample_rng_from_nodes<R: Rng>(
         &self,
         rng: &mut R,
         length: usize,
-        from: NodeIndex,
+        froms: &[NodeIndex],
     ) -> History {
+        let from = self
+            .pick_init_node_from(rng, froms)
+            .expect("froms are empty");
         self.sample_rng_from(rng, length, State::Match(from), false)
     }
     ///
@@ -330,6 +376,24 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             Some(pick_with_prob(rng, &choices))
         }
     }
+    ///
+    /// randomly-picks a transition to a initial node
+    /// from the choices given.
+    ///
+    fn pick_init_node_from<R: Rng>(&self, rng: &mut R, nodes: &[NodeIndex]) -> Option<NodeIndex> {
+        let choices: Vec<(NodeIndex, Prob)> = nodes
+            .iter()
+            .map(|&v| (v, self.node(v).init_prob()))
+            .filter(|(_, prob)| !prob.is_zero())
+            .collect();
+
+        if choices.len() == 0 {
+            // there is no child (with >0 transition probability)
+            None
+        } else {
+            Some(pick_with_prob(rng, &choices))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -397,7 +461,8 @@ mod tests {
         println!("{}", phmm);
         for i in 0..10 {
             println!("{}", i);
-            let hist = phmm.sample_rng_full_length(&mut rng, 100, NodeIndex::new(0));
+            // start node is ni(0)
+            let hist = phmm.sample_rng_from_nodes(&mut rng, 100, &[NodeIndex::new(0)]);
             println!("{}", hist);
             // first is ni(0)
             assert_eq!(hist.0[0].0.to_node_index(), Some(NodeIndex::new(0)));
@@ -406,6 +471,52 @@ mod tests {
                 hist.0[hist.0.len() - 2].0.to_node_index(),
                 Some(NodeIndex::new(9))
             );
+        }
+    }
+    #[test]
+    fn hmm_sample_mock_linear_picker_from() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+        let phmm = mock_linear_phmm(PHMMParams::default());
+        println!("{}", phmm);
+
+        // if choices are only node2
+        for i in 0..10 {
+            let node = phmm.pick_init_node_from(&mut rng, &[ni(2)]);
+            assert_eq!(node, Some(ni(2)));
+        }
+
+        // if choices are only node0 and node1
+        let mut count = (0, 0);
+        for i in 0..100 {
+            let node = phmm.pick_init_node_from(&mut rng, &[ni(0), ni(1)]);
+            assert!(node.is_some());
+            let v = node.unwrap();
+            assert!(v == ni(0) || v == ni(1));
+            println!("{:?}", v);
+            if v == ni(0) {
+                count.0 += 1;
+            } else if v == ni(1) {
+                count.1 += 1;
+            };
+        }
+        println!("{:?}", count);
+        assert!(40 <= count.0 && count.0 <= 60);
+        assert!(40 <= count.1 && count.1 <= 60);
+    }
+    #[test]
+    fn hmm_sample_mock_linear_by_profile() {
+        let phmm = mock_linear_phmm(PHMMParams::default());
+        let start_point = ni(3);
+        let hists = phmm.sample_by_profile(&SampleProfile {
+            n_reads: 10,
+            seed: 0,
+            length: 100,
+            start_points: StartPoints::Custom(vec![start_point]),
+        });
+        for hist in hists.iter() {
+            println!("{} {}", hist, hist.to_sequence().len());
+            assert_eq!(hist.0[0].0, State::Match(start_point));
+            assert_eq!(hist.to_sequence().len(), 7);
         }
     }
 }

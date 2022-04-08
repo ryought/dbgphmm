@@ -12,6 +12,11 @@ pub trait NullableKmer {
     /// check if this is null-kmer <==> NNNNN
     ///
     fn is_null(&self) -> bool;
+    ///
+    /// check if the kmer has `N`
+    /// e.g. `NNATC, NATTC`.
+    ///
+    fn has_null(&self) -> bool;
 }
 
 pub trait KmerLike:
@@ -366,5 +371,19 @@ mod tests {
         assert!(b.is_tail());
         assert_eq!(b, VecKmer::from_bases(b"ANNNN"));
         assert_eq!(b.k(), 5);
+    }
+    #[test]
+    fn kmer_null() {
+        let a = VecKmer::from_bases(b"NNNN");
+        assert!(a.is_null());
+        assert!(a.has_null());
+
+        let b = VecKmer::from_bases(b"NNNT");
+        assert!(!b.is_null());
+        assert!(b.has_null());
+
+        let c = VecKmer::from_bases(b"TGAC");
+        assert!(!c.is_null());
+        assert!(!c.has_null());
     }
 }

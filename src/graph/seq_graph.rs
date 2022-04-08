@@ -210,14 +210,29 @@ pub trait SeqEdge {
 ///
 pub type SimpleSeqGraph = DiGraph<SimpleSeqNode, SimpleSeqEdge>;
 
+/// Get a vector of start point node index
+pub fn get_start_points(g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>) -> Vec<NodeIndex> {
+    g.node_indices()
+        .filter(|&v| g.node_weight(v).unwrap().is_start_point())
+        .collect()
+}
+
 pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
+    is_start_point: bool,
 }
 
 impl SimpleSeqNode {
-    pub fn new(copy_num: CopyNum, base: u8) -> SimpleSeqNode {
-        SimpleSeqNode { copy_num, base }
+    pub fn new(copy_num: CopyNum, base: u8, is_start_point: bool) -> SimpleSeqNode {
+        SimpleSeqNode {
+            copy_num,
+            base,
+            is_start_point,
+        }
+    }
+    pub fn is_start_point(&self) -> bool {
+        self.is_start_point
     }
 }
 
@@ -252,7 +267,13 @@ impl SeqEdge for SimpleSeqEdge {
 
 impl std::fmt::Display for SimpleSeqNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} (x{})", self.base() as char, self.copy_num())
+        write!(
+            f,
+            "{} (x{}) (starting={})",
+            self.base() as char,
+            self.copy_num(),
+            self.is_start_point()
+        )
     }
 }
 

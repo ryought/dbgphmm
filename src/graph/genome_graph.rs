@@ -3,14 +3,26 @@
 //! Node: linear sequence
 //! Edge: its adjacency
 //!
-use super::seq_graph::{SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, Sequence};
+use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
+use crate::common::{CopyNum, Reads, Sequence};
+use crate::graph::seq_graph::SeqGraph;
+use crate::hmmv2::params::PHMMParams;
+use crate::hmmv2::sample::{SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::visit::IntoNodeReferences;
+use petgraph::Direction;
 use std::collections::HashMap;
+
+/// Read sampling profile
+///
+#[derive(Clone, Debug)]
+pub struct ReadProfile {
+    pub sample_profile: SampleProfile,
+    pub phmm_params: PHMMParams,
+}
 
 /// GenomeGraph
 pub struct GenomeGraph(pub DiGraph<GenomeNode, GenomeEdge>);
@@ -89,6 +101,10 @@ impl GenomeGraph {
     pub fn edge_count(&self) -> usize {
         self.0.edge_count()
     }
+    /// if node has no incoming edge, it is a start point node
+    pub fn is_start_point_node(&self, node: NodeIndex) -> bool {
+        self.0.edges_directed(node, Direction::Incoming).count() == 0
+    }
     ///
     /// Convert `GenomeGraph` into `SimpleSeqGraph`
     /// split a node containing bases into multiple nodes corresponding each bases
@@ -104,9 +120,14 @@ impl GenomeGraph {
 
             // add a new node for each bases
             // TODO move this to seq_graph.rs?
+            let is_start_point_node = self.is_start_point_node(node);
             let nodes: Vec<NodeIndex> = seq
                 .iter()
-                .map(|&base| graph.add_node(SimpleSeqNode::new(copy_num, base)))
+                .enumerate()
+                .map(|(i, &base)| {
+                    let is_start_point = is_start_point_node && (i == 0);
+                    graph.add_node(SimpleSeqNode::new(copy_num, base, is_start_point))
+                })
                 .collect();
 
             // add edges between adjacent two bases
@@ -140,11 +161,34 @@ impl GenomeGraph {
 
         graph
     }
+    /// Sample reads from the genome graph.
+    pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
+        // convert to phmm
+        let sg = self.to_seq_graph();
+        let phmm = sg.to_phmm(prof.phmm_params.clone());
+        println!("{}", phmm);
+
+        // determine automatically the starting node list
+        // as a vector of node index in seqgraph.
+        // and purge into prof.sample_profile.
+        let mut prof = prof.clone();
+        if let StartPoints::AllStartPoints = prof.sample_profile.start_points {
+            let start_points = get_start_points(&sg);
+            prof.sample_profile.start_points = StartPoints::Custom(start_points);
+        }
+
+        // sample reads using profile
+        //
+        // TODO convert to genome graph position
+        // store the originated genome graph position in seqgraph
+        phmm.sample_by_profile(&prof.sample_profile).to_reads()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::{ni, sequence_to_string};
 
     #[test]
     fn genome_graph_linear() {
@@ -154,6 +198,8 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 10);
         assert_eq!(sg.edge_count(), 9);
+        println!("{}", Dot::with_config(&sg, &[]));
+        assert_eq!(get_start_points(&sg), vec![ni(0)]);
     }
 
     #[test]
@@ -168,6 +214,9 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 12);
         assert_eq!(sg.edge_count(), 11);
+        println!("{}", Dot::with_config(&sg, &[]));
+        println!("{:?}", get_start_points(&sg));
+        assert_eq!(get_start_points(&sg), vec![ni(0), ni(5)]);
     }
 
     #[test]
@@ -179,6 +228,9 @@ mod tests {
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 5);
         assert_eq!(sg.edge_count(), 5);
+        println!("{}", Dot::with_config(&sg, &[]));
+        println!("{:?}", get_start_points(&sg));
+        assert_eq!(get_start_points(&sg), vec![]);
     }
 
     #[test]
@@ -187,5 +239,24 @@ mod tests {
         let gg = GenomeGraph::from_seqs(&seqs);
         assert_eq!(gg.node_count(), 2);
         assert_eq!(gg.edge_count(), 0);
+    }
+
+    #[test]
+    fn genome_graph_sampling() {
+        let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
+        let graph = GenomeGraph::from_seqs(&seqs);
+        let reads = graph.sample_reads(&ReadProfile {
+            sample_profile: SampleProfile {
+                n_reads: 10,
+                seed: 0,
+                length: 1000,
+                // start_points: StartPoints::Random,
+                start_points: StartPoints::AllStartPoints,
+            },
+            phmm_params: PHMMParams::default(),
+        });
+        for read in reads.iter() {
+            println!("{}", sequence_to_string(read));
+        }
     }
 }
