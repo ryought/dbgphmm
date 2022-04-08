@@ -7,7 +7,7 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Sequence};
+use crate::common::{CopyNum, Reads, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::sequence_to_kmers;
@@ -457,6 +457,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         Self::from_digraph(d.k(), graph)
+    }
+    /// Construct Dbg from Reads
+    /// via converting HashDbg into Dbg.
+    pub fn from_reads(k: usize, reads: &Reads) -> Self {
+        let hd = HashDbg::from_reads(k, reads);
+        Self::from_hashdbg(&hd)
     }
     ///
     /// Convert into edge-centric de bruijn graph
