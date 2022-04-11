@@ -26,6 +26,10 @@ pub struct Reads {
 }
 
 impl Reads {
+    /// Constructor of reads
+    pub fn from(reads: Vec<Sequence>) -> Self {
+        Reads { reads }
+    }
     /// get an iterator over the reads
     pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
         self.reads.iter()
