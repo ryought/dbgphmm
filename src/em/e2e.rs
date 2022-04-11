@@ -47,7 +47,14 @@ mod tests {
         println!("{}", dbg);
 
         // (3) do the inference.
-        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), 1.0);
+        let dbg2 = compression(&dbg, &reads, &PHMMParams::default(), 10.0);
         println!("{}", dbg2);
+
+        // (4) compare with true dbg
+        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seq(k, &genome[0]);
+        let r = dbg2.compare(&dbg_true);
+        println!("{:?}", r);
+        assert_eq!(r.n_true, 107);
+        assert_eq!(r.n_error, 0);
     }
 }

@@ -7,16 +7,17 @@ use super::dbg::{Dbg, DbgEdge, DbgNode};
 /// Result of comparing two Dbgs.
 ///
 #[derive(Clone, Debug, Default)]
-struct CompareResult {
-    n_true: usize,
-    n_error: usize,
+pub struct CompareResult {
+    pub n_true: usize,
+    pub n_error: usize,
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
     ///
-    fn compare(&self, dbg_true: &Dbg<N, E>) -> CompareResult {
+    pub fn compare(&self, dbg_true: &Dbg<N, E>) -> CompareResult {
+        assert_eq!(self.k(), dbg_true.k());
         let p = self.to_kmer_profile();
         let mut r = CompareResult::default();
 
