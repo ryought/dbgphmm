@@ -373,6 +373,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// to kmer count profile
+    ///
+    pub fn to_kmer_profile(&self) -> HashMap<N::Kmer, CopyNum> {
+        let mut hm = HashMap::default();
+        for (_node, weight) in self.nodes() {
+            hm.insert(weight.kmer().clone(), weight.copy_num());
+        }
+        hm
+    }
+}
+
 ///
 /// Seq addition
 /// TODO
@@ -457,6 +470,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         Self::from_digraph(d.k(), graph)
+    }
+    /// Construct Dbg from a Sequence via converting HashDbg into Dbg.
+    pub fn from_seq(k: usize, seq: &[u8]) -> Self {
+        let hd = HashDbg::from_seq(k, seq);
+        Self::from_hashdbg(&hd)
     }
     /// Construct Dbg from Reads
     /// via converting HashDbg into Dbg.
