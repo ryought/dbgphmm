@@ -131,8 +131,11 @@ impl<K: KmerLike> HashDbg<K> {
     }
     pub fn from_reads(k: usize, reads: &Reads) -> Self {
         let mut d = HashDbg::new(k);
-        for read in reads.reads.iter() {
-            d.add_seq(read);
+        for read in reads.iter() {
+            // ignore read if it is shorter than k
+            if read.len() >= k {
+                d.add_seq(read);
+            }
         }
         d
     }
