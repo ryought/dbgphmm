@@ -6,7 +6,6 @@
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Sequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-use crate::em::compression::compression;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
@@ -17,6 +16,8 @@ use crate::random_seq::generate;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::em::compression::compression;
+    use crate::em::extension::extension;
 
     fn e2e_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
@@ -62,5 +63,13 @@ mod tests {
         println!("{:?}", r);
         assert_eq!(r.n_true, 107);
         assert_eq!(r.n_error, 0);
+    }
+
+    #[test]
+    fn e2e_extension() {
+        let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
+
+        let dbg = extension(&dbg_raw, &reads, &PHMMParams::default());
+        println!("{}", dbg);
     }
 }

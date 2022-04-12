@@ -92,7 +92,9 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> Ed
             // get an optimized flow intersection
             let fio = fi.convert();
 
-            println!("extension iter m {} {}", fi, fio);
+            if !fi.can_uniquely_convertable() {
+                println!("extension optimized iter m {} {}", fi, fio);
+            }
 
             // check if there is no inconsistent edge copy numbers.
             assert!(fio.has_valid_node_copy_nums());
