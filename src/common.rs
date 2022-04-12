@@ -18,6 +18,9 @@ pub fn sequence_to_string(seq: &Sequence) -> &str {
     std::str::from_utf8(seq).unwrap()
 }
 
+/// Type of Genome, the collection of sequences.
+pub type Genome = Vec<Sequence>;
+
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]
