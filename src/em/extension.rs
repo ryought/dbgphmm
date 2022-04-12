@@ -88,19 +88,21 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> Ed
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
     for fi in dbg.iter_flow_intersections(edge_freqs) {
-        // get an optimized flow intersection
-        let fio = fi.convert();
+        if !fi.is_tip_intersection() {
+            // get an optimized flow intersection
+            let fio = fi.convert();
 
-        println!("extension iter m {} {}", fi, fio);
+            println!("extension iter m {} {}", fi, fio);
 
-        // check if there is no inconsistent edge copy numbers.
-        assert!(fio.has_valid_node_copy_nums());
-        assert!(fio.all_edges_has_copy_num());
+            // check if there is no inconsistent edge copy numbers.
+            assert!(fio.has_valid_node_copy_nums());
+            assert!(fio.is_resolved());
 
-        // store fio's edge copy number information into ecn vector.
-        for (_, _, e) in fio.bi.iter_edges() {
-            assert!(ecn[e.index] == default_value);
-            ecn[e.index] = e.copy_num.unwrap();
+            // store fio's edge copy number information into ecn vector.
+            for (_, _, e) in fio.bi.iter_edges() {
+                assert!(ecn[e.index] == default_value);
+                ecn[e.index] = e.copy_num.unwrap();
+            }
         }
     }
     ecn
@@ -124,7 +126,7 @@ mod tests {
         println!("{}", freqs);
         let copy_nums = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
-        assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
     }
 
     #[test]
