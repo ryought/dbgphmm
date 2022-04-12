@@ -38,7 +38,7 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> Dbg<N, E> {
+) -> (Dbg<N, E>, bool) {
     // (1) e-step infer edge freqs
     println!("extension::e_step");
     let edge_freqs = e_step(dbg, reads, params);
@@ -51,7 +51,9 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
 
     let mut new_dbg = dbg.clone();
     new_dbg.set_edge_copy_nums(Some(&copy_nums));
-    new_dbg
+
+    // TODO
+    (new_dbg, true)
 }
 
 ///

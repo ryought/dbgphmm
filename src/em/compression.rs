@@ -27,7 +27,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     depth: Freq,
-) -> Dbg<N, E> {
+) -> (Dbg<N, E>, bool) {
     // e-step
     // calculate node_freqs by using current dbg.
     println!("compression::e_step");
@@ -42,7 +42,9 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
 
     let mut new_dbg = dbg.clone();
     new_dbg.set_node_copy_nums(&copy_nums);
-    new_dbg
+
+    // TODO
+    (new_dbg, true)
 }
 
 ///
@@ -124,6 +126,6 @@ mod tests {
             ],
         };
         let params = PHMMParams::default();
-        let dbg = compression(&dbg, &reads, &params, 3.0);
+        let (dbg, _) = compression(&dbg, &reads, &params, 3.0);
     }
 }
