@@ -16,8 +16,8 @@ use crate::random_seq::generate;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::em::compression::compression;
-    use crate::em::extension::extension;
+    use crate::em::compression::compression_step;
+    use crate::em::extension::extension_step;
 
     fn e2e_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
@@ -56,7 +56,7 @@ mod tests {
     fn e2e_compression() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let (dbg, _) = compression(&dbg_raw, &reads, &PHMMParams::default(), 10.0);
+        let (dbg, _) = compression_step(&dbg_raw, &reads, &PHMMParams::default(), 10.0);
         println!("{}", dbg);
 
         let r = dbg.compare(&dbg_true);
@@ -69,7 +69,7 @@ mod tests {
     fn e2e_extension() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let (dbg, _) = extension(&dbg_raw, &reads, &PHMMParams::default());
+        let (dbg, _) = extension_step(&dbg_raw, &reads, &PHMMParams::default());
         println!("{}", dbg);
     }
 }

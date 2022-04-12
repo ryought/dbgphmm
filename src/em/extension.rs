@@ -20,6 +20,19 @@ use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersection
 pub mod intersection_graph;
 
 ///
+/// Extension full algorithm by running `extension_step` iteratively.
+///
+/// convert k-dBG into k+1-dBG.
+///
+pub fn extension<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+) -> Dbg<N, E> {
+    unimplemented!();
+}
+
+///
 /// Extension algorithm
 ///
 /// ## Details
@@ -34,7 +47,7 @@ pub mod intersection_graph;
 ///
 /// * avoid dbg copy?
 ///
-pub fn extension<N: DbgNode, E: DbgEdge>(
+pub fn extension_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,

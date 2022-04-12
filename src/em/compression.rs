@@ -16,13 +16,25 @@ use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
 
 ///
+/// Compression full algorithm by running `compression_step` iteratively.
+///
+pub fn compression<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    depth: Freq,
+) -> Dbg<N, E> {
+    unimplemented!();
+}
+
+///
 /// Compression algorithm
 ///
 /// ## TODOs
 ///
 /// * avoid dbg copy?
 ///
-pub fn compression<N: DbgNode, E: DbgEdge>(
+pub fn compression_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
