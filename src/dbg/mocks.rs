@@ -42,6 +42,19 @@ pub fn mock_intersection() -> SimpleDbg<VecKmer> {
 }
 
 ///
+/// ATAGCT x1
+/// TTAGAT x1
+///
+/// `TAG` is intersecting k-1-mer.
+///
+pub fn mock_intersection_small() -> SimpleDbg<VecKmer> {
+    let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
+    hd.add_seq(b"ATAGCT");
+    hd.add_seq(b"TAGGAT");
+    SimpleDbg::from_hashdbg(&hd)
+}
+
+///
 /// crate a mock `SimpleDbg` from single random sequence of given length
 ///
 pub fn mock_random_with_seq(k: usize, length: usize) -> (SimpleDbg<VecKmer>, Sequence) {
