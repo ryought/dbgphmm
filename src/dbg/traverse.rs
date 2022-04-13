@@ -3,7 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Sequence};
+use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence};
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -25,10 +25,42 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         self.contains_edge(*tail, *head)
     }
     ///
+    /// the given path is linear or not, that is
+    /// starts from NNNX and ends with YNNN.
+    ///
+    pub fn is_linear(&self, path: &Path) -> bool {
+        let head = path.first().unwrap();
+        let tail = path.last().unwrap();
+        self.kmer(*head).is_head() && self.kmer(*tail).is_tail()
+    }
+    ///
     /// convert node list into bases
     ///
     pub fn path_as_sequence(&self, path: &Path) -> Sequence {
         path.iter().map(|&node| self.emission(node)).collect()
+    }
+    ///
+    /// convert node list into bases
+    /// with omitting null emissions
+    ///
+    pub fn path_as_sequence_without_null(&self, path: &Path) -> Sequence {
+        path.iter()
+            .map(|&node| self.emission(node))
+            .filter(|&base| base != b'N')
+            .collect()
+    }
+    ///
+    /// convert a path (node list) into sequence (vec of bases) with style.
+    ///
+    /// the style can be either linear or circular
+    ///
+    pub fn path_as_styled_sequence(&self, path: &Path) -> StyledSequence {
+        let style = if self.is_linear(path) {
+            SeqStyle::Linear
+        } else {
+            SeqStyle::Circular
+        };
+        StyledSequence::new(self.path_as_sequence_without_null(path), style)
     }
 }
 
@@ -42,6 +74,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_seqs(&self) -> Vec<Sequence> {
         self.traverse_all()
             .map(|circle| self.path_as_sequence(&circle))
+            .collect()
+    }
+    ///
+    /// Convert dbg into styled sequences
+    ///
+    pub fn to_styled_seqs(&self) -> Vec<StyledSequence> {
+        self.traverse_all()
+            .map(|circle| self.path_as_styled_sequence(&circle))
             .collect()
     }
     ///
@@ -94,10 +134,15 @@ where
         self.copy_nums[node] > 0
     }
     fn find_unvisited_child(&self, node: NodeIndex) -> Option<NodeIndex> {
-        self.dbg
-            .childs(node)
-            .map(|(_, child, _)| child)
-            .find(|&child| self.is_unvisited(child))
+        if self.dbg.kmer(node).is_tail() {
+            // if the node is tail (XNNNN), break the path.
+            None
+        } else {
+            self.dbg
+                .childs(node)
+                .map(|(_, child, _)| child)
+                .find(|&child| self.is_unvisited(child))
+        }
     }
     fn find_unvisited_node(&self) -> Option<NodeIndex> {
         self.dbg
@@ -204,28 +249,14 @@ mod tests {
         let dbg = mock_simple();
         println!("{}", dbg);
 
+        // #1 traverse starting from ni(0): ni(1) is tail
         let p = dbg.traverse_from(ni(0)).as_path();
         println!("{:?}", p);
-        assert_eq!(
-            p,
-            vec![
-                ni(0),
-                ni(1),
-                ni(10),
-                ni(9),
-                ni(8),
-                ni(4),
-                ni(11),
-                ni(2),
-                ni(3),
-                ni(5),
-                ni(7),
-                ni(12),
-                ni(13),
-                ni(6)
-            ]
-        );
+        println!("{}", dbg.kmer(ni(0)));
+        println!("{}", dbg.kmer(ni(1)));
+        assert_eq!(p, vec![ni(0), ni(1)]);
 
+        // #2 traverse starting from head
         let v = dbg.traverse_all().find_starting_node();
         assert!(v.is_some());
         assert_eq!(v.unwrap(), ni(10));
@@ -258,20 +289,49 @@ mod tests {
             println!("{}", sequence_to_string(seq));
         }
         assert_eq!(seqs, vec![b"AAAGCTTGATTNNN"]);
+
+        let seqs = dbg.to_styled_seqs();
+        for seq in seqs.iter() {
+            println!("{}", seq);
+        }
+        assert_eq!(seqs.len(), 1);
+        assert_eq!(format!("{}", seqs[0]), "L:AAAGCTTGATT");
+
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:AAAGCTTGATT");
     }
     #[test]
     fn dbg_traverse_rep() {
         let dbg = mock_rep();
+        println!("{}", dbg.to_dot());
+
         let circles: Vec<Vec<NodeIndex>> = dbg.traverse_all().collect();
-        assert_eq!(circles.len(), 3);
+        assert_eq!(circles.len(), 4);
         for circle in circles.iter() {
             println!("{:?}", circle);
             println!("{:?}", sequence_to_string(&dbg.path_as_sequence(circle)));
         }
-        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCNNNAAANNN");
-        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAAAAAAAAA");
-        assert_eq!(dbg.path_as_sequence(&circles[2]), b"CCCCCCCCCCC");
-        assert_eq!(circles[0].len() + circles[1].len() + circles[2].len(), 33);
+        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCNNN");
+        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAANNN");
+        assert_eq!(dbg.path_as_sequence(&circles[2]), b"AAAAAAAAAA");
+        assert_eq!(dbg.path_as_sequence(&circles[3]), b"CCCCCCCCCCC");
+        assert_eq!(
+            circles[0].len() + circles[1].len() + circles[2].len() + circles[3].len(),
+            33
+        );
+
+        let seqs = dbg.to_styled_seqs();
+        for seq in seqs.iter() {
+            println!("{}", seq);
+        }
+        assert_eq!(seqs.len(), 4);
+        assert_eq!(format!("{}", seqs[0]), "L:CCC");
+        assert_eq!(format!("{}", seqs[1]), "L:AAA");
+        assert_eq!(format!("{}", seqs[2]), "C:AAAAAAAAAA");
+        assert_eq!(format!("{}", seqs[3]), "C:CCCCCCCCCCC");
+
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
     }
     #[test]
     fn dbg_traverse_to_seqs() {
@@ -281,5 +341,12 @@ mod tests {
         for seq in dbg.to_seqs().iter() {
             println!("{}", sequence_to_string(seq));
         }
+
+        let seqs = dbg.to_styled_seqs();
+        for seq in seqs.iter() {
+            println!("{}", seq);
+        }
+        assert_eq!(seqs.len(), 1);
+        assert_eq!(format!("{}", seqs[0]), "L:ATTCGATCGAT");
     }
 }

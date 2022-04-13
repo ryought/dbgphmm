@@ -138,6 +138,6 @@ mod tests {
             ],
         };
         let params = PHMMParams::default();
-        let (dbg, _) = compression(&dbg, &reads, &params, 3.0);
+        let (dbg, _) = compression_step(&dbg, &reads, &params, 3.0);
     }
 }

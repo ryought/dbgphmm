@@ -1,8 +1,8 @@
 //!
 //! HashDbg
 //!
-use crate::common::{CopyNum, Reads};
-use crate::kmer::kmer::{sequence_to_kmers, Kmer, KmerLike};
+use crate::common::{CopyNum, Reads, StyledSequence};
+use crate::kmer::kmer::{sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;
 
@@ -92,8 +92,15 @@ impl<K: KmerLike> HashDbg<K> {
     /// add all kmers in linear seq (with leading/trailing NNN kmers)
     ///
     pub fn add_seq(&mut self, seq: &[u8]) {
-        println!("seq len={}", seq.len());
         for kmer in sequence_to_kmers(seq, self.k()) {
+            self.add(kmer, 1);
+        }
+    }
+    ///
+    /// add all kmers in styled sequence
+    ///
+    pub fn add_styled_sequence(&mut self, s: &StyledSequence) {
+        for kmer in styled_sequence_to_kmers(s, self.k()) {
             self.add(kmer, 1);
         }
     }

@@ -2,17 +2,74 @@
 //! Output related functions of Dbg
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::common::{ei, ni};
+use super::hashdbg_v2::HashDbg;
+use crate::common::{ei, ni, StyledSequence, StyledSequenceParseError};
 use crate::io::cytoscape::{EdgeAttr, EdgeAttrVec, ElementV2, NodeAttr, NodeAttrVec};
+use itertools::Itertools;
 use petgraph::dot::Dot;
+use std::str::FromStr;
 
+//
+// FromStr/Display implementations
+//
+
+impl<N, E> FromStr for Dbg<N, E>
+where
+    N: DbgNode,
+    E: DbgEdge,
+{
+    type Err = StyledSequenceParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split(',').collect();
+
+        // parse k-mer size
+        let k = parts[0]
+            .parse::<usize>()
+            .expect("serialized Dbg is invalid in k-mer size");
+
+        // create hashdbg and insert all reads
+        let mut hd = HashDbg::new(k);
+        for &part in parts[1..].iter() {
+            let seq = StyledSequence::from_str(part)
+                .expect("serialized Dbg is invalid in styled sequence format");
+            hd.add_styled_sequence(&seq);
+        }
+
+        Ok(Self::from_hashdbg(&hd))
+    }
+}
+
+///
+/// Serialize Dbg as `k,(eulerian traversed sequences with style, separated with ',')`
+///
+/// Example:
+/// ```text
+/// 8,L:ATCGATCG,L:ATTTAC
+/// ```
+///
 impl<N, E> std::fmt::Display for Dbg<N, E>
 where
     N: DbgNode + std::fmt::Display,
     E: DbgEdge + std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.graph, &[]))
+        let seqs = self
+            .to_styled_seqs()
+            .iter()
+            .map(|seq| seq.to_string())
+            .join(",");
+        write!(f, "{},{}", self.k(), seqs)
+    }
+}
+
+// debug output
+impl<N, E> Dbg<N, E>
+where
+    N: DbgNode + std::fmt::Display,
+    E: DbgEdge + std::fmt::Display,
+{
+    pub fn to_dot(&self) -> String {
+        format!("{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
@@ -103,8 +160,28 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dbg::mocks::mock_simple;
+    use crate::dbg::impls::SimpleDbg;
+    use crate::dbg::mocks::{mock_rep, mock_simple};
+    use crate::kmer::veckmer::VecKmer;
     use crate::vector::{DenseStorage, EdgeVec, NodeVec};
+
+    #[test]
+    fn dbg_serialize() {
+        let dbg = mock_simple();
+        println!("{}", dbg);
+        let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_str(&dbg.to_string()).unwrap();
+        println!("{}", dbg2);
+        assert_eq!(dbg.to_string(), dbg2.to_string());
+        assert_eq!(dbg.to_string(), "4,L:AAAGCTTGATT");
+        assert_eq!(dbg2.to_string(), "4,L:AAAGCTTGATT");
+
+        let dbg = mock_rep();
+        println!("{}", dbg);
+        let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_str(&dbg.to_string()).unwrap();
+        println!("{}", dbg2);
+        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
+        assert_eq!(dbg2.to_string(), "4,L:CCC,L:AAA,C:CCCCCCCCCCC,C:AAAAAAAAAA");
+    }
 
     #[test]
     fn dbg_mock_simple_cytoscape() {
