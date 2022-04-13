@@ -23,12 +23,15 @@ where
         let parts: Vec<&str> = s.split(',').collect();
 
         // parse k-mer size
-        let k = parts[0].parse::<usize>().unwrap();
+        let k = parts[0]
+            .parse::<usize>()
+            .expect("serialized Dbg is invalid in k-mer size");
 
         // create hashdbg and insert all reads
         let mut hd = HashDbg::new(k);
         for &part in parts[1..].iter() {
-            let seq = StyledSequence::from_str(part).unwrap();
+            let seq = StyledSequence::from_str(part)
+                .expect("serialized Dbg is invalid in styled sequence format");
             hd.add_styled_sequence(&seq);
         }
 
