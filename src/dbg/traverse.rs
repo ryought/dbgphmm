@@ -3,7 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Sequence};
+use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence};
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -25,10 +25,43 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         self.contains_edge(*tail, *head)
     }
     ///
+    /// the given path is linear or not, that is
+    /// starts from NNNX and ends with YNNN.
+    ///
+    pub fn is_linear(&self, path: &Path) -> bool {
+        let head = path.first().unwrap();
+        let tail = path.last().unwrap();
+        self.kmer(*head).is_head() && self.kmer(*tail).is_tail()
+    }
+    ///
     /// convert node list into bases
     ///
     pub fn path_as_sequence(&self, path: &Path) -> Sequence {
         path.iter().map(|&node| self.emission(node)).collect()
+    }
+    ///
+    /// convert node list into bases
+    /// with omitting null emissions
+    ///
+    pub fn path_as_sequence_without_null(&self, path: &Path) -> Sequence {
+        path.iter()
+            .map(|&node| self.emission(node))
+            .filter(|&base| base != b'N')
+            .collect()
+    }
+    ///
+    /// convert a path (node list) into sequence (vec of bases) with style.
+    ///
+    /// the style can be either linear or circular
+    ///
+    pub fn path_as_styled_sequence(&self, path: &Path) -> StyledSequence {
+        println!("path={:?} is_linear={}", path, self.is_linear(path));
+        let style = if self.is_linear(path) {
+            SeqStyle::Linear
+        } else {
+            SeqStyle::Circular
+        };
+        StyledSequence::new(self.path_as_sequence_without_null(path), style)
     }
 }
 
@@ -42,6 +75,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_seqs(&self) -> Vec<Sequence> {
         self.traverse_all()
             .map(|circle| self.path_as_sequence(&circle))
+            .collect()
+    }
+    ///
+    /// Convert dbg into styled sequences
+    ///
+    pub fn to_styled_seqs(&self) -> Vec<StyledSequence> {
+        self.traverse_all()
+            .map(|circle| self.path_as_styled_sequence(&circle))
             .collect()
     }
     ///
@@ -272,6 +313,10 @@ mod tests {
         assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAAAAAAAAA");
         assert_eq!(dbg.path_as_sequence(&circles[2]), b"CCCCCCCCCCC");
         assert_eq!(circles[0].len() + circles[1].len() + circles[2].len(), 33);
+
+        for seq in dbg.to_styled_seqs().iter() {
+            println!("{}", seq);
+        }
     }
     #[test]
     fn dbg_traverse_to_seqs() {
@@ -280,6 +325,10 @@ mod tests {
         println!("{}", dbg);
         for seq in dbg.to_seqs().iter() {
             println!("{}", sequence_to_string(seq));
+        }
+
+        for seq in dbg.to_styled_seqs().iter() {
+            println!("{}", seq);
         }
     }
 }
