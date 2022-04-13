@@ -218,8 +218,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         })
     }
     /// Check if all the edges has a copy number
+    /// except the warp edges (ANNN -> NNNC)
+    ///
     pub fn is_edge_copy_nums_assigned(&self) -> bool {
-        self.edges().all(|(_, _, _, ew)| ew.copy_num().is_some())
+        self.edges()
+            .all(|(e, _, _, ew)| self.is_warp_edge(e) || ew.copy_num().is_some())
     }
     /// Check if there is no node duplicates.
     pub fn has_no_duplicated_node(&self) -> bool {
