@@ -132,6 +132,12 @@ impl StyledSequence {
     pub fn new(seq: Sequence, style: SeqStyle) -> Self {
         StyledSequence { seq, style }
     }
+    pub fn seq(&self) -> &Sequence {
+        &self.seq
+    }
+    pub fn style(&self) -> SeqStyle {
+        self.style
+    }
 }
 
 impl std::fmt::Display for StyledSequence {

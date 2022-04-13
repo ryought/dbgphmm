@@ -2,7 +2,8 @@
 //! kmer base struct definitions
 //!
 pub use super::common::{
-    linear_fragment_sequence_to_kmers, linear_sequence_to_kmers as sequence_to_kmers, KmerLike,
+    linear_fragment_sequence_to_kmers, linear_sequence_to_kmers as sequence_to_kmers,
+    styled_sequence_to_kmers, KmerLike,
 };
 pub use super::veckmer::VecKmer as Kmer;
 

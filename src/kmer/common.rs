@@ -1,7 +1,7 @@
 //!
 //! Kmer definitions
 //!
-use crate::common::SeqStyle;
+use crate::common::{SeqStyle, StyledSequence};
 
 pub trait NullableKmer {
     ///
@@ -227,6 +227,19 @@ fn sequence_to_kmers<'a, K: KmerLike>(
     }
 }
 
+/// Convert circular or linear sequence to a list of kmers
+///
+/// # Known Bugs
+///
+/// * it does not works when `length of seq > k`.
+///
+pub fn styled_sequence_to_kmers<'a, K: KmerLike>(
+    s: &'a StyledSequence,
+    k: usize,
+) -> MarginKmerIterator<'a, K> {
+    sequence_to_kmers(s.seq(), k, s.style())
+}
+
 ///
 /// 0 <= index_prefix < k   ('n' * (k-index_prefix)) + seq[:index_prefix]
 /// 0 <= index < L - k      seq[index:index+k]
@@ -255,7 +268,7 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             bases.extend_from_slice(&self.seq[..n_body]);
             self.index_prefix += 1;
             Some(K::from_bases(&bases))
-        } else if self.index <= l - k {
+        } else if l >= k && self.index <= l - k {
             // TTTTTT
             let start = self.index;
             let end = self.index + k;
@@ -348,6 +361,50 @@ mod tests {
                 VecKmer::from_bases(b"ATCG"),
             ]
         );
+    }
+    #[test]
+    fn seq_to_kmers_edge_cases() {
+        // edge case #1: shorter than k
+        let seq = b"ATC";
+        let k = 4;
+
+        println!("l");
+        for kmer in linear_sequence_to_kmers::<VecKmer>(seq, k) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = linear_sequence_to_kmers::<VecKmer>(seq, k).collect();
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"NNNA"),
+                VecKmer::from_bases(b"NNAT"),
+                VecKmer::from_bases(b"NATC"),
+                VecKmer::from_bases(b"ATCN"),
+                VecKmer::from_bases(b"TCNN"),
+                VecKmer::from_bases(b"CNNN"),
+            ]
+        );
+
+        println!("c");
+        for kmer in circular_sequence_to_kmers::<VecKmer>(seq, k) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = circular_sequence_to_kmers::<VecKmer>(seq, k).collect();
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"ATCA"),
+                VecKmer::from_bases(b"TCAT"),
+                VecKmer::from_bases(b"CATC"),
+            ]
+        );
+
+        println!("f");
+        for kmer in linear_fragment_sequence_to_kmers::<VecKmer>(seq, k) {
+            println!("{}", kmer);
+        }
+        let kmers: Vec<VecKmer> = linear_fragment_sequence_to_kmers::<VecKmer>(seq, k).collect();
+        assert_eq!(kmers.len(), 0);
     }
     #[test]
     fn kmer_extend() {
