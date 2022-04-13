@@ -301,6 +301,8 @@ mod tests {
     #[test]
     fn dbg_traverse_rep() {
         let dbg = mock_rep();
+        println!("{}", dbg);
+
         let circles: Vec<Vec<NodeIndex>> = dbg.traverse_all().collect();
         assert_eq!(circles.len(), 4);
         for circle in circles.iter() {
