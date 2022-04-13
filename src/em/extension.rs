@@ -20,7 +20,7 @@ use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersection
 pub mod intersection_graph;
 
 ///
-/// Extension full algorithm by running `extension_step` iteratively.
+/// Extension full algorithm by running `extension_step()` iteratively.
 ///
 /// convert k-dBG into k+1-dBG.
 ///
@@ -29,11 +29,24 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
 ) -> Dbg<N, E> {
-    unimplemented!();
+    let max_iter: usize = 10;
+    let mut dbg = dbg.clone();
+    for i in 0..max_iter {
+        let (dbg_new, is_updated) = extension_step(&dbg, reads, params);
+        if !is_updated {
+            break;
+        }
+        dbg = dbg_new;
+    }
+    dbg
 }
 
 ///
 /// Extension algorithm
+///
+/// It returns
+/// * the updated dBG
+/// * the dBG was changed or not.
 ///
 /// ## Details
 ///
@@ -66,7 +79,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     new_dbg.set_edge_copy_nums(Some(&copy_nums));
 
     // TODO
-    (new_dbg, true)
+    (new_dbg, false)
 }
 
 ///

@@ -56,7 +56,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     new_dbg.set_node_copy_nums(&copy_nums);
 
     // TODO
-    (new_dbg, true)
+    (new_dbg, false)
 }
 
 ///
