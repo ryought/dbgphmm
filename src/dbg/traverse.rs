@@ -55,7 +55,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// the style can be either linear or circular
     ///
     pub fn path_as_styled_sequence(&self, path: &Path) -> StyledSequence {
-        println!("path={:?} is_linear={}", path, self.is_linear(path));
         let style = if self.is_linear(path) {
             SeqStyle::Linear
         } else {
@@ -297,11 +296,14 @@ mod tests {
         }
         assert_eq!(seqs.len(), 1);
         assert_eq!(format!("{}", seqs[0]), "L:AAAGCTTGATT");
+
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:AAAGCTTGATT");
     }
     #[test]
     fn dbg_traverse_rep() {
         let dbg = mock_rep();
-        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
 
         let circles: Vec<Vec<NodeIndex>> = dbg.traverse_all().collect();
         assert_eq!(circles.len(), 4);
@@ -327,6 +329,9 @@ mod tests {
         assert_eq!(format!("{}", seqs[1]), "L:AAA");
         assert_eq!(format!("{}", seqs[2]), "C:AAAAAAAAAA");
         assert_eq!(format!("{}", seqs[3]), "C:CCCCCCCCCCC");
+
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
     }
     #[test]
     fn dbg_traverse_to_seqs() {

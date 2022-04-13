@@ -2,17 +2,58 @@
 //! Output related functions of Dbg
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::common::{ei, ni};
+use crate::common::{ei, ni, StyledSequenceParseError};
 use crate::io::cytoscape::{EdgeAttr, EdgeAttrVec, ElementV2, NodeAttr, NodeAttrVec};
+use itertools::Itertools;
 use petgraph::dot::Dot;
+use std::str::FromStr;
 
+//
+// FromStr/Display implementations
+//
+
+impl<N, E> FromStr for Dbg<N, E>
+where
+    N: DbgNode,
+    E: DbgEdge,
+{
+    type Err = StyledSequenceParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        unimplemented!();
+    }
+}
+
+///
+/// Serialize Dbg as `k,(eulerian traversed sequences with style, separated with ',')`
+///
+/// Example:
+/// ```text
+/// 8,L:ATCGATCG,L:ATTTAC
+/// ```
+///
 impl<N, E> std::fmt::Display for Dbg<N, E>
 where
     N: DbgNode + std::fmt::Display,
     E: DbgEdge + std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", Dot::with_config(&self.graph, &[]))
+        let seqs = self
+            .to_styled_seqs()
+            .iter()
+            .map(|seq| seq.to_string())
+            .join(",");
+        write!(f, "{},{}", self.k(), seqs)
+    }
+}
+
+// debug output
+impl<N, E> Dbg<N, E>
+where
+    N: DbgNode + std::fmt::Display,
+    E: DbgEdge + std::fmt::Display,
+{
+    pub fn to_dot(&self) -> String {
+        format!("{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
@@ -105,6 +146,12 @@ mod tests {
     use super::*;
     use crate::dbg::mocks::mock_simple;
     use crate::vector::{DenseStorage, EdgeVec, NodeVec};
+
+    #[test]
+    fn dbg_serialize() {
+        let dbg = mock_simple();
+        println!("{}", dbg);
+    }
 
     #[test]
     fn dbg_mock_simple_cytoscape() {
