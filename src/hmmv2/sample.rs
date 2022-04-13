@@ -83,7 +83,7 @@ pub struct SampleProfile {
     ///
     /// how many reads will be sampled?
     ///
-    pub n_reads: usize,
+    pub read_amount: ReadAmount,
     ///
     /// seed of rng
     ///
@@ -96,6 +96,18 @@ pub struct SampleProfile {
     /// start points of reads.
     ///
     pub start_points: StartPoints,
+}
+
+///
+/// Specifying read amount
+///
+#[derive(Clone, Debug)]
+pub enum ReadAmount {
+    /// by the number of reads.
+    Count(usize),
+    // /// by depth (coverage) of reads.
+    // /// TODO utilize genome size of the model
+    // Depth(f64),
 }
 
 ///
@@ -149,8 +161,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample_by_profile(&self, profile: &SampleProfile) -> Historys {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
+        let n_reads = match profile.read_amount {
+            ReadAmount::Count(n) => n,
+        };
         Historys(
-            (0..profile.n_reads)
+            (0..n_reads)
                 .map(|_| match &profile.start_points {
                     StartPoints::Custom(nodes) => {
                         self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
@@ -508,7 +523,7 @@ mod tests {
         let phmm = mock_linear_phmm(PHMMParams::default());
         let start_point = ni(3);
         let hists = phmm.sample_by_profile(&SampleProfile {
-            n_reads: 10,
+            read_amount: ReadAmount::Count(10),
             seed: 0,
             length: 100,
             start_points: StartPoints::Custom(vec![start_point]),

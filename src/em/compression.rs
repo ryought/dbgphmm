@@ -16,11 +16,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
 
 ///
-/// Compression algorithm
-///
-/// ## TODOs
-///
-/// * avoid dbg copy?
+/// Compression full algorithm by running `compression_step` iteratively.
 ///
 pub fn compression<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -28,19 +24,39 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     depth: Freq,
 ) -> Dbg<N, E> {
+    unimplemented!();
+}
+
+///
+/// Compression algorithm
+///
+/// ## TODOs
+///
+/// * avoid dbg copy?
+///
+pub fn compression_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    depth: Freq,
+) -> (Dbg<N, E>, bool) {
     // e-step
     // calculate node_freqs by using current dbg.
-    let node_freqs = compression_e_step(dbg, reads, params);
+    println!("compression::e_step");
+    let node_freqs = e_step(dbg, reads, params);
     println!("node_freqs={}", node_freqs);
 
     // m-step
     // convert it to the
-    let copy_nums = compression_m_step(dbg, &node_freqs, depth);
+    println!("compression::m_step");
+    let copy_nums = m_step(dbg, &node_freqs, depth);
     println!("copy_nums={}", copy_nums);
 
     let mut new_dbg = dbg.clone();
     new_dbg.set_node_copy_nums(&copy_nums);
-    new_dbg
+
+    // TODO
+    (new_dbg, false)
 }
 
 ///
@@ -51,7 +67,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
 /// * convert dbg into phmm.
 /// * calculate node frequencies by forward/backward algorithm to emit the reads.
 ///
-fn compression_e_step<N: DbgNode, E: DbgEdge>(
+fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
@@ -77,7 +93,7 @@ fn compression_e_step<N: DbgNode, E: DbgEdge>(
 /// * convert into edge-centric dbg (with freq)
 /// * solve min-flow with demand=0 capacity=infty cost=squared-error-from-freq
 ///
-fn compression_m_step<N: DbgNode, E: DbgEdge>(
+fn m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     node_freqs: &NodeFreqs,
     depth: Freq,
@@ -102,11 +118,11 @@ mod tests {
     fn compression_m_step_dbg() {
         let dbg = mock_base();
         let node_freqs = NodeFreqs::new(dbg.n_nodes(), 1.9);
-        let copy_nums = compression_m_step(&dbg, &node_freqs, 1.0);
+        let copy_nums = m_step(&dbg, &node_freqs, 1.0);
         println!("{}", copy_nums);
         assert_eq!(copy_nums.to_vec(), vec![2; dbg.n_nodes()]);
 
-        let copy_nums = compression_m_step(&dbg, &node_freqs, 2.0);
+        let copy_nums = m_step(&dbg, &node_freqs, 2.0);
         println!("{}", copy_nums);
         assert_eq!(copy_nums.to_vec(), vec![1; dbg.n_nodes()]);
     }
@@ -122,6 +138,6 @@ mod tests {
             ],
         };
         let params = PHMMParams::default();
-        let dbg = compression(&dbg, &reads, &params, 3.0);
+        let (dbg, _) = compression(&dbg, &reads, &params, 3.0);
     }
 }

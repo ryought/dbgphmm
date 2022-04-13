@@ -20,7 +20,33 @@ use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersection
 pub mod intersection_graph;
 
 ///
+/// Extension full algorithm by running `extension_step()` iteratively.
+///
+/// convert k-dBG into k+1-dBG.
+///
+pub fn extension<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+) -> Dbg<N, E> {
+    let max_iter: usize = 10;
+    let mut dbg = dbg.clone();
+    for i in 0..max_iter {
+        let (dbg_new, is_updated) = extension_step(&dbg, reads, params);
+        if !is_updated {
+            break;
+        }
+        dbg = dbg_new;
+    }
+    dbg
+}
+
+///
 /// Extension algorithm
+///
+/// It returns
+/// * the updated dBG
+/// * the dBG was changed or not.
 ///
 /// ## Details
 ///
@@ -34,14 +60,26 @@ pub mod intersection_graph;
 ///
 /// * avoid dbg copy?
 ///
-pub fn extension<N: DbgNode, E: DbgEdge>(
+pub fn extension_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> Dbg<N, E> {
-    // (1) infer edge freqs
-    // (2) infer the best copy nums
-    unimplemented!();
+) -> (Dbg<N, E>, bool) {
+    // (1) e-step infer edge freqs
+    println!("extension::e_step");
+    let edge_freqs = e_step(dbg, reads, params);
+    println!("edge_freqs={}", edge_freqs);
+
+    // (2) m-step infer the best copy nums
+    println!("extension::m_step");
+    let copy_nums = m_step(dbg, &edge_freqs);
+    println!("copy_nums={}", copy_nums);
+
+    let mut new_dbg = dbg.clone();
+    new_dbg.set_edge_copy_nums(Some(&copy_nums));
+
+    // TODO
+    (new_dbg, false)
 }
 
 ///
@@ -52,7 +90,7 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
 /// * convert dbg into phmm.
 /// * calculate edge frequencies by forward/backward algorithm to emit the reads.
 ///
-fn extension_e_step<N: DbgNode, E: DbgEdge>(
+fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
@@ -74,26 +112,27 @@ fn extension_e_step<N: DbgNode, E: DbgEdge>(
 /// ## Details
 ///
 ///
-fn extension_m_step<N: DbgNode, E: DbgEdge>(
-    dbg: &Dbg<N, E>,
-    edge_freqs: &EdgeFreqs,
-) -> EdgeCopyNums {
+fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> EdgeCopyNums {
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
     for fi in dbg.iter_flow_intersections(edge_freqs) {
-        // get an optimized flow intersection
-        let fio = fi.convert();
+        if !fi.is_tip_intersection() {
+            // get an optimized flow intersection
+            let fio = fi.convert();
 
-        println!("extension iter m {} {}", fi, fio);
+            if !fi.can_uniquely_convertable() {
+                println!("extension optimized iter m {} {}", fi, fio);
+            }
 
-        // check if there is no inconsistent edge copy numbers.
-        assert!(fio.has_valid_node_copy_nums());
-        assert!(fio.all_edges_has_copy_num());
+            // check if there is no inconsistent edge copy numbers.
+            assert!(fio.has_valid_node_copy_nums());
+            assert!(fio.is_resolved());
 
-        // store fio's edge copy number information into ecn vector.
-        for (_, _, e) in fio.bi.iter_edges() {
-            assert!(ecn[e.index] == default_value);
-            ecn[e.index] = e.copy_num.unwrap();
+            // store fio's edge copy number information into ecn vector.
+            for (_, _, e) in fio.bi.iter_edges() {
+                assert!(ecn[e.index] == default_value);
+                ecn[e.index] = e.copy_num.unwrap();
+            }
         }
     }
     ecn
@@ -115,9 +154,9 @@ mod tests {
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
-        let copy_nums = extension_m_step(&dbg, &freqs);
+        let copy_nums = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
-        assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
     }
 
     #[test]
@@ -130,7 +169,7 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let freqs = extension_e_step(&dbg, &reads, &params);
+        let freqs = e_step(&dbg, &reads, &params);
         let freqs_true = EdgeFreqs::from_slice(
             &[
                 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
@@ -158,7 +197,7 @@ mod tests {
             ],
             0.0,
         );
-        let copy_nums = extension_m_step(&dbg, &freqs);
+        let copy_nums = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
         // assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     }

@@ -7,7 +7,7 @@ use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSe
 use crate::common::{CopyNum, Reads, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -247,7 +247,7 @@ mod tests {
         let graph = GenomeGraph::from_seqs(&seqs);
         let reads = graph.sample_reads(&ReadProfile {
             sample_profile: SampleProfile {
-                n_reads: 10,
+                read_amount: ReadAmount::Count(10),
                 seed: 0,
                 length: 1000,
                 // start_points: StartPoints::Random,

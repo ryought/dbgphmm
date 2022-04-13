@@ -103,6 +103,9 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn n_out_nodes(&self) -> usize {
         self.bi.n_out()
     }
+    pub fn km1mer(&self) -> &K {
+        &self.bi.id
+    }
 }
 
 ///
@@ -122,6 +125,44 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
     pub fn all_edges_has_copy_num(&self) -> bool {
         self.bi.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
+    }
+    ///
+    /// Check if the km1mer of the intersection is NNNN.
+    /// If it is a tip intersection, the edge copy number should not be resolved.
+    ///
+    pub fn is_tip_intersection(&self) -> bool {
+        self.km1mer().is_null()
+    }
+    ///
+    /// Check if the km1mer of the intersection is ending (e.g. XNNN or NNYY).
+    /// Ending intersection should be a simple (n_in==1 or n_out==1).
+    ///
+    /// ```text
+    /// YXNNN -->
+    ///           XNNNN
+    /// ZXNNN -->
+    /// ```
+    ///
+    /// node(`YXNNN`) should have only one child(`XNNNN`), so the intersection `XNNN` should be
+    /// simple.
+    ///
+    pub fn is_end_intersection(&self) -> bool {
+        let km1mer = self.km1mer();
+        !km1mer.is_null() && km1mer.has_null()
+    }
+    ///
+    /// FlowIntersection is resolved or not.
+    ///
+    /// * For a normal intersection, it is resolved if the all edges has its own copy number.
+    /// * For a tip intersection, the edge copy number cannot be assigned, so it will always be marked
+    /// as resolved.
+    ///
+    pub fn is_resolved(&self) -> bool {
+        if self.is_tip_intersection() {
+            true
+        } else {
+            self.all_edges_has_copy_num()
+        }
     }
     /// Do appropriate conversion.
     /// * if uniquly convertable, do a simple conversion

@@ -18,6 +18,9 @@ pub fn sequence_to_string(seq: &Sequence) -> &str {
     std::str::from_utf8(seq).unwrap()
 }
 
+/// Type of Genome, the collection of sequences.
+pub type Genome = Vec<Sequence>;
+
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]
@@ -26,8 +29,17 @@ pub struct Reads {
 }
 
 impl Reads {
+    /// Constructor of reads
+    pub fn from(reads: Vec<Sequence>) -> Self {
+        Reads { reads }
+    }
+    /// get an iterator over the reads
     pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
         self.reads.iter()
+    }
+    /// the number of reads.
+    pub fn len(&self) -> usize {
+        self.reads.len()
     }
 }
 
