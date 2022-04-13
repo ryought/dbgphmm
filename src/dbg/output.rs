@@ -2,7 +2,8 @@
 //! Output related functions of Dbg
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::common::{ei, ni, StyledSequenceParseError};
+use super::hashdbg_v2::HashDbg;
+use crate::common::{ei, ni, StyledSequence, StyledSequenceParseError};
 use crate::io::cytoscape::{EdgeAttr, EdgeAttrVec, ElementV2, NodeAttr, NodeAttrVec};
 use itertools::Itertools;
 use petgraph::dot::Dot;
@@ -19,7 +20,19 @@ where
 {
     type Err = StyledSequenceParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        unimplemented!();
+        let parts: Vec<&str> = s.split(',').collect();
+
+        // parse k-mer size
+        let k = parts[0].parse::<usize>().unwrap();
+
+        // create hashdbg and insert all reads
+        let mut hd = HashDbg::new(k);
+        for &part in parts[1..].iter() {
+            let seq = StyledSequence::from_str(part).unwrap();
+            hd.add_styled_sequence(&seq);
+        }
+
+        Ok(Self::from_hashdbg(&hd))
     }
 }
 
@@ -144,13 +157,27 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dbg::mocks::mock_simple;
+    use crate::dbg::impls::SimpleDbg;
+    use crate::dbg::mocks::{mock_rep, mock_simple};
+    use crate::kmer::veckmer::VecKmer;
     use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 
     #[test]
     fn dbg_serialize() {
         let dbg = mock_simple();
         println!("{}", dbg);
+        let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_str(&dbg.to_string()).unwrap();
+        println!("{}", dbg2);
+        assert_eq!(dbg.to_string(), dbg2.to_string());
+        assert_eq!(dbg.to_string(), "4,L:AAAGCTTGATT");
+        assert_eq!(dbg2.to_string(), "4,L:AAAGCTTGATT");
+
+        let dbg = mock_rep();
+        println!("{}", dbg);
+        let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_str(&dbg.to_string()).unwrap();
+        println!("{}", dbg2);
+        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
+        assert_eq!(dbg2.to_string(), "4,L:CCC,L:AAA,C:CCCCCCCCCCC,C:AAAAAAAAAA");
     }
 
     #[test]
