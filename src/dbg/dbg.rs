@@ -59,6 +59,13 @@ pub trait DbgNode: Clone {
         self.kmer().last()
     }
     ///
+    /// this node is emittable or not?
+    /// i.e. emission is not b'N'.
+    ///
+    fn is_emittable(&self) -> bool {
+        self.emission() != b'N'
+    }
+    ///
     /// check if k-mer of this node is head (NNNNA)
     ///
     fn is_head(&self) -> bool {
@@ -69,6 +76,16 @@ pub trait DbgNode: Clone {
     ///
     fn is_tail(&self) -> bool {
         self.kmer().is_tail()
+    }
+    ///
+    /// calculate the genome size of this node
+    ///
+    fn genome_size(&self) -> CopyNum {
+        if self.is_emittable() {
+            self.copy_num()
+        } else {
+            0
+        }
     }
 }
 
@@ -193,6 +210,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 /// Basic properties
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// Get the total genome size of this de bruijn graph
+    /// It can be calculated by the sum of genome sizes
+    /// of all emittable nodes.
+    ///
+    pub fn genome_size(&self) -> CopyNum {
+        self.nodes().map(|(_, weight)| weight.genome_size()).sum()
+    }
     /// CopyNums of nodes are consistent, that is
     /// 'sum of copynums of childs' == 'sum of copynums of siblings'
     /// for each kmers
