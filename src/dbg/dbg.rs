@@ -660,7 +660,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         for (edge, s, t, weight) in self.edges() {
             if !self.is_warp_edge(edge) {
                 let kmer = self.kmer(s).join(self.kmer(t));
-                let copy_num = weight.copy_num().unwrap();
+                let copy_num = weight.copy_num().unwrap_or_else(|| {
+                    panic!(
+                        "edge {} have no copy nums even though it is not warp edge.",
+                        edge.index()
+                    )
+                });
                 let node = graph.add_node(N::new(kmer, copy_num));
                 ids.insert(edge, node);
             }
@@ -930,15 +935,37 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:ATCGAGCATG");
 
+        // (1) set the edge_copy_nums
         let mut ecn: EdgeCopyNums =
             EdgeCopyNums::from_slice(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], 0);
         dbg.set_edge_copy_nums(Some(&ecn));
         assert!(dbg.is_edge_copy_nums_assigned());
 
+        // converting back gives the same vector?
+        let ecn2 = dbg.to_edge_copy_nums().unwrap();
+        println!("{}", ecn2);
+        assert_eq!(ecn, ecn2);
+
+        // the edges have proper copy nums?
+        for (edge, _, _, weight) in dbg.edges() {
+            if dbg.is_warp_edge(edge) {
+                assert!(weight.copy_num().is_none());
+            } else {
+                assert!(weight.copy_num().is_some());
+                assert_eq!(weight.copy_num().unwrap(), 1);
+            }
+        }
+
+        // (2) upgrade the dbg
         let dbg2 = dbg.to_kp1_dbg();
-        println!("{}", dbg);
-        println!("{}", dbg.to_dot());
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+
+        assert_eq!(format!("{}", dbg2), "5,L:ATCGAGCATG");
     }
     #[test]
     fn dbg_clone() {
