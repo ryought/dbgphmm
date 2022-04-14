@@ -227,8 +227,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// CopyNums of edges are consistent?
     /// i.e. the sum of copy numbers on in-edges and out-edges
     /// are equal to the copy numbers of the node.
+    ///
+    /// Head/tail nodes will break this consistency
+    /// because warping edges (from tail to head) do not have copy number.
     pub fn has_consistent_edge_copy_nums(&self) -> bool {
-        self.nodes().all(|(node, _)| {
+        self.nodes().all(|(node, weight)| {
             let in_copy_nums: Option<CopyNum> = self
                 .graph
                 .edges_directed(node, Direction::Incoming)
@@ -239,7 +242,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 .edges_directed(node, Direction::Outgoing)
                 .map(|e| e.weight().copy_num())
                 .sum();
-            in_copy_nums == out_copy_nums
+
+            // if the node is head or tail, allow the inconsistency.
+            if weight.is_head() || weight.is_tail() {
+                true
+            } else {
+                in_copy_nums == out_copy_nums
+            }
         })
     }
     /// Check if all the edges has a copy number
@@ -350,6 +359,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Assign copy numbers to all nodes at a time, specified by copy_nums NodeCopyNums vector.
     ///
     pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
+        // vector length assertion
+        assert!(copy_nums.len() == self.n_nodes());
+
         for (i, node_weight_mut) in self.graph.node_weights_mut().enumerate() {
             let node = NodeIndex::new(i);
             node_weight_mut.set_copy_num(copy_nums[node])
@@ -359,6 +371,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Assign copy numbers to all edges at a time, specified by copy_nums EdgeCopyNums vector.
     ///
     pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
+        // vector length assertion
+        assert!(copy_nums.is_none() || copy_nums.unwrap().len() == self.n_edges());
+
         for (i, edge_weight_mut) in self.graph.edge_weights_mut().enumerate() {
             let edge = EdgeIndex::new(i);
             let copy_num = match copy_nums {
@@ -886,6 +901,15 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
+
+        let mut ecn: EdgeCopyNums =
+            EdgeCopyNums::from_slice(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], 0);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
     }
     #[test]
     fn dbg_clone() {
