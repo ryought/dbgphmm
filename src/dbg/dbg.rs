@@ -400,10 +400,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
     ///
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
-    /// as a linear fragment.
+    /// as a sequence with SeqStyle::Linear.
     ///
     fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
-        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::LinearFragment);
+        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_nodes_of_styled_seq(&styled_sequence)
     }
     ///
@@ -424,16 +424,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Some(nodes)
     }
     ///
-    /// generate node/edge copy numbers of the given sequence
-    ///
-    /// TODO assert that seq forms cycle
+    /// generate node/edge copy numbers of the given sequence as SeqStyle::Linear
     ///
     pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> Option<(NodeCopyNums, EdgeCopyNums)> {
+        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
+        self.to_copy_nums_of_styled_seq(&styled_sequence)
+    }
+    ///
+    /// generate node/edge copy numbers of the given sequence
+    ///
+    pub fn to_copy_nums_of_styled_seq(
+        &self,
+        seq: &StyledSequence,
+    ) -> Option<(NodeCopyNums, EdgeCopyNums)> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
 
-        match self.to_nodes_of_seq(seq) {
+        match self.to_nodes_of_styled_seq(seq) {
             None => None,
             Some(nodes) => {
                 // add node counts
@@ -449,13 +457,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     ec[edge] += 1;
                 }
 
-                // add edge between tail and head.
-                let head = nodes.first().unwrap();
-                let tail = nodes.last().unwrap();
-                let edge = self
-                    .find_edge(*tail, *head)
-                    .expect("there is no corresponding edge in the dbg");
-                ec[edge] += 1;
+                if !seq.style().is_fragment() {
+                    // add edge between tail and head if the path is circle.
+                    let head = nodes.first().unwrap();
+                    let tail = nodes.last().unwrap();
+                    let edge = self
+                        .find_edge(*tail, *head)
+                        .expect("there is no corresponding edge in the dbg");
+                    ec[edge] += 1;
+                }
 
                 Some((nc, ec))
             }
