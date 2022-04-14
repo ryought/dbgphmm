@@ -7,10 +7,10 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Reads, Sequence};
+use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::kmer::kmer::sequence_to_kmers;
+use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
@@ -398,10 +398,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             edge_weight_mut.set_copy_num(copy_num)
         }
     }
+    ///
+    /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
+    /// as a linear fragment.
+    ///
     fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
+        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::LinearFragment);
+        self.to_nodes_of_styled_seq(&styled_sequence)
+    }
+    ///
+    /// Given a StyledSequence, calculate a path (= a list of nodes) that gives
+    /// the sequence as a emission along the path.
+    ///
+    /// If the sequence cannot be emitted using a path in the dbg, returns None.
+    ///
+    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Option<Vec<NodeIndex>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
-        for kmer in sequence_to_kmers(seq, self.k()) {
+        for kmer in styled_sequence_to_kmers(seq, self.k()) {
             match m.get(&kmer) {
                 None => return None,
                 Some(&node) => nodes.push(node),
