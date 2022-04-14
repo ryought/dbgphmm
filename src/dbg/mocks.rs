@@ -1,8 +1,11 @@
+use super::dbg::{Dbg, DbgEdge, DbgNode};
 use super::hashdbg_v2::HashDbg;
-use super::impls::SimpleDbg;
+use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::Sequence;
-use crate::kmer::veckmer::VecKmer;
+use crate::kmer::veckmer::{kmer, VecKmer};
 use crate::random_seq::generate;
+use itertools::Itertools;
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 pub fn mock_base() -> SimpleDbg<VecKmer> {
     let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGGCT");
@@ -67,6 +70,40 @@ pub fn mock_random_with_seq(k: usize, length: usize) -> (SimpleDbg<VecKmer>, Seq
 pub fn mock_random(k: usize, length: usize) -> SimpleDbg<VecKmer> {
     let (dbg, _) = mock_random_with_seq(k, length);
     dbg
+}
+
+///
+/// simple dbg from a manually constructed DiGraph
+///
+/// ATCGAGCATG
+///
+pub fn mock_manual() -> SimpleDbg<VecKmer> {
+    let mut graph = DiGraph::new();
+
+    // add nodes
+    let nodes = vec![
+        graph.add_node(SimpleDbgNode::new(kmer(b"NNNA"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"NNAT"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"NATC"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"ATCG"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"TCGA"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"CGAG"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"GAGC"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"AGCA"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"GCAT"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"CATG"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"ATGN"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"TGNN"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"GNNN"), 1)),
+    ];
+    let n = nodes.len();
+
+    // add edges
+    let edges: Vec<_> = (0..n)
+        .map(|i| graph.add_edge(nodes[i % n], nodes[(i + 1) % n], SimpleDbgEdge::new(None)))
+        .collect();
+
+    SimpleDbg::from_digraph(4, graph)
 }
 
 //

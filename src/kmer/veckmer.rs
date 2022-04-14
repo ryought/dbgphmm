@@ -7,6 +7,13 @@ use super::common::{KmerLike, NullableKmer};
 #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
 pub struct VecKmer(pub Vec<u8>);
 
+///
+/// short-hand of `VecKmer::from_bases`.
+///
+pub fn kmer(bases: &[u8]) -> VecKmer {
+    VecKmer::from_bases(bases)
+}
+
 impl NullableKmer for VecKmer {
     fn null_kmer(k: usize) -> Self {
         VecKmer(vec![b'N'; k])

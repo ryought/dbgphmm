@@ -256,6 +256,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             for child in weight.kmer().childs() {
                 if let Some(&w) = m.get(&child) {
                     if !self.contains_edge(v, w) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", weight.kmer(), child, v.index(), w.index());
                         return false;
                     }
                 }
@@ -266,12 +267,29 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             for parent in weight.kmer().parents() {
                 if let Some(&w) = m.get(&parent) {
                     if !self.contains_edge(w, v) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", parent, weight.kmer(), w.index(), v.index());
                         return false;
                     }
                 }
             }
         }
         true
+    }
+    ///
+    /// Check the Dbg struct is valid.
+    ///
+    /// * no parallel edge
+    /// * no duplicated node
+    /// * copy_nums of nodes are consistent
+    /// * copy_nums of edges are consistent
+    /// * backend DiGraph is valid
+    ///
+    pub fn is_valid(&self) -> bool {
+        self.has_consistent_node_copy_nums()
+            && self.has_consistent_edge_copy_nums()
+            && self.has_no_duplicated_node()
+            && self.has_no_parallel_edge()
+            && self.is_graph_valid()
     }
 }
 
@@ -834,6 +852,15 @@ mod tests {
         for seq in seqs.iter() {
             println!("dbg2={}", sequence_to_string(seq));
         }
+    }
+    #[test]
+    fn dbg_extension_2() {
+        // let mut dbg = mock_intersection();
+        let mut dbg = mock_manual();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
     }
     #[test]
     fn dbg_clone() {
