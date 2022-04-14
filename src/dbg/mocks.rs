@@ -53,7 +53,7 @@ pub fn mock_intersection() -> SimpleDbg<VecKmer> {
 pub fn mock_intersection_small() -> SimpleDbg<VecKmer> {
     let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
     hd.add_seq(b"ATAGCT");
-    hd.add_seq(b"TAGGAT");
+    hd.add_seq(b"TAAGCC");
     SimpleDbg::from_hashdbg(&hd)
 }
 

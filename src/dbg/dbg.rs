@@ -928,8 +928,19 @@ mod tests {
         }
     }
     #[test]
+    fn dbg_extension_intersection() {
+        let mut dbg = mock_intersection_small();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+
+        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATAGCT").unwrap();
+        println!("{}", ncn);
+        println!("{}", ecn);
+    }
+    #[test]
     fn dbg_extension_2() {
-        // let mut dbg = mock_intersection();
         let mut dbg = mock_manual();
         println!("{}", dbg);
         println!("{}", dbg.to_dot());
