@@ -344,11 +344,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
     ///
+    /// copy_num of warp edge (tail -> head) is unassigned, so it will be
+    /// filled with 0.
+    ///
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
         if self.is_edge_copy_nums_assigned() {
             let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
             for (edge, _, _, weight) in self.edges() {
-                v[edge] = weight.copy_num().unwrap();
+                if self.is_warp_edge(edge) {
+                    v[edge] = 0;
+                } else {
+                    v[edge] = weight.copy_num().unwrap();
+                }
             }
             Some(v)
         } else {
@@ -374,11 +381,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // vector length assertion
         assert!(copy_nums.is_none() || copy_nums.unwrap().len() == self.n_edges());
 
-        for (i, edge_weight_mut) in self.graph.edge_weights_mut().enumerate() {
-            let edge = EdgeIndex::new(i);
-            let copy_num = match copy_nums {
-                None => None,
-                Some(copy_nums) => Some(copy_nums[edge]),
+        for edge in self.graph.edge_indices() {
+            let is_warp_edge = self.is_warp_edge(edge);
+            let edge_weight_mut = self.graph.edge_weight_mut(edge).unwrap();
+
+            let copy_num = if is_warp_edge {
+                // copy num of warp edges is always unassigned.
+                None
+            } else {
+                // assign the value of vector for normal edges.
+                match copy_nums {
+                    None => None,
+                    Some(copy_nums) => Some(copy_nums[edge]),
+                }
             };
             edge_weight_mut.set_copy_num(copy_num)
         }
@@ -789,7 +804,7 @@ mod tests {
         dbg.set_edge_copy_nums(Some(&EdgeCopyNums::from_slice(&vec![1; dbg.n_edges()], 0)));
         assert_eq!(
             dbg.to_edge_copy_nums().unwrap().to_vec(),
-            vec![1; dbg.n_edges()]
+            vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]
         );
         assert_eq!(dbg.is_edge_copy_nums_assigned(), true);
 
