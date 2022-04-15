@@ -365,21 +365,33 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Assign copy numbers to all nodes at a time, specified by copy_nums NodeCopyNums vector.
     ///
-    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
+    /// It returns the copy_nums are updated or not.
+    ///
+    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) -> bool {
         // vector length assertion
         assert!(copy_nums.len() == self.n_nodes());
+        let mut is_updated = false;
 
         for (i, node_weight_mut) in self.graph.node_weights_mut().enumerate() {
             let node = NodeIndex::new(i);
-            node_weight_mut.set_copy_num(copy_nums[node])
+            let copy_num = copy_nums[node];
+            if node_weight_mut.copy_num() != copy_num {
+                is_updated = true;
+            }
+            node_weight_mut.set_copy_num(copy_num);
         }
+
+        is_updated
     }
     ///
     /// Assign copy numbers to all edges at a time, specified by copy_nums EdgeCopyNums vector.
     ///
-    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
+    /// It returns the copy_nums are updated or not.
+    ///
+    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) -> bool {
         // vector length assertion
         assert!(copy_nums.is_none() || copy_nums.unwrap().len() == self.n_edges());
+        let mut is_updated = false;
 
         for edge in self.graph.edge_indices() {
             let is_warp_edge = self.is_warp_edge(edge);
@@ -395,8 +407,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     Some(copy_nums) => Some(copy_nums[edge]),
                 }
             };
+
+            // check the new_copy_num is different from the original copy num
+            if edge_weight_mut.copy_num() != copy_num {
+                is_updated = true;
+            }
             edge_weight_mut.set_copy_num(copy_num)
         }
+
+        is_updated
     }
     ///
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
