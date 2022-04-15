@@ -8,6 +8,7 @@ pub mod dense;
 pub mod diff;
 pub mod graph;
 pub mod index;
+pub mod parallel;
 pub mod sparse;
 pub mod test;
 pub mod unit;
