@@ -133,6 +133,16 @@ where
     fn is_unvisited(&self, node: NodeIndex) -> bool {
         self.copy_nums[node] > 0
     }
+    ///
+    /// Find the unvisited (= copy_nums of the node is remaining) child
+    /// of the node.
+    ///
+    /// ## TODO
+    ///
+    /// to achieve stable traversing (i.e. the same traversal order even though the
+    /// index of nodes/edges are different), the child should be returned in order of
+    /// k-mer dictionary order.
+    ///
     fn find_unvisited_child(&self, node: NodeIndex) -> Option<NodeIndex> {
         if self.dbg.kmer(node).is_tail() {
             // if the node is tail (XNNNN), break the path.
