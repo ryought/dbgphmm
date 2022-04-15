@@ -166,7 +166,6 @@ mod tests {
         assert_eq!(dbg_v2.to_string(), "4,L:AACTAGCTT");
 
         // compress again
-        // XXX node_freq is NaN ...???
         let (dbg_v3, is_updated) = compression_step(&dbg_v2, &reads, &params, 3.0);
         println!("{}", dbg_v3);
         println!("{}", dbg_v3.genome_size());
