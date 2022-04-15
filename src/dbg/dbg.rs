@@ -938,16 +938,74 @@ mod tests {
         }
     }
     #[test]
-    fn dbg_extension_intersection() {
+    fn dbg_extension_intersection_a() {
+        //
+        // [pattern a]
+        // representing ATAGCT and TAAGCC
+        //
         let mut dbg = mock_intersection_small();
         println!("{}", dbg);
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
 
-        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATAGCT").unwrap();
-        println!("{}", ncn);
+        // discarded edges
+        // * TAGC 17 -> AGCC 5
+        // * AAGC 11 -> AGCT 12
+        // * warp edges 8->9, 8->3, 6->9, 6->3
+        let ecn = EdgeCopyNums::from_slice(
+            &[
+                1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1,
+            ],
+            0,
+        );
         println!("{}", ecn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+        assert_eq!(dbg.to_edge_copy_nums().unwrap(), ecn);
+
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg2), "5,L:TAAGCC,L:ATAGCT");
+    }
+    #[test]
+    fn dbg_extension_intersection_b() {
+        //
+        // [pattern b]
+        // representing ATAGCC and TAAGCT
+        //
+        let mut dbg = mock_intersection_small();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+
+        // discarded edges
+        // * TAGC 17 -> AGCT 12
+        // * AAGC 11 -> AGCC 5
+        // * warp edges 8->9, 8->3, 6->9, 6->3
+        let ecn = EdgeCopyNums::from_slice(
+            &[
+                1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+            ],
+            0,
+        );
+        println!("{}", ecn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+        assert_eq!(dbg.to_edge_copy_nums().unwrap(), ecn);
+
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg2), "5,L:TAAGCT,L:ATAGCC");
     }
     #[test]
     fn dbg_extension_2() {
