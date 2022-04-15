@@ -118,7 +118,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     let edbg = dbg.to_edbg_with_attr(Some(&node_freqs));
     let flow = min_cost_flow_convex_fast(&edbg.graph);
     match flow {
-        None => panic!(),
+        None => panic!("compression::m_step cannot find optimal flow."),
         // an edge in edbg corresponds to a node in dbg
         // so edgevec for edbg can be converted to nodevec for dbg.
         Some(copy_nums) => copy_nums.switch_index(),
@@ -164,11 +164,15 @@ mod tests {
         println!("is_updated={}", is_updated);
         assert_eq!(dbg_v2.genome_size(), 9);
         assert_eq!(dbg_v2.to_string(), "4,L:AACTAGCTT");
+        assert!(is_updated);
 
         // compress again
         let (dbg_v3, is_updated) = compression_step(&dbg_v2, &reads, &params, 3.0);
         println!("{}", dbg_v3);
         println!("{}", dbg_v3.genome_size());
         println!("is_updated={}", is_updated);
+        assert_eq!(dbg_v3.genome_size(), 9);
+        assert_eq!(dbg_v3.to_string(), "4,L:AACTAGCTT");
+        assert!(!is_updated);
     }
 }
