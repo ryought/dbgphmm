@@ -1,6 +1,8 @@
 //!
 //! End-to-end genome inference tests
 //!
+//! It starts from a raw dbg constructed from reads.
+//!
 //! 1. generate genome
 //! 2. generate reads from linear graph
 //!
@@ -16,8 +18,8 @@ use crate::random_seq::generate;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::em::compression::compression_step;
-    use crate::em::extension::extension_step;
+    use crate::em::compression::{compression, compression_step};
+    use crate::em::extension::{extension, extension_step};
 
     fn e2e_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
@@ -69,7 +71,7 @@ mod tests {
     fn e2e_extension() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let (dbg, _) = extension_step(&dbg_raw, &reads, &PHMMParams::default());
+        let dbg = extension(&dbg_raw, &reads, &PHMMParams::default(), 5);
         println!("{}", dbg);
     }
 }

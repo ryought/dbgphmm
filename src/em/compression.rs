@@ -18,13 +18,30 @@ use crate::min_flow::min_cost_flow_convex_fast;
 ///
 /// Compression full algorithm by running `compression_step` iteratively.
 ///
+/// * max_iter: max iteration loop count of EM.
+///
 pub fn compression<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
     depth: Freq,
+    max_iter: usize,
 ) -> Dbg<N, E> {
-    unimplemented!();
+    let mut dbg = dbg.clone();
+
+    // iterate EM steps
+    for i in 0..max_iter {
+        println!("compression {}th iteration", i);
+        let (dbg_new, is_updated) = compression_step(&dbg, reads, params, depth);
+
+        // if the single EM step does not change the DBG model, stop iteration.
+        if !is_updated {
+            break;
+        }
+        dbg = dbg_new;
+    }
+
+    dbg
 }
 
 ///
@@ -53,10 +70,9 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     println!("copy_nums={}", copy_nums);
 
     let mut new_dbg = dbg.clone();
-    new_dbg.set_node_copy_nums(&copy_nums);
+    let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
 
-    // TODO
-    (new_dbg, false)
+    (new_dbg, is_updated)
 }
 
 ///
@@ -102,7 +118,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     let edbg = dbg.to_edbg_with_attr(Some(&node_freqs));
     let flow = min_cost_flow_convex_fast(&edbg.graph);
     match flow {
-        None => panic!(),
+        None => panic!("compression::m_step cannot find optimal flow."),
         // an edge in edbg corresponds to a node in dbg
         // so edgevec for edbg can be converted to nodevec for dbg.
         Some(copy_nums) => copy_nums.switch_index(),
@@ -115,7 +131,7 @@ mod tests {
     use crate::dbg::mocks::*;
 
     #[test]
-    fn compression_m_step_dbg() {
+    fn em_compression_m_step_dbg() {
         let dbg = mock_base();
         let node_freqs = NodeFreqs::new(dbg.n_nodes(), 1.9);
         let copy_nums = m_step(&dbg, &node_freqs, 1.0);
@@ -128,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn compression_dbg() {
+    fn em_compression_step_intersection() {
         let dbg = mock_intersection();
         let reads = Reads {
             reads: vec![
@@ -138,6 +154,25 @@ mod tests {
             ],
         };
         let params = PHMMParams::default();
-        let (dbg, _) = compression_step(&dbg, &reads, &params, 3.0);
+        println!("{}", dbg);
+        assert_eq!(dbg.genome_size(), 18);
+        assert_eq!(dbg.to_string(), "4,L:AACTAGGGC,L:CCGTAGCTT");
+
+        let (dbg_v2, is_updated) = compression_step(&dbg, &reads, &params, 3.0);
+        println!("{}", dbg_v2);
+        println!("{}", dbg_v2.genome_size());
+        println!("is_updated={}", is_updated);
+        assert_eq!(dbg_v2.genome_size(), 9);
+        assert_eq!(dbg_v2.to_string(), "4,L:AACTAGCTT");
+        assert!(is_updated);
+
+        // compress again
+        let (dbg_v3, is_updated) = compression_step(&dbg_v2, &reads, &params, 3.0);
+        println!("{}", dbg_v3);
+        println!("{}", dbg_v3.genome_size());
+        println!("is_updated={}", is_updated);
+        assert_eq!(dbg_v3.genome_size(), 9);
+        assert_eq!(dbg_v3.to_string(), "4,L:AACTAGCTT");
+        assert!(!is_updated);
     }
 }

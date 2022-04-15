@@ -7,10 +7,10 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Reads, Sequence};
+use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use crate::kmer::kmer::sequence_to_kmers;
+use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
@@ -59,6 +59,13 @@ pub trait DbgNode: Clone {
         self.kmer().last()
     }
     ///
+    /// this node is emittable or not?
+    /// i.e. emission is not b'N'.
+    ///
+    fn is_emittable(&self) -> bool {
+        self.emission() != b'N'
+    }
+    ///
     /// check if k-mer of this node is head (NNNNA)
     ///
     fn is_head(&self) -> bool {
@@ -69,6 +76,16 @@ pub trait DbgNode: Clone {
     ///
     fn is_tail(&self) -> bool {
         self.kmer().is_tail()
+    }
+    ///
+    /// calculate the genome size of this node
+    ///
+    fn genome_size(&self) -> CopyNum {
+        if self.is_emittable() {
+            self.copy_num()
+        } else {
+            0
+        }
     }
 }
 
@@ -193,6 +210,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 /// Basic properties
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// Get the total genome size of this de bruijn graph
+    /// It can be calculated by the sum of genome sizes
+    /// of all emittable nodes.
+    ///
+    pub fn genome_size(&self) -> CopyNum {
+        self.nodes().map(|(_, weight)| weight.genome_size()).sum()
+    }
     /// CopyNums of nodes are consistent, that is
     /// 'sum of copynums of childs' == 'sum of copynums of siblings'
     /// for each kmers
@@ -202,8 +227,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// CopyNums of edges are consistent?
     /// i.e. the sum of copy numbers on in-edges and out-edges
     /// are equal to the copy numbers of the node.
+    ///
+    /// Head/tail nodes will break this consistency
+    /// because warping edges (from tail to head) do not have copy number.
     pub fn has_consistent_edge_copy_nums(&self) -> bool {
-        self.nodes().all(|(node, _)| {
+        self.nodes().all(|(node, weight)| {
             let in_copy_nums: Option<CopyNum> = self
                 .graph
                 .edges_directed(node, Direction::Incoming)
@@ -214,12 +242,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 .edges_directed(node, Direction::Outgoing)
                 .map(|e| e.weight().copy_num())
                 .sum();
-            in_copy_nums == out_copy_nums
+
+            // if the node is head or tail, allow the inconsistency.
+            if weight.is_head() || weight.is_tail() {
+                true
+            } else {
+                in_copy_nums == out_copy_nums
+            }
         })
     }
     /// Check if all the edges has a copy number
+    /// except the warp edges (ANNN -> NNNC)
+    ///
     pub fn is_edge_copy_nums_assigned(&self) -> bool {
-        self.edges().all(|(_, _, _, ew)| ew.copy_num().is_some())
+        self.edges()
+            .all(|(e, _, _, ew)| self.is_warp_edge(e) || ew.copy_num().is_some())
     }
     /// Check if there is no node duplicates.
     pub fn has_no_duplicated_node(&self) -> bool {
@@ -253,6 +290,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             for child in weight.kmer().childs() {
                 if let Some(&w) = m.get(&child) {
                     if !self.contains_edge(v, w) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", weight.kmer(), child, v.index(), w.index());
                         return false;
                     }
                 }
@@ -263,12 +301,29 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             for parent in weight.kmer().parents() {
                 if let Some(&w) = m.get(&parent) {
                     if !self.contains_edge(w, v) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", parent, weight.kmer(), w.index(), v.index());
                         return false;
                     }
                 }
             }
         }
         true
+    }
+    ///
+    /// Check the Dbg struct is valid.
+    ///
+    /// * no parallel edge
+    /// * no duplicated node
+    /// * copy_nums of nodes are consistent
+    /// * copy_nums of edges are consistent
+    /// * backend DiGraph is valid
+    ///
+    pub fn is_valid(&self) -> bool {
+        self.has_consistent_node_copy_nums()
+            && self.has_consistent_edge_copy_nums()
+            && self.has_no_duplicated_node()
+            && self.has_no_parallel_edge()
+            && self.is_graph_valid()
     }
 }
 
@@ -289,11 +344,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Get a vector of edge copy numbers (`vec[edge.index()] = edge.copy_num()`)
     ///
+    /// copy_num of warp edge (tail -> head) is unassigned, so it will be
+    /// filled with 0.
+    ///
     pub fn to_edge_copy_nums(&self) -> Option<EdgeCopyNums> {
         if self.is_edge_copy_nums_assigned() {
             let mut v: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
             for (edge, _, _, weight) in self.edges() {
-                v[edge] = weight.copy_num().unwrap();
+                if self.is_warp_edge(edge) {
+                    v[edge] = 0;
+                } else {
+                    v[edge] = weight.copy_num().unwrap();
+                }
             }
             Some(v)
         } else {
@@ -303,29 +365,76 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Assign copy numbers to all nodes at a time, specified by copy_nums NodeCopyNums vector.
     ///
-    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) {
+    /// It returns the copy_nums are updated or not.
+    ///
+    pub fn set_node_copy_nums(&mut self, copy_nums: &NodeCopyNums) -> bool {
+        // vector length assertion
+        assert!(copy_nums.len() == self.n_nodes());
+        let mut is_updated = false;
+
         for (i, node_weight_mut) in self.graph.node_weights_mut().enumerate() {
             let node = NodeIndex::new(i);
-            node_weight_mut.set_copy_num(copy_nums[node])
+            let copy_num = copy_nums[node];
+            if node_weight_mut.copy_num() != copy_num {
+                is_updated = true;
+            }
+            node_weight_mut.set_copy_num(copy_num);
         }
+
+        is_updated
     }
     ///
     /// Assign copy numbers to all edges at a time, specified by copy_nums EdgeCopyNums vector.
     ///
-    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) {
-        for (i, edge_weight_mut) in self.graph.edge_weights_mut().enumerate() {
-            let edge = EdgeIndex::new(i);
-            let copy_num = match copy_nums {
-                None => None,
-                Some(copy_nums) => Some(copy_nums[edge]),
+    /// It returns the copy_nums are updated or not.
+    ///
+    pub fn set_edge_copy_nums(&mut self, copy_nums: Option<&EdgeCopyNums>) -> bool {
+        // vector length assertion
+        assert!(copy_nums.is_none() || copy_nums.unwrap().len() == self.n_edges());
+        let mut is_updated = false;
+
+        for edge in self.graph.edge_indices() {
+            let is_warp_edge = self.is_warp_edge(edge);
+            let edge_weight_mut = self.graph.edge_weight_mut(edge).unwrap();
+
+            let copy_num = if is_warp_edge {
+                // copy num of warp edges is always unassigned.
+                None
+            } else {
+                // assign the value of vector for normal edges.
+                match copy_nums {
+                    None => None,
+                    Some(copy_nums) => Some(copy_nums[edge]),
+                }
             };
+
+            // check the new_copy_num is different from the original copy num
+            if edge_weight_mut.copy_num() != copy_num {
+                is_updated = true;
+            }
             edge_weight_mut.set_copy_num(copy_num)
         }
+
+        is_updated
     }
+    ///
+    /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
+    /// as a sequence with SeqStyle::Linear.
+    ///
     fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
+        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
+        self.to_nodes_of_styled_seq(&styled_sequence)
+    }
+    ///
+    /// Given a StyledSequence, calculate a path (= a list of nodes) that gives
+    /// the sequence as a emission along the path.
+    ///
+    /// If the sequence cannot be emitted using a path in the dbg, returns None.
+    ///
+    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Option<Vec<NodeIndex>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
-        for kmer in sequence_to_kmers(seq, self.k()) {
+        for kmer in styled_sequence_to_kmers(seq, self.k()) {
             match m.get(&kmer) {
                 None => return None,
                 Some(&node) => nodes.push(node),
@@ -334,16 +443,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Some(nodes)
     }
     ///
-    /// generate node/edge copy numbers of the given sequence
-    ///
-    /// TODO assert that seq forms cycle
+    /// generate node/edge copy numbers of the given sequence as SeqStyle::Linear
     ///
     pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> Option<(NodeCopyNums, EdgeCopyNums)> {
+        let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
+        self.to_copy_nums_of_styled_seq(&styled_sequence)
+    }
+    ///
+    /// generate node/edge copy numbers of the given sequence
+    ///
+    pub fn to_copy_nums_of_styled_seq(
+        &self,
+        seq: &StyledSequence,
+    ) -> Option<(NodeCopyNums, EdgeCopyNums)> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
 
-        match self.to_nodes_of_seq(seq) {
+        match self.to_nodes_of_styled_seq(seq) {
             None => None,
             Some(nodes) => {
                 // add node counts
@@ -359,13 +476,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     ec[edge] += 1;
                 }
 
-                // add edge between tail and head.
-                let head = nodes.first().unwrap();
-                let tail = nodes.last().unwrap();
-                let edge = self
-                    .find_edge(*tail, *head)
-                    .expect("there is no corresponding edge in the dbg");
-                ec[edge] += 1;
+                if !seq.style().is_fragment() {
+                    // add edge between tail and head if the path is circle.
+                    let head = nodes.first().unwrap();
+                    let tail = nodes.last().unwrap();
+                    let edge = self
+                        .find_edge(*tail, *head)
+                        .expect("there is no corresponding edge in the dbg");
+                    ec[edge] += 1;
+                }
 
                 Some((nc, ec))
             }
@@ -570,7 +689,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         for (edge, s, t, weight) in self.edges() {
             if !self.is_warp_edge(edge) {
                 let kmer = self.kmer(s).join(self.kmer(t));
-                let copy_num = weight.copy_num().unwrap();
+                let copy_num = weight.copy_num().unwrap_or_else(|| {
+                    panic!(
+                        "edge {} have no copy nums even though it is not warp edge.",
+                        edge.index()
+                    )
+                });
                 let node = graph.add_node(N::new(kmer, copy_num));
                 ids.insert(edge, node);
             }
@@ -728,7 +852,7 @@ mod tests {
         dbg.set_edge_copy_nums(Some(&EdgeCopyNums::from_slice(&vec![1; dbg.n_edges()], 0)));
         assert_eq!(
             dbg.to_edge_copy_nums().unwrap().to_vec(),
-            vec![1; dbg.n_edges()]
+            vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]
         );
         assert_eq!(dbg.is_edge_copy_nums_assigned(), true);
 
@@ -831,6 +955,115 @@ mod tests {
         for seq in seqs.iter() {
             println!("dbg2={}", sequence_to_string(seq));
         }
+    }
+    #[test]
+    fn dbg_extension_intersection_a() {
+        //
+        // [pattern a]
+        // representing ATAGCT and TAAGCC
+        //
+        let mut dbg = mock_intersection_small();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+
+        // discarded edges
+        // * TAGC 17 -> AGCC 5
+        // * AAGC 11 -> AGCT 12
+        // * warp edges 8->9, 8->3, 6->9, 6->3
+        let ecn = EdgeCopyNums::from_slice(
+            &[
+                1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1,
+            ],
+            0,
+        );
+        println!("{}", ecn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+        assert_eq!(dbg.to_edge_copy_nums().unwrap(), ecn);
+
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg2), "5,L:TAAGCC,L:ATAGCT");
+    }
+    #[test]
+    fn dbg_extension_intersection_b() {
+        //
+        // [pattern b]
+        // representing ATAGCC and TAAGCT
+        //
+        let mut dbg = mock_intersection_small();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+
+        // discarded edges
+        // * TAGC 17 -> AGCT 12
+        // * AAGC 11 -> AGCC 5
+        // * warp edges 8->9, 8->3, 6->9, 6->3
+        let ecn = EdgeCopyNums::from_slice(
+            &[
+                1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+            ],
+            0,
+        );
+        println!("{}", ecn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+        assert_eq!(dbg.to_edge_copy_nums().unwrap(), ecn);
+
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg2), "5,L:TAAGCT,L:ATAGCC");
+    }
+    #[test]
+    fn dbg_extension_2() {
+        let mut dbg = mock_manual();
+        println!("{}", dbg);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_valid());
+        assert!(!dbg.is_edge_copy_nums_assigned());
+        assert_eq!(format!("{}", dbg), "4,L:ATCGAGCATG");
+
+        // (1) set the edge_copy_nums
+        let mut ecn: EdgeCopyNums =
+            EdgeCopyNums::from_slice(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], 0);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        assert!(dbg.is_edge_copy_nums_assigned());
+
+        // converting back gives the same vector?
+        let ecn2 = dbg.to_edge_copy_nums().unwrap();
+        println!("{}", ecn2);
+        assert_eq!(ecn, ecn2);
+
+        // the edges have proper copy nums?
+        for (edge, _, _, weight) in dbg.edges() {
+            if dbg.is_warp_edge(edge) {
+                assert!(weight.copy_num().is_none());
+            } else {
+                assert!(weight.copy_num().is_some());
+                assert_eq!(weight.copy_num().unwrap(), 1);
+            }
+        }
+
+        // (2) upgrade the dbg
+        let dbg2 = dbg.to_kp1_dbg();
+        println!("{}", dbg2);
+        println!("{}", dbg2.to_dot());
+        assert!(dbg2.is_valid());
+        assert!(!dbg2.is_edge_copy_nums_assigned());
+
+        assert_eq!(format!("{}", dbg2), "5,L:ATCGAGCATG");
     }
     #[test]
     fn dbg_clone() {

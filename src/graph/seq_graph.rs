@@ -152,7 +152,7 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             None => {
                 // there is no copy num assigned to the edge
                 let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
-                let trans_prob = if child_weight.is_emittable() {
+                let trans_prob = if child_weight.is_emittable() && total_child_copy_num > 0 {
                     Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64)
                 } else {
                     Prob::from_prob(0.0)

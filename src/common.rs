@@ -94,6 +94,16 @@ impl SeqStyle {
             _ => false,
         }
     }
+    ///
+    /// the sequence is fragmented
+    /// i.e. tail and head is not connected.
+    ///
+    pub fn is_fragment(&self) -> bool {
+        match self {
+            SeqStyle::LinearFragment => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for SeqStyle {

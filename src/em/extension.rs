@@ -24,21 +24,28 @@ pub mod intersection_graph;
 ///
 /// convert k-dBG into k+1-dBG.
 ///
+/// * max_iter: max iteration loop count
+///
 pub fn extension<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
+    max_iter: usize,
 ) -> Dbg<N, E> {
-    let max_iter: usize = 10;
     let mut dbg = dbg.clone();
+
+    // iterate EM steps
     for i in 0..max_iter {
+        println!("extension {}th iteration", i);
         let (dbg_new, is_updated) = extension_step(&dbg, reads, params);
         if !is_updated {
             break;
         }
         dbg = dbg_new;
     }
-    dbg
+
+    // convert to k+1 dbg
+    dbg.to_kp1_dbg()
 }
 
 ///
@@ -76,10 +83,10 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     println!("copy_nums={}", copy_nums);
 
     let mut new_dbg = dbg.clone();
-    new_dbg.set_edge_copy_nums(Some(&copy_nums));
+    let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
+    println!("is_updated={}", is_updated);
 
-    // TODO
-    (new_dbg, false)
+    (new_dbg, is_updated)
 }
 
 ///
@@ -200,5 +207,48 @@ mod tests {
         let copy_nums = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
         // assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn em_extension_step_intersection() {
+        let dbg = mock_intersection();
+        let read = b"AACTAGCTT";
+        let reads = Reads {
+            reads: vec![read.to_vec()],
+        };
+        println!("{}", dbg);
+        let params = PHMMParams::default();
+
+        let (dbg_v2, is_updated) = extension_step(&dbg, &reads, &params);
+        println!("{}", dbg_v2);
+        println!("is_updated={}", is_updated);
+        assert!(is_updated);
+
+        // extension again
+        let (dbg_v3, is_updated) = extension_step(&dbg_v2, &reads, &params);
+        println!("{}", dbg_v2);
+        println!("is_updated={}", is_updated);
+        assert!(!is_updated);
+    }
+
+    #[test]
+    fn em_extension_all_intersection() {
+        let dbg = mock_intersection();
+        let read = b"AACTAGCTT";
+        let reads = Reads {
+            reads: vec![read.to_vec(), read.to_vec(), read.to_vec()],
+        };
+        println!("{}", dbg);
+        assert_eq!(format!("{}", dbg), "4,L:AACTAGGGC,L:CCGTAGCTT");
+        println!("genome_size={}", dbg.genome_size());
+        assert_eq!(dbg.genome_size(), 18);
+        let params = PHMMParams::default();
+
+        // loop
+        let dbg_extended = extension(&dbg, &reads, &params, 5);
+        println!("{}", dbg_extended);
+        assert_eq!(format!("{}", dbg_extended), "5,L:AACTAGCTT,L:CCGTAGGGC");
+        println!("genome_size={}", dbg_extended.genome_size());
+        assert_eq!(dbg_extended.genome_size(), 18);
     }
 }
