@@ -24,6 +24,7 @@ use crate::common::{Freq, Reads, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
+use rayon::prelude::*;
 
 /// Struct for storing `PHMMResultLike` for forward and backward.
 ///
@@ -94,6 +95,24 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 o.to_edge_freqs(self, read)
             })
             .sum()
+    }
+    ///
+    /// calculate the full probability `P(R)` using rayon parallel calculation.
+    ///
+    /// ## TODO
+    ///
+    /// * do not run backward. Running forward is enough.
+    ///
+    pub fn to_full_prob(&self, r: &Reads) -> Prob {
+        r.reads
+            .par_iter()
+            .map(|read| {
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_full_prob_forward()
+            })
+            .product()
     }
 }
 

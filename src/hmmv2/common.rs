@@ -29,7 +29,7 @@ pub use petgraph::graph::{EdgeIndex, NodeIndex};
 /// * `init_prob(&self) -> Prob`
 ///     The initial transition probability (i.e. Begin state to this node)
 ///
-pub trait PHMMNode {
+pub trait PHMMNode: std::marker::Sync {
     ///
     /// Emission base assigned to this HMM node.
     fn emission(&self) -> u8;
@@ -51,7 +51,7 @@ pub trait PHMMNode {
 /// * `trans_prob(&self) -> Prob`
 ///     Transition probability from `source` to `target`.
 ///
-pub trait PHMMEdge {
+pub trait PHMMEdge: std::marker::Sync {
     ///
     /// Transition probability from the source node to the target node
     /// of this edge.
