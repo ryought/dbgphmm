@@ -103,7 +103,13 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
 ) -> EdgeFreqs {
     let phmm = dbg.to_phmm(params.clone());
-    phmm.to_edge_freqs(reads)
+
+    //
+    // println!("e_step calculating P(R)");
+    // let p = phmm.to_full_prob(reads);
+    // println!("e_step P(R)={:?}", p);
+
+    phmm.to_edge_freqs_parallel(reads)
 }
 
 ///

@@ -8,6 +8,7 @@ pub mod dense;
 pub mod diff;
 pub mod graph;
 pub mod index;
+pub mod parallel;
 pub mod sparse;
 pub mod test;
 pub mod unit;
@@ -542,6 +543,11 @@ where
 }
 
 /// sum of vectors
+///
+/// ## TODO
+///
+/// * should implement sum of zero element vector (to avoid errors in rayon calculation).
+/// but the size is unknown...
 ///
 impl<S, Ix> std::iter::Sum for Vector<S, Ix>
 where
