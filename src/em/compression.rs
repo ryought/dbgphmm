@@ -89,7 +89,7 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
 ) -> NodeFreqs {
     let phmm = dbg.to_phmm(params.clone());
-    phmm.to_node_freqs(reads)
+    phmm.to_node_freqs_parallel(reads)
 }
 
 ///

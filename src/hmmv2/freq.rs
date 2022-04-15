@@ -96,6 +96,49 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .sum()
     }
+    /// calculate node freqs of multiple emission sequences (`Reads`).
+    /// with rayon parallel calculation
+    ///
+    /// ## TODO
+    ///
+    /// * purge reduce function (e.g. by adding a trait on ParallelIterator)
+    ///
+    pub fn to_node_freqs_parallel(&self, r: &Reads) -> NodeFreqs {
+        r.reads
+            .par_iter()
+            .map(|read| {
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_node_freqs()
+            })
+            .reduce(
+                || NodeFreqs::new(self.n_nodes(), 0.0),
+                |mut a, b| {
+                    a += &b;
+                    a
+                },
+            )
+    }
+    /// calculate edge freqs of multiple emission sequences (`Reads`).
+    /// with rayon parallel calculation
+    pub fn to_edge_freqs_parallel(&self, r: &Reads) -> EdgeFreqs {
+        r.reads
+            .par_iter()
+            .map(|read| {
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_edge_freqs(self, read)
+            })
+            .reduce(
+                || EdgeFreqs::new(self.n_edges(), 0.0),
+                |mut a, b| {
+                    a += &b;
+                    a
+                },
+            )
+    }
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.
     ///
@@ -103,7 +146,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * do not run backward. Running forward is enough.
     ///
-    pub fn to_full_prob(&self, r: &Reads) -> Prob {
+    pub fn to_full_prob_parallel(&self, r: &Reads) -> Prob {
         r.reads
             .par_iter()
             .map(|read| {

@@ -109,7 +109,7 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     // let p = phmm.to_full_prob(reads);
     // println!("e_step P(R)={:?}", p);
 
-    phmm.to_edge_freqs(reads)
+    phmm.to_edge_freqs_parallel(reads)
 }
 
 ///
