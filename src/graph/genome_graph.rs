@@ -251,6 +251,7 @@ mod tests {
                 length: 1000,
                 // start_points: StartPoints::Random,
                 start_points: StartPoints::AllStartPoints,
+                endable: false,
             },
             phmm_params: PHMMParams::default(),
         });

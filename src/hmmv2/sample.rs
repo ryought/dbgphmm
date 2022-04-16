@@ -108,6 +108,10 @@ pub struct SampleProfile {
     /// start points of reads.
     ///
     pub start_points: StartPoints,
+    ///
+    /// is endable in the middle of the model.
+    ///
+    pub endable: bool,
 }
 
 ///
@@ -549,6 +553,7 @@ mod tests {
             seed: 0,
             length: 100,
             start_points: StartPoints::Custom(vec![start_point]),
+            endable: false,
         });
         for hist in hists.iter() {
             println!("a {} {}", hist, hist.to_sequence().len());
@@ -562,6 +567,7 @@ mod tests {
             seed: 0,
             length: 100,
             start_points: StartPoints::Random,
+            endable: false,
         });
         for hist in hists.iter() {
             println!("b {}", sequence_to_string(&hist.to_sequence()));

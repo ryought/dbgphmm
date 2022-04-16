@@ -24,6 +24,7 @@ mod tests {
                 seed: 0,
                 length: 100,
                 start_points: StartPoints::Random,
+                endable: false,
             },
             phmm_params: PHMMParams::default(),
         };

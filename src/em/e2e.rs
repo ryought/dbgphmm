@@ -36,6 +36,7 @@ mod tests {
                 seed: 0,
                 length: 1000,
                 start_points: StartPoints::AllStartPoints,
+                endable: false,
             },
             phmm_params: PHMMParams::default(),
         };
