@@ -27,6 +27,15 @@ impl History {
         self.0.push((state, emission));
     }
     ///
+    /// Get a total bases count of the emissions
+    ///
+    pub fn total_bases(&self) -> usize {
+        self.0
+            .iter()
+            .filter(|(_, emission)| emission.is_base())
+            .count()
+    }
+    ///
     /// Create base sequence `Vec<u8>` from sampling history
     ///
     pub fn to_sequence(&self) -> Sequence {
@@ -146,6 +155,8 @@ End -> -
         let b = h.to_sequence();
         let b_true = b"ACG";
         assert_eq!(b, b_true);
+
+        assert_eq!(h.total_bases(), 3);
     }
 
     #[test]

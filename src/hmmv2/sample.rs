@@ -67,6 +67,18 @@ pub enum Emission {
     Empty,
 }
 
+impl Emission {
+    ///
+    /// Check if the emission is actual base or not.
+    ///
+    pub fn is_base(&self) -> bool {
+        match self {
+            Emission::Base(_) => true,
+            Emission::Empty => false,
+        }
+    }
+}
+
 impl std::fmt::Display for Emission {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
