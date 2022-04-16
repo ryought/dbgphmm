@@ -14,6 +14,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::random_seq::generate;
+mod fragments;
 
 #[cfg(test)]
 mod tests {
