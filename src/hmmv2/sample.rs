@@ -6,7 +6,7 @@
 //! * create a special struct for storeing the sampling result instead of `Vec<(State, Emission)>`
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use crate::common::{Reads, Sequence};
+use crate::common::{Freq, Reads, Sequence};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -106,8 +106,9 @@ pub enum ReadAmount {
     /// by the number of reads.
     Count(usize),
     // /// by depth (coverage) of reads.
-    // /// TODO utilize genome size of the model
-    // Depth(f64),
+    // Depth(Freq),
+    // /// by the total bases of reads.
+    // TotalBases(usize),
 }
 
 ///
@@ -161,22 +162,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample_by_profile(&self, profile: &SampleProfile) -> Historys {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
-        let n_reads = match profile.read_amount {
-            ReadAmount::Count(n) => n,
+        let mut sampler = || match &profile.start_points {
+            StartPoints::Custom(nodes) => {
+                self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
+            }
+            StartPoints::Random => self.sample_rng(&mut rng, profile.length),
+            StartPoints::AllStartPoints => {
+                panic!("StartPoints::AllStartPoints is not resolved until sample_by_profile")
+            }
         };
-        Historys(
-            (0..n_reads)
-                .map(|_| match &profile.start_points {
-                    StartPoints::Custom(nodes) => {
-                        self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
-                    }
-                    StartPoints::Random => self.sample_rng(&mut rng, profile.length),
-                    StartPoints::AllStartPoints => panic!(
-                        "StartPoints::AllStartPoints is not resolved until sample_by_profile"
-                    ),
-                })
-                .collect(),
-        )
+        let historys = match profile.read_amount {
+            ReadAmount::Count(n_reads) => (0..n_reads).map(|_| sampler()).collect(),
+        };
+        Historys(historys)
     }
     ///
     /// Generate a sequence of Emission and Hidden states
