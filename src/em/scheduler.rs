@@ -7,7 +7,7 @@ use crate::common::Freq;
 ///
 /// EM two task
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Task {
     ///
     /// Compression to the specified depth
@@ -89,10 +89,6 @@ impl Scheduler for SchedulerType1 {
         let step_in_stage = iteration % self.compression_interval;
         let is_final_stage =
             (self.n_iteration - stage * self.compression_interval) < self.compression_interval;
-        println!(
-            "stage={} step_in_stage={} is_final_stage={}",
-            stage, step_in_stage, is_final_stage
-        );
 
         if iteration < self.n_iteration {
             if !is_final_stage {
@@ -124,9 +120,61 @@ mod tests {
     use super::*;
     #[test]
     fn scheduler_type1() {
-        let s = SchedulerType1::new(16, 17, 1.5);
-        for i in 0..s.n_tasks() {
-            println!("i={} task={:?}", i, s.task(i));
-        }
+        let s = SchedulerType1::new(16, 19, 2.2);
+        let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
+        println!("{:?}", tasks);
+        assert_eq!(
+            tasks,
+            vec![
+                Task::Compression(2.0),
+                Task::Extension(17),
+                Task::Compression(2.2),
+                Task::Extension(18),
+                Task::Extension(19)
+            ]
+        );
+
+        let s = SchedulerType1::new(16, 32, 5.0);
+        let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
+        println!("{:?}", tasks);
+        assert_eq!(
+            tasks,
+            vec![
+                Task::Compression(2.0),
+                Task::Extension(17),
+                Task::Extension(18),
+                Task::Extension(19),
+                Task::Extension(20),
+                Task::Compression(3.0),
+                Task::Extension(21),
+                Task::Extension(22),
+                Task::Extension(23),
+                Task::Extension(24),
+                Task::Compression(4.0),
+                Task::Extension(25),
+                Task::Extension(26),
+                Task::Extension(27),
+                Task::Extension(28),
+                Task::Compression(5.0),
+                Task::Extension(29),
+                Task::Extension(30),
+                Task::Extension(31),
+                Task::Extension(32)
+            ]
+        );
+
+        let s = SchedulerType1::new(16, 16, 5.4);
+        let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
+        println!("{:?}", tasks);
+        assert_eq!(
+            tasks,
+            vec![
+                Task::Compression(2.0),
+                Task::Compression(3.0),
+                Task::Compression(4.0),
+                Task::Compression(5.0),
+                Task::Compression(5.4)
+            ]
+        );
     }
 }
