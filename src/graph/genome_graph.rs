@@ -166,7 +166,6 @@ impl GenomeGraph {
         // convert to phmm
         let sg = self.to_seq_graph();
         let phmm = sg.to_phmm(prof.phmm_params.clone());
-        println!("{}", phmm);
 
         // determine automatically the starting node list
         // as a vector of node index in seqgraph.
