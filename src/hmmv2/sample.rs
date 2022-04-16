@@ -119,8 +119,8 @@ pub enum ReadAmount {
     Count(usize),
     // /// by depth (coverage) of reads.
     // Depth(Freq),
-    // /// by the total bases of reads.
-    // TotalBases(usize),
+    /// by the total bases of reads.
+    TotalBases(usize),
 }
 
 ///
@@ -185,6 +185,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         };
         let historys = match profile.read_amount {
             ReadAmount::Count(n_reads) => (0..n_reads).map(|_| sampler()).collect(),
+            ReadAmount::TotalBases(required_total_bases) => {
+                let mut historys = Vec::new();
+                let mut total_bases = 0;
+                while total_bases < required_total_bases {
+                    let history = sampler();
+                    total_bases += history.total_bases();
+                    historys.push(history);
+                }
+                historys
+            }
         };
         Historys(historys)
     }
@@ -531,6 +541,8 @@ mod tests {
     #[test]
     fn hmm_sample_mock_linear_by_profile() {
         let phmm = mock_linear_phmm(PHMMParams::default());
+
+        // a
         let start_point = ni(3);
         let hists = phmm.sample_by_profile(&SampleProfile {
             read_amount: ReadAmount::Count(10),
@@ -539,9 +551,23 @@ mod tests {
             start_points: StartPoints::Custom(vec![start_point]),
         });
         for hist in hists.iter() {
-            println!("{} {}", hist, hist.to_sequence().len());
+            println!("a {} {}", hist, hist.to_sequence().len());
             assert_eq!(hist.0[0].0, State::Match(start_point));
             assert_eq!(hist.to_sequence().len(), 7);
         }
+
+        // b
+        let hists = phmm.sample_by_profile(&SampleProfile {
+            read_amount: ReadAmount::TotalBases(500),
+            seed: 0,
+            length: 100,
+            start_points: StartPoints::Random,
+        });
+        for hist in hists.iter() {
+            println!("b {}", sequence_to_string(&hist.to_sequence()));
+        }
+        let total_bases: usize = hists.iter().map(|hist| hist.total_bases()).sum();
+        println!("total={}", total_bases);
+        assert_eq!(total_bases, 500);
     }
 }
