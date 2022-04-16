@@ -144,7 +144,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        self.sample_rng(&mut rng, length)
+        self.sample_rng(&mut rng, length, true)
     }
     ///
     /// Generate a one-shot sequence of Emission and Hidden states
@@ -155,7 +155,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         Historys(
             (0..n_samples)
-                .map(|_| self.sample_rng(&mut rng, length))
+                .map(|_| self.sample_rng(&mut rng, length, true))
                 .collect(),
         )
     }
@@ -178,7 +178,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             StartPoints::Custom(nodes) => {
                 self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
             }
-            StartPoints::Random => self.sample_rng(&mut rng, profile.length),
+            StartPoints::Random => self.sample_rng(&mut rng, profile.length, true),
             StartPoints::AllStartPoints => {
                 panic!("StartPoints::AllStartPoints is not resolved until sample_by_profile")
             }
@@ -202,8 +202,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Generate a sequence of Emission and Hidden states
     /// by running a profile HMM using the given rng(random number generator).
     ///
-    pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize) -> History {
-        self.sample_rng_from(rng, length, State::MatchBegin, true)
+    pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize, endable: bool) -> History {
+        self.sample_rng_from(rng, length, State::MatchBegin, endable)
     }
     ///
     /// Generate full length sample
