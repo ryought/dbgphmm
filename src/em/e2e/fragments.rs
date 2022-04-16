@@ -20,7 +20,7 @@ mod tests {
         let g = GenomeGraph::from_seqs(&genome);
         let profile = ReadProfile {
             sample_profile: SampleProfile {
-                read_amount: ReadAmount::Count(5),
+                read_amount: ReadAmount::TotalBases(100),
                 seed: 0,
                 length: 100,
                 start_points: StartPoints::Random,
@@ -30,6 +30,15 @@ mod tests {
         };
         let reads = g.sample_reads(&profile);
         println!("n_reads: {}", reads.len());
+        assert_eq!(reads.len(), 2);
+        for (i, read) in reads.iter().enumerate() {
+            println!("{}", sequence_to_string(read));
+            if i == 0 {
+                assert_eq!(sequence_to_string(read), "TGAATCCTAGATCCCGTTGTCGGGGCTCGGCGTTTGCTTTCTTAGATTCCGATAAGTAGATGGTTTCCTGGGTGAGGGCACTATTAAAGCGGCGATTTG");
+            } else if i == 1 {
+                assert_eq!(sequence_to_string(read), "AGCGATTAAACACCCTATAAAAATGGCCATCCGCTGAGCTTGCATCACAGTTGGTCTTACACATGCCTGCTTCATCAAAGTCCCACTGCGCCATCA");
+            }
+        }
     }
 
     #[test]
