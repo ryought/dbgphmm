@@ -20,6 +20,17 @@ use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersection
 pub mod intersection_graph;
 
 ///
+/// Log information store of each iteration in extension
+///
+pub struct ExtensionLog {}
+
+impl ExtensionLog {
+    pub fn new() -> Self {
+        ExtensionLog {}
+    }
+}
+
+///
 /// Extension full algorithm by running `extension_step()` iteratively.
 ///
 /// convert k-dBG into k+1-dBG.
@@ -31,13 +42,15 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     max_iter: usize,
-) -> Dbg<N, E> {
+) -> (Dbg<N, E>, Vec<ExtensionLog>) {
     let mut dbg = dbg.clone();
+    let mut logs = Vec::new();
 
     // iterate EM steps
     for i in 0..max_iter {
         println!("extension {}th iteration", i);
-        let (dbg_new, is_updated) = extension_step(&dbg, reads, params);
+        let (dbg_new, is_updated, log) = extension_step(&dbg, reads, params);
+        logs.push(log);
         if !is_updated {
             break;
         }
@@ -45,7 +58,7 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     }
 
     // convert to k+1 dbg
-    dbg.to_kp1_dbg()
+    (dbg.to_kp1_dbg(), logs)
 }
 
 ///
@@ -71,7 +84,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> (Dbg<N, E>, bool) {
+) -> (Dbg<N, E>, bool, ExtensionLog) {
     // (1) e-step infer edge freqs
     println!("extension::e_step");
     let edge_freqs = e_step(dbg, reads, params);
@@ -86,7 +99,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
     println!("is_updated={}", is_updated);
 
-    (new_dbg, is_updated)
+    (new_dbg, is_updated, ExtensionLog::new())
 }
 
 ///
@@ -225,13 +238,13 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let (dbg_v2, is_updated) = extension_step(&dbg, &reads, &params);
+        let (dbg_v2, is_updated, _) = extension_step(&dbg, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
         assert!(is_updated);
 
         // extension again
-        let (dbg_v3, is_updated) = extension_step(&dbg_v2, &reads, &params);
+        let (dbg_v3, is_updated, _) = extension_step(&dbg_v2, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
         assert!(!is_updated);
@@ -251,7 +264,7 @@ mod tests {
         let params = PHMMParams::default();
 
         // loop
-        let dbg_extended = extension(&dbg, &reads, &params, 5);
+        let (dbg_extended, _) = extension(&dbg, &reads, &params, 5);
         println!("{}", dbg_extended);
         assert_eq!(format!("{}", dbg_extended), "5,L:AACTAGCTT,L:CCGTAGGGC");
         println!("genome_size={}", dbg_extended.genome_size());

@@ -73,7 +73,7 @@ mod tests {
     fn e2e_extension() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let dbg = extension(&dbg_raw, &reads, &PHMMParams::default(), 5);
+        let (dbg, _) = extension(&dbg_raw, &reads, &PHMMParams::default(), 5);
         println!("{}", dbg);
     }
 }

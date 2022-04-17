@@ -27,7 +27,7 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
                 (dbg, _) = compression::compression(&dbg, reads, params, depth, max_iter);
             }
             Task::Extension(k) => {
-                dbg = extension::extension(&dbg, reads, params, max_iter);
+                (dbg, _) = extension::extension(&dbg, reads, params, max_iter);
             }
         }
     }
