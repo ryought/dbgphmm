@@ -16,6 +16,17 @@ use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
 
 ///
+/// Log information store of each iteration in compression
+///
+pub struct CompressionLog {}
+
+impl CompressionLog {
+    pub fn new() -> Self {
+        CompressionLog {}
+    }
+}
+
+///
 /// Compression full algorithm by running `compression_step` iteratively.
 ///
 /// * max_iter: max iteration loop count of EM.
@@ -26,13 +37,15 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     depth: Freq,
     max_iter: usize,
-) -> Dbg<N, E> {
+) -> (Dbg<N, E>, Vec<CompressionLog>) {
     let mut dbg = dbg.clone();
+    let mut logs = Vec::new();
 
     // iterate EM steps
     for i in 0..max_iter {
         println!("compression {}th iteration", i);
-        let (dbg_new, is_updated) = compression_step(&dbg, reads, params, depth);
+        let (dbg_new, is_updated, log) = compression_step(&dbg, reads, params, depth);
+        logs.push(log);
 
         // if the single EM step does not change the DBG model, stop iteration.
         if !is_updated {
@@ -41,7 +54,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
         dbg = dbg_new;
     }
 
-    dbg
+    (dbg, logs)
 }
 
 ///
@@ -56,7 +69,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     depth: Freq,
-) -> (Dbg<N, E>, bool) {
+) -> (Dbg<N, E>, bool, CompressionLog) {
     // e-step
     // calculate node_freqs by using current dbg.
     println!("compression::e_step");
@@ -72,7 +85,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
 
-    (new_dbg, is_updated)
+    (new_dbg, is_updated, CompressionLog::new())
 }
 
 ///
@@ -158,7 +171,7 @@ mod tests {
         assert_eq!(dbg.genome_size(), 18);
         assert_eq!(dbg.to_string(), "4,L:AACTAGGGC,L:CCGTAGCTT");
 
-        let (dbg_v2, is_updated) = compression_step(&dbg, &reads, &params, 3.0);
+        let (dbg_v2, is_updated, _) = compression_step(&dbg, &reads, &params, 3.0);
         println!("{}", dbg_v2);
         println!("{}", dbg_v2.genome_size());
         println!("is_updated={}", is_updated);
@@ -167,7 +180,7 @@ mod tests {
         assert!(is_updated);
 
         // compress again
-        let (dbg_v3, is_updated) = compression_step(&dbg_v2, &reads, &params, 3.0);
+        let (dbg_v3, is_updated, _) = compression_step(&dbg_v2, &reads, &params, 3.0);
         println!("{}", dbg_v3);
         println!("{}", dbg_v3.genome_size());
         println!("is_updated={}", is_updated);

@@ -46,9 +46,10 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn e2e_fragment() {
         let (genome, reads, dbg_raw, dbg_true) = generate_e2e_fragment_mock();
-        let dbg = compression(&dbg_raw, &reads, &PHMMParams::default(), 5.0, 10);
+        let (dbg, _) = compression(&dbg_raw, &reads, &PHMMParams::default(), 5.0, 10);
         println!("{}", dbg);
     }
 }
