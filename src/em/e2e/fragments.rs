@@ -3,6 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+    use crate::em::compression::{compression, compression_step};
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
@@ -10,39 +11,44 @@ mod tests {
     use crate::kmer::VecKmer;
     use crate::random_seq::generate;
 
-    fn generate_e2e_fragment_mock() {
+    fn generate_e2e_fragment_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
         println!("generating genome");
-        let genome = vec![generate(500, 0)];
+        let genome_size = 500;
+        let genome = vec![generate(genome_size, 0)];
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         println!("generating reads");
         let g = GenomeGraph::from_seqs(&genome);
         let profile = ReadProfile {
             sample_profile: SampleProfile {
-                read_amount: ReadAmount::TotalBases(100),
+                read_amount: ReadAmount::TotalBases(genome_size * 5),
                 seed: 0,
-                length: 100,
+                length: 50,
                 start_points: StartPoints::Random,
                 endable: false,
             },
             phmm_params: PHMMParams::default(),
         };
         let reads = g.sample_reads(&profile);
-        println!("n_reads: {}", reads.len());
-        assert_eq!(reads.len(), 2);
         for (i, read) in reads.iter().enumerate() {
             println!("{}", sequence_to_string(read));
-            if i == 0 {
-                assert_eq!(sequence_to_string(read), "TGAATCCTAGATCCCGTTGTCGGGGCTCGGCGTTTGCTTTCTTAGATTCCGATAAGTAGATGGTTTCCTGGGTGAGGGCACTATTAAAGCGGCGATTTG");
-            } else if i == 1 {
-                assert_eq!(sequence_to_string(read), "AGCGATTAAACACCCTATAAAAATGGCCATCCGCTGAGCTTGCATCACAGTTGGTCTTACACATGCCTGCTTCATCAAAGTCCCACTGCGCCATCA");
-            }
         }
+
+        let k: usize = 12;
+        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_reads(k, &reads);
+        println!("{}", dbg_raw);
+
+        // (4) compare with true dbg
+        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seq(k, &genome[0]);
+
+        (genome, reads, dbg_raw, dbg_true)
     }
 
     #[test]
     fn e2e_fragment() {
-        generate_e2e_fragment_mock();
+        let (genome, reads, dbg_raw, dbg_true) = generate_e2e_fragment_mock();
+        let dbg = compression(&dbg_raw, &reads, &PHMMParams::default(), 5.0, 10);
+        println!("{}", dbg);
     }
 }
