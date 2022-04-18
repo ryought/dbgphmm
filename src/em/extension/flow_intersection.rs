@@ -5,7 +5,7 @@ use super::intersection_graph::{IntersectionGraph, IntersectionGraphEdge, Inters
 use crate::common::{CopyNum, Freq};
 use crate::graph::Bipartite;
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::min_cost_flow_convex_fast;
+use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 pub type FlowIntersectionV2<K> = Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>;
@@ -167,11 +167,14 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// Do appropriate conversion.
     /// * if uniquly convertable, do a simple conversion
     /// * otherwise, do a optimize conversion using min flow.
-    pub fn convert(&self) -> FlowIntersection<K> {
+    ///
+    /// Score of the min-flow is returned when min_flow is used.
+    pub fn convert(&self) -> (FlowIntersection<K>, Option<Cost>) {
         if self.can_uniquely_convertable() {
-            self.unique_convert()
+            (self.unique_convert(), None)
         } else {
-            self.optimize()
+            let (fio, cost) = self.optimize();
+            (fio, Some(cost))
         }
     }
     /// Get copy-number-resolved FlowIntersection by applying unique (obvious)
@@ -199,10 +202,10 @@ impl<K: KmerLike> FlowIntersection<K> {
         opt
     }
     ///
-    /// Get optimized copy numbers of edges.
+    /// Get optimized copy numbers of edges and its min-flow cost.
     /// by converting the bipartite into flow network definitions
     ///
-    pub fn optimize(&self) -> FlowIntersection<K> {
+    pub fn optimize(&self) -> (FlowIntersection<K>, Cost) {
         println!("optimizing: {}", self);
         let flow_graph = self.to_flow_graph();
         match min_cost_flow_convex_fast(&flow_graph) {
@@ -225,9 +228,11 @@ impl<K: KmerLike> FlowIntersection<K> {
                         _ => {}
                     };
                 }
+                let cost = total_cost(&flow_graph, &flow);
                 assert!(opt.all_edges_has_copy_num());
                 println!("optimized: {}", opt);
-                opt
+                println!("cost: {}", cost);
+                (opt, cost)
             }
             None => {
                 panic!("flow not found");
@@ -347,7 +352,7 @@ mod tests {
         let g = fi.to_flow_graph();
         println!("{:?}", Dot::with_config(&g, &[]));
 
-        let fi_opt = fi.optimize();
+        let (fi_opt, cost) = fi.optimize();
         println!("{}", fi_opt);
         for (i, e) in fi_opt.bi.edges.iter().enumerate() {
             assert_eq!(e.index, fi.bi.edges[i].index);
@@ -373,7 +378,7 @@ mod tests {
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
-        let fi_opt = fi.optimize();
+        let (fi_opt, cost) = fi.optimize();
         println!("{}", fi_opt);
         assert_eq!(
             fi_opt.to_edge_copy_nums(),
@@ -396,7 +401,7 @@ mod tests {
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
-        let fi_opt = fi.optimize();
+        let (fi_opt, cost) = fi.optimize();
         println!("{}", fi_opt);
         assert_eq!(
             fi_opt.to_edge_copy_nums(),
@@ -438,7 +443,7 @@ mod tests {
                 FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
             ]
         );
-        let fio2 = fi.convert();
+        let (fio2, cost) = fi.convert();
         assert_eq!(fio.bi.edges, fio2.bi.edges);
 
         // (3) obviously converable case (n_out = 1)
@@ -466,7 +471,7 @@ mod tests {
                 FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
             ]
         );
-        let fio2 = fi.convert();
+        let (fio2, cost) = fi.convert();
         assert_eq!(fio.bi.edges, fio2.bi.edges);
     }
 }
