@@ -60,8 +60,9 @@ mod tests {
     fn e2e_compression() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let (dbg, _, _) = compression_step(&dbg_raw, &reads, &PHMMParams::default(), 10.0);
+        let (dbg, logs) = compression(&dbg_raw, &reads, &PHMMParams::default(), 10.0, 5);
         println!("{}", dbg);
+        println!("{:?}", logs);
 
         let r = dbg.compare(&dbg_true);
         println!("{:?}", r);
