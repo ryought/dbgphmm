@@ -456,5 +456,15 @@ mod tests {
         for kmer in kmers.iter() {
             println!("{}", kmer);
         }
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"AAAA"),
+                VecKmer::from_bases(b"ATCG"),
+                VecKmer::from_bases(b"CTAG"),
+                VecKmer::from_bases(b"TTTT"),
+                VecKmer::from_bases(b"nnnn"),
+            ]
+        );
     }
 }
