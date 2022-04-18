@@ -3,7 +3,7 @@
 //! seq with copy numbers
 //!
 
-use crate::common::CopyNum;
+use crate::common::{CopyNum, NULL_BASE};
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
@@ -186,10 +186,10 @@ pub trait SeqNode {
     fn base(&self) -> u8;
     ///
     /// This node is emittable or not?
-    /// i.e. self.base != 'N'?
+    /// i.e. self.base != 'X'?
     ///
     fn is_emittable(&self) -> bool {
-        self.base() != b'N'
+        self.base() != NULL_BASE
     }
 }
 

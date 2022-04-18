@@ -45,10 +45,12 @@ pub fn mock_intersection() -> SimpleDbg<VecKmer> {
 }
 
 ///
-/// ATAGCT x1
-/// TTAGAT x1
+/// k=4 dbg
 ///
-/// `TAG` is intersecting k-1-mer.
+/// ATAGCT x1
+/// TTAGCC x1
+///
+/// `TAGC` is intersecting.
 ///
 pub fn mock_intersection_small() -> SimpleDbg<VecKmer> {
     let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
@@ -82,9 +84,9 @@ pub fn mock_manual() -> SimpleDbg<VecKmer> {
 
     // add nodes
     let nodes = vec![
-        graph.add_node(SimpleDbgNode::new(kmer(b"NNNA"), 1)),
-        graph.add_node(SimpleDbgNode::new(kmer(b"NNAT"), 1)),
-        graph.add_node(SimpleDbgNode::new(kmer(b"NATC"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"nnnA"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"nnAT"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"nATC"), 1)),
         graph.add_node(SimpleDbgNode::new(kmer(b"ATCG"), 1)),
         graph.add_node(SimpleDbgNode::new(kmer(b"TCGA"), 1)),
         graph.add_node(SimpleDbgNode::new(kmer(b"CGAG"), 1)),
@@ -92,9 +94,9 @@ pub fn mock_manual() -> SimpleDbg<VecKmer> {
         graph.add_node(SimpleDbgNode::new(kmer(b"AGCA"), 1)),
         graph.add_node(SimpleDbgNode::new(kmer(b"GCAT"), 1)),
         graph.add_node(SimpleDbgNode::new(kmer(b"CATG"), 1)),
-        graph.add_node(SimpleDbgNode::new(kmer(b"ATGN"), 1)),
-        graph.add_node(SimpleDbgNode::new(kmer(b"TGNN"), 1)),
-        graph.add_node(SimpleDbgNode::new(kmer(b"GNNN"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"ATGn"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"TGnn"), 1)),
+        graph.add_node(SimpleDbgNode::new(kmer(b"Gnnn"), 1)),
     ];
     let n = nodes.len();
 

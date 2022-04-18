@@ -1,7 +1,7 @@
 //!
 //! Kmer definitions
 //!
-use crate::common::{SeqStyle, StyledSequence};
+use crate::common::{SeqStyle, StyledSequence, NULL_BASE, VALID_BASES};
 
 pub trait NullableKmer {
     ///
@@ -22,6 +22,8 @@ pub trait NullableKmer {
 pub trait KmerLike:
     std::marker::Sized
     + PartialEq
+    + PartialOrd
+    + Ord
     + NullableKmer
     + Eq
     + std::hash::Hash
@@ -94,8 +96,7 @@ pub trait KmerLike:
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
     ///
     fn preds(&self) -> Vec<Self> {
-        let bases = [b'A', b'C', b'G', b'T'];
-        bases
+        VALID_BASES
             .iter()
             .map(|&first_base| self.extend_first(first_base))
             .collect()
@@ -104,8 +105,7 @@ pub trait KmerLike:
     /// XX (k mer) -> [XXA, XXC, XXG, XXT] (k+1 mer)
     ///
     fn succs(&self) -> Vec<Self> {
-        let bases = [b'A', b'C', b'G', b'T'];
-        bases
+        VALID_BASES
             .iter()
             .map(|&last_base| self.extend_last(last_base))
             .collect()
@@ -126,14 +126,14 @@ pub trait KmerLike:
     /// last base is not N
     ///
     fn is_emitable(&self) -> bool {
-        self.last() != b'N'
+        self.last() != NULL_BASE
     }
     ///
     /// first base is N
     /// TODO check that the rest is not N
     ///
     fn is_starting(&self) -> bool {
-        self.first() == b'N'
+        self.first() == NULL_BASE
     }
     ///
     /// (YYY, X) -> XYYY
@@ -160,7 +160,7 @@ pub trait KmerLike:
     ///
     fn extend_head(&self) -> Self {
         assert!(self.is_head());
-        self.extend_first(b'N')
+        self.extend_first(NULL_BASE)
     }
     ///
     /// upgrade k-mer tail into k+1-mer
@@ -170,7 +170,7 @@ pub trait KmerLike:
     ///
     fn extend_tail(&self) -> Self {
         assert!(self.is_tail());
-        self.extend_last(b'N')
+        self.extend_last(NULL_BASE)
     }
     // construction
     fn from_bases(bases: &[u8]) -> Self;
@@ -264,7 +264,7 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             // NNNTTT if linear
             let n_prefix = k - 1 - self.index_prefix;
             let n_body = k - n_prefix;
-            let mut bases = vec![b'N'; n_prefix];
+            let mut bases = vec![NULL_BASE; n_prefix];
             bases.extend_from_slice(&self.seq[..n_body]);
             self.index_prefix += 1;
             Some(K::from_bases(&bases))
@@ -284,7 +284,7 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             if self.seq_style.is_circular() {
                 bases.extend_from_slice(&self.seq[..n_suffix]);
             } else {
-                bases.extend_from_slice(&vec![b'N'; n_suffix]);
+                bases.extend_from_slice(&vec![NULL_BASE; n_suffix]);
             }
             self.index_suffix += 1;
             Some(K::from_bases(&bases))
@@ -314,16 +314,16 @@ mod tests {
         assert_eq!(
             kmers,
             vec![
-                VecKmer::from_bases(b"NNNA"),
-                VecKmer::from_bases(b"NNAT"),
-                VecKmer::from_bases(b"NATC"),
+                VecKmer::from_bases(b"nnnA"),
+                VecKmer::from_bases(b"nnAT"),
+                VecKmer::from_bases(b"nATC"),
                 VecKmer::from_bases(b"ATCA"),
                 VecKmer::from_bases(b"TCAT"),
                 VecKmer::from_bases(b"CATC"),
                 VecKmer::from_bases(b"ATCG"),
-                VecKmer::from_bases(b"TCGN"),
-                VecKmer::from_bases(b"CGNN"),
-                VecKmer::from_bases(b"GNNN"),
+                VecKmer::from_bases(b"TCGn"),
+                VecKmer::from_bases(b"CGnn"),
+                VecKmer::from_bases(b"Gnnn"),
             ]
         );
 
@@ -376,12 +376,12 @@ mod tests {
         assert_eq!(
             kmers,
             vec![
-                VecKmer::from_bases(b"NNNA"),
-                VecKmer::from_bases(b"NNAT"),
-                VecKmer::from_bases(b"NATC"),
-                VecKmer::from_bases(b"ATCN"),
-                VecKmer::from_bases(b"TCNN"),
-                VecKmer::from_bases(b"CNNN"),
+                VecKmer::from_bases(b"nnnA"),
+                VecKmer::from_bases(b"nnAT"),
+                VecKmer::from_bases(b"nATC"),
+                VecKmer::from_bases(b"ATCn"),
+                VecKmer::from_bases(b"TCnn"),
+                VecKmer::from_bases(b"Cnnn"),
             ]
         );
 
@@ -412,35 +412,59 @@ mod tests {
         assert_eq!(a.extend_first(b'A'), VecKmer::from_bases(b"AATCA"));
         assert_eq!(a.extend_last(b'G'), VecKmer::from_bases(b"ATCAG"));
 
-        let a = VecKmer::from_bases(b"NNNA");
+        let a = VecKmer::from_bases(b"nnnA");
         assert!(a.is_head());
         assert_eq!(a.k(), 4);
         let b = a.extend_head();
         assert!(b.is_head());
         assert!(!b.is_tail());
-        assert_eq!(b, VecKmer::from_bases(b"NNNNA"));
+        assert_eq!(b, VecKmer::from_bases(b"nnnnA"));
         assert_eq!(b.k(), 5);
 
-        let a = VecKmer::from_bases(b"ANNN");
+        let a = VecKmer::from_bases(b"Annn");
         assert!(a.is_tail());
         assert_eq!(a.k(), 4);
         let b = a.extend_tail();
         assert!(b.is_tail());
-        assert_eq!(b, VecKmer::from_bases(b"ANNNN"));
+        assert_eq!(b, VecKmer::from_bases(b"Annnn"));
         assert_eq!(b.k(), 5);
     }
     #[test]
     fn kmer_null() {
-        let a = VecKmer::from_bases(b"NNNN");
+        let a = VecKmer::from_bases(b"nnnn");
         assert!(a.is_null());
         assert!(a.has_null());
 
-        let b = VecKmer::from_bases(b"NNNT");
+        let b = VecKmer::from_bases(b"nnnT");
         assert!(!b.is_null());
         assert!(b.has_null());
 
         let c = VecKmer::from_bases(b"TGAC");
         assert!(!c.is_null());
         assert!(!c.has_null());
+    }
+    #[test]
+    fn kmer_order() {
+        let mut kmers = vec![
+            VecKmer::from_bases(b"ATCG"),
+            VecKmer::from_bases(b"AAAA"),
+            VecKmer::from_bases(b"nnnn"),
+            VecKmer::from_bases(b"TTTT"),
+            VecKmer::from_bases(b"CTAG"),
+        ];
+        kmers.sort();
+        for kmer in kmers.iter() {
+            println!("{}", kmer);
+        }
+        assert_eq!(
+            kmers,
+            vec![
+                VecKmer::from_bases(b"AAAA"),
+                VecKmer::from_bases(b"ATCG"),
+                VecKmer::from_bases(b"CTAG"),
+                VecKmer::from_bases(b"TTTT"),
+                VecKmer::from_bases(b"nnnn"),
+            ]
+        );
     }
 }

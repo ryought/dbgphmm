@@ -1,6 +1,7 @@
 //! TinyKmer definitions
 use super::common::{KmerLike, NullableKmer};
 use super::quadarray::QuadArray;
+use crate::common::{BASES, NULL_BASE};
 
 ///
 /// Kmer for small k <= 32
@@ -31,7 +32,7 @@ fn decode_base(code: u64, kind: u64) -> u8 {
             3 => b'T',
             _ => panic!(),
         },
-        1 => b'N',
+        1 => NULL_BASE,
         _ => panic!(),
     }
 }
@@ -98,7 +99,7 @@ impl<const K: usize> TinyKmer<K> {
 
 impl<const K: usize> TinyKmer<K>
 where
-    [(); K + 1]: ,
+    [(); K + 1]:,
 {
     ///
     /// add base in the first
@@ -133,7 +134,7 @@ where
 
 impl<const K: usize> TinyKmer<K>
 where
-    [(); K - 1]: ,
+    [(); K - 1]:,
 {
     /// ABCD -> (ABC, D)
     fn pop_last(&self) -> (TinyKmer<{ K - 1 }>, u8) {
@@ -174,8 +175,8 @@ impl<const K: usize> NullableKmer for TinyKmer<K> {
 
 impl<const K: usize> KmerLike for TinyKmer<K>
 where
-    [(); K - 1]: ,
-    [(); K + 1]: ,
+    [(); K - 1]:,
+    [(); K + 1]:,
 {
     // for the detail of this bound in where, see
     // https://github.com/rust-lang/rust/issues/76560
@@ -207,7 +208,7 @@ where
     }
     fn childs(&self) -> Vec<TinyKmer<K>> {
         let suffix = self.suffix();
-        [b'A', b'C', b'G', b'T', b'N']
+        BASES
             .iter()
             .map(|&last_base| {
                 let mut child: TinyKmer<K> = TinyKmer::empty();
@@ -220,7 +221,7 @@ where
     }
     fn parents(&self) -> Vec<TinyKmer<K>> {
         let prefix = self.prefix();
-        [b'A', b'C', b'G', b'T', b'N']
+        BASES
             .iter()
             .map(|&first_base| {
                 let mut parent: TinyKmer<K> = TinyKmer::empty();
@@ -285,7 +286,7 @@ mod tests {
         assert_eq!(m6, TinyKmer::from(b"TC"));
         assert_eq!(b6, b'G');
 
-        let m7 = m4.append(b'N');
+        let m7 = m4.append(NULL_BASE);
         assert_eq!(m7, TinyKmer::from(b"TCGN"));
         let (m8, b8) = m7.pop_last();
         assert_eq!(m8, m4);

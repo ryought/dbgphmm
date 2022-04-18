@@ -1,5 +1,6 @@
 use super::base::{iter_nodes, Node, PHMM};
 use super::params::PHMMParams;
+use crate::common::VALID_BASES;
 use crate::prob::Prob;
 use log::trace;
 use rand::prelude::*;
@@ -267,8 +268,7 @@ pub fn pick_with_prob<R: Rng, T: Copy>(rng: &mut R, choices: &[(T, Prob)]) -> T 
 }
 
 pub fn emission_ins_choices(param: &PHMMParams) -> Vec<(u8, Prob)> {
-    // let choices = [b'a', b'c', b'g', b't']
-    let choices = [b'A', b'C', b'G', b'T']
+    let choices = VALID_BASES
         .iter()
         .map(|&base| (base, param.p_random))
         .collect();
@@ -276,7 +276,7 @@ pub fn emission_ins_choices(param: &PHMMParams) -> Vec<(u8, Prob)> {
 }
 
 pub fn emission_match_choices(param: &PHMMParams, emission: u8) -> Vec<(u8, Prob)> {
-    let choices = [b'A', b'C', b'G', b'T']
+    let choices = VALID_BASES
         .iter()
         .map(|&base| {
             (

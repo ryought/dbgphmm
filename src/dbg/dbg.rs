@@ -7,7 +7,7 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence};
+use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
@@ -60,10 +60,10 @@ pub trait DbgNode: Clone {
     }
     ///
     /// this node is emittable or not?
-    /// i.e. emission is not b'N'.
+    /// i.e. emission is not b'X'.
     ///
     fn is_emittable(&self) -> bool {
-        self.emission() != b'N'
+        self.emission() != NULL_BASE
     }
     ///
     /// check if k-mer of this node is head (NNNNA)
@@ -914,7 +914,7 @@ mod tests {
             ]
         );
         println!("{}", sequence_to_string(&dbg.path_as_sequence(&nodes)));
-        assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTNNN");
+        assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTnnn");
 
         let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATCGGCT").unwrap();
         assert_eq!(ncn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
@@ -1007,7 +1007,7 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
-        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCC,L:ATAGCT");
 
         // discarded edges
         // * TAGC 17 -> AGCC 5
@@ -1050,7 +1050,7 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
-        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCC,L:ATAGCT");
 
         // discarded edges
         // * TAGC 17 -> AGCT 12

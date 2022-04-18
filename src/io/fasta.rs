@@ -1,3 +1,4 @@
+use crate::common::NULL_BASE;
 use crate::dbg::{DbgHash, DBG};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use bio::io::fasta;
@@ -14,11 +15,11 @@ pub fn sanitize_bases(seq: &[u8]) -> Vec<u8> {
             b'T' | b't' => b'T',
             b'N' | b'n' => {
                 warn!("ambiguous detected `n` in bases[{}]", i);
-                b'N'
+                NULL_BASE
             }
             &c => {
                 warn!("informal base `{}` detected in bases[{}]", c as char, i);
-                b'N'
+                NULL_BASE
             }
         })
         .collect()
