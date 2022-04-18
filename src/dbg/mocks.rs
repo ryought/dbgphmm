@@ -45,10 +45,12 @@ pub fn mock_intersection() -> SimpleDbg<VecKmer> {
 }
 
 ///
-/// ATAGCT x1
-/// TTAGAT x1
+/// k=4 dbg
 ///
-/// `TAG` is intersecting k-1-mer.
+/// ATAGCT x1
+/// TTAGCC x1
+///
+/// `TAGC` is intersecting.
 ///
 pub fn mock_intersection_small() -> SimpleDbg<VecKmer> {
     let mut hd: HashDbg<VecKmer> = HashDbg::new(4);

@@ -281,7 +281,7 @@ mod tests {
             reads: vec![read.to_vec(), read.to_vec(), read.to_vec()],
         };
         println!("{}", dbg);
-        assert_eq!(format!("{}", dbg), "4,L:AACTAGGGC,L:CCGTAGCTT");
+        assert_eq!(format!("{}", dbg), "4,L:AACTAGCTT,L:CCGTAGGGC");
         println!("genome_size={}", dbg.genome_size());
         assert_eq!(dbg.genome_size(), 18);
         let params = PHMMParams::default();

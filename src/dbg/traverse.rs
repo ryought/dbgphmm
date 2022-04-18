@@ -5,6 +5,7 @@ use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use super::intersections::Intersection;
 use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::kmer::kmer::KmerLike;
+use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 ///
@@ -151,6 +152,7 @@ where
             self.dbg
                 .childs(node)
                 .map(|(_, child, _)| child)
+                .sorted_by_key(|&v| self.dbg.kmer(v))
                 .find(|&child| self.is_unvisited(child))
         }
     }
@@ -316,32 +318,25 @@ mod tests {
         println!("{}", dbg.to_dot());
 
         let circles: Vec<Vec<NodeIndex>> = dbg.traverse_all().collect();
-        assert_eq!(circles.len(), 4);
+        assert_eq!(circles.len(), 2);
         for circle in circles.iter() {
             println!("{:?}", circle);
             println!("{:?}", sequence_to_string(&dbg.path_as_sequence(circle)));
         }
-        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCnnn");
-        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAAnnn");
-        assert_eq!(dbg.path_as_sequence(&circles[2]), b"AAAAAAAAAA");
-        assert_eq!(dbg.path_as_sequence(&circles[3]), b"CCCCCCCCCCC");
-        assert_eq!(
-            circles[0].len() + circles[1].len() + circles[2].len() + circles[3].len(),
-            33
-        );
+        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCCCCCCCCCCCCnnn");
+        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAAAAAAAAAAAAnnn");
+        assert_eq!(circles[0].len() + circles[1].len(), 33);
 
         let seqs = dbg.to_styled_seqs();
         for seq in seqs.iter() {
             println!("{}", seq);
         }
-        assert_eq!(seqs.len(), 4);
-        assert_eq!(format!("{}", seqs[0]), "L:CCC");
-        assert_eq!(format!("{}", seqs[1]), "L:AAA");
-        assert_eq!(format!("{}", seqs[2]), "C:AAAAAAAAAA");
-        assert_eq!(format!("{}", seqs[3]), "C:CCCCCCCCCCC");
+        assert_eq!(seqs.len(), 2);
+        assert_eq!(format!("{}", seqs[0]), "L:CCCCCCCCCCCCCC");
+        assert_eq!(format!("{}", seqs[1]), "L:AAAAAAAAAAAAA");
 
         println!("{}", dbg);
-        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
+        assert_eq!(dbg.to_string(), "4,L:CCCCCCCCCCCCCC,L:AAAAAAAAAAAAA");
     }
     #[test]
     fn dbg_traverse_to_seqs() {

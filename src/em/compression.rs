@@ -205,7 +205,7 @@ mod tests {
         let params = PHMMParams::default();
         println!("{}", dbg);
         assert_eq!(dbg.genome_size(), 18);
-        assert_eq!(dbg.to_string(), "4,L:AACTAGGGC,L:CCGTAGCTT");
+        assert_eq!(dbg.to_string(), "4,L:AACTAGCTT,L:CCGTAGGGC");
 
         let (dbg_v2, is_updated, _) = compression_step(&dbg, &reads, &params, 3.0);
         println!("{}", dbg_v2);

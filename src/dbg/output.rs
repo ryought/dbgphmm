@@ -179,8 +179,8 @@ mod tests {
         println!("{}", dbg);
         let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_str(&dbg.to_string()).unwrap();
         println!("{}", dbg2);
-        assert_eq!(dbg.to_string(), "4,L:CCC,L:AAA,C:AAAAAAAAAA,C:CCCCCCCCCCC");
-        assert_eq!(dbg2.to_string(), "4,L:CCC,L:AAA,C:CCCCCCCCCCC,C:AAAAAAAAAA");
+        assert_eq!(dbg.to_string(), "4,L:CCCCCCCCCCCCCC,L:AAAAAAAAAAAAA");
+        assert_eq!(dbg2.to_string(), "4,L:CCCCCCCCCCCCCC,L:AAAAAAAAAAAAA");
     }
 
     #[test]

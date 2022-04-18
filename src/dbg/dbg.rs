@@ -979,7 +979,7 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
-        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCC,L:ATAGCT");
 
         // discarded edges
         // * TAGC 17 -> AGCC 5
@@ -1022,7 +1022,7 @@ mod tests {
         println!("{}", dbg.to_dot());
         assert!(dbg.is_valid());
         assert!(!dbg.is_edge_copy_nums_assigned());
-        assert_eq!(format!("{}", dbg), "4,L:TAAGCT,L:ATAGCC");
+        assert_eq!(format!("{}", dbg), "4,L:TAAGCC,L:ATAGCT");
 
         // discarded edges
         // * TAGC 17 -> AGCT 12
