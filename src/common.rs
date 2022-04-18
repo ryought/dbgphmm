@@ -48,6 +48,21 @@ impl Reads {
 }
 
 ///
+/// null base
+///
+pub const NULL_BASE: u8 = b'N';
+
+///
+/// Array of valid DNA bases
+///
+pub const VALID_BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
+
+///
+/// Array of all bases
+///
+pub const BASES: [u8; 5] = [b'A', b'C', b'G', b'T', NULL_BASE];
+
+///
 /// short-hand of `NodeIndex::new`
 ///
 pub fn ni(index: usize) -> NodeIndex {

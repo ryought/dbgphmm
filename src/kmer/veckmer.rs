@@ -1,10 +1,11 @@
 //! VecKmer definitions
 use super::common::{KmerLike, NullableKmer};
+use crate::common::{BASES, NULL_BASE, VALID_BASES};
 
 ///
 /// Kmer for any k, by using Vec<u8> as a internal struct
 ///
-#[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Clone)]
 pub struct VecKmer(pub Vec<u8>);
 
 ///
@@ -16,13 +17,13 @@ pub fn kmer(bases: &[u8]) -> VecKmer {
 
 impl NullableKmer for VecKmer {
     fn null_kmer(k: usize) -> Self {
-        VecKmer(vec![b'N'; k])
+        VecKmer(vec![NULL_BASE; k])
     }
     fn is_null(&self) -> bool {
-        self.0.iter().all(|&x| x == b'N')
+        self.0.iter().all(|&x| x == NULL_BASE)
     }
     fn has_null(&self) -> bool {
-        self.0.iter().any(|&x| x == b'N')
+        self.0.iter().any(|&x| x == NULL_BASE)
     }
 }
 
@@ -53,7 +54,7 @@ impl KmerLike for VecKmer {
     }
     fn childs(&self) -> Vec<VecKmer> {
         let (_, suffix) = self.0.split_first().unwrap();
-        let childs = [b'A', b'C', b'G', b'T', b'N']
+        let childs = BASES
             .iter()
             .map(|last_base| {
                 let mut v = suffix.to_vec();
@@ -65,7 +66,7 @@ impl KmerLike for VecKmer {
     }
     fn parents(&self) -> Vec<VecKmer> {
         let (_, prefix) = self.0.split_last().unwrap();
-        let parents = [b'A', b'C', b'G', b'T', b'N']
+        let parents = BASES
             .iter()
             .map(|first_base| {
                 let mut v = prefix.to_vec();
@@ -77,7 +78,7 @@ impl KmerLike for VecKmer {
     }
     fn siblings(&self) -> Vec<VecKmer> {
         let (_, suffix) = self.0.split_first().unwrap();
-        [b'A', b'C', b'G', b'T', b'N']
+        BASES
             .iter()
             .map(|first_base| {
                 let mut v = suffix.to_vec();
@@ -88,8 +89,7 @@ impl KmerLike for VecKmer {
     }
     /// return k+1mer {ACGT}<Kmer> and <Kmer>{ACGT} vector
     fn neighbors(&self) -> Vec<VecKmer> {
-        let bases = [b'A', b'C', b'G', b'T'];
-        let neighbors: Vec<VecKmer> = bases
+        let neighbors: Vec<VecKmer> = VALID_BASES
             .iter()
             .map(|&first_base| {
                 let mut v = Vec::new();
@@ -97,7 +97,7 @@ impl KmerLike for VecKmer {
                 v.extend_from_slice(&self.0);
                 VecKmer(v)
             })
-            .chain(bases.iter().map(|&last_base| {
+            .chain(VALID_BASES.iter().map(|&last_base| {
                 let mut v = Vec::new();
                 v.extend_from_slice(&self.0);
                 v.push(last_base);
@@ -132,19 +132,19 @@ impl KmerLike for VecKmer {
     /// check if NNNNNX
     fn is_head(&self) -> bool {
         let k = self.0.len();
-        self.0[..k - 1].iter().all(|&x| x == b'N')
+        self.0[..k - 1].iter().all(|&x| x == NULL_BASE)
     }
     /// check if XNNNNN
     fn is_tail(&self) -> bool {
-        self.0[1..].iter().all(|&x| x == b'N')
+        self.0[1..].iter().all(|&x| x == NULL_BASE)
     }
     /// check if not XXXXXN
     fn is_emitable(&self) -> bool {
-        *self.0.last().unwrap() != b'N'
+        *self.0.last().unwrap() != NULL_BASE
     }
     /// check if NXXXXX
     fn is_starting(&self) -> bool {
-        self.0[0] == b'N' && self.0[1..].iter().all(|&x| x != b'N')
+        self.0[0] == NULL_BASE && self.0[1..].iter().all(|&x| x != NULL_BASE)
     }
     ///
     /// Constructor from slices of u8

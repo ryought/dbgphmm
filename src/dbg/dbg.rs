@@ -7,7 +7,7 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence};
+use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
@@ -60,10 +60,10 @@ pub trait DbgNode: Clone {
     }
     ///
     /// this node is emittable or not?
-    /// i.e. emission is not b'N'.
+    /// i.e. emission is not b'X'.
     ///
     fn is_emittable(&self) -> bool {
-        self.emission() != b'N'
+        self.emission() != NULL_BASE
     }
     ///
     /// check if k-mer of this node is head (NNNNA)

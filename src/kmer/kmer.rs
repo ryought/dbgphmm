@@ -6,6 +6,7 @@ pub use super::common::{
     styled_sequence_to_kmers, KmerLike,
 };
 pub use super::veckmer::VecKmer as Kmer;
+use crate::common::NULL_BASE;
 
 use std::collections::HashMap;
 
@@ -28,26 +29,26 @@ pub fn count(seq: &[u8], k: usize) -> HashMap<Kmer, usize> {
     h
 }
 
-/// return N*k
+/// return X*k
 pub fn null_kmer(k: usize) -> Kmer {
-    let v = vec![b'N'; k];
+    let v = vec![NULL_BASE; k];
     Kmer(v)
 }
 
-/// ATTC -> [NNNA, NNAT, NATT]
+/// ATTC -> [XXXA, XXAT, XATT]
 pub fn starting_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
-    let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
+    let blanks = std::iter::repeat(NULL_BASE).take(k).collect::<Vec<u8>>();
     let heads: Vec<Kmer> = (1..k)
         .map(|i| Kmer([&blanks[i..], &kmer.0[..i]].concat()))
         .collect();
     heads
 }
 
-/// ATTC -> [TTCN, TCNN, CNNN]
+/// ATTC -> [TTCX, TCXX, CXXX]
 pub fn ending_kmers(kmer: &Kmer) -> Vec<Kmer> {
     let k = kmer.len();
-    let blanks = std::iter::repeat(b'N').take(k).collect::<Vec<u8>>();
+    let blanks = std::iter::repeat(NULL_BASE).take(k).collect::<Vec<u8>>();
     let tails: Vec<Kmer> = (1..k)
         .map(|i| Kmer([&kmer.0[i..], &blanks[..i]].concat()))
         .collect();
@@ -67,7 +68,7 @@ pub fn linear_seq_to_kmers(seq: &[u8], k: usize) -> impl std::iter::Iterator<Ite
         .chain(seq.windows(k).map(|subseq| Kmer::from_bases(subseq)))
         .chain(ending_kmers(&last_kmer).into_iter())
     /*
-    let mut extended_seq = vec![b'N'; k - 1];
+    let mut extended_seq = vec![NULL_BASE; k - 1];
     extended_seq.extend_from_slice(seq);
     extended_seq.extend_from_slice(&seq[..k - 1]);
     extended_seq.windows(k).map(|subseq| Kmer::from(subseq))

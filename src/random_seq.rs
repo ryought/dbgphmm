@@ -1,4 +1,4 @@
-use crate::common::Sequence;
+use crate::common::{Sequence, VALID_BASES};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
@@ -10,8 +10,7 @@ pub fn generate(length: usize, seed: u64) -> Sequence {
     let mut seq: Sequence = Vec::with_capacity(length);
     for _ in 0..length {
         // let n: u8 = rng.gen_range(0..4);
-        let bases = [b'A', b'C', b'G', b'T'];
-        let base = bases.choose(&mut rng).unwrap();
+        let base = VALID_BASES.choose(&mut rng).unwrap();
         seq.push(*base);
     }
     seq

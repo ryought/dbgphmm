@@ -1,7 +1,7 @@
 //!
 //! Definition of Node-centric PHMM
 //!
-use crate::common::CopyNum;
+use crate::common::{CopyNum, NULL_BASE};
 use crate::graph::active_nodes::ActiveNodes;
 use crate::graph::iterators::{
     ActiveNodesIterator, ChildEdges, EdgesIterator, NodesIterator, ParentEdges,
@@ -36,7 +36,7 @@ pub trait PHMMNode: std::marker::Sync {
     ///
     /// This node has a valid emission or not.
     fn is_emittable(&self) -> bool {
-        self.emission() != b'N'
+        self.emission() != NULL_BASE
     }
     ///
     /// Initial transition probability from Begin state to the node.

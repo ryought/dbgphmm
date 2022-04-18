@@ -1,3 +1,4 @@
+use crate::common::NULL_BASE;
 use crate::cycles;
 use crate::cycles::CycleDirection;
 use crate::dbg::{DbgHash, DBG};
@@ -103,7 +104,7 @@ impl CompressedDBG {
         self.emissions[v.0]
     }
     pub fn is_emitable(&self, v: &Node) -> bool {
-        self.emission(v) != b'N'
+        self.emission(v) != NULL_BASE
     }
     pub fn kmer(&self, v: &Node) -> &Kmer {
         &self.kmers[v.0]

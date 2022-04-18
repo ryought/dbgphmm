@@ -3,7 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use super::intersections::Intersection;
-use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence};
+use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::kmer::kmer::KmerLike;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -46,7 +46,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn path_as_sequence_without_null(&self, path: &Path) -> Sequence {
         path.iter()
             .map(|&node| self.emission(node))
-            .filter(|&base| base != b'N')
+            .filter(|&base| base != NULL_BASE)
             .collect()
     }
     ///

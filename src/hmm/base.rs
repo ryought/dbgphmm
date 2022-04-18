@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use super::layer::PHMMLayer as PHMMLayerRaw;
 use super::params::PHMMParams;
+use crate::common::NULL_BASE;
 pub use crate::graph::Node;
 use crate::prob::Prob;
 use crate::veclike::{DenseVec, SparseVec, VecLike};
@@ -30,7 +31,7 @@ pub trait PHMM {
     }
     fn emission(&self, v: &Node) -> u8;
     fn is_emitable(&self, v: &Node) -> bool {
-        self.emission(v) != b'N'
+        self.emission(v) != NULL_BASE
     }
     fn trans_prob(&self, v: &Node, w: &Node) -> Prob;
     fn label(&self, _: &Node) -> String {
