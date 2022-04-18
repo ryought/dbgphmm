@@ -13,7 +13,7 @@ use crate::common::{Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
-use crate::min_flow::min_cost_flow_convex_fast;
+use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
 use crate::prob::Prob;
 
 ///
@@ -23,11 +23,11 @@ pub struct CompressionLog {
     /// Full probability
     full_prob: Prob,
     /// Min-flow error
-    min_flow_score: f64,
+    min_flow_score: Cost,
 }
 
 impl CompressionLog {
-    pub fn new(full_prob: Prob, min_flow_score: f64) -> Self {
+    pub fn new(full_prob: Prob, min_flow_score: Cost) -> Self {
         CompressionLog {
             full_prob,
             min_flow_score,
@@ -89,13 +89,16 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     // m-step
     // convert it to the
     println!("compression::m_step");
-    let copy_nums = m_step(dbg, &node_freqs, depth);
+    let (copy_nums, min_flow_score) = m_step(dbg, &node_freqs, depth);
     println!("copy_nums={}", copy_nums);
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
 
-    (new_dbg, is_updated, CompressionLog::new(full_prob, 0.0))
+    // create log
+    let log = CompressionLog::new(full_prob, min_flow_score);
+
+    (new_dbg, is_updated, log)
 }
 
 ///
@@ -136,7 +139,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     node_freqs: &NodeFreqs,
     depth: Freq,
-) -> NodeCopyNums {
+) -> (NodeCopyNums, Cost) {
     let node_freqs = node_freqs.clone() / depth;
     let edbg = dbg.to_edbg_with_attr(Some(&node_freqs));
     let flow = min_cost_flow_convex_fast(&edbg.graph);
@@ -144,7 +147,10 @@ fn m_step<N: DbgNode, E: DbgEdge>(
         None => panic!("compression::m_step cannot find optimal flow."),
         // an edge in edbg corresponds to a node in dbg
         // so edgevec for edbg can be converted to nodevec for dbg.
-        Some(copy_nums) => copy_nums.switch_index(),
+        Some(copy_nums) => {
+            let cost = total_cost(&edbg.graph, &copy_nums);
+            (copy_nums.switch_index(), cost)
+        }
     }
 }
 
@@ -157,12 +163,17 @@ mod tests {
     fn em_compression_m_step_dbg() {
         let dbg = mock_base();
         let node_freqs = NodeFreqs::new(dbg.n_nodes(), 1.9);
-        let copy_nums = m_step(&dbg, &node_freqs, 1.0);
+        let (copy_nums, score) = m_step(&dbg, &node_freqs, 1.0);
         println!("{}", copy_nums);
+        println!("score={}", score);
         assert_eq!(copy_nums.to_vec(), vec![2; dbg.n_nodes()]);
+        assert_abs_diff_eq!(score, 0.07);
 
-        let copy_nums = m_step(&dbg, &node_freqs, 2.0);
+        let (copy_nums, score) = m_step(&dbg, &node_freqs, 2.0);
         println!("{}", copy_nums);
+        println!("{}", node_freqs);
+        println!("score={}", score);
+        assert_abs_diff_eq!(score, 0.0175);
         assert_eq!(copy_nums.to_vec(), vec![1; dbg.n_nodes()]);
     }
 

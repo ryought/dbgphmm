@@ -7,6 +7,7 @@ pub mod utils;
 pub mod zero_demand;
 
 use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexCost};
+pub use flow::total_cost;
 use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
 use residue::{improve_flow, improve_flow_convex};
