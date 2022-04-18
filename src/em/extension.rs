@@ -24,6 +24,7 @@ pub mod intersection_graph;
 ///
 /// Log information store of each iteration in extension
 ///
+#[derive(Clone, Debug)]
 pub struct ExtensionLog {
     /// Full probability
     full_prob: Prob,
@@ -197,6 +198,7 @@ mod tests {
         println!("{}", freqs);
         let (copy_nums, cost) = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
+        println!("cost={}", cost);
         assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
     }
 
@@ -240,6 +242,8 @@ mod tests {
         );
         let (copy_nums, cost) = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
+        println!("cost={}", cost);
+        assert_eq!(cost, 0.0);
         // assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     }
 
@@ -253,15 +257,19 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let (dbg_v2, is_updated, _) = extension_step(&dbg, &reads, &params);
+        let (dbg_v2, is_updated, log) = extension_step(&dbg, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
+        println!("log={:?}", log);
+        assert_relative_eq!(log.min_flow_cost, 0.004705572023128938);
         assert!(is_updated);
 
         // extension again
-        let (dbg_v3, is_updated, _) = extension_step(&dbg_v2, &reads, &params);
+        let (dbg_v3, is_updated, log) = extension_step(&dbg_v2, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
+        println!("log={:?}", log);
+        assert_relative_eq!(log.min_flow_cost, 0.0);
         assert!(!is_updated);
     }
 

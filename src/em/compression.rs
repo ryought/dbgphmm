@@ -19,6 +19,7 @@ use crate::prob::Prob;
 ///
 /// Log information store of each iteration in compression
 ///
+#[derive(Clone, Debug)]
 pub struct CompressionLog {
     /// Full probability
     full_prob: Prob,
