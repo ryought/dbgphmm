@@ -328,6 +328,7 @@ mod tests {
     use super::*;
     use crate::common::{ei, ni};
     use crate::kmer::veckmer::VecKmer;
+    use crate::min_flow::utils::clamped_log;
     use petgraph::dot::Dot;
 
     #[test]
@@ -354,6 +355,13 @@ mod tests {
 
         let (fi_opt, cost) = fi.optimize();
         println!("{}", fi_opt);
+        println!("cost={}", cost);
+        let cost_true = 5.1 * clamped_log(1)
+            + 5.0 * clamped_log(1)
+            + 4.9 * clamped_log(0)
+            + 4.8 * clamped_log(4);
+        println!("cost_true={}", cost_true);
+        assert_eq!(cost, -cost_true);
         for (i, e) in fi_opt.bi.edges.iter().enumerate() {
             assert_eq!(e.index, fi.bi.edges[i].index);
             assert_eq!(e.freq, fi.bi.edges[i].freq);
@@ -403,6 +411,13 @@ mod tests {
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
         let (fi_opt, cost) = fi.optimize();
         println!("{}", fi_opt);
+        println!("cost={}", cost);
+        let cost_true = 0.1 * clamped_log(0)
+            + 1.1 * clamped_log(1)
+            + 0.5 * clamped_log(1)
+            + 0.5 * clamped_log(0);
+        println!("cost_true={}", cost_true);
+        assert_eq!(cost, -cost_true);
         assert_eq!(
             fi_opt.to_edge_copy_nums(),
             vec![Some(0), Some(1), Some(1), Some(0)]
