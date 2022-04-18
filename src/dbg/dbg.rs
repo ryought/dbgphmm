@@ -776,6 +776,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         Self::from_digraph(self.k() + 1, graph)
     }
+    ///
+    pub fn remove_zero_copy_node(&mut self) {
+        self.graph
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
+    }
 }
 
 #[cfg(test)]
@@ -1100,5 +1105,20 @@ mod tests {
 
         println!("{}", g2.node_count());
         println!("{}", g2.edge_count());
+    }
+    #[test]
+    fn dbg_remove_zero_copy() {
+        let mut dbg = mock_intersection();
+        println!("{}", dbg.to_dot());
+        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
+        dbg.set_node_copy_nums(&ncn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        println!("{}", dbg.to_dot());
+
+        dbg.remove_zero_copy_node();
+        assert!(dbg.is_valid());
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:AACTAGCTT");
     }
 }
