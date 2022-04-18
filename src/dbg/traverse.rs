@@ -81,9 +81,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert dbg into styled sequences
     ///
     pub fn to_styled_seqs(&self) -> Vec<StyledSequence> {
-        self.traverse_all()
+        let (styled_seqs, _) = self.to_styled_seqs_with_n_choices();
+        styled_seqs
+    }
+    ///
+    /// Convert dbg into styled sequences, with n_choices information.
+    ///
+    pub fn to_styled_seqs_with_n_choices(&self) -> (Vec<StyledSequence>, usize) {
+        let mut traveller = self.traverse_all();
+        let styled_seqs: Vec<StyledSequence> = traveller
+            .by_ref()
             .map(|circle| self.path_as_styled_sequence(&circle))
-            .collect()
+            .collect();
+        let n_choices = traveller.n_path_choices();
+        (styled_seqs, n_choices)
     }
     ///
     /// Traverse from a single node.
@@ -106,10 +117,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 pub struct Traverser<'a, N: DbgNode, E: DbgEdge> {
     /// the node index it will visit in the next step
     next_node: Option<NodeIndex>,
+    /// the number of choices in the next step
+    n_next_node_choices: usize,
     /// reference to the dbg struct
     dbg: &'a Dbg<N, E>,
     /// remaining unvisited copy numbers of each nodes
     copy_nums: NodeCopyNums,
+    /// the number of alternative paths to current node.
+    n_path_choices: usize,
 }
 
 impl<'a, N, E> Traverser<'a, N, E>
@@ -124,36 +139,40 @@ where
     ) -> Traverser<'a, N, E> {
         Traverser {
             next_node,
+            n_next_node_choices: 1,
             dbg,
             copy_nums,
+            n_path_choices: 1,
         }
     }
     fn set_next_node(&mut self, node: NodeIndex) {
         self.next_node = Some(node);
+        self.n_next_node_choices = 1;
     }
     fn is_unvisited(&self, node: NodeIndex) -> bool {
         self.copy_nums[node] > 0
     }
     ///
     /// Find the unvisited (= copy_nums of the node is remaining) child
-    /// of the node.
-    ///
-    /// ## TODO
+    /// of the node and the number of choices of them.
     ///
     /// to achieve stable traversing (i.e. the same traversal order even though the
-    /// index of nodes/edges are different), the child should be returned in order of
+    /// index of nodes/edges are different), the child indexes is returned in order of
     /// k-mer dictionary order.
     ///
-    fn find_unvisited_child(&self, node: NodeIndex) -> Option<NodeIndex> {
+    fn find_unvisited_child(&self, node: NodeIndex) -> (Option<NodeIndex>, usize) {
         if self.dbg.kmer(node).is_tail() {
             // if the node is tail (XNNNN), break the path.
-            None
+            (None, 0)
         } else {
-            self.dbg
+            let mut unvisited_childs: Vec<_> = self
+                .dbg
                 .childs(node)
                 .map(|(_, child, _)| child)
-                .sorted_by_key(|&v| self.dbg.kmer(v))
-                .find(|&child| self.is_unvisited(child))
+                .filter(|&child| self.is_unvisited(child))
+                .collect();
+            unvisited_childs.sort_by_key(|&v| self.dbg.kmer(v));
+            (unvisited_childs.first().copied(), unvisited_childs.len())
         }
     }
     fn find_unvisited_node(&self) -> Option<NodeIndex> {
@@ -178,8 +197,14 @@ where
             Some(node) => {
                 // visit this node
                 self.copy_nums[node] -= 1;
+                self.n_path_choices *= self.n_next_node_choices;
+
                 // search for new next node
-                self.next_node = self.find_unvisited_child(node);
+                // and store the n_choices.
+                let (next_node, n_choices) = self.find_unvisited_child(node);
+                self.next_node = next_node;
+                self.n_next_node_choices = n_choices;
+
                 Some(node)
             }
             None => None,
@@ -188,6 +213,8 @@ where
 }
 
 /// Eulerian Traverse all nodes in dbg from starting nodes.
+///
+/// It can (only) be created from dbg using `Dbg::traverse_all()`.
 ///
 /// * as iterator
 /// * as vector of paths by using `as_paths()`
@@ -221,6 +248,11 @@ where
     ///
     pub fn as_paths(&mut self) -> Vec<Path> {
         self.collect()
+    }
+    /// Access to the current n_path_choices
+    /// in the traverser.
+    pub fn n_path_choices(&self) -> usize {
+        self.traverser.n_path_choices
     }
 }
 
@@ -353,5 +385,20 @@ mod tests {
         }
         assert_eq!(seqs.len(), 1);
         assert_eq!(format!("{}", seqs[0]), "L:ATTCGATCGAT");
+    }
+    #[test]
+    fn dbg_traverse_n_choices() {
+        for (dbg, n_choices_true) in [
+            (mock_simple(), 1),
+            (mock_rep(), 2097152),
+            (mock_intersection(), 2),
+        ] {
+            let (seqs, n_choices) = dbg.to_styled_seqs_with_n_choices();
+            for seq in seqs.iter() {
+                println!("{}", seq);
+            }
+            println!("n_choices={}", n_choices);
+            assert_eq!(n_choices, n_choices_true);
+        }
     }
 }
