@@ -69,7 +69,10 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     }
 
     // convert to k+1 dbg
-    (dbg.to_kp1_dbg(), logs)
+    // with removing zero copy nodes
+    let mut dbg_kp1 = dbg.to_kp1_dbg();
+    dbg_kp1.remove_zero_copy_node();
+    (dbg_kp1, logs)
 }
 
 ///

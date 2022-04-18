@@ -109,6 +109,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
+    new_dbg.remove_zero_copy_node();
 
     // create log
     let log = CompressionLog::new(full_prob, min_flow_score);

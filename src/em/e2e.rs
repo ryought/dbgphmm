@@ -21,6 +21,8 @@ mod tests {
     use super::*;
     use crate::em::compression::{compression, compression_step};
     use crate::em::extension::{extension, extension_step};
+    use crate::em::infer;
+    use crate::em::scheduler::SchedulerType1;
 
     fn e2e_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
@@ -74,7 +76,19 @@ mod tests {
     fn e2e_extension() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
 
-        let (dbg, _) = extension(&dbg_raw, &reads, &PHMMParams::default(), 5);
+        let (dbg, _) = extension(&dbg_true, &reads, &PHMMParams::default(), 5);
         println!("{}", dbg);
+        println!("{}", dbg_true);
+        assert_eq!(dbg.to_string(), "9,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
+    }
+
+    #[test]
+    fn e2e_full() {
+        let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
+        let scheduler = SchedulerType1::new(8, 40, 10.0);
+        let dbg = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
+        println!("{}", dbg);
+        println!("{}", dbg_true);
+        assert_eq!(dbg.to_string(), "39,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 }
