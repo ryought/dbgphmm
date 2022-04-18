@@ -345,6 +345,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .filter(|i| !i.is_tip_intersection() && !i.can_uniquely_convertable())
             .count()
     }
+    ///
+    /// Get the number of traverse choices
+    ///
+    pub fn n_traverse_choices(&self) -> usize {
+        let (_, n_choices) = self.to_styled_seqs_with_n_choices();
+        n_choices
+    }
 }
 
 ///
