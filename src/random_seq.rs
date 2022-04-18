@@ -17,6 +17,29 @@ pub fn generate(length: usize, seed: u64) -> Sequence {
     seq
 }
 
+pub enum Operation {
+    Mut(usize),
+    Ins(usize),
+    Del(usize),
+}
+
+fn pick<R: Rng>(rng: &mut R, length: usize) -> Operation {
+    // (1) pick operation
+    // (2) pick position
+    unimplemented!();
+}
+
+///
+/// Mutate randomly with
+///
+/// * Mut(pos)
+/// * Ins(pos)
+/// * Del(pos)
+///
+pub fn random_mutation() -> Sequence {
+    unimplemented!();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

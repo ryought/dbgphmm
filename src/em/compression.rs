@@ -67,7 +67,6 @@ pub fn compression_with_depths<N: DbgNode, E: DbgEdge>(
 
     // iterate EM steps
     for &depth in depths {
-        println!("compression iteration depth={}", depth);
         let (dbg_new, is_updated, log) = compression_step(&dbg, reads, params, depth);
         logs.push(log);
 
@@ -96,19 +95,14 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 ) -> (Dbg<N, E>, bool, CompressionLog) {
     // e-step
     // calculate node_freqs by using current dbg.
-    println!("compression::e_step");
     let (node_freqs, full_prob) = e_step(dbg, reads, params);
-    println!("node_freqs={}", node_freqs);
-    println!("full_prob={}", full_prob);
 
     // m-step
-    // convert it to the
-    println!("compression::m_step");
     let (copy_nums, min_flow_score) = m_step(dbg, &node_freqs, depth);
-    println!("copy_nums={}", copy_nums);
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
+    new_dbg.remove_zero_copy_node();
 
     // create log
     let log = CompressionLog::new(full_prob, min_flow_score);

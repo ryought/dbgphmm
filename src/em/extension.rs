@@ -54,12 +54,16 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<ExtensionLog>) {
+    println!(
+        "extension! k={} n_ambiguous={}",
+        dbg.k(),
+        dbg.n_ambiguous_intersections()
+    );
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
     // iterate EM steps
     for i in 0..max_iter {
-        println!("extension {}th iteration", i);
         let (dbg_new, is_updated, log) = extension_step(&dbg, reads, params);
         logs.push(log);
         if !is_updated {
@@ -69,7 +73,10 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     }
 
     // convert to k+1 dbg
-    (dbg.to_kp1_dbg(), logs)
+    // with removing zero copy nodes
+    let mut dbg_kp1 = dbg.to_kp1_dbg();
+    dbg_kp1.remove_zero_copy_node();
+    (dbg_kp1, logs)
 }
 
 ///
@@ -97,20 +104,13 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
 ) -> (Dbg<N, E>, bool, ExtensionLog) {
     // (1) e-step infer edge freqs
-    println!("extension::e_step");
     let (edge_freqs, full_prob) = e_step(dbg, reads, params);
-    println!("edge_freqs={}", edge_freqs);
-    println!("full_prob={}", full_prob);
 
     // (2) m-step infer the best copy nums
-    println!("extension::m_step");
     let (copy_nums, cost) = m_step(dbg, &edge_freqs);
-    println!("copy_nums={}", copy_nums);
-    println!("cost={}", cost);
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
-    println!("is_updated={}", is_updated);
 
     let log = ExtensionLog::new(full_prob, cost);
 

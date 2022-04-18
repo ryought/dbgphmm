@@ -337,6 +337,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             && self.has_no_parallel_edge()
             && self.is_graph_valid()
     }
+    ///
+    /// Get the number of ambiguous intersections
+    ///
+    pub fn n_ambiguous_intersections(&self) -> usize {
+        self.iter_intersections()
+            .filter(|i| !i.is_tip_intersection() && !i.can_uniquely_convertable())
+            .count()
+    }
 }
 
 ///
@@ -613,6 +621,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let hd = HashDbg::from_reads(k, reads);
         Self::from_hashdbg(&hd)
     }
+    /// Construct Dbg from multiple sequences via converting HashDbg into Dbg.
+    ///
+    /// ## Future TODO
+    /// * collect `from_reads` and `from_seqs` into a single method, using a trait `ToSequenceRef`
+    /// or so
+    pub fn from_seqs(k: usize, seqs: &[Sequence]) -> Self {
+        let mut hd = HashDbg::new(k);
+        for seq in seqs {
+            // ignore read if it is shorter than k
+            if seq.len() >= k {
+                hd.add_seq(seq);
+            }
+        }
+        Self::from_hashdbg(&hd)
+    }
     ///
     /// Convert into edge-centric de bruijn graph
     ///
@@ -775,6 +798,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         Self::from_digraph(self.k() + 1, graph)
+    }
+    ///
+    pub fn remove_zero_copy_node(&mut self) {
+        self.graph
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
     }
 }
 
@@ -1100,5 +1128,42 @@ mod tests {
 
         println!("{}", g2.node_count());
         println!("{}", g2.edge_count());
+    }
+    #[test]
+    fn dbg_remove_zero_copy() {
+        let mut dbg = mock_intersection();
+        println!("{}", dbg.to_dot());
+        let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"AACTAGCTT").unwrap();
+        dbg.set_node_copy_nums(&ncn);
+        dbg.set_edge_copy_nums(Some(&ecn));
+        println!("{}", dbg.to_dot());
+
+        dbg.remove_zero_copy_node();
+        assert!(dbg.is_valid());
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg);
+        assert_eq!(dbg.to_string(), "4,L:AACTAGCTT");
+    }
+    #[test]
+    fn dbg_ambiguous_intersections() {
+        let dbg = mock_intersection();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 1);
+
+        let dbg = mock_base();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 0);
+
+        let dbg = mock_two_seqs();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 0);
+
+        let dbg = mock_rep();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 2);
     }
 }
