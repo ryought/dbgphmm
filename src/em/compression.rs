@@ -48,12 +48,26 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     depth: Freq,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<CompressionLog>) {
+    let depths = vec![depth; max_iter];
+    compression_with_depths(dbg, reads, params, &depths)
+}
+
+///
+/// Compression full algorithm by running `compression_step` iteratively
+/// with specified depths.
+///
+pub fn compression_with_depths<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    depths: &[Freq],
+) -> (Dbg<N, E>, Vec<CompressionLog>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
     // iterate EM steps
-    for i in 0..max_iter {
-        println!("compression {}th iteration", i);
+    for &depth in depths {
+        println!("compression iteration depth={}", depth);
         let (dbg_new, is_updated, log) = compression_step(&dbg, reads, params, depth);
         logs.push(log);
 
