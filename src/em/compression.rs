@@ -14,15 +14,24 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::min_cost_flow_convex_fast;
+use crate::prob::Prob;
 
 ///
 /// Log information store of each iteration in compression
 ///
-pub struct CompressionLog {}
+pub struct CompressionLog {
+    /// Full probability
+    full_prob: Prob,
+    /// Min-flow error
+    min_flow_score: f64,
+}
 
 impl CompressionLog {
-    pub fn new() -> Self {
-        CompressionLog {}
+    pub fn new(full_prob: Prob, min_flow_score: f64) -> Self {
+        CompressionLog {
+            full_prob,
+            min_flow_score,
+        }
     }
 }
 
@@ -73,8 +82,9 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     // e-step
     // calculate node_freqs by using current dbg.
     println!("compression::e_step");
-    let node_freqs = e_step(dbg, reads, params);
+    let (node_freqs, full_prob) = e_step(dbg, reads, params);
     println!("node_freqs={}", node_freqs);
+    println!("full_prob={}", full_prob);
 
     // m-step
     // convert it to the
@@ -85,7 +95,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_node_copy_nums(&copy_nums);
 
-    (new_dbg, is_updated, CompressionLog::new())
+    (new_dbg, is_updated, CompressionLog::new(full_prob, 0.0))
 }
 
 ///
@@ -100,10 +110,9 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> NodeFreqs {
+) -> (NodeFreqs, Prob) {
     let phmm = dbg.to_phmm(params.clone());
-    let (node_freqs, _) = phmm.to_node_freqs_parallel(reads);
-    node_freqs
+    phmm.to_node_freqs_parallel(reads)
 }
 
 ///

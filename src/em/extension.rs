@@ -14,6 +14,7 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
+use crate::prob::Prob;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 pub mod flow_intersection;
 use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
@@ -22,11 +23,14 @@ pub mod intersection_graph;
 ///
 /// Log information store of each iteration in extension
 ///
-pub struct ExtensionLog {}
+pub struct ExtensionLog {
+    /// Full probability
+    full_prob: Prob,
+}
 
 impl ExtensionLog {
-    pub fn new() -> Self {
-        ExtensionLog {}
+    pub fn new(full_prob: Prob) -> Self {
+        ExtensionLog { full_prob }
     }
 }
 
@@ -87,8 +91,9 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
 ) -> (Dbg<N, E>, bool, ExtensionLog) {
     // (1) e-step infer edge freqs
     println!("extension::e_step");
-    let edge_freqs = e_step(dbg, reads, params);
+    let (edge_freqs, full_prob) = e_step(dbg, reads, params);
     println!("edge_freqs={}", edge_freqs);
+    println!("full_prob={}", full_prob);
 
     // (2) m-step infer the best copy nums
     println!("extension::m_step");
@@ -99,7 +104,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
     println!("is_updated={}", is_updated);
 
-    (new_dbg, is_updated, ExtensionLog::new())
+    (new_dbg, is_updated, ExtensionLog::new(full_prob))
 }
 
 ///
@@ -114,16 +119,9 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> EdgeFreqs {
+) -> (EdgeFreqs, Prob) {
     let phmm = dbg.to_phmm(params.clone());
-
-    //
-    // println!("e_step calculating P(R)");
-    // let p = phmm.to_full_prob(reads);
-    // println!("e_step P(R)={:?}", p);
-
-    let (edge_freqs, _) = phmm.to_edge_freqs_parallel(reads);
-    edge_freqs
+    phmm.to_edge_freqs_parallel(reads)
 }
 
 ///
@@ -196,7 +194,7 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let freqs = e_step(&dbg, &reads, &params);
+        let (freqs, _) = e_step(&dbg, &reads, &params);
         let freqs_true = EdgeFreqs::from_slice(
             &[
                 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
