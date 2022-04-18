@@ -50,7 +50,7 @@ impl Reads {
 ///
 /// null base
 ///
-pub const NULL_BASE: u8 = b'N';
+pub const NULL_BASE: u8 = b'n';
 
 ///
 /// Array of valid DNA bases

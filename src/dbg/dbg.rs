@@ -886,7 +886,7 @@ mod tests {
             ]
         );
         println!("{}", sequence_to_string(&dbg.path_as_sequence(&nodes)));
-        assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTNNN");
+        assert_eq!(dbg.path_as_sequence(&nodes), b"ATCGGCTnnn");
 
         let (ncn, ecn) = dbg.to_copy_nums_of_seq(b"ATCGGCT").unwrap();
         assert_eq!(ncn.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);

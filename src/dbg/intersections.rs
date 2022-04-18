@@ -177,7 +177,7 @@ mod tests {
     fn dbg_intersections_twoseqs() {
         let dbg = mock_intersection();
         for i in dbg.iter_intersections() {
-            if i.km1mer() == &VecKmer::from_bases(b"NNN") {
+            if i.km1mer() == &VecKmer::from_bases(b"nnn") {
                 assert_eq!(i.n_in_nodes(), 2);
                 assert_eq!(i.n_out_nodes(), 2);
             } else if i.km1mer() == &VecKmer::from_bases(b"TAG") {

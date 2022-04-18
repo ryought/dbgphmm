@@ -112,9 +112,9 @@ mod tests {
     fn starting() {
         let a = Kmer::from_bases(b"ATCGATTAG");
         assert!(!a.is_starting());
-        let a = Kmer::from_bases(b"NNNNAAAAA");
+        let a = Kmer::from_bases(b"nnnnAAAAA");
         assert!(!a.is_starting());
-        let a = Kmer::from_bases(b"NAGTAAAAA");
+        let a = Kmer::from_bases(b"nAGTAAAAA");
         assert!(a.is_starting());
     }
 }

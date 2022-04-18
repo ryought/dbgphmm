@@ -203,19 +203,19 @@ mod tests {
         );
         assert_eq!(
             hd.childs(&Kmer::from_bases(b"CGAT")),
-            vec![Kmer::from_bases(b"GATT"), Kmer::from_bases(b"GATN")]
+            vec![Kmer::from_bases(b"GATT"), Kmer::from_bases(b"GATn")]
         );
         assert_eq!(
-            hd.childs(&Kmer::from_bases(b"TNNN")),
-            vec![Kmer::from_bases(b"NNNA")]
+            hd.childs(&Kmer::from_bases(b"Tnnn")),
+            vec![Kmer::from_bases(b"nnnA")]
         );
         assert_eq!(
             hd.siblings(&Kmer::from_bases(b"ATCG")),
             vec![Kmer::from_bases(b"ATCG"), Kmer::from_bases(b"TTCG")]
         );
         assert_eq!(
-            hd.siblings(&Kmer::from_bases(b"NNNA")),
-            vec![Kmer::from_bases(b"NNNA")]
+            hd.siblings(&Kmer::from_bases(b"nnnA")),
+            vec![Kmer::from_bases(b"nnnA")]
         );
 
         // consistency

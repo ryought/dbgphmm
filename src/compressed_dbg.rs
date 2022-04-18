@@ -456,7 +456,7 @@ mod tests {
         // starting kmer is the first 7-mer
         assert_eq!(
             cdbg.kmer(&starting[0]).clone(),
-            Kmer::from_bases(b"NATCGATT")
+            Kmer::from_bases(b"nATCGATT")
         );
     }
 
@@ -506,7 +506,7 @@ mod tests {
         let (cdbg, cn) = CompressedDBG::from_seqs(&seqs, 3);
         assert_eq!(
             cdbg.to_cytoscape_json(&[]),
-            r#"[{"group":"nodes","data":{"id":7,"label":"NA"}},{"group":"nodes","data":{"id":6,"label":"CG"}},{"group":"nodes","data":{"id":5,"label":"AT"}},{"group":"nodes","data":{"id":3,"label":"AC"}},{"group":"nodes","data":{"id":8,"label":"GA"}},{"group":"nodes","data":{"id":4,"label":"CN"}},{"group":"nodes","data":{"id":1,"label":"TT"}},{"group":"nodes","data":{"id":2,"label":"TC"}},{"group":"nodes","data":{"id":0,"label":"NN"}},{"group":"edges","data":{"id":9,"source":1,"target":2,"label":"TTC","widths":[],"true_width":null}},{"group":"edges","data":{"id":10,"source":3,"target":4,"label":"ACN","widths":[],"true_width":null}},{"group":"edges","data":{"id":11,"source":5,"target":1,"label":"ATT","widths":[],"true_width":null}},{"group":"edges","data":{"id":12,"source":4,"target":0,"label":"CNN","widths":[],"true_width":null}},{"group":"edges","data":{"id":13,"source":2,"target":6,"label":"TCG","widths":[],"true_width":null}},{"group":"edges","data":{"id":14,"source":0,"target":7,"label":"NNA","widths":[],"true_width":null}},{"group":"edges","data":{"id":15,"source":6,"target":8,"label":"CGA","widths":[],"true_width":null}},{"group":"edges","data":{"id":16,"source":7,"target":5,"label":"NAT","widths":[],"true_width":null}},{"group":"edges","data":{"id":17,"source":8,"target":3,"label":"GAC","widths":[],"true_width":null}}]"#
+            r#"[{"group":"nodes","data":{"id":7,"label":"nA"}},{"group":"nodes","data":{"id":6,"label":"CG"}},{"group":"nodes","data":{"id":5,"label":"AT"}},{"group":"nodes","data":{"id":3,"label":"AC"}},{"group":"nodes","data":{"id":8,"label":"GA"}},{"group":"nodes","data":{"id":4,"label":"Cn"}},{"group":"nodes","data":{"id":1,"label":"TT"}},{"group":"nodes","data":{"id":2,"label":"TC"}},{"group":"nodes","data":{"id":0,"label":"nn"}},{"group":"edges","data":{"id":9,"source":1,"target":2,"label":"TTC","widths":[],"true_width":null}},{"group":"edges","data":{"id":10,"source":3,"target":4,"label":"ACn","widths":[],"true_width":null}},{"group":"edges","data":{"id":11,"source":5,"target":1,"label":"ATT","widths":[],"true_width":null}},{"group":"edges","data":{"id":12,"source":4,"target":0,"label":"Cnn","widths":[],"true_width":null}},{"group":"edges","data":{"id":13,"source":2,"target":6,"label":"TCG","widths":[],"true_width":null}},{"group":"edges","data":{"id":14,"source":0,"target":7,"label":"nnA","widths":[],"true_width":null}},{"group":"edges","data":{"id":15,"source":6,"target":8,"label":"CGA","widths":[],"true_width":null}},{"group":"edges","data":{"id":16,"source":7,"target":5,"label":"nAT","widths":[],"true_width":null}},{"group":"edges","data":{"id":17,"source":8,"target":3,"label":"GAC","widths":[],"true_width":null}}]"#
         )
     }
 }

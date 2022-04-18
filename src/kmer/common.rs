@@ -314,16 +314,16 @@ mod tests {
         assert_eq!(
             kmers,
             vec![
-                VecKmer::from_bases(b"NNNA"),
-                VecKmer::from_bases(b"NNAT"),
-                VecKmer::from_bases(b"NATC"),
+                VecKmer::from_bases(b"nnnA"),
+                VecKmer::from_bases(b"nnAT"),
+                VecKmer::from_bases(b"nATC"),
                 VecKmer::from_bases(b"ATCA"),
                 VecKmer::from_bases(b"TCAT"),
                 VecKmer::from_bases(b"CATC"),
                 VecKmer::from_bases(b"ATCG"),
-                VecKmer::from_bases(b"TCGN"),
-                VecKmer::from_bases(b"CGNN"),
-                VecKmer::from_bases(b"GNNN"),
+                VecKmer::from_bases(b"TCGn"),
+                VecKmer::from_bases(b"CGnn"),
+                VecKmer::from_bases(b"Gnnn"),
             ]
         );
 
@@ -376,12 +376,12 @@ mod tests {
         assert_eq!(
             kmers,
             vec![
-                VecKmer::from_bases(b"NNNA"),
-                VecKmer::from_bases(b"NNAT"),
-                VecKmer::from_bases(b"NATC"),
-                VecKmer::from_bases(b"ATCN"),
-                VecKmer::from_bases(b"TCNN"),
-                VecKmer::from_bases(b"CNNN"),
+                VecKmer::from_bases(b"nnnA"),
+                VecKmer::from_bases(b"nnAT"),
+                VecKmer::from_bases(b"nATC"),
+                VecKmer::from_bases(b"ATCn"),
+                VecKmer::from_bases(b"TCnn"),
+                VecKmer::from_bases(b"Cnnn"),
             ]
         );
 
@@ -412,30 +412,30 @@ mod tests {
         assert_eq!(a.extend_first(b'A'), VecKmer::from_bases(b"AATCA"));
         assert_eq!(a.extend_last(b'G'), VecKmer::from_bases(b"ATCAG"));
 
-        let a = VecKmer::from_bases(b"NNNA");
+        let a = VecKmer::from_bases(b"nnnA");
         assert!(a.is_head());
         assert_eq!(a.k(), 4);
         let b = a.extend_head();
         assert!(b.is_head());
         assert!(!b.is_tail());
-        assert_eq!(b, VecKmer::from_bases(b"NNNNA"));
+        assert_eq!(b, VecKmer::from_bases(b"nnnnA"));
         assert_eq!(b.k(), 5);
 
-        let a = VecKmer::from_bases(b"ANNN");
+        let a = VecKmer::from_bases(b"Annn");
         assert!(a.is_tail());
         assert_eq!(a.k(), 4);
         let b = a.extend_tail();
         assert!(b.is_tail());
-        assert_eq!(b, VecKmer::from_bases(b"ANNNN"));
+        assert_eq!(b, VecKmer::from_bases(b"Annnn"));
         assert_eq!(b.k(), 5);
     }
     #[test]
     fn kmer_null() {
-        let a = VecKmer::from_bases(b"NNNN");
+        let a = VecKmer::from_bases(b"nnnn");
         assert!(a.is_null());
         assert!(a.has_null());
 
-        let b = VecKmer::from_bases(b"NNNT");
+        let b = VecKmer::from_bases(b"nnnT");
         assert!(!b.is_null());
         assert!(b.has_null());
 
@@ -448,7 +448,7 @@ mod tests {
         let mut kmers = vec![
             VecKmer::from_bases(b"ATCG"),
             VecKmer::from_bases(b"AAAA"),
-            VecKmer::from_bases(b"NNNN"),
+            VecKmer::from_bases(b"nnnn"),
             VecKmer::from_bases(b"TTTT"),
             VecKmer::from_bases(b"CTAG"),
         ];

@@ -270,7 +270,7 @@ mod tests {
         let v = dbg.traverse_all().find_starting_node();
         assert!(v.is_some());
         assert_eq!(v.unwrap(), ni(10));
-        assert_eq!(dbg.kmer(v.unwrap()), &VecKmer::from_bases(b"NNNA"));
+        assert_eq!(dbg.kmer(v.unwrap()), &VecKmer::from_bases(b"nnnA"));
 
         let ps = dbg.traverse_all().as_paths();
         println!("{:?}", ps);
@@ -298,7 +298,7 @@ mod tests {
         for seq in seqs.iter() {
             println!("{}", sequence_to_string(seq));
         }
-        assert_eq!(seqs, vec![b"AAAGCTTGATTNNN"]);
+        assert_eq!(seqs, vec![b"AAAGCTTGATTnnn"]);
 
         let seqs = dbg.to_styled_seqs();
         for seq in seqs.iter() {
@@ -321,8 +321,8 @@ mod tests {
             println!("{:?}", circle);
             println!("{:?}", sequence_to_string(&dbg.path_as_sequence(circle)));
         }
-        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCNNN");
-        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAANNN");
+        assert_eq!(dbg.path_as_sequence(&circles[0]), b"CCCnnn");
+        assert_eq!(dbg.path_as_sequence(&circles[1]), b"AAAnnn");
         assert_eq!(dbg.path_as_sequence(&circles[2]), b"AAAAAAAAAA");
         assert_eq!(dbg.path_as_sequence(&circles[3]), b"CCCCCCCCCCC");
         assert_eq!(
