@@ -17,6 +17,10 @@ pub fn generate(length: usize, seed: u64) -> Sequence {
     seq
 }
 
+pub fn random_mutation() -> Sequence {
+    unimplemented!();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

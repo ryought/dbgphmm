@@ -79,12 +79,14 @@ mod tests {
         let (dbg, _) = extension(&dbg_true, &reads, &PHMMParams::default(), 5);
         println!("{}", dbg);
         println!("{}", dbg_true);
+        println!("{}", dbg_true.n_ambiguous_intersections());
         assert_eq!(dbg.to_string(), "9,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 
     #[test]
     fn e2e_full() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
+        println!("{}", dbg_raw.n_ambiguous_intersections());
         let scheduler = SchedulerType1::new(8, 40, 10.0);
         let dbg = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
         println!("{}", dbg);

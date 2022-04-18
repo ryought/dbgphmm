@@ -337,6 +337,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             && self.has_no_parallel_edge()
             && self.is_graph_valid()
     }
+    ///
+    /// Get the number of ambiguous intersections
+    ///
+    pub fn n_ambiguous_intersections(&self) -> usize {
+        self.iter_intersections()
+            .filter(|i| !i.is_tip_intersection() && !i.can_uniquely_convertable())
+            .count()
+    }
 }
 
 ///
@@ -1120,5 +1128,27 @@ mod tests {
         println!("{}", dbg.to_dot());
         println!("{}", dbg);
         assert_eq!(dbg.to_string(), "4,L:AACTAGCTT");
+    }
+    #[test]
+    fn dbg_ambiguous_intersections() {
+        let dbg = mock_intersection();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 1);
+
+        let dbg = mock_base();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 0);
+
+        let dbg = mock_two_seqs();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 0);
+
+        let dbg = mock_rep();
+        println!("{}", dbg.to_dot());
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.n_ambiguous_intersections(), 2);
     }
 }

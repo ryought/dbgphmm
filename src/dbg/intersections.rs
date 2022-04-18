@@ -51,6 +51,12 @@ impl<K: KmerLike> Intersection<K> {
     pub fn n_out_nodes(&self) -> usize {
         self.bi.n_out()
     }
+    pub fn can_uniquely_convertable(&self) -> bool {
+        self.n_in_nodes() == 1 || self.n_out_nodes() == 1
+    }
+    pub fn is_tip_intersection(&self) -> bool {
+        self.km1mer().is_null()
+    }
 }
 
 impl<K: KmerLike> Intersection<K> {
