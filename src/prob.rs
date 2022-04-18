@@ -46,6 +46,18 @@ impl Prob {
     pub fn is_zero(self) -> bool {
         self.0.is_infinite() && self.0.is_sign_negative()
     }
+    ///
+    /// prob=0.0
+    ///
+    pub fn zero() -> Prob {
+        Prob(f64::NEG_INFINITY)
+    }
+    ///
+    /// prob=1.0
+    ///
+    pub fn one() -> Prob {
+        Prob(0.0)
+    }
 }
 
 /// p=0 (Prob(-inf)) as a default value
@@ -281,5 +293,11 @@ mod tests {
         assert!(abs_diff_eq!(p(1.0), p(1.0)));
         // TODO
         assert!(!abs_diff_eq!(p(0.0), p(0.0)));
+    }
+    #[test]
+    fn prob_zero_one() {
+        assert_eq!(Prob::one(), Prob::from_prob(1.0));
+        assert_eq!(Prob::zero(), Prob::from_prob(0.0));
+        assert!(Prob::zero().is_zero());
     }
 }

@@ -103,39 +103,41 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * purge reduce function (e.g. by adding a trait on ParallelIterator)
     ///
-    pub fn to_node_freqs_parallel(&self, r: &Reads) -> NodeFreqs {
+    pub fn to_node_freqs_parallel(&self, r: &Reads) -> (NodeFreqs, Prob) {
         r.reads
             .par_iter()
             .map(|read| {
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
-                o.to_node_freqs()
+                (o.to_node_freqs(), o.to_full_prob_forward())
             })
             .reduce(
-                || NodeFreqs::new(self.n_nodes(), 0.0),
-                |mut a, b| {
-                    a += &b;
-                    a
+                || (NodeFreqs::new(self.n_nodes(), 0.0), Prob::one()),
+                |(mut freq_a, mut p_a), (freq_b, p_b)| {
+                    freq_a += &freq_b;
+                    p_a *= p_b;
+                    (freq_a, p_a)
                 },
             )
     }
     /// calculate edge freqs of multiple emission sequences (`Reads`).
     /// with rayon parallel calculation
-    pub fn to_edge_freqs_parallel(&self, r: &Reads) -> EdgeFreqs {
+    pub fn to_edge_freqs_parallel(&self, r: &Reads) -> (EdgeFreqs, Prob) {
         r.reads
             .par_iter()
             .map(|read| {
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
-                o.to_edge_freqs(self, read)
+                (o.to_edge_freqs(self, read), o.to_full_prob_forward())
             })
             .reduce(
-                || EdgeFreqs::new(self.n_edges(), 0.0),
-                |mut a, b| {
-                    a += &b;
-                    a
+                || (EdgeFreqs::new(self.n_edges(), 0.0), Prob::one()),
+                |(mut freq_a, mut p_a), (freq_b, p_b)| {
+                    freq_a += &freq_b;
+                    p_a *= p_b;
+                    (freq_a, p_a)
                 },
             )
     }

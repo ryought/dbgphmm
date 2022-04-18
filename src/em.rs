@@ -24,10 +24,10 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
         let task = scheduler.task(iteration).unwrap();
         match task {
             Task::Compression(depth) => {
-                dbg = compression::compression(&dbg, reads, params, depth, max_iter);
+                (dbg, _) = compression::compression(&dbg, reads, params, depth, max_iter);
             }
             Task::Extension(k) => {
-                dbg = extension::extension(&dbg, reads, params, max_iter);
+                (dbg, _) = extension::extension(&dbg, reads, params, max_iter);
             }
         }
     }

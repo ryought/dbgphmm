@@ -14,10 +14,32 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
+use crate::min_flow::Cost;
+use crate::prob::Prob;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 pub mod flow_intersection;
 use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 pub mod intersection_graph;
+
+///
+/// Log information store of each iteration in extension
+///
+#[derive(Clone, Debug)]
+pub struct ExtensionLog {
+    /// Full probability
+    full_prob: Prob,
+    /// min flow cost for intersecting nodes
+    min_flow_cost: Cost,
+}
+
+impl ExtensionLog {
+    pub fn new(full_prob: Prob, min_flow_cost: Cost) -> Self {
+        ExtensionLog {
+            full_prob,
+            min_flow_cost,
+        }
+    }
+}
 
 ///
 /// Extension full algorithm by running `extension_step()` iteratively.
@@ -31,13 +53,15 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     max_iter: usize,
-) -> Dbg<N, E> {
+) -> (Dbg<N, E>, Vec<ExtensionLog>) {
     let mut dbg = dbg.clone();
+    let mut logs = Vec::new();
 
     // iterate EM steps
     for i in 0..max_iter {
         println!("extension {}th iteration", i);
-        let (dbg_new, is_updated) = extension_step(&dbg, reads, params);
+        let (dbg_new, is_updated, log) = extension_step(&dbg, reads, params);
+        logs.push(log);
         if !is_updated {
             break;
         }
@@ -45,7 +69,7 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     }
 
     // convert to k+1 dbg
-    dbg.to_kp1_dbg()
+    (dbg.to_kp1_dbg(), logs)
 }
 
 ///
@@ -71,22 +95,26 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> (Dbg<N, E>, bool) {
+) -> (Dbg<N, E>, bool, ExtensionLog) {
     // (1) e-step infer edge freqs
     println!("extension::e_step");
-    let edge_freqs = e_step(dbg, reads, params);
+    let (edge_freqs, full_prob) = e_step(dbg, reads, params);
     println!("edge_freqs={}", edge_freqs);
+    println!("full_prob={}", full_prob);
 
     // (2) m-step infer the best copy nums
     println!("extension::m_step");
-    let copy_nums = m_step(dbg, &edge_freqs);
+    let (copy_nums, cost) = m_step(dbg, &edge_freqs);
     println!("copy_nums={}", copy_nums);
+    println!("cost={}", cost);
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
     println!("is_updated={}", is_updated);
 
-    (new_dbg, is_updated)
+    let log = ExtensionLog::new(full_prob, cost);
+
+    (new_dbg, is_updated, log)
 }
 
 ///
@@ -101,14 +129,8 @@ fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> EdgeFreqs {
+) -> (EdgeFreqs, Prob) {
     let phmm = dbg.to_phmm(params.clone());
-
-    //
-    // println!("e_step calculating P(R)");
-    // let p = phmm.to_full_prob(reads);
-    // println!("e_step P(R)={:?}", p);
-
     phmm.to_edge_freqs_parallel(reads)
 }
 
@@ -125,17 +147,24 @@ fn e_step<N: DbgNode, E: DbgEdge>(
 /// ## Details
 ///
 ///
-fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> EdgeCopyNums {
+fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (EdgeCopyNums, Cost) {
+    let mut total_cost = 0.0;
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
     for fi in dbg.iter_flow_intersections(edge_freqs) {
         if !fi.is_tip_intersection() {
             // get an optimized flow intersection
-            let fio = fi.convert();
+            let (fio, cost) = fi.convert();
 
             if !fi.can_uniquely_convertable() {
                 println!("extension optimized iter m {} {}", fi, fio);
             }
+
+            // add cost
+            match cost {
+                Some(cost) => total_cost += cost,
+                None => {}
+            };
 
             // check if there is no inconsistent edge copy numbers.
             assert!(fio.has_valid_node_copy_nums());
@@ -148,7 +177,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> Ed
             }
         }
     }
-    ecn
+    (ecn, total_cost)
 }
 
 //
@@ -167,8 +196,9 @@ mod tests {
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
-        let copy_nums = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
+        println!("cost={}", cost);
         assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
     }
 
@@ -182,7 +212,7 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let freqs = e_step(&dbg, &reads, &params);
+        let (freqs, _) = e_step(&dbg, &reads, &params);
         let freqs_true = EdgeFreqs::from_slice(
             &[
                 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
@@ -210,8 +240,10 @@ mod tests {
             ],
             0.0,
         );
-        let copy_nums = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, &freqs);
         println!("{}", copy_nums);
+        println!("cost={}", cost);
+        assert_eq!(cost, 0.0);
         // assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     }
 
@@ -225,15 +257,19 @@ mod tests {
         println!("{}", dbg);
         let params = PHMMParams::default();
 
-        let (dbg_v2, is_updated) = extension_step(&dbg, &reads, &params);
+        let (dbg_v2, is_updated, log) = extension_step(&dbg, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
+        println!("log={:?}", log);
+        assert_relative_eq!(log.min_flow_cost, 0.004705572023128938);
         assert!(is_updated);
 
         // extension again
-        let (dbg_v3, is_updated) = extension_step(&dbg_v2, &reads, &params);
+        let (dbg_v3, is_updated, log) = extension_step(&dbg_v2, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
+        println!("log={:?}", log);
+        assert_relative_eq!(log.min_flow_cost, 0.0);
         assert!(!is_updated);
     }
 
@@ -251,7 +287,7 @@ mod tests {
         let params = PHMMParams::default();
 
         // loop
-        let dbg_extended = extension(&dbg, &reads, &params, 5);
+        let (dbg_extended, _) = extension(&dbg, &reads, &params, 5);
         println!("{}", dbg_extended);
         assert_eq!(format!("{}", dbg_extended), "5,L:AACTAGCTT,L:CCGTAGGGC");
         println!("genome_size={}", dbg_extended.genome_size());

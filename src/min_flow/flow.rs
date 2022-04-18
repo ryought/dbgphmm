@@ -158,6 +158,9 @@ impl<T> EdgeCost for FlowEdgeRaw<T> {
     }
 }
 
+///
+/// Calculate the total cost of the flow in the graph.
+///
 pub fn total_cost<N, E: EdgeCost>(graph: &DiGraph<N, E>, flow: &Flow) -> Cost {
     graph
         .edge_indices()

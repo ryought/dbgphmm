@@ -204,6 +204,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let (v, w) = self.graph.edge_endpoints(edge).unwrap();
         self.kmer(v).is_tail() && self.kmer(w).is_head()
     }
+    /// Lookup a node from k-mer. It takes O(V).
+    pub fn find_node_from_kmer(&self, kmer: &N::Kmer) -> Option<NodeIndex> {
+        self.graph.node_indices().find(|&v| self.kmer(v) == kmer)
+    }
+    /// Lookup an edge from k+1-mer. It takes O(E).
+    pub fn find_edge_from_kp1mer(&self, kp1mer: &N::Kmer) -> Option<EdgeIndex> {
+        let prefix = kp1mer.prefix();
+        let suffix = kp1mer.suffix();
+        self.edges()
+            .find(|(_, v, w, _)| self.kmer(*v) == &prefix && self.kmer(*w) == &suffix)
+            .map(|(e, _, _, _)| e)
+    }
 }
 
 ///
@@ -979,7 +991,15 @@ mod tests {
             ],
             0,
         );
+        let mut ecn2 = EdgeCopyNums::new(dbg.n_edges(), 1);
+        ecn2[dbg
+            .find_edge_from_kp1mer(&VecKmer::from_bases(b"TAGCC"))
+            .unwrap()] = 0;
+        ecn2[dbg
+            .find_edge_from_kp1mer(&VecKmer::from_bases(b"AAGCT"))
+            .unwrap()] = 0;
         println!("{}", ecn);
+        println!("{}", ecn2);
         dbg.set_edge_copy_nums(Some(&ecn));
         assert!(dbg.is_edge_copy_nums_assigned());
         assert_eq!(dbg.to_edge_copy_nums().unwrap(), ecn);
