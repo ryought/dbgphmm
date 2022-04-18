@@ -22,6 +22,8 @@ pub trait NullableKmer {
 pub trait KmerLike:
     std::marker::Sized
     + PartialEq
+    + PartialOrd
+    + Ord
     + NullableKmer
     + Eq
     + std::hash::Hash
@@ -442,5 +444,19 @@ mod tests {
         let c = VecKmer::from_bases(b"TGAC");
         assert!(!c.is_null());
         assert!(!c.has_null());
+    }
+    #[test]
+    fn kmer_order() {
+        let mut kmers = vec![
+            VecKmer::from_bases(b"ATCG"),
+            VecKmer::from_bases(b"AAAA"),
+            VecKmer::from_bases(b"NNNN"),
+            VecKmer::from_bases(b"TTTT"),
+            VecKmer::from_bases(b"CTAG"),
+        ];
+        kmers.sort();
+        for kmer in kmers.iter() {
+            println!("{}", kmer);
+        }
     }
 }
