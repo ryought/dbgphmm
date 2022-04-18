@@ -621,6 +621,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let hd = HashDbg::from_reads(k, reads);
         Self::from_hashdbg(&hd)
     }
+    /// Construct Dbg from multiple sequences via converting HashDbg into Dbg.
+    ///
+    /// ## Future TODO
+    /// * collect `from_reads` and `from_seqs` into a single method, using a trait `ToSequenceRef`
+    /// or so
+    pub fn from_seqs(k: usize, seqs: &[Sequence]) -> Self {
+        let mut hd = HashDbg::new(k);
+        for seq in seqs {
+            // ignore read if it is shorter than k
+            if seq.len() >= k {
+                hd.add_seq(seq);
+            }
+        }
+        Self::from_hashdbg(&hd)
+    }
     ///
     /// Convert into edge-centric de bruijn graph
     ///

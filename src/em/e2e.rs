@@ -30,11 +30,38 @@ mod tests {
         let genome = vec![generate(100, 0)];
         println!("genome: {}", sequence_to_string(&genome[0]));
 
+        // (2) generate reads
+        let (reads, dbg_raw, dbg_true) = e2e_mock_from_genome(&genome, 10);
+
+        (genome, reads, dbg_raw, dbg_true)
+    }
+
+    fn e2e_mock_diploid() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
+        // (1) generate genome and reads
+        println!("generating genome");
+        let haplotype1 = generate(100, 0);
+        let mut haplotype2 = haplotype1.clone();
+        haplotype2[30] = b'C';
+        haplotype2[80] = b'T';
+        let genome = vec![haplotype1, haplotype2];
+        println!("hap1: {}", sequence_to_string(&genome[0]));
+        println!("hap2: {}", sequence_to_string(&genome[1]));
+
+        // (2) generate reads
+        let (reads, dbg_raw, dbg_true) = e2e_mock_from_genome(&genome, 20);
+
+        (genome, reads, dbg_raw, dbg_true)
+    }
+
+    fn e2e_mock_from_genome(
+        genome: &Genome,
+        count: usize,
+    ) -> (Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         println!("generating reads");
-        let g = GenomeGraph::from_seqs(&genome);
+        let g = GenomeGraph::from_seqs(genome);
         let profile = ReadProfile {
             sample_profile: SampleProfile {
-                read_amount: ReadAmount::Count(10),
+                read_amount: ReadAmount::Count(count),
                 seed: 0,
                 length: 1000,
                 start_points: StartPoints::AllStartPoints,
@@ -53,9 +80,9 @@ mod tests {
         println!("{}", dbg_raw);
 
         // (4) compare with true dbg
-        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seq(k, &genome[0]);
+        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &genome);
 
-        (genome, reads, dbg_raw, dbg_true)
+        (reads, dbg_raw, dbg_true)
     }
 
     #[test]
@@ -92,5 +119,35 @@ mod tests {
         println!("{}", dbg);
         println!("{}", dbg_true);
         assert_eq!(dbg.to_string(), "39,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
+    }
+
+    #[test]
+    fn e2e_full_diploid() {
+        let (genome, reads, dbg_raw, dbg_true) = e2e_mock_diploid();
+
+        for read in reads.iter() {
+            println!("read={}", sequence_to_string(read));
+        }
+
+        let scheduler = SchedulerType1::new(8, 40, 10.0);
+        let dbg = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
+
+        println!("dbg_true={}", dbg_true);
+        println!("{}", dbg_true.n_ambiguous_intersections());
+
+        println!("dbg={}", dbg);
+        println!("{}", dbg.n_ambiguous_intersections());
+        assert_eq!(dbg.to_string(), "39,L:CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT");
+
+        // Inference is not correct?
+        //
+        // inferred:
+        // 39,
+        // L:CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT,
+        // L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT
+        //
+        // true:                           !                                                 !
+        // L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT,
+        // L:CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT
     }
 }
