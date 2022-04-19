@@ -17,7 +17,7 @@ impl<K: KmerLike> FlowIntersectionV2<K> {
 }
 
 /// Node info
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowIntersectionNode {
     pub index: NodeIndex,
     pub copy_num: CopyNum,
@@ -37,7 +37,7 @@ impl std::fmt::Display for FlowIntersectionNode {
 }
 
 /// Edge between in-node and out-node
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowIntersectionEdge {
     pub index: EdgeIndex,
     pub freq: Freq,
