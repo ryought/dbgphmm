@@ -25,6 +25,24 @@ pub fn sequence_to_string(seq: &Sequence) -> &str {
 /// Type of Genome, the collection of sequences.
 pub type Genome = Vec<Sequence>;
 
+/// Position information
+pub struct Pos {
+    chr: usize,
+    pos: usize,
+}
+
+///
+pub struct Region {
+    start: Pos,
+    end: Pos,
+}
+
+///
+pub struct Read {
+    seq: Sequence,
+    source: Option<Region>,
+}
+
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]

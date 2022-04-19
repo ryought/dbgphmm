@@ -71,6 +71,8 @@ impl GenomeGraphPos {
     }
 }
 
+pub type GenomeGraphPosVec = Vec<GenomeGraphPos>;
+
 impl std::fmt::Display for GenomeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let seq = std::str::from_utf8(&self.seq).unwrap();
@@ -179,6 +181,13 @@ impl GenomeGraph {
     }
     /// Sample reads from the genome graph.
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
+        let (reads, pos) = self.sample_reads_with_pos(prof);
+        reads
+    }
+    /// Sample reads from the genome graph.
+    ///
+    /// with sampled position info
+    pub fn sample_reads_with_pos(&self, prof: &ReadProfile) -> (Reads, Vec<GenomeGraphPosVec>) {
         // convert to phmm
         let sg = self.to_seq_graph();
         let phmm = sg.to_phmm(prof.phmm_params.clone());
@@ -197,7 +206,7 @@ impl GenomeGraph {
         // TODO convert to genome graph position
         // store the originated genome graph position in seqgraph
         let historys = phmm.sample_by_profile(&prof.sample_profile);
-        historys.to_reads()
+        (historys.to_reads(), historys.to_pos(&sg))
     }
 }
 

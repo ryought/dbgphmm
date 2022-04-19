@@ -30,9 +30,10 @@ mod tests {
             },
             phmm_params: PHMMParams::default(),
         };
-        let reads = g.sample_reads(&profile);
+        let (reads, pos) = g.sample_reads_with_pos(&profile);
         for (i, read) in reads.iter().enumerate() {
             println!("{}", sequence_to_string(read));
+            println!("{:?}", pos[i]);
         }
 
         let k: usize = 8;
