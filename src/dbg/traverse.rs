@@ -235,7 +235,7 @@ where
     /// * Otherwise, use unvisited ordinary node
     fn find_starting_node(&self) -> Option<NodeIndex> {
         // (1) find unvisited head node (e.g. NNNA)
-        for head_node in self.tips.iter_out_nodes() {
+        for head_node in self.tips.iter_out_node_indexes() {
             if self.traverser.is_unvisited(head_node) {
                 return Some(head_node);
             }

@@ -111,10 +111,10 @@ mod tests {
         let dbg = mock_base();
         println!("{}", dbg);
         for i in dbg.iter_intersections() {
-            for in_node in i.iter_in_nodes() {
+            for in_node in i.iter_in_node_indexes() {
                 assert_eq!(&dbg.node(in_node).kmer().suffix(), i.km1mer());
             }
-            for out_node in i.iter_out_nodes() {
+            for out_node in i.iter_out_node_indexes() {
                 assert_eq!(&dbg.node(out_node).kmer().prefix(), i.km1mer());
             }
             assert_eq!(i.n_in_nodes(), 1);
@@ -137,10 +137,10 @@ mod tests {
                 assert_eq!(i.n_out_nodes(), 1);
             }
 
-            for in_node in i.iter_in_nodes() {
+            for in_node in i.iter_in_node_indexes() {
                 assert_eq!(&dbg.node(in_node).kmer().suffix(), i.km1mer());
             }
-            for out_node in i.iter_out_nodes() {
+            for out_node in i.iter_out_node_indexes() {
                 assert_eq!(&dbg.node(out_node).kmer().prefix(), i.km1mer());
             }
             println!("{}", i);
@@ -157,10 +157,10 @@ mod tests {
             let fi = i.augment_freqs(&freqs);
             println!("with-flow {}", fi);
 
-            for (i, j) in iproduct!(0..fi.bi.n_in(), 0..fi.bi.n_out()) {
-                let v = fi.bi.in_node(i);
-                let w = fi.bi.out_node(j);
-                let vw = fi.bi.edge(i, j);
+            for (i, j) in iproduct!(0..fi.n_in_nodes(), 0..fi.n_out_nodes()) {
+                let v = fi.in_node(i);
+                let w = fi.out_node(j);
+                let vw = fi.edge(i, j);
                 assert!(dbg.contains_edge(v.index, w.index));
                 let e = dbg.find_edge(v.index, w.index).unwrap();
                 assert_eq!(Some(freqs[e]), vw.freq);

@@ -766,7 +766,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // intersections
         let tips = self.tips();
         let in_nodes: Vec<NodeIndex> = tips
-            .iter_in_nodes()
+            .iter_in_node_indexes()
             .map(|v| {
                 // add a node of in_node
                 graph.add_node(N::new(
@@ -776,7 +776,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .collect();
         let out_nodes: Vec<NodeIndex> = tips
-            .iter_out_nodes()
+            .iter_out_node_indexes()
             .map(|v| {
                 // add a node of out_node
                 graph.add_node(N::new(
@@ -790,7 +790,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a in_edges of tail nodes
-        for (v, &w) in izip!(tips.iter_in_nodes(), in_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_in_node_indexes(), in_nodes.iter()) {
             for (e, _, _) in self.parents(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w2: parent(YXNN) -> w: tail(XNNN)
@@ -799,7 +799,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a out_edges of head nodes
-        for (v, &w) in izip!(tips.iter_out_nodes(), out_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_out_node_indexes(), out_nodes.iter()) {
             for (e, _, _) in self.childs(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w: head(NNNX) -> w2: child(NNXY)
@@ -965,9 +965,9 @@ mod tests {
         println!("{}", dbg);
         println!("{}", tips);
         assert_eq!(tips.n_in_nodes(), 1);
-        assert_eq!(tips.in_node(0), ni(6));
+        assert_eq!(tips.in_node_index(0), ni(6));
         assert_eq!(tips.n_out_nodes(), 1);
-        assert_eq!(tips.out_node(0), ni(7));
+        assert_eq!(tips.out_node_index(0), ni(7));
         assert!(tips.km1mer().is_null());
 
         // intersection
@@ -976,11 +976,11 @@ mod tests {
         println!("{}", dbg);
         println!("{}", tips);
         assert_eq!(tips.n_in_nodes(), 2);
-        assert_eq!(tips.in_node(0), ni(3));
-        assert_eq!(tips.in_node(1), ni(7));
+        assert_eq!(tips.in_node_index(0), ni(3));
+        assert_eq!(tips.in_node_index(1), ni(7));
         assert_eq!(tips.n_out_nodes(), 2);
-        assert_eq!(tips.out_node(0), ni(8));
-        assert_eq!(tips.out_node(1), ni(14));
+        assert_eq!(tips.out_node_index(0), ni(8));
+        assert_eq!(tips.out_node_index(1), ni(14));
         assert!(tips.km1mer().is_null());
     }
     #[test]

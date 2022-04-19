@@ -132,20 +132,35 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn km1mer(&self) -> &K {
         &self.bi.id
     }
-    pub fn iter_in_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+    pub fn iter_in_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
         self.bi.in_nodes.iter().map(move |v| v.index)
     }
-    pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+    pub fn iter_out_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
         self.bi.out_nodes.iter().map(move |v| v.index)
+    }
+    pub fn iter_in_nodes(&self) -> impl Iterator<Item = &FlowIntersectionNode> + '_ {
+        self.bi.in_nodes.iter()
+    }
+    pub fn iter_out_nodes(&self) -> impl Iterator<Item = &FlowIntersectionNode> + '_ {
+        self.bi.out_nodes.iter()
     }
     pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize, &FlowIntersectionEdge)> + '_ {
         self.bi.iter_edges()
     }
-    pub fn in_node(&self, index: usize) -> NodeIndex {
+    pub fn in_node_index(&self, index: usize) -> NodeIndex {
         self.bi.in_node(index).index
     }
-    pub fn out_node(&self, index: usize) -> NodeIndex {
+    pub fn out_node_index(&self, index: usize) -> NodeIndex {
         self.bi.out_node(index).index
+    }
+    pub fn in_node(&self, index: usize) -> &FlowIntersectionNode {
+        self.bi.in_node(index)
+    }
+    pub fn out_node(&self, index: usize) -> &FlowIntersectionNode {
+        self.bi.out_node(index)
+    }
+    pub fn edge(&self, i: usize, j: usize) -> &FlowIntersectionEdge {
+        self.bi.edge(i, j)
     }
 }
 
