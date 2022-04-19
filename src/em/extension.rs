@@ -152,9 +152,9 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (E
     for fi in dbg.iter_flow_intersections(edge_freqs) {
         if !fi.is_tip_intersection() {
             // get an optimized flow intersection
-            let (fio, cost) = fi.convert();
+            let (fio, cost) = fi.resolve();
 
-            if !fi.can_uniquely_convertable() {
+            if !fi.can_unique_resolvable() {
                 println!("extension optimized iter m {} {}", fi, fio);
             }
 

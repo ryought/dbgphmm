@@ -178,7 +178,7 @@ mod tests {
             assert_eq!(fi.n_in_nodes(), 1);
             assert_eq!(fi.n_out_nodes(), 1);
             assert!(fi.has_valid_node_copy_nums());
-            assert!(fi.can_uniquely_convertable());
+            assert!(fi.can_unique_resolvable());
         }
     }
 }
