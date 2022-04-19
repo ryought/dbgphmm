@@ -108,13 +108,14 @@ impl<K: KmerLike> std::fmt::Display for Intersection<K> {
 ///
 /// ATTC ------> TTCG
 ///
-pub struct Intersections<K: KmerLike> {
-    edbg: SimpleEDbg<K>,
+pub struct Intersections<'a, N: DbgNode, E: DbgEdge> {
+    edbg: SimpleEDbg<N::Kmer>,
+    dbg: &'a Dbg<N, E>,
     current_node: usize,
 }
 
-impl<K: KmerLike> Iterator for Intersections<K> {
-    type Item = Intersection<K>;
+impl<'a, N: DbgNode, E: DbgEdge> Iterator for Intersections<'a, N, E> {
+    type Item = Intersection<N::Kmer>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_node < self.edbg.n_nodes() {
             let intersection = self.edbg.intersection(NodeIndex::new(self.current_node));
@@ -133,9 +134,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// get an iterator over intersections (k-1-mer)
     ///
-    pub fn iter_intersections(&self) -> Intersections<N::Kmer> {
+    pub fn iter_intersections(&self) -> Intersections<N, E> {
         Intersections {
             edbg: self.to_edbg(),
+            dbg: self,
             current_node: 0,
         }
     }

@@ -110,6 +110,7 @@ mod tests {
         assert_eq!(dbg.to_string(), "9,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 
+    #[ignore]
     #[test]
     fn e2e_full() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock();
@@ -121,6 +122,7 @@ mod tests {
         assert_eq!(dbg.to_string(), "39,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 
+    #[ignore]
     #[test]
     fn e2e_full_diploid() {
         let (genome, reads, dbg_raw, dbg_true) = e2e_mock_diploid();
