@@ -2,8 +2,8 @@
 //! traverse related
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use super::intersections::Intersection;
 use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence, NULL_BASE};
+use crate::em::extension::flow_intersection::FlowIntersection;
 use crate::kmer::kmer::KmerLike;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -221,7 +221,7 @@ where
 ///
 pub struct Traveller<'a, N: DbgNode, E: DbgEdge> {
     traverser: Traverser<'a, N, E>,
-    tips: Intersection<N::Kmer>,
+    tips: FlowIntersection<N::Kmer>,
 }
 
 impl<'a, N, E> Traveller<'a, N, E>

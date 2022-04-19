@@ -3,12 +3,13 @@
 //!
 //!
 use super::edge_centric::{
-    SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
+    IntersectionBase, SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode,
+    SimpleEDbgWithAttr,
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
-use super::intersections::Intersection;
 use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::hashdbg_v2::HashDbg;
+use crate::em::extension::flow_intersection::FlowIntersection;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
@@ -145,10 +146,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// NodeIndex(s) of heads/tails
     ///
-    pub fn tips(&self) -> Intersection<N::Kmer> {
+    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+        // construct IntersectionBase directly from node-centric dbg
         let mut in_nodes = Vec::new();
         let mut out_nodes = Vec::new();
-
         for (node, weight) in self.nodes() {
             // ANNN
             if weight.kmer().is_tail() {
@@ -159,8 +160,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 out_nodes.push(node);
             }
         }
+        let ib = IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes);
 
-        Intersection::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
+        // convert to flow intersection
+        self.to_flow_intersection(&ib, None)
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {

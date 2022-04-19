@@ -9,6 +9,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
+/*
 pub type FlowIntersectionV2<K> = Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>;
 
 impl<K: KmerLike> FlowIntersectionV2<K> {
@@ -16,6 +17,7 @@ impl<K: KmerLike> FlowIntersectionV2<K> {
         println!("hoge");
     }
 }
+*/
 
 /// Node info
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -70,6 +72,16 @@ impl std::fmt::Display for FlowIntersectionEdge {
     }
 }
 
+///
+/// Intersection information corresponding to a k-1-mer.
+///
+/// in node-centric de bruijn graph, a k-1-mer can have
+/// incoming kmers and outgoing kmers (less than 4 nodes).
+///
+/// km1mer:    XXX
+/// in_nodes:  AXXX, CXXX, GXXX, TXXX
+/// out_nodes: XXXA, XXXC, XXXG, XXXT
+///
 #[derive(Clone, Debug)]
 pub struct FlowIntersection<K: KmerLike> {
     pub bi: Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>,
@@ -110,6 +122,12 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
     pub fn km1mer(&self) -> &K {
         &self.bi.id
+    }
+    pub fn iter_in_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.bi.in_nodes.iter().map(move |v| v.index)
+    }
+    pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.bi.out_nodes.iter().map(move |v| v.index)
     }
 }
 

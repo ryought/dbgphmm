@@ -10,56 +10,6 @@ use itertools::iproduct;
 use petgraph::graph::NodeIndex;
 
 ///
-/// Intersection information corresponding to a k-1-mer.
-///
-/// in node-centric de bruijn graph, a k-1-mer can have
-/// incoming kmers and outgoing kmers (less than 4 nodes).
-///
-/// km1mer:    XXX
-/// in_nodes:  AXXX, CXXX, GXXX, TXXX
-/// out_nodes: XXXA, XXXC, XXXG, XXXT
-///
-#[derive(Debug, Clone)]
-pub struct Intersection<K: KmerLike> {
-    bi: Bipartite<K, NodeIndex, ()>,
-}
-
-impl<K: KmerLike> Intersection<K> {
-    pub fn new(km1mer: K, in_nodes: Vec<NodeIndex>, out_nodes: Vec<NodeIndex>) -> Intersection<K> {
-        Intersection {
-            bi: Bipartite::from(km1mer, in_nodes, out_nodes, |_, _| ()),
-        }
-    }
-    pub fn km1mer(&self) -> &K {
-        &self.bi.id
-    }
-    pub fn iter_in_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
-        self.bi.in_nodes.iter().copied()
-    }
-    pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
-        self.bi.out_nodes.iter().copied()
-    }
-    pub fn in_node(&self, index: usize) -> NodeIndex {
-        *self.bi.in_node(index)
-    }
-    pub fn out_node(&self, index: usize) -> NodeIndex {
-        *self.bi.out_node(index)
-    }
-    pub fn n_in_nodes(&self) -> usize {
-        self.bi.n_in()
-    }
-    pub fn n_out_nodes(&self) -> usize {
-        self.bi.n_out()
-    }
-    pub fn can_uniquely_convertable(&self) -> bool {
-        self.n_in_nodes() == 1 || self.n_out_nodes() == 1
-    }
-    pub fn is_tip_intersection(&self) -> bool {
-        self.km1mer().is_null()
-    }
-}
-
-///
 /// Iterator on de bruijn graph intersections corresponding k-1-mer overlaps
 ///
 /// ## Example (k = 4)
