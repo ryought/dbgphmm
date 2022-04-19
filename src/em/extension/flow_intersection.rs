@@ -4,6 +4,7 @@
 use super::intersection_graph::{IntersectionGraph, IntersectionGraphEdge, IntersectionGraphNode};
 use crate::common::{CopyNum, Freq};
 use crate::graph::Bipartite;
+use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -109,6 +110,18 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
     pub fn km1mer(&self) -> &K {
         &self.bi.id
+    }
+}
+
+///
+/// Appending frequency information
+///
+impl<K: KmerLike> FlowIntersection<K> {
+    pub fn augment_freqs(mut self, freqs: &EdgeFreqs) -> Self {
+        for edge in self.bi.edges.iter_mut() {
+            edge.freq = Some(freqs[edge.index]);
+        }
+        self
     }
 }
 

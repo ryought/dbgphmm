@@ -114,7 +114,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
         self.graph.contains_edge(a, b)
     }
     /// convert a node into an intersection information
-    pub fn intersection(&self, node: NodeIndex) -> Intersection<N::Kmer> {
+    pub fn intersection(&self, node: NodeIndex) -> IntersectionBase<N::Kmer> {
         let node_weight = self
             .graph
             .node_weight(node)
@@ -132,7 +132,44 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
             .map(|e| e.weight().origin_node())
             .collect();
 
-        Intersection::new(node_weight.km1mer().clone(), in_nodes, out_nodes)
+        IntersectionBase::new(node_weight.km1mer().clone(), in_nodes, out_nodes)
+    }
+}
+
+pub struct IntersectionBase<K: KmerLike> {
+    km1mer: K,
+    in_nodes: Vec<NodeIndex>,
+    out_nodes: Vec<NodeIndex>,
+}
+
+impl<K: KmerLike> IntersectionBase<K> {
+    pub fn new(km1mer: K, in_nodes: Vec<NodeIndex>, out_nodes: Vec<NodeIndex>) -> Self {
+        IntersectionBase {
+            km1mer,
+            in_nodes,
+            out_nodes,
+        }
+    }
+    pub fn in_nodes(&self) -> &[NodeIndex] {
+        &self.in_nodes
+    }
+    pub fn out_nodes(&self) -> &[NodeIndex] {
+        &self.out_nodes
+    }
+    pub fn km1mer(&self) -> &K {
+        &self.km1mer
+    }
+}
+
+impl<K: KmerLike> std::fmt::Display for IntersectionBase<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "IntersectionBase({}) in:{:?} out:{:?}",
+            self.km1mer(),
+            self.in_nodes(),
+            self.out_nodes()
+        )
     }
 }
 

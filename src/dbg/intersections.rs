@@ -1,5 +1,5 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use super::edge_centric::SimpleEDbg;
+use super::edge_centric::{IntersectionBase, SimpleEDbg};
 use crate::em::extension::flow_intersection::{
     FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode,
 };
@@ -59,48 +59,6 @@ impl<K: KmerLike> Intersection<K> {
     }
 }
 
-impl<K: KmerLike> Intersection<K> {
-    /// convert a (simple) intersection into the augumented intersection
-    /// with flow and freq information.
-    pub fn to_flow_intersection<N, E>(
-        &self,
-        dbg: &Dbg<N, E>,
-        freqs: &EdgeFreqs,
-    ) -> FlowIntersection<K>
-    where
-        N: DbgNode,
-        E: DbgEdge,
-    {
-        let in_nodes: Vec<FlowIntersectionNode> = self
-            .iter_in_nodes()
-            .map(|v| FlowIntersectionNode::new(v, dbg.node(v).copy_num()))
-            .collect();
-        let out_nodes: Vec<FlowIntersectionNode> = self
-            .iter_out_nodes()
-            .map(|v| FlowIntersectionNode::new(v, dbg.node(v).copy_num()))
-            .collect();
-        let edges: Vec<FlowIntersectionEdge> = iproduct!(in_nodes.iter(), out_nodes.iter())
-            .map(|(in_node, out_node)| dbg.find_edge(in_node.index, out_node.index).unwrap())
-            .map(|e| FlowIntersectionEdge::new(e, Some(freqs[e]), dbg.edge(e).copy_num()))
-            .collect();
-        FlowIntersection::new(self.km1mer().clone(), in_nodes, out_nodes, edges)
-    }
-}
-
-impl<K: KmerLike> std::fmt::Display for Intersection<K> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let in_nodes: Vec<NodeIndex> = self.iter_in_nodes().collect();
-        let out_nodes: Vec<NodeIndex> = self.iter_out_nodes().collect();
-        write!(
-            f,
-            "Intersection({}) in:{:?} out:{:?}",
-            self.km1mer(),
-            in_nodes,
-            out_nodes
-        )
-    }
-}
-
 ///
 /// Iterator on de bruijn graph intersections corresponding k-1-mer overlaps
 ///
@@ -115,10 +73,11 @@ pub struct Intersections<'a, N: DbgNode, E: DbgEdge> {
 }
 
 impl<'a, N: DbgNode, E: DbgEdge> Iterator for Intersections<'a, N, E> {
-    type Item = Intersection<N::Kmer>;
+    type Item = FlowIntersection<N::Kmer>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_node < self.edbg.n_nodes() {
-            let intersection = self.edbg.intersection(NodeIndex::new(self.current_node));
+            let intersection_base = self.edbg.intersection(NodeIndex::new(self.current_node));
+            let intersection = self.dbg.to_flow_intersection(&intersection_base, None);
             self.current_node += 1;
             Some(intersection)
         } else {
@@ -150,7 +109,41 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         freqs: &'a EdgeFreqs,
     ) -> impl Iterator<Item = FlowIntersection<N::Kmer>> + 'a {
         self.iter_intersections()
-            .map(move |i| i.to_flow_intersection(self, freqs))
+            .map(move |i| i.augment_freqs(freqs))
+    }
+    /// convert a (simple) intersection into the augumented intersection
+    /// with flow and freq information.
+    pub fn to_flow_intersection(
+        &self,
+        intersection_base: &IntersectionBase<N::Kmer>,
+        freqs: Option<&EdgeFreqs>,
+    ) -> FlowIntersection<N::Kmer> {
+        let in_nodes: Vec<FlowIntersectionNode> = intersection_base
+            .in_nodes()
+            .iter()
+            .map(|&v| FlowIntersectionNode::new(v, self.node(v).copy_num()))
+            .collect();
+        let out_nodes: Vec<FlowIntersectionNode> = intersection_base
+            .out_nodes()
+            .iter()
+            .map(|&v| FlowIntersectionNode::new(v, self.node(v).copy_num()))
+            .collect();
+        let edges: Vec<FlowIntersectionEdge> = iproduct!(in_nodes.iter(), out_nodes.iter())
+            .map(|(in_node, out_node)| self.find_edge(in_node.index, out_node.index).unwrap())
+            .map(|e| {
+                let freq = match freqs {
+                    Some(freqs) => Some(freqs[e]),
+                    None => None,
+                };
+                FlowIntersectionEdge::new(e, freq, self.edge(e).copy_num())
+            })
+            .collect();
+        FlowIntersection::new(
+            intersection_base.km1mer().clone(),
+            in_nodes,
+            out_nodes,
+            edges,
+        )
     }
 }
 
@@ -165,6 +158,7 @@ mod tests {
     use crate::dbg::mocks::{mock_base, mock_intersection};
     use crate::kmer::veckmer::VecKmer;
 
+    /*
     #[test]
     fn dbg_intersections_simple() {
         let dbg = mock_base();
@@ -240,4 +234,5 @@ mod tests {
             assert!(fi.can_uniquely_convertable());
         }
     }
+    */
 }
