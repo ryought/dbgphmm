@@ -37,7 +37,7 @@ mod tests {
         }
 
         let k: usize = 8;
-        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_reads(k, &reads);
+        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);
         println!("{}", dbg_raw);
 
         // (4) compare with true dbg
