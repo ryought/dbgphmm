@@ -11,6 +11,7 @@
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
+use rayon::prelude::*;
 use std::str::FromStr;
 
 //
@@ -74,6 +75,14 @@ impl<'a> IntoIterator for &'a Reads {
     type IntoIter = std::slice::Iter<'a, Sequence>;
     fn into_iter(self) -> std::slice::Iter<'a, Sequence> {
         self.reads.iter()
+    }
+}
+
+impl<'a> IntoParallelIterator for &'a Reads {
+    type Item = &'a Sequence;
+    type Iter = rayon::slice::Iter<'a, Sequence>;
+    fn into_par_iter(self) -> rayon::slice::Iter<'a, Sequence> {
+        self.reads.par_iter()
     }
 }
 

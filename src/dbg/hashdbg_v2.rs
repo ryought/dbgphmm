@@ -131,9 +131,9 @@ impl<K: KmerLike> HashDbg<K> {
         }
         d
     }
-    pub fn from_seq(k: usize, seq: &[u8]) -> Self {
+    pub fn from_seq<S: Seq>(k: usize, seq: &S) -> Self {
         let mut d = HashDbg::new(k);
-        d.add_seq(seq);
+        d.add_seq(seq.as_ref());
         d
     }
     pub fn from_seqs<T>(k: usize, seqs: T) -> Self

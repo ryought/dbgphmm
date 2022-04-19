@@ -621,7 +621,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Self::from_digraph(d.k(), graph)
     }
     /// Construct Dbg from a Sequence via converting HashDbg into Dbg.
-    pub fn from_seq(k: usize, seq: &[u8]) -> Self {
+    pub fn from_seq<S: Seq>(k: usize, seq: &S) -> Self {
         let hd = HashDbg::from_seq(k, seq);
         Self::from_hashdbg(&hd)
     }
