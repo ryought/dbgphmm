@@ -362,7 +362,9 @@ impl<K: KmerLike> FlowIntersection<K> {
                     vs[i],
                     ws[j],
                     IntersectionGraphEdge::Spanning {
-                        freq: e.freq.unwrap(),
+                        freq: e
+                            .freq
+                            .expect("intersection without freqs cannot be converted to flow graph"),
                         edge_index: e.index,
                         edge_index_in_intersection: ei,
                     },
