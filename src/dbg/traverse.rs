@@ -197,7 +197,7 @@ where
             Some(node) => {
                 // visit this node
                 self.copy_nums[node] -= 1;
-                self.n_path_choices *= self.n_next_node_choices;
+                self.n_path_choices = self.n_path_choices.saturating_mul(self.n_next_node_choices);
 
                 // search for new next node
                 // and store the n_choices.
