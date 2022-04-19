@@ -3,11 +3,12 @@
 //!
 //!
 use super::edge_centric::{
-    SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
+    IntersectionBase, SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode,
+    SimpleEDbgWithAttr,
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
-use super::intersections::Intersection;
 use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
+use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
@@ -145,10 +146,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// NodeIndex(s) of heads/tails
     ///
-    pub fn tips(&self) -> Intersection<N::Kmer> {
+    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+        // construct IntersectionBase directly from node-centric dbg
         let mut in_nodes = Vec::new();
         let mut out_nodes = Vec::new();
-
         for (node, weight) in self.nodes() {
             // ANNN
             if weight.kmer().is_tail() {
@@ -159,8 +160,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 out_nodes.push(node);
             }
         }
+        let ib = IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes);
 
-        Intersection::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
+        // convert to flow intersection
+        self.to_flow_intersection(&ib, None)
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {
@@ -342,8 +345,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn n_ambiguous_intersections(&self) -> usize {
         self.iter_intersections()
-            .filter(|i| !i.is_tip_intersection() && !i.can_uniquely_convertable())
+            .filter(|i| i.is_ambiguous())
             .count()
+    }
+    ///
+    /// Get the number of traverse choices
+    ///
+    pub fn n_traverse_choices(&self) -> usize {
+        let (_, n_choices) = self.to_styled_seqs_with_n_choices();
+        n_choices
     }
 }
 
@@ -756,7 +766,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // intersections
         let tips = self.tips();
         let in_nodes: Vec<NodeIndex> = tips
-            .iter_in_nodes()
+            .iter_in_node_indexes()
             .map(|v| {
                 // add a node of in_node
                 graph.add_node(N::new(
@@ -766,7 +776,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .collect();
         let out_nodes: Vec<NodeIndex> = tips
-            .iter_out_nodes()
+            .iter_out_node_indexes()
             .map(|v| {
                 // add a node of out_node
                 graph.add_node(N::new(
@@ -780,7 +790,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a in_edges of tail nodes
-        for (v, &w) in izip!(tips.iter_in_nodes(), in_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_in_node_indexes(), in_nodes.iter()) {
             for (e, _, _) in self.parents(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w2: parent(YXNN) -> w: tail(XNNN)
@@ -789,7 +799,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         // add an edge for a out_edges of head nodes
-        for (v, &w) in izip!(tips.iter_out_nodes(), out_nodes.iter()) {
+        for (v, &w) in izip!(tips.iter_out_node_indexes(), out_nodes.iter()) {
             for (e, _, _) in self.childs(v) {
                 let w2 = ids.get(&e).unwrap();
                 // w: head(NNNX) -> w2: child(NNXY)
@@ -955,9 +965,9 @@ mod tests {
         println!("{}", dbg);
         println!("{}", tips);
         assert_eq!(tips.n_in_nodes(), 1);
-        assert_eq!(tips.in_node(0), ni(6));
+        assert_eq!(tips.in_node_index(0), ni(6));
         assert_eq!(tips.n_out_nodes(), 1);
-        assert_eq!(tips.out_node(0), ni(7));
+        assert_eq!(tips.out_node_index(0), ni(7));
         assert!(tips.km1mer().is_null());
 
         // intersection
@@ -966,11 +976,11 @@ mod tests {
         println!("{}", dbg);
         println!("{}", tips);
         assert_eq!(tips.n_in_nodes(), 2);
-        assert_eq!(tips.in_node(0), ni(3));
-        assert_eq!(tips.in_node(1), ni(7));
+        assert_eq!(tips.in_node_index(0), ni(3));
+        assert_eq!(tips.in_node_index(1), ni(7));
         assert_eq!(tips.n_out_nodes(), 2);
-        assert_eq!(tips.out_node(0), ni(8));
-        assert_eq!(tips.out_node(1), ni(14));
+        assert_eq!(tips.out_node_index(0), ni(8));
+        assert_eq!(tips.out_node_index(1), ni(14));
         assert!(tips.km1mer().is_null());
     }
     #[test]

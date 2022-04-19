@@ -11,15 +11,13 @@
 //!
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
+use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::Cost;
 use crate::prob::Prob;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-pub mod flow_intersection;
-use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
-pub mod intersection_graph;
 
 ///
 /// Log information store of each iteration in extension
@@ -27,13 +25,13 @@ pub mod intersection_graph;
 #[derive(Clone, Debug)]
 pub struct ExtensionLog {
     /// Full probability
-    full_prob: Prob,
+    full_prob: Option<Prob>,
     /// min flow cost for intersecting nodes
     min_flow_cost: Cost,
 }
 
 impl ExtensionLog {
-    pub fn new(full_prob: Prob, min_flow_cost: Cost) -> Self {
+    pub fn new(full_prob: Option<Prob>, min_flow_cost: Cost) -> Self {
         ExtensionLog {
             full_prob,
             min_flow_cost,
@@ -103,8 +101,13 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
 ) -> (Dbg<N, E>, bool, ExtensionLog) {
-    // (1) e-step infer edge freqs
-    let (edge_freqs, full_prob) = e_step(dbg, reads, params);
+    // (1) e-step infer edge freqs if needed
+    let (edge_freqs, full_prob) = if dbg.n_ambiguous_intersections() > 0 {
+        let (edge_freqs, full_prob) = e_step(dbg, reads, params);
+        (Some(edge_freqs), Some(full_prob))
+    } else {
+        (None, None)
+    };
 
     // (2) m-step infer the best copy nums
     let (copy_nums, cost) = m_step(dbg, &edge_freqs);
@@ -147,23 +150,35 @@ fn e_step<N: DbgNode, E: DbgEdge>(
 /// ## Details
 ///
 ///
-fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (EdgeCopyNums, Cost) {
+fn m_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &Option<EdgeFreqs>,
+) -> (EdgeCopyNums, Cost) {
     let mut total_cost = 0.0;
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
-    for fi in dbg.iter_flow_intersections(edge_freqs) {
+    for fi in dbg.iter_intersections() {
         if !fi.is_tip_intersection() {
-            // get an optimized flow intersection
-            let (fio, cost) = fi.convert();
+            // resolve flow intersection
+            let fio = match edge_freqs {
+                Some(edge_freqs) => {
+                    let fi = fi.augment_freqs(edge_freqs);
 
-            if !fi.can_uniquely_convertable() {
-                println!("extension optimized iter m {} {}", fi, fio);
-            }
+                    // get an optimized flow intersection
+                    let (fio, cost) = fi.resolve();
 
-            // add cost
-            match cost {
-                Some(cost) => total_cost += cost,
-                None => {}
+                    if !fi.can_unique_resolvable() {
+                        println!("extension optimized iter m {} {}", fi, fio);
+                    }
+
+                    // add cost
+                    if let Some(cost) = cost {
+                        total_cost += cost;
+                    }
+
+                    fio
+                }
+                None => fi.resolve_unique(),
             };
 
             // check if there is no inconsistent edge copy numbers.
@@ -171,7 +186,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (E
             assert!(fio.is_resolved());
 
             // store fio's edge copy number information into ecn vector.
-            for (_, _, e) in fio.bi.iter_edges() {
+            for (_, _, e) in fio.iter_edges() {
                 assert!(ecn[e.index] == default_value);
                 ecn[e.index] = e.copy_num.unwrap();
             }
@@ -196,7 +211,7 @@ mod tests {
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
-        let (copy_nums, cost) = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, &Some(freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
@@ -240,7 +255,7 @@ mod tests {
             ],
             0.0,
         );
-        let (copy_nums, cost) = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, &Some(freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(cost, 0.0);

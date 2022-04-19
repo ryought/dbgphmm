@@ -1,13 +1,24 @@
 //!
 //! Definition of Augmented-intersection information collection
 //!
-use super::intersection_graph::{IntersectionGraph, IntersectionGraphEdge, IntersectionGraphNode};
+//! resolve function
+//! * FlowIntersection::resolve_unique
+//! * FlowIntersection::resolve_min_flow
+//!
+//! * is_resolved()
+//!
+//! * has_freqs
+//!
+pub mod intersection_graph;
 use crate::common::{CopyNum, Freq};
 use crate::graph::Bipartite;
+use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
+use intersection_graph::{IntersectionGraph, IntersectionGraphEdge, IntersectionGraphNode};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
+/*
 pub type FlowIntersectionV2<K> = Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>;
 
 impl<K: KmerLike> FlowIntersectionV2<K> {
@@ -15,9 +26,10 @@ impl<K: KmerLike> FlowIntersectionV2<K> {
         println!("hoge");
     }
 }
+*/
 
 /// Node info
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowIntersectionNode {
     pub index: NodeIndex,
     pub copy_num: CopyNum,
@@ -37,16 +49,16 @@ impl std::fmt::Display for FlowIntersectionNode {
 }
 
 /// Edge between in-node and out-node
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowIntersectionEdge {
     pub index: EdgeIndex,
-    pub freq: Freq,
+    pub freq: Option<Freq>,
     pub copy_num: Option<CopyNum>,
 }
 
 impl FlowIntersectionEdge {
     /// Constructor
-    pub fn new(index: EdgeIndex, freq: Freq, copy_num: Option<CopyNum>) -> Self {
+    pub fn new(index: EdgeIndex, freq: Option<Freq>, copy_num: Option<CopyNum>) -> Self {
         FlowIntersectionEdge {
             index,
             freq,
@@ -57,7 +69,11 @@ impl FlowIntersectionEdge {
 
 impl std::fmt::Display for FlowIntersectionEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", self.index.index(), self.freq)?;
+        write!(f, "{}", self.index.index())?;
+        match self.freq {
+            Some(freq) => write!(f, "(f{})", freq)?,
+            None => write!(f, "(f?)")?,
+        };
         match self.copy_num {
             Some(copy_num) => write!(f, "(x{})", copy_num),
             None => write!(f, "(x?)"),
@@ -65,6 +81,16 @@ impl std::fmt::Display for FlowIntersectionEdge {
     }
 }
 
+///
+/// Intersection information corresponding to a k-1-mer.
+///
+/// in node-centric de bruijn graph, a k-1-mer can have
+/// incoming kmers and outgoing kmers (less than 4 nodes).
+///
+/// km1mer:    XXX
+/// in_nodes:  AXXX, CXXX, GXXX, TXXX
+/// out_nodes: XXXA, XXXC, XXXG, XXXT
+///
 #[derive(Clone, Debug)]
 pub struct FlowIntersection<K: KmerLike> {
     pub bi: Bipartite<K, FlowIntersectionNode, FlowIntersectionEdge>,
@@ -106,6 +132,57 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn km1mer(&self) -> &K {
         &self.bi.id
     }
+    pub fn iter_in_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.bi.in_nodes.iter().map(move |v| v.index)
+    }
+    pub fn iter_out_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.bi.out_nodes.iter().map(move |v| v.index)
+    }
+    pub fn iter_in_nodes(&self) -> impl Iterator<Item = &FlowIntersectionNode> + '_ {
+        self.bi.in_nodes.iter()
+    }
+    pub fn iter_out_nodes(&self) -> impl Iterator<Item = &FlowIntersectionNode> + '_ {
+        self.bi.out_nodes.iter()
+    }
+    pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize, &FlowIntersectionEdge)> + '_ {
+        self.bi.iter_edges()
+    }
+    pub fn in_node_index(&self, index: usize) -> NodeIndex {
+        self.bi.in_node(index).index
+    }
+    pub fn out_node_index(&self, index: usize) -> NodeIndex {
+        self.bi.out_node(index).index
+    }
+    pub fn in_node(&self, index: usize) -> &FlowIntersectionNode {
+        self.bi.in_node(index)
+    }
+    pub fn out_node(&self, index: usize) -> &FlowIntersectionNode {
+        self.bi.out_node(index)
+    }
+    pub fn edge(&self, i: usize, j: usize) -> &FlowIntersectionEdge {
+        self.bi.edge(i, j)
+    }
+}
+
+///
+/// Appending freq information
+///
+impl<K: KmerLike> FlowIntersection<K> {
+    ///
+    /// Append freq information to edges using EdgeFreq vector.
+    ///
+    pub fn augment_freqs(mut self, freqs: &EdgeFreqs) -> Self {
+        for edge in self.bi.edges.iter_mut() {
+            edge.freq = Some(freqs[edge.index]);
+        }
+        self
+    }
+    ///
+    /// Check if each edge has freq information or not.
+    ///
+    pub fn has_freqs(&self) -> bool {
+        self.iter_edges().all(|(_, _, e)| e.freq.is_some())
+    }
 }
 
 ///
@@ -113,18 +190,24 @@ impl<K: KmerLike> FlowIntersection<K> {
 ///
 impl<K: KmerLike> FlowIntersection<K> {
     ///
+    /// ambiguous <=> not uniquely resolvable and not tip_intersection
+    ///
+    pub fn is_ambiguous(&self) -> bool {
+        !self.is_tip_intersection() && !self.can_unique_resolvable()
+    }
+    ///
     /// sum of copynums of in_nodes/out_nodes are the same?
     ///
     pub fn has_valid_node_copy_nums(&self) -> bool {
-        let sum_in_nodes: usize = self.bi.iter_in_nodes().map(|n| n.copy_num).sum();
-        let sum_out_nodes: usize = self.bi.iter_out_nodes().map(|n| n.copy_num).sum();
+        let sum_in_nodes: usize = self.iter_in_nodes().map(|n| n.copy_num).sum();
+        let sum_out_nodes: usize = self.iter_out_nodes().map(|n| n.copy_num).sum();
         sum_in_nodes == sum_out_nodes
     }
-    pub fn can_uniquely_convertable(&self) -> bool {
+    pub fn can_unique_resolvable(&self) -> bool {
         self.n_in_nodes() == 1 || self.n_out_nodes() == 1
     }
     pub fn all_edges_has_copy_num(&self) -> bool {
-        self.bi.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
+        self.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
     }
     ///
     /// Check if the km1mer of the intersection is NNNN.
@@ -165,15 +248,16 @@ impl<K: KmerLike> FlowIntersection<K> {
         }
     }
     /// Do appropriate conversion.
+    ///
     /// * if uniquly convertable, do a simple conversion
     /// * otherwise, do a optimize conversion using min flow.
     ///
     /// Score of the min-flow is returned when min_flow is used.
-    pub fn convert(&self) -> (FlowIntersection<K>, Option<Cost>) {
-        if self.can_uniquely_convertable() {
-            (self.unique_convert(), None)
+    pub fn resolve(&self) -> (FlowIntersection<K>, Option<Cost>) {
+        if self.can_unique_resolvable() {
+            (self.resolve_unique(), None)
         } else {
-            let (fio, cost) = self.optimize();
+            let (fio, cost) = self.resolve_min_flow();
             (fio, Some(cost))
         }
     }
@@ -183,8 +267,8 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// If `n_in == 1 or n_out == 1`, a copy number of each edge `in -> out`
     /// should have the same copy number of in/out.
     ///
-    pub fn unique_convert(&self) -> FlowIntersection<K> {
-        assert!(self.can_uniquely_convertable());
+    pub fn resolve_unique(&self) -> FlowIntersection<K> {
+        assert!(self.can_unique_resolvable());
         let mut opt = self.clone();
 
         if self.n_in_nodes() == 1 {
@@ -205,8 +289,8 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// Get optimized copy numbers of edges and its min-flow cost.
     /// by converting the bipartite into flow network definitions
     ///
-    pub fn optimize(&self) -> (FlowIntersection<K>, Cost) {
-        println!("optimizing: {}", self);
+    pub fn resolve_min_flow(&self) -> (FlowIntersection<K>, Cost) {
+        println!("resolving: {}", self);
         let flow_graph = self.to_flow_graph();
         match min_cost_flow_convex_fast(&flow_graph) {
             Some(flow) => {
@@ -293,7 +377,9 @@ impl<K: KmerLike> FlowIntersection<K> {
                     vs[i],
                     ws[j],
                     IntersectionGraphEdge::Spanning {
-                        freq: e.freq,
+                        freq: e
+                            .freq
+                            .expect("intersection without freqs cannot be converted to flow graph"),
                         edge_index: e.index,
                         edge_index_in_intersection: ei,
                     },
@@ -309,7 +395,7 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// TODO convert `Vec<Option<T>>` into `Option<Vec<T>>`.
     ///
     fn to_edge_copy_nums(&self) -> Vec<Option<CopyNum>> {
-        self.bi.edges.iter().map(|e| e.copy_num).collect()
+        self.iter_edges().map(|(_, _, e)| e.copy_num).collect()
     }
 }
 
@@ -342,10 +428,10 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 5),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 5.1, None),
-            FlowIntersectionEdge::new(ei(21), 5.0, None),
-            FlowIntersectionEdge::new(ei(22), 4.9, None),
-            FlowIntersectionEdge::new(ei(23), 4.8, None),
+            FlowIntersectionEdge::new(ei(20), Some(5.1), None),
+            FlowIntersectionEdge::new(ei(21), Some(5.0), None),
+            FlowIntersectionEdge::new(ei(22), Some(4.9), None),
+            FlowIntersectionEdge::new(ei(23), Some(4.8), None),
         ];
         let edge_copy_nums_true = vec![1, 1, 0, 4];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
@@ -353,15 +439,15 @@ mod tests {
         let g = fi.to_flow_graph();
         println!("{:?}", Dot::with_config(&g, &[]));
 
-        let (fi_opt, cost) = fi.optimize();
+        let (fi_opt, cost) = fi.resolve();
         println!("{}", fi_opt);
-        println!("cost={}", cost);
+        println!("cost={:?}", cost);
         let cost_true = 5.1 * clamped_log(1)
             + 5.0 * clamped_log(1)
             + 4.9 * clamped_log(0)
             + 4.8 * clamped_log(4);
         println!("cost_true={}", cost_true);
-        assert_eq!(cost, -cost_true);
+        assert_eq!(cost, Some(-cost_true));
         for (i, e) in fi_opt.bi.edges.iter().enumerate() {
             assert_eq!(e.index, fi.bi.edges[i].index);
             assert_eq!(e.freq, fi.bi.edges[i].freq);
@@ -379,14 +465,14 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 1),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 0.9, None),
-            FlowIntersectionEdge::new(ei(21), 0.0, None),
-            FlowIntersectionEdge::new(ei(22), 0.0, None),
-            FlowIntersectionEdge::new(ei(23), 1.1, None),
+            FlowIntersectionEdge::new(ei(20), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(21), Some(0.0), None),
+            FlowIntersectionEdge::new(ei(22), Some(0.0), None),
+            FlowIntersectionEdge::new(ei(23), Some(1.1), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
-        let (fi_opt, cost) = fi.optimize();
+        let (fi_opt, cost) = fi.resolve();
         println!("{}", fi_opt);
         assert_eq!(
             fi_opt.to_edge_copy_nums(),
@@ -402,22 +488,22 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 1),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 0.1, None),
-            FlowIntersectionEdge::new(ei(21), 1.1, None),
-            FlowIntersectionEdge::new(ei(22), 0.5, None),
-            FlowIntersectionEdge::new(ei(23), 0.5, None),
+            FlowIntersectionEdge::new(ei(20), Some(0.1), None),
+            FlowIntersectionEdge::new(ei(21), Some(1.1), None),
+            FlowIntersectionEdge::new(ei(22), Some(0.5), None),
+            FlowIntersectionEdge::new(ei(23), Some(0.5), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
-        let (fi_opt, cost) = fi.optimize();
+        let (fi_opt, cost) = fi.resolve();
         println!("{}", fi_opt);
-        println!("cost={}", cost);
+        println!("cost={:?}", cost);
         let cost_true = 0.1 * clamped_log(0)
             + 1.1 * clamped_log(1)
             + 0.5 * clamped_log(1)
             + 0.5 * clamped_log(0);
         println!("cost_true={}", cost_true);
-        assert_eq!(cost, -cost_true);
+        assert_eq!(cost, Some(-cost_true));
         assert_eq!(
             fi_opt.to_edge_copy_nums(),
             vec![Some(0), Some(1), Some(1), Some(0)]
@@ -428,7 +514,7 @@ mod tests {
         // (0)
         let in_nodes = vec![FlowIntersectionNode::new(ni(0), 5)];
         let out_nodes = vec![FlowIntersectionNode::new(ni(1), 2)];
-        let edges = vec![FlowIntersectionEdge::new(ei(0), 0.9, None)];
+        let edges = vec![FlowIntersectionEdge::new(ei(0), Some(0.9), None)];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
         assert!(!fi.has_valid_node_copy_nums());
@@ -440,25 +526,25 @@ mod tests {
             FlowIntersectionNode::new(ni(2), 3),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 0.9, None),
-            FlowIntersectionEdge::new(ei(1), 0.0, None),
+            FlowIntersectionEdge::new(ei(0), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(1), Some(0.0), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
         println!("{}", fi);
         assert!(!fi.all_edges_has_copy_num());
         assert!(fi.has_valid_node_copy_nums());
-        assert!(fi.can_uniquely_convertable());
-        let fio = fi.unique_convert();
+        assert!(fi.can_unique_resolvable());
+        let fio = fi.resolve_unique();
         println!("{}", fio);
         assert_eq!(
             fio.bi.edges,
             vec![
-                FlowIntersectionEdge::new(ei(0), 0.9, Some(2)),
-                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+                FlowIntersectionEdge::new(ei(0), Some(0.9), Some(2)),
+                FlowIntersectionEdge::new(ei(1), Some(0.0), Some(3)),
             ]
         );
-        let (fio2, cost) = fi.convert();
+        let (fio2, cost) = fi.resolve();
         assert_eq!(fio.bi.edges, fio2.bi.edges);
 
         // (3) obviously converable case (n_out = 1)
@@ -468,25 +554,25 @@ mod tests {
         ];
         let out_nodes = vec![FlowIntersectionNode::new(ni(2), 8)];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 0.9, None),
-            FlowIntersectionEdge::new(ei(1), 0.0, None),
+            FlowIntersectionEdge::new(ei(0), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(1), Some(0.0), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
         println!("{}", fi);
         assert!(!fi.all_edges_has_copy_num());
         assert!(fi.has_valid_node_copy_nums());
-        assert!(fi.can_uniquely_convertable());
-        let fio = fi.unique_convert();
+        assert!(fi.can_unique_resolvable());
+        let fio = fi.resolve_unique();
         println!("{}", fio);
         assert_eq!(
             fio.bi.edges,
             vec![
-                FlowIntersectionEdge::new(ei(0), 0.9, Some(5)),
-                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+                FlowIntersectionEdge::new(ei(0), Some(0.9), Some(5)),
+                FlowIntersectionEdge::new(ei(1), Some(0.0), Some(3)),
             ]
         );
-        let (fio2, cost) = fi.convert();
+        let (fio2, cost) = fi.resolve();
         assert_eq!(fio.bi.edges, fio2.bi.edges);
     }
 }

@@ -2,8 +2,8 @@
 //! traverse related
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use super::intersections::Intersection;
 use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence, NULL_BASE};
+use crate::dbg::flow_intersection::FlowIntersection;
 use crate::kmer::kmer::KmerLike;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -197,7 +197,7 @@ where
             Some(node) => {
                 // visit this node
                 self.copy_nums[node] -= 1;
-                self.n_path_choices *= self.n_next_node_choices;
+                self.n_path_choices = self.n_path_choices.saturating_mul(self.n_next_node_choices);
 
                 // search for new next node
                 // and store the n_choices.
@@ -221,7 +221,7 @@ where
 ///
 pub struct Traveller<'a, N: DbgNode, E: DbgEdge> {
     traverser: Traverser<'a, N, E>,
-    tips: Intersection<N::Kmer>,
+    tips: FlowIntersection<N::Kmer>,
 }
 
 impl<'a, N, E> Traveller<'a, N, E>
@@ -235,7 +235,7 @@ where
     /// * Otherwise, use unvisited ordinary node
     fn find_starting_node(&self) -> Option<NodeIndex> {
         // (1) find unvisited head node (e.g. NNNA)
-        for head_node in self.tips.iter_out_nodes() {
+        for head_node in self.tips.iter_out_node_indexes() {
             if self.traverser.is_unvisited(head_node) {
                 return Some(head_node);
             }
