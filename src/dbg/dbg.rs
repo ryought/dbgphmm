@@ -7,7 +7,7 @@ use super::edge_centric::{
     SimpleEDbgWithAttr,
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
-use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
+use crate::common::{CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
@@ -627,23 +627,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
     /// Construct Dbg from Reads
     /// via converting HashDbg into Dbg.
-    pub fn from_reads(k: usize, reads: &Reads) -> Self {
-        let hd = HashDbg::from_reads(k, reads);
-        Self::from_hashdbg(&hd)
-    }
-    /// Construct Dbg from multiple sequences via converting HashDbg into Dbg.
-    ///
-    /// ## Future TODO
-    /// * collect `from_reads` and `from_seqs` into a single method, using a trait `ToSequenceRef`
-    /// or so
-    pub fn from_seqs(k: usize, seqs: &[Sequence]) -> Self {
-        let mut hd = HashDbg::new(k);
-        for seq in seqs {
-            // ignore read if it is shorter than k
-            if seq.len() >= k {
-                hd.add_seq(seq);
-            }
-        }
+    pub fn from_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let hd = HashDbg::from_seqs(k, seqs);
         Self::from_hashdbg(&hd)
     }
     ///

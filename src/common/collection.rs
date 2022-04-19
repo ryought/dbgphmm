@@ -69,6 +69,14 @@ impl Reads {
     }
 }
 
+impl<'a> IntoIterator for &'a Reads {
+    type Item = &'a Sequence;
+    type IntoIter = std::slice::Iter<'a, Sequence>;
+    fn into_iter(self) -> std::slice::Iter<'a, Sequence> {
+        self.reads.iter()
+    }
+}
+
 ///
 ///
 ///

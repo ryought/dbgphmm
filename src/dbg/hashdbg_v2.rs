@@ -1,7 +1,7 @@
 //!
 //! HashDbg
 //!
-use crate::common::{CopyNum, Reads, StyledSequence};
+use crate::common::{CopyNum, Reads, Seq, StyledSequence};
 use crate::kmer::kmer::{sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;
@@ -136,12 +136,17 @@ impl<K: KmerLike> HashDbg<K> {
         d.add_seq(seq);
         d
     }
-    pub fn from_reads(k: usize, reads: &Reads) -> Self {
+    pub fn from_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
         let mut d = HashDbg::new(k);
-        for read in reads.iter() {
+        for seq in seqs {
+            let seq = seq.as_ref();
             // ignore read if it is shorter than k
-            if read.len() >= k {
-                d.add_seq(read);
+            if seq.len() >= k {
+                d.add_seq(seq);
             }
         }
         d
