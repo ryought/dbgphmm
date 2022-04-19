@@ -130,6 +130,12 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn iter_out_nodes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
         self.bi.out_nodes.iter().map(move |v| v.index)
     }
+    pub fn in_node(&self, index: usize) -> NodeIndex {
+        self.bi.in_node(index).index
+    }
+    pub fn out_node(&self, index: usize) -> NodeIndex {
+        self.bi.out_node(index).index
+    }
 }
 
 ///

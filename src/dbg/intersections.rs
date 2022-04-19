@@ -106,7 +106,6 @@ mod tests {
     use crate::dbg::mocks::{mock_base, mock_intersection};
     use crate::kmer::veckmer::VecKmer;
 
-    /*
     #[test]
     fn dbg_intersections_simple() {
         let dbg = mock_base();
@@ -148,15 +147,15 @@ mod tests {
         }
     }
     #[test]
-    fn dbg_flow_intersections_simple() {
+    fn dbg_flow_intersections_simple_0() {
         let dbg = mock_base();
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
         for i in dbg.iter_intersections() {
-            println!("{}", i);
-            let fi = i.to_flow_intersection(&dbg, &freqs);
-            println!("{}", fi);
+            println!("without-flow {}", i);
+            let fi = i.augment_freqs(&freqs);
+            println!("with-flow {}", fi);
 
             for (i, j) in iproduct!(0..fi.bi.n_in(), 0..fi.bi.n_out()) {
                 let v = fi.bi.in_node(i);
@@ -182,5 +181,4 @@ mod tests {
             assert!(fi.can_uniquely_convertable());
         }
     }
-    */
 }
