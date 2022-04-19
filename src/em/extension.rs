@@ -105,7 +105,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     let (edge_freqs, full_prob) = e_step(dbg, reads, params);
 
     // (2) m-step infer the best copy nums
-    let (copy_nums, cost) = m_step(dbg, &edge_freqs);
+    let (copy_nums, cost) = m_step(dbg, Some(&edge_freqs));
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
@@ -145,23 +145,35 @@ fn e_step<N: DbgNode, E: DbgEdge>(
 /// ## Details
 ///
 ///
-fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (EdgeCopyNums, Cost) {
+fn m_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: Option<&EdgeFreqs>,
+) -> (EdgeCopyNums, Cost) {
     let mut total_cost = 0.0;
     let default_value = 0;
     let mut ecn = EdgeCopyNums::new(dbg.n_edges(), default_value);
-    for fi in dbg.iter_flow_intersections(edge_freqs) {
+    for fi in dbg.iter_intersections() {
         if !fi.is_tip_intersection() {
-            // get an optimized flow intersection
-            let (fio, cost) = fi.resolve();
+            // resolve flow intersection
+            let fio = match edge_freqs {
+                Some(edge_freqs) => {
+                    let fi = fi.augment_freqs(edge_freqs);
 
-            if !fi.can_unique_resolvable() {
-                println!("extension optimized iter m {} {}", fi, fio);
-            }
+                    // get an optimized flow intersection
+                    let (fio, cost) = fi.resolve();
 
-            // add cost
-            match cost {
-                Some(cost) => total_cost += cost,
-                None => {}
+                    if !fi.can_unique_resolvable() {
+                        println!("extension optimized iter m {} {}", fi, fio);
+                    }
+
+                    // add cost
+                    if let Some(cost) = cost {
+                        total_cost += cost;
+                    }
+
+                    fio
+                }
+                None => fi.resolve_unique(),
             };
 
             // check if there is no inconsistent edge copy numbers.
@@ -194,7 +206,7 @@ mod tests {
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
-        let (copy_nums, cost) = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, Some(&freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
@@ -238,7 +250,7 @@ mod tests {
             ],
             0.0,
         );
-        let (copy_nums, cost) = m_step(&dbg, &freqs);
+        let (copy_nums, cost) = m_step(&dbg, Some(&freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(cost, 0.0);
