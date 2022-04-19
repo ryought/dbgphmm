@@ -1,12 +1,13 @@
 //!
 //! Definition of Augmented-intersection information collection
 //!
-use super::intersection_graph::{IntersectionGraph, IntersectionGraphEdge, IntersectionGraphNode};
+pub mod intersection_graph;
 use crate::common::{CopyNum, Freq};
 use crate::graph::Bipartite;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
+use intersection_graph::{IntersectionGraph, IntersectionGraphEdge, IntersectionGraphNode};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /*

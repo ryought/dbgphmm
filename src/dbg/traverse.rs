@@ -3,7 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::common::{CopyNum, SeqStyle, Sequence, StyledSequence, NULL_BASE};
-use crate::em::extension::flow_intersection::FlowIntersection;
+use crate::dbg::flow_intersection::FlowIntersection;
 use crate::kmer::kmer::KmerLike;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};

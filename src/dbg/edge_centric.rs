@@ -18,9 +18,7 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
 pub mod impls;
 pub mod output;
-use crate::em::extension::flow_intersection::{
-    FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode,
-};
+use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 pub use impls::{
     SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
 };

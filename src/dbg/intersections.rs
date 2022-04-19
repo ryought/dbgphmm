@@ -1,8 +1,6 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use super::edge_centric::{IntersectionBase, SimpleEDbg};
-use crate::em::extension::flow_intersection::{
-    FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode,
-};
+use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 use crate::graph::Bipartite;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;

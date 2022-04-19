@@ -8,8 +8,8 @@ use super::edge_centric::{
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::{CopyNum, Reads, SeqStyle, Sequence, StyledSequence, NULL_BASE};
+use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
-use crate::em::extension::flow_intersection::FlowIntersection;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};

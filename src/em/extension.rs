@@ -11,15 +11,13 @@
 //!
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
+use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::Cost;
 use crate::prob::Prob;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-pub mod flow_intersection;
-use flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
-pub mod intersection_graph;
 
 ///
 /// Log information store of each iteration in extension

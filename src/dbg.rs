@@ -9,6 +9,7 @@ pub mod edge_centric;
 pub mod impls;
 pub use impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 pub mod compare;
+pub mod flow_intersection;
 pub mod intersections;
 pub mod mocks;
 pub mod output;
