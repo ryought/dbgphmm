@@ -169,7 +169,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, edge_freqs: &EdgeFreqs) -> (E
             assert!(fio.is_resolved());
 
             // store fio's edge copy number information into ecn vector.
-            for (_, _, e) in fio.bi.iter_edges() {
+            for (_, _, e) in fio.iter_edges() {
                 assert!(ecn[e.index] == default_value);
                 ecn[e.index] = e.copy_num.unwrap();
             }

@@ -199,8 +199,8 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// sum of copynums of in_nodes/out_nodes are the same?
     ///
     pub fn has_valid_node_copy_nums(&self) -> bool {
-        let sum_in_nodes: usize = self.bi.iter_in_nodes().map(|n| n.copy_num).sum();
-        let sum_out_nodes: usize = self.bi.iter_out_nodes().map(|n| n.copy_num).sum();
+        let sum_in_nodes: usize = self.iter_in_nodes().map(|n| n.copy_num).sum();
+        let sum_out_nodes: usize = self.iter_out_nodes().map(|n| n.copy_num).sum();
         sum_in_nodes == sum_out_nodes
     }
     pub fn can_unique_resolvable(&self) -> bool {
