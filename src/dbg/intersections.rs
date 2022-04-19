@@ -81,7 +81,7 @@ impl<K: KmerLike> Intersection<K> {
             .collect();
         let edges: Vec<FlowIntersectionEdge> = iproduct!(in_nodes.iter(), out_nodes.iter())
             .map(|(in_node, out_node)| dbg.find_edge(in_node.index, out_node.index).unwrap())
-            .map(|e| FlowIntersectionEdge::new(e, freqs[e], dbg.edge(e).copy_num()))
+            .map(|e| FlowIntersectionEdge::new(e, Some(freqs[e]), dbg.edge(e).copy_num()))
             .collect();
         FlowIntersection::new(self.km1mer().clone(), in_nodes, out_nodes, edges)
     }
@@ -220,7 +220,7 @@ mod tests {
                 let vw = fi.bi.edge(i, j);
                 assert!(dbg.contains_edge(v.index, w.index));
                 let e = dbg.find_edge(v.index, w.index).unwrap();
-                assert_eq!(freqs[e], vw.freq);
+                assert_eq!(Some(freqs[e]), vw.freq);
             }
         }
     }

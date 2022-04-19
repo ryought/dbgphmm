@@ -40,13 +40,13 @@ impl std::fmt::Display for FlowIntersectionNode {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowIntersectionEdge {
     pub index: EdgeIndex,
-    pub freq: Freq,
+    pub freq: Option<Freq>,
     pub copy_num: Option<CopyNum>,
 }
 
 impl FlowIntersectionEdge {
     /// Constructor
-    pub fn new(index: EdgeIndex, freq: Freq, copy_num: Option<CopyNum>) -> Self {
+    pub fn new(index: EdgeIndex, freq: Option<Freq>, copy_num: Option<CopyNum>) -> Self {
         FlowIntersectionEdge {
             index,
             freq,
@@ -57,7 +57,11 @@ impl FlowIntersectionEdge {
 
 impl std::fmt::Display for FlowIntersectionEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", self.index.index(), self.freq)?;
+        write!(f, "{}", self.index.index())?;
+        match self.freq {
+            Some(freq) => write!(f, "(f{})", freq)?,
+            None => write!(f, "(f?)")?,
+        };
         match self.copy_num {
             Some(copy_num) => write!(f, "(x{})", copy_num),
             None => write!(f, "(x?)"),
@@ -293,7 +297,7 @@ impl<K: KmerLike> FlowIntersection<K> {
                     vs[i],
                     ws[j],
                     IntersectionGraphEdge::Spanning {
-                        freq: e.freq,
+                        freq: e.freq.unwrap(),
                         edge_index: e.index,
                         edge_index_in_intersection: ei,
                     },
@@ -342,10 +346,10 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 5),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 5.1, None),
-            FlowIntersectionEdge::new(ei(21), 5.0, None),
-            FlowIntersectionEdge::new(ei(22), 4.9, None),
-            FlowIntersectionEdge::new(ei(23), 4.8, None),
+            FlowIntersectionEdge::new(ei(20), Some(5.1), None),
+            FlowIntersectionEdge::new(ei(21), Some(5.0), None),
+            FlowIntersectionEdge::new(ei(22), Some(4.9), None),
+            FlowIntersectionEdge::new(ei(23), Some(4.8), None),
         ];
         let edge_copy_nums_true = vec![1, 1, 0, 4];
         let fi = FlowIntersection::new(VecKmer::from_bases(b"TCG"), in_nodes, out_nodes, edges);
@@ -379,10 +383,10 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 1),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 0.9, None),
-            FlowIntersectionEdge::new(ei(21), 0.0, None),
-            FlowIntersectionEdge::new(ei(22), 0.0, None),
-            FlowIntersectionEdge::new(ei(23), 1.1, None),
+            FlowIntersectionEdge::new(ei(20), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(21), Some(0.0), None),
+            FlowIntersectionEdge::new(ei(22), Some(0.0), None),
+            FlowIntersectionEdge::new(ei(23), Some(1.1), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
@@ -402,10 +406,10 @@ mod tests {
             FlowIntersectionNode::new(ni(14), 1),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(20), 0.1, None),
-            FlowIntersectionEdge::new(ei(21), 1.1, None),
-            FlowIntersectionEdge::new(ei(22), 0.5, None),
-            FlowIntersectionEdge::new(ei(23), 0.5, None),
+            FlowIntersectionEdge::new(ei(20), Some(0.1), None),
+            FlowIntersectionEdge::new(ei(21), Some(1.1), None),
+            FlowIntersectionEdge::new(ei(22), Some(0.5), None),
+            FlowIntersectionEdge::new(ei(23), Some(0.5), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
@@ -428,7 +432,7 @@ mod tests {
         // (0)
         let in_nodes = vec![FlowIntersectionNode::new(ni(0), 5)];
         let out_nodes = vec![FlowIntersectionNode::new(ni(1), 2)];
-        let edges = vec![FlowIntersectionEdge::new(ei(0), 0.9, None)];
+        let edges = vec![FlowIntersectionEdge::new(ei(0), Some(0.9), None)];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
         assert!(!fi.has_valid_node_copy_nums());
@@ -440,8 +444,8 @@ mod tests {
             FlowIntersectionNode::new(ni(2), 3),
         ];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 0.9, None),
-            FlowIntersectionEdge::new(ei(1), 0.0, None),
+            FlowIntersectionEdge::new(ei(0), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(1), Some(0.0), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
@@ -454,8 +458,8 @@ mod tests {
         assert_eq!(
             fio.bi.edges,
             vec![
-                FlowIntersectionEdge::new(ei(0), 0.9, Some(2)),
-                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+                FlowIntersectionEdge::new(ei(0), Some(0.9), Some(2)),
+                FlowIntersectionEdge::new(ei(1), Some(0.0), Some(3)),
             ]
         );
         let (fio2, cost) = fi.convert();
@@ -468,8 +472,8 @@ mod tests {
         ];
         let out_nodes = vec![FlowIntersectionNode::new(ni(2), 8)];
         let edges = vec![
-            FlowIntersectionEdge::new(ei(0), 0.9, None),
-            FlowIntersectionEdge::new(ei(1), 0.0, None),
+            FlowIntersectionEdge::new(ei(0), Some(0.9), None),
+            FlowIntersectionEdge::new(ei(1), Some(0.0), None),
         ];
         let kmer = VecKmer::from_bases(b"TCG");
         let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
@@ -482,8 +486,8 @@ mod tests {
         assert_eq!(
             fio.bi.edges,
             vec![
-                FlowIntersectionEdge::new(ei(0), 0.9, Some(5)),
-                FlowIntersectionEdge::new(ei(1), 0.0, Some(3)),
+                FlowIntersectionEdge::new(ei(0), Some(0.9), Some(5)),
+                FlowIntersectionEdge::new(ei(1), Some(0.0), Some(3)),
             ]
         );
         let (fio2, cost) = fi.convert();
