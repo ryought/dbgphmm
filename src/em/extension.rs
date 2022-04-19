@@ -25,13 +25,13 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 #[derive(Clone, Debug)]
 pub struct ExtensionLog {
     /// Full probability
-    full_prob: Prob,
+    full_prob: Option<Prob>,
     /// min flow cost for intersecting nodes
     min_flow_cost: Cost,
 }
 
 impl ExtensionLog {
-    pub fn new(full_prob: Prob, min_flow_cost: Cost) -> Self {
+    pub fn new(full_prob: Option<Prob>, min_flow_cost: Cost) -> Self {
         ExtensionLog {
             full_prob,
             min_flow_cost,
@@ -101,11 +101,16 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
 ) -> (Dbg<N, E>, bool, ExtensionLog) {
-    // (1) e-step infer edge freqs
-    let (edge_freqs, full_prob) = e_step(dbg, reads, params);
+    // (1) e-step infer edge freqs if needed
+    let (edge_freqs, full_prob) = if dbg.n_ambiguous_intersections() > 0 {
+        let (edge_freqs, full_prob) = e_step(dbg, reads, params);
+        (Some(edge_freqs), Some(full_prob))
+    } else {
+        (None, None)
+    };
 
     // (2) m-step infer the best copy nums
-    let (copy_nums, cost) = m_step(dbg, Some(&edge_freqs));
+    let (copy_nums, cost) = m_step(dbg, &edge_freqs);
 
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
@@ -147,7 +152,7 @@ fn e_step<N: DbgNode, E: DbgEdge>(
 ///
 fn m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
-    edge_freqs: Option<&EdgeFreqs>,
+    edge_freqs: &Option<EdgeFreqs>,
 ) -> (EdgeCopyNums, Cost) {
     let mut total_cost = 0.0;
     let default_value = 0;
@@ -206,7 +211,7 @@ mod tests {
         let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
         println!("{}", dbg);
         println!("{}", freqs);
-        let (copy_nums, cost) = m_step(&dbg, Some(&freqs));
+        let (copy_nums, cost) = m_step(&dbg, &Some(freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(copy_nums.to_vec(), vec![1, 1, 1, 1, 1, 1, 0, 1, 1, 1]);
@@ -250,7 +255,7 @@ mod tests {
             ],
             0.0,
         );
-        let (copy_nums, cost) = m_step(&dbg, Some(&freqs));
+        let (copy_nums, cost) = m_step(&dbg, &Some(freqs));
         println!("{}", copy_nums);
         println!("cost={}", cost);
         assert_eq!(cost, 0.0);
