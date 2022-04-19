@@ -345,7 +345,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn n_ambiguous_intersections(&self) -> usize {
         self.iter_intersections()
-            .filter(|i| !i.is_tip_intersection() && !i.can_unique_resolvable())
+            .filter(|i| i.is_ambiguous())
             .count()
     }
     ///

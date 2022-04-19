@@ -175,6 +175,12 @@ impl<K: KmerLike> FlowIntersection<K> {
 ///
 impl<K: KmerLike> FlowIntersection<K> {
     ///
+    /// ambiguous <=> not uniquely resolvable and not tip_intersection
+    ///
+    pub fn is_ambiguous(&self) -> bool {
+        !self.is_tip_intersection() && !self.can_unique_resolvable()
+    }
+    ///
     /// sum of copynums of in_nodes/out_nodes are the same?
     ///
     pub fn has_valid_node_copy_nums(&self) -> bool {
