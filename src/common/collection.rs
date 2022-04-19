@@ -189,6 +189,12 @@ impl FromStr for StyledSequence {
     }
 }
 
+impl AsRef<Bases> for StyledSequence {
+    fn as_ref(&self) -> &Bases {
+        &self.seq
+    }
+}
+
 //
 // tests
 //
