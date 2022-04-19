@@ -14,7 +14,7 @@ mod tests {
     fn generate_e2e_fragment_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
         println!("generating genome");
-        let genome_size = 500;
+        let genome_size = 200;
         let genome = vec![generate(genome_size, 0)];
         println!("genome: {}", sequence_to_string(&genome[0]));
 
@@ -22,7 +22,7 @@ mod tests {
         let g = GenomeGraph::from_seqs(&genome);
         let profile = ReadProfile {
             sample_profile: SampleProfile {
-                read_amount: ReadAmount::TotalBases(genome_size * 5),
+                read_amount: ReadAmount::TotalBases(genome_size * 10),
                 seed: 0,
                 length: 50,
                 start_points: StartPoints::Random,
@@ -35,7 +35,7 @@ mod tests {
             println!("{}", sequence_to_string(read));
         }
 
-        let k: usize = 12;
+        let k: usize = 8;
         let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_reads(k, &reads);
         println!("{}", dbg_raw);
 
@@ -46,21 +46,23 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn e2e_fragment() {
         let (genome, reads, dbg_raw, dbg_true) = generate_e2e_fragment_mock();
+
         // let (dbg, _) = compression(&dbg_raw, &reads, &PHMMParams::default(), 1.0, 10);
         let (dbg, logs) = compression_with_depths(
             &dbg_raw,
             &reads,
             &PHMMParams::default(),
-            &[1.0, 2.0, 3.0, 4.0, 5.0],
+            &[
+                1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 5.0, 5.0, 8.0, 8.0, 10.0, 10.0,
+            ],
         );
         println!("{}", dbg);
         println!("{:?}", logs);
         println!("{}", dbg_true);
 
-        let r = dbg.compare(&dbg_true);
-        println!("{:?}", r);
+        // let r = dbg.compare(&dbg_true);
+        // println!("{:?}", r);
     }
 }

@@ -106,6 +106,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 
     // create log
     let log = CompressionLog::new(full_prob, min_flow_score);
+    println!("{}", new_dbg);
 
     (new_dbg, is_updated, log)
 }

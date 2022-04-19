@@ -4,6 +4,7 @@
 //!
 
 use crate::common::{CopyNum, NULL_BASE};
+use crate::graph::genome_graph::GenomeGraphPos;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
@@ -221,18 +222,28 @@ pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
     is_start_point: bool,
+    source: GenomeGraphPos,
 }
 
 impl SimpleSeqNode {
-    pub fn new(copy_num: CopyNum, base: u8, is_start_point: bool) -> SimpleSeqNode {
+    pub fn new(
+        copy_num: CopyNum,
+        base: u8,
+        is_start_point: bool,
+        source: GenomeGraphPos,
+    ) -> SimpleSeqNode {
         SimpleSeqNode {
             copy_num,
             base,
             is_start_point,
+            source,
         }
     }
     pub fn is_start_point(&self) -> bool {
         self.is_start_point
+    }
+    pub fn source(&self) -> GenomeGraphPos {
+        self.source
     }
 }
 

@@ -41,7 +41,7 @@ pub struct Dbg<N: DbgNode, E: DbgEdge> {
 ///
 /// Trait for nodes in Dbg
 ///
-pub trait DbgNode: Clone {
+pub trait DbgNode: Clone + std::fmt::Display {
     type Kmer: KmerLike + NullableKmer;
     fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
     ///
@@ -93,7 +93,7 @@ pub trait DbgNode: Clone {
 ///
 /// Trait for edges in Dbg
 ///
-pub trait DbgEdge: Clone {
+pub trait DbgEdge: Clone + std::fmt::Display {
     fn new(copy_num: Option<CopyNum>) -> Self;
     ///
     /// Copy number count of this edge in Dbg

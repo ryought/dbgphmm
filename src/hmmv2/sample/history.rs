@@ -6,6 +6,8 @@ use super::super::freq::NodeFreqs;
 use super::super::trans_table::EdgeFreqs;
 use super::{Emission, State};
 use crate::common::{Reads, Sequence};
+use crate::graph::genome_graph::GenomeGraphPos;
+use crate::graph::seq_graph::SimpleSeqGraph;
 use itertools::Itertools;
 
 ///
@@ -87,6 +89,19 @@ impl History {
             }
         }
         ef
+    }
+    ///
+    /// Convert into genome graph pos list.
+    ///
+    pub fn to_genome_graph_pos(&self, sg: &SimpleSeqGraph) -> Vec<GenomeGraphPos> {
+        self.0
+            .iter()
+            .filter_map(|(state, _)| {
+                state
+                    .to_node_index()
+                    .map(|v| sg.node_weight(v).unwrap().source())
+            })
+            .collect()
     }
 }
 

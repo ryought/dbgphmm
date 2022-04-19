@@ -56,6 +56,21 @@ impl GenomeEdge {
     }
 }
 
+#[derive(Clone, Debug, Copy)]
+pub struct GenomeGraphPos {
+    /// index of GenomeNode
+    node: NodeIndex,
+    /// position in GenomeNode
+    pos: usize,
+}
+
+impl GenomeGraphPos {
+    /// Constructor
+    pub fn new(node: NodeIndex, pos: usize) -> Self {
+        GenomeGraphPos { node, pos }
+    }
+}
+
 impl std::fmt::Display for GenomeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let seq = std::str::from_utf8(&self.seq).unwrap();
@@ -125,8 +140,9 @@ impl GenomeGraph {
                 .iter()
                 .enumerate()
                 .map(|(i, &base)| {
+                    let pos = GenomeGraphPos::new(node, i);
                     let is_start_point = is_start_point_node && (i == 0);
-                    graph.add_node(SimpleSeqNode::new(copy_num, base, is_start_point))
+                    graph.add_node(SimpleSeqNode::new(copy_num, base, is_start_point, pos))
                 })
                 .collect();
 
@@ -180,7 +196,8 @@ impl GenomeGraph {
         //
         // TODO convert to genome graph position
         // store the originated genome graph position in seqgraph
-        phmm.sample_by_profile(&prof.sample_profile).to_reads()
+        let historys = phmm.sample_by_profile(&prof.sample_profile);
+        historys.to_reads()
     }
 }
 
