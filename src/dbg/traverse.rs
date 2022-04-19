@@ -372,8 +372,7 @@ mod tests {
     }
     #[test]
     fn dbg_traverse_to_seqs() {
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::from_reads(8, &Reads::from(vec![b"ATTCGATCGAT".to_vec()]));
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &vec![b"ATTCGATCGAT".to_vec()]);
         println!("{}", dbg);
         for seq in dbg.to_seqs().iter() {
             println!("{}", sequence_to_string(seq));

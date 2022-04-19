@@ -20,7 +20,7 @@ use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
-use crate::common::{Freq, Reads, Sequence};
+use crate::common::{Freq, Reads, Seq, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -73,10 +73,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 ///
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// calculate node freqs of multiple emission sequences (`Reads`).
-    pub fn to_node_freqs(&self, r: &Reads) -> NodeFreqs {
-        r.reads
-            .iter()
-            .map(|read| {
+    pub fn to_node_freqs<T>(&self, seqs: T) -> NodeFreqs
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
@@ -85,10 +89,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .sum()
     }
     /// calculate edge freqs of multiple emission sequences (`Reads`).
-    pub fn to_edge_freqs(&self, r: &Reads) -> EdgeFreqs {
-        r.reads
-            .iter()
-            .map(|read| {
+    pub fn to_edge_freqs<T>(&self, seqs: T) -> EdgeFreqs
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
@@ -103,10 +111,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * purge reduce function (e.g. by adding a trait on ParallelIterator)
     ///
-    pub fn to_node_freqs_parallel(&self, r: &Reads) -> (NodeFreqs, Prob) {
-        r.reads
-            .par_iter()
-            .map(|read| {
+    pub fn to_node_freqs_parallel<T>(&self, seqs: T) -> (NodeFreqs, Prob)
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        seqs.into_par_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
@@ -123,10 +135,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     /// calculate edge freqs of multiple emission sequences (`Reads`).
     /// with rayon parallel calculation
-    pub fn to_edge_freqs_parallel(&self, r: &Reads) -> (EdgeFreqs, Prob) {
-        r.reads
-            .par_iter()
-            .map(|read| {
+    pub fn to_edge_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, Prob)
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        seqs.into_par_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
@@ -148,10 +164,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * do not run backward. Running forward is enough.
     ///
-    pub fn to_full_prob_parallel(&self, r: &Reads) -> Prob {
-        r.reads
-            .par_iter()
-            .map(|read| {
+    pub fn to_full_prob_parallel<T>(&self, seqs: T) -> Prob
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        seqs.into_par_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);

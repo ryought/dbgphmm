@@ -76,11 +76,11 @@ mod tests {
         //
         println!("constructing dbg");
         let k: usize = 8;
-        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_reads(k, &reads);
+        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);
         println!("{}", dbg_raw);
 
         // (4) compare with true dbg
-        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &genome);
+        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, genome);
 
         (reads, dbg_raw, dbg_true)
     }

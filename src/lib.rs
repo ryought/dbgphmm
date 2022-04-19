@@ -16,6 +16,7 @@ pub mod min_flow;
 pub mod optimizer;
 pub mod prob;
 pub mod random_seq;
+pub mod reads;
 pub mod stats;
 pub mod veclike;
 pub mod vector;
