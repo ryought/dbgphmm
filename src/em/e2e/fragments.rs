@@ -30,12 +30,12 @@ mod tests {
             },
             phmm_params: PHMMParams::default(),
         };
-        let (reads, pos) = g.sample_reads_with_pos(&profile);
-        for (i, read) in reads.iter().enumerate() {
-            println!("{}", sequence_to_string(read));
-            println!("{:?}", pos[i]);
+        let pos_reads = g.sample_positioned_reads(&profile);
+        for pos_read in pos_reads.iter() {
+            println!("{}", sequence_to_string(pos_read));
         }
-        g.show_coverage(&pos);
+        g.show_coverage(&pos_reads);
+        let reads = pos_reads.to_reads();
 
         let k: usize = 8;
         let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);

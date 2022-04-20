@@ -5,7 +5,7 @@ use super::super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::super::freq::NodeFreqs;
 use super::super::trans_table::EdgeFreqs;
 use super::{Emission, State};
-use crate::common::{Reads, Sequence};
+use crate::common::{PositionedReads, PositionedSequence, Reads, Sequence};
 use crate::graph::genome_graph::GenomeGraphPosVec;
 use crate::graph::seq_graph::SimpleSeqGraph;
 use itertools::Itertools;
@@ -103,6 +103,12 @@ impl History {
             })
             .collect()
     }
+    ///
+    /// Convert into positioned sequence
+    ///
+    pub fn to_positioned_sequence(&self, sg: &SimpleSeqGraph) -> PositionedSequence {
+        PositionedSequence::new(self.to_sequence(), self.to_genome_graph_pos(sg), false)
+    }
 }
 
 //
@@ -131,13 +137,21 @@ impl Historys {
     }
     pub fn to_reads(&self) -> Reads {
         let reads: Vec<Sequence> = self.0.iter().map(|history| history.to_sequence()).collect();
-        Reads { reads }
+        Reads::from(reads)
     }
     pub fn to_pos(&self, sg: &SimpleSeqGraph) -> Vec<GenomeGraphPosVec> {
         self.0
             .iter()
             .map(|history| history.to_genome_graph_pos(sg))
             .collect()
+    }
+    pub fn to_positioned_reads(&self, sg: &SimpleSeqGraph) -> PositionedReads {
+        let reads: Vec<PositionedSequence> = self
+            .0
+            .iter()
+            .map(|history| history.to_positioned_sequence(sg))
+            .collect();
+        PositionedReads::from(reads)
     }
     pub fn iter(&self) -> impl Iterator<Item = &History> + '_ {
         self.0.iter()

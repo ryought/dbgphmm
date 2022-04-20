@@ -181,19 +181,12 @@ impl GenomeGraph {
     }
     /// Sample reads from the genome graph.
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
-        let (reads, pos) = self.sample_reads_with_pos(prof);
-        reads
+        self.sample_positioned_reads(prof).to_reads()
     }
     ///
     /// Sample positioned reads
     ///
     pub fn sample_positioned_reads(&self, prof: &ReadProfile) -> PositionedReads {
-        unimplemented!();
-    }
-    /// Sample reads from the genome graph.
-    ///
-    /// with sampled position info
-    pub fn sample_reads_with_pos(&self, prof: &ReadProfile) -> (Reads, Vec<GenomeGraphPosVec>) {
         // convert to phmm
         let sg = self.to_seq_graph();
         let phmm = sg.to_phmm(prof.phmm_params.clone());
@@ -209,12 +202,11 @@ impl GenomeGraph {
 
         // sample reads using profile
         //
-        // TODO convert to genome graph position
         // store the originated genome graph position in seqgraph
         let historys = phmm.sample_by_profile(&prof.sample_profile);
-        (historys.to_reads(), historys.to_pos(&sg))
+        historys.to_positioned_reads(&sg)
     }
-    pub fn show_coverage(&self, pos: &[GenomeGraphPosVec]) {
+    pub fn show_coverage(&self, reads: &PositionedReads) {
         let mut coverages: Vec<Vec<usize>> = self
             .0
             .node_indices()
@@ -224,10 +216,10 @@ impl GenomeGraph {
                 vec![0; len]
             })
             .collect();
-        for ps in pos {
-            for p in ps {
-                println!("{:?}", p);
-                coverages[p.node.index()][p.pos] += 1;
+        for read in reads.iter() {
+            for origin in read.origins() {
+                println!("{:?}", origin);
+                coverages[origin.node.index()][origin.pos] += 1;
             }
         }
 

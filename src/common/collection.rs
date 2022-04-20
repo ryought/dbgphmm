@@ -112,6 +112,16 @@ impl<S: Seq> ReadCollection<S> {
     }
 }
 
+impl PositionedReads {
+    ///
+    /// Remove position information
+    ///
+    pub fn to_reads(self) -> Reads {
+        let reads: Vec<Sequence> = self.reads.into_iter().map(|pos_seq| pos_seq.seq).collect();
+        Reads::from(reads)
+    }
+}
+
 impl<'a> IntoIterator for &'a Reads {
     type Item = &'a Sequence;
     type IntoIter = std::slice::Iter<'a, Sequence>;
@@ -262,12 +272,14 @@ pub struct PositionedSequence {
 impl PositionedSequence {
     /// Constructor of positioned sequence.
     pub fn new(seq: Sequence, origins: GenomeGraphPosVec, is_revcomp: bool) -> Self {
-        assert!(seq.len() == origins.len());
         PositionedSequence {
             seq,
             origins,
             is_revcomp,
         }
+    }
+    pub fn origins(&self) -> &GenomeGraphPosVec {
+        &self.origins
     }
 }
 
