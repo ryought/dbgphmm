@@ -4,7 +4,7 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, Reads, Sequence};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
@@ -183,6 +183,12 @@ impl GenomeGraph {
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
         let (reads, pos) = self.sample_reads_with_pos(prof);
         reads
+    }
+    ///
+    /// Sample positioned reads
+    ///
+    pub fn sample_positioned_reads(&self, prof: &ReadProfile) -> PositionedReads {
+        unimplemented!();
     }
     /// Sample reads from the genome graph.
     ///

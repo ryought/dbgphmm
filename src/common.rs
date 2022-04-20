@@ -4,8 +4,8 @@
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 pub mod collection;
 pub use collection::{
-    sequence_to_string, Bases, Genome, Reads, Seq, SeqStyle, Sequence, StyledSequence,
-    StyledSequenceParseError,
+    sequence_to_string, Bases, Genome, PositionedReads, PositionedSequence, Reads, Seq, SeqStyle,
+    Sequence, StyledSequence, StyledSequenceParseError,
 };
 
 /// integer copy number (= occurrence on the genome/sequence)

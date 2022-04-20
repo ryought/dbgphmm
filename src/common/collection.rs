@@ -79,17 +79,31 @@ pub type Genome = Vec<Sequence>;
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]
-pub struct Reads {
-    pub reads: Vec<Sequence>,
+pub struct ReadCollection<S: Seq> {
+    pub reads: Vec<S>,
 }
 
-impl Reads {
+///
+/// Reads
+///
+/// ReadCollection of Sequences
+///
+pub type Reads = ReadCollection<Sequence>;
+
+///
+/// PositionedReads
+///
+/// ReadCollection of PositionedSequences
+///
+pub type PositionedReads = ReadCollection<PositionedSequence>;
+
+impl<S: Seq> ReadCollection<S> {
     /// Constructor of reads
-    pub fn from(reads: Vec<Sequence>) -> Self {
-        Reads { reads }
+    pub fn from(reads: Vec<S>) -> Self {
+        ReadCollection { reads }
     }
     /// get an iterator over the reads
-    pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &S> + '_ {
         self.reads.iter()
     }
     /// the number of reads.
@@ -241,13 +255,25 @@ pub struct PositionedSequence {
     seq: Sequence,
     /// origin position of each base of the read
     origins: GenomeGraphPosVec,
+    /// is reverse complemented or not
+    is_revcomp: bool,
 }
 
 impl PositionedSequence {
     /// Constructor of positioned sequence.
-    pub fn new(seq: Sequence, origins: GenomeGraphPosVec) -> Self {
+    pub fn new(seq: Sequence, origins: GenomeGraphPosVec, is_revcomp: bool) -> Self {
         assert!(seq.len() == origins.len());
-        PositionedSequence { seq, origins }
+        PositionedSequence {
+            seq,
+            origins,
+            is_revcomp,
+        }
+    }
+}
+
+impl AsRef<Bases> for PositionedSequence {
+    fn as_ref(&self) -> &Bases {
+        &self.seq
     }
 }
 
