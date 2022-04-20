@@ -14,28 +14,6 @@ pub type CopyNum = usize;
 /// frequency of the node
 pub type Freq = f64;
 
-// TMP
-
-/// Position information
-pub struct Pos {
-    chr: usize,
-    pos: usize,
-}
-
-///
-pub struct Region {
-    start: Pos,
-    end: Pos,
-}
-
-///
-pub struct Read {
-    seq: Sequence,
-    source: Option<Region>,
-}
-
-// END OF TMP
-
 ///
 /// null base
 ///

@@ -5,12 +5,14 @@
 //!
 //! * `Sequence`
 //! * `StyledSequence`
+//! * `PositionedSequence`
 //!
 //! ## Sequences
 //!
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
+use crate::graph::genome_graph::GenomeGraphPosVec;
 use rayon::prelude::*;
 use std::str::FromStr;
 
@@ -201,6 +203,25 @@ impl FromStr for StyledSequence {
 impl AsRef<Bases> for StyledSequence {
     fn as_ref(&self) -> &Bases {
         &self.seq
+    }
+}
+
+///
+/// PositionedSequence
+///
+#[derive(Clone, Debug)]
+pub struct PositionedSequence {
+    /// sequence (bases) of the read
+    seq: Sequence,
+    /// origin position of each base of the read
+    origins: GenomeGraphPosVec,
+}
+
+impl PositionedSequence {
+    /// Constructor of positioned sequence.
+    pub fn new(seq: Sequence, origins: GenomeGraphPosVec) -> Self {
+        assert!(seq.len() == origins.len());
+        PositionedSequence { seq, origins }
     }
 }
 

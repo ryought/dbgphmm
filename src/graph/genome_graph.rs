@@ -208,6 +208,9 @@ impl GenomeGraph {
         let historys = phmm.sample_by_profile(&prof.sample_profile);
         (historys.to_reads(), historys.to_pos(&sg))
     }
+    pub fn show_coverage(&self, pos: &[GenomeGraphPosVec]) {
+        unimplemented!();
+    }
 }
 
 #[cfg(test)]
