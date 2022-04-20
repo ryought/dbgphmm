@@ -35,6 +35,7 @@ mod tests {
             println!("{}", sequence_to_string(read));
             println!("{:?}", pos[i]);
         }
+        g.show_coverage(&pos);
 
         let k: usize = 8;
         let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);

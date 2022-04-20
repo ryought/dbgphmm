@@ -209,7 +209,27 @@ impl GenomeGraph {
         (historys.to_reads(), historys.to_pos(&sg))
     }
     pub fn show_coverage(&self, pos: &[GenomeGraphPosVec]) {
-        unimplemented!();
+        let mut coverages: Vec<Vec<usize>> = self
+            .0
+            .node_indices()
+            .map(|v| {
+                let weight = self.0.node_weight(v).unwrap();
+                let len = weight.seq.len();
+                vec![0; len]
+            })
+            .collect();
+        for ps in pos {
+            for p in ps {
+                println!("{:?}", p);
+                coverages[p.node.index()][p.pos] += 1;
+            }
+        }
+
+        for i in 0..self.node_count() {
+            for j in 0..coverages[i].len() {
+                println!("{} {} {}", i, j, coverages[i][j]);
+            }
+        }
     }
 }
 
