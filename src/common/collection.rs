@@ -31,12 +31,32 @@ pub type Sequence = Vec<u8>;
 /// It is used in `AsRef<Bases>` or `&Bases`
 pub type Bases = [u8];
 
+///
+/// Get the complemented base A <=> T, G <=> C
+///
+pub fn complement(base: u8) -> u8 {
+    match base {
+        b'A' | b'a' => b'T',
+        b'T' | b't' => b'A',
+        b'C' | b'c' => b'G',
+        b'G' | b'g' => b'C',
+        n => n,
+    }
+}
+
 /// Seq trait
 /// It can be converted into &Bases with `as_ref()`.
 ///
 pub trait Seq: AsRef<Bases> {
     fn to_str(&self) -> &str {
         std::str::from_utf8(self.as_ref()).unwrap()
+    }
+    fn to_revcomp(&self) -> Sequence {
+        self.as_ref()
+            .iter()
+            .rev()
+            .map(|&base| complement(base))
+            .collect()
     }
 }
 impl<T: AsRef<Bases>> Seq for T {}
@@ -255,5 +275,13 @@ mod tests {
         let s2 = StyledSequence::new(b"CTCGATCG".to_vec(), SeqStyle::Linear);
         let e2 = "L:CTCGATCG".to_string();
         assert_eq!(s2, StyledSequence::from_str(&e2).unwrap());
+    }
+    #[test]
+    fn seq_revcomp() {
+        let s1 = b"ATCGGCCC".to_vec();
+        let s2 = s1.to_revcomp();
+        println!("{}", s1.to_str());
+        println!("{}", s2.to_str());
+        assert_eq!(s2, b"GGGCCGAT");
     }
 }
