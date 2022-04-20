@@ -48,9 +48,15 @@ pub fn complement(base: u8) -> u8 {
 /// It can be converted into &Bases with `as_ref()`.
 ///
 pub trait Seq: AsRef<Bases> {
+    ///
+    /// convert bases into &str for displaying
+    ///
     fn to_str(&self) -> &str {
         std::str::from_utf8(self.as_ref()).unwrap()
     }
+    ///
+    /// convert into reverse complemented sequence
+    ///
     fn to_revcomp(&self) -> Sequence {
         self.as_ref()
             .iter()
