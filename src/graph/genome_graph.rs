@@ -354,7 +354,19 @@ impl GenomeGraph {
 mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
+    use crate::graph::seq_graph::find_node_from_source_pos;
     use crate::random_seq::generate;
+
+    fn has_edge_between_two_pos(
+        g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>,
+        source_a: GenomeGraphPos,
+        source_b: GenomeGraphPos,
+        is_revcomp: bool,
+    ) -> bool {
+        let a = find_node_from_source_pos(g, source_a, is_revcomp).unwrap();
+        let b = find_node_from_source_pos(g, source_b, is_revcomp).unwrap();
+        g.contains_edge(a, b)
+    }
 
     #[test]
     fn genome_graph_linear() {
@@ -405,6 +417,30 @@ mod tests {
         // both strand
         let sg = gg.to_seq_graph_with_revcomp(true);
         println!("{}", Dot::with_config(&sg, &[]));
+        assert!(has_edge_between_two_pos(
+            &sg,
+            GenomeGraphPos::new(ni(0), 4),
+            GenomeGraphPos::new(ni(2), 0),
+            false
+        ));
+        assert!(has_edge_between_two_pos(
+            &sg,
+            GenomeGraphPos::new(ni(1), 2),
+            GenomeGraphPos::new(ni(2), 0),
+            false
+        ));
+        assert!(has_edge_between_two_pos(
+            &sg,
+            GenomeGraphPos::new(ni(2), 0),
+            GenomeGraphPos::new(ni(0), 4),
+            true
+        ));
+        assert!(has_edge_between_two_pos(
+            &sg,
+            GenomeGraphPos::new(ni(2), 0),
+            GenomeGraphPos::new(ni(1), 2),
+            true
+        ));
     }
 
     #[test]

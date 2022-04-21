@@ -218,6 +218,19 @@ pub fn get_start_points(g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>) -> Vec<NodeIn
         .collect()
 }
 
+/// Find a node in seqgraph
+/// with given GenomeGraphPos and revcomp info
+pub fn find_node_from_source_pos(
+    g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>,
+    source: GenomeGraphPos,
+    is_revcomp: bool,
+) -> Option<NodeIndex> {
+    g.node_indices().find(|&v| {
+        let weight = g.node_weight(v).unwrap();
+        weight.source == source && weight.is_revcomp == is_revcomp
+    })
+}
+
 pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
