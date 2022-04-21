@@ -4,7 +4,7 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Sequence};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Seq, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
@@ -56,7 +56,7 @@ impl GenomeEdge {
     }
 }
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub struct GenomeGraphPos {
     /// index of GenomeNode
     node: NodeIndex,
@@ -68,6 +68,16 @@ impl GenomeGraphPos {
     /// Constructor
     pub fn new(node: NodeIndex, pos: usize) -> Self {
         GenomeGraphPos { node, pos }
+    }
+    /// is first base or not (pos == 0)
+    pub fn is_first_base(&self) -> bool {
+        self.pos == 0
+    }
+}
+
+impl std::fmt::Display for GenomeGraphPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({},{})", self.node.index(), self.pos)
     }
 }
 
@@ -146,21 +156,37 @@ impl GenomeGraph {
         &self,
         graph: &mut SimpleSeqGraph,
         node: NodeIndex,
+        revcomp: bool,
     ) -> (NodeIndex, NodeIndex) {
         let weight = self.node_weight(node).unwrap();
         let seq = &weight.seq;
+        let n = seq.len();
         let copy_num = weight.copy_num;
         let is_start_point_node = self.is_start_point_node(node);
-        self.insert_nodes_for_seq(
-            graph,
-            seq,
-            |index, base| {
-                let pos = GenomeGraphPos::new(node, index);
-                let is_start_point = is_start_point_node && (index == 0);
-                SimpleSeqNode::new(copy_num, base, is_start_point, false, pos)
-            },
-            |_index| SimpleSeqEdge::new(Some(copy_num)),
-        )
+
+        if revcomp {
+            self.insert_nodes_for_seq(
+                graph,
+                &seq.to_revcomp(),
+                |index, base| {
+                    let pos = GenomeGraphPos::new(node, n - index - 1);
+                    let is_start_point = is_start_point_node && index == 0;
+                    SimpleSeqNode::new(copy_num, base, is_start_point, true, pos)
+                },
+                |_index| SimpleSeqEdge::new(Some(copy_num)),
+            )
+        } else {
+            self.insert_nodes_for_seq(
+                graph,
+                seq,
+                |index, base| {
+                    let pos = GenomeGraphPos::new(node, index);
+                    let is_start_point = is_start_point_node && index == 0;
+                    SimpleSeqNode::new(copy_num, base, is_start_point, false, pos)
+                },
+                |_index| SimpleSeqEdge::new(Some(copy_num)),
+            )
+        }
     }
     ///
     /// convert a seq into nodes/edges in seq graph.
@@ -203,13 +229,43 @@ impl GenomeGraph {
     /// split a node containing bases into multiple nodes corresponding each bases
     ///
     pub fn to_seq_graph(&self) -> SimpleSeqGraph {
+        self.to_seq_graph_with_revcomp(false)
+    }
+    ///
+    /// Convert `GenomeGraph` into `SimpleSeqGraph`
+    /// split a node containing bases into multiple nodes corresponding each bases
+    ///
+    pub fn to_seq_graph_with_revcomp(&self, with_revcomp: bool) -> SimpleSeqGraph {
         let mut graph = DiGraph::new();
 
+        // mapping
+        // from a node in genome graph (representing a sequence)
+        // to head/tail of nodes in seq graph (each node representing a single base)
+        //
+        // mf: mapping of forward nodes
+        // mb: mapping of backward (= revcomp) nodes
+        //
+        // Example
+        // a genome graph node `ATCGG` will be converted into
+        //
+        // (forward)   A->T->C->G->G
+        //             Head        Tail
+        // (backward)  T<-A<-G<-C<-C
+        //             Tail        Head
+        let mut mf: HashMap<NodeIndex, (NodeIndex, NodeIndex)> = HashMap::new();
+        let mut mb: HashMap<NodeIndex, (NodeIndex, NodeIndex)> = HashMap::new();
+
         // for each node
-        let mut m: HashMap<NodeIndex, (NodeIndex, NodeIndex)> = HashMap::new();
         for node in self.node_indices() {
-            let (first, last) = self.insert_nodes_for_node(&mut graph, node);
-            m.insert(node, (first, last));
+            // forward
+            let (head, tail) = self.insert_nodes_for_node(&mut graph, node, false);
+            mf.insert(node, (head, tail));
+
+            // backward
+            if with_revcomp {
+                let (head, tail) = self.insert_nodes_for_node(&mut graph, node, true);
+                mb.insert(node, (head, tail));
+            }
         }
 
         // for each edge
@@ -217,16 +273,27 @@ impl GenomeGraph {
             let (source, target) = self.edge_endpoints(edge).unwrap();
             let weight = self.edge_weight(edge).unwrap();
 
-            // add an edge
-            // from "the last node of the source"
-            // to "the first node of the target"
-            let (_, last_of_source) = m.get(&source).unwrap();
-            let (first_of_target, _) = m.get(&target).unwrap();
+            // add edge for forward
+            // (tail of source) -> (head of target)
+            let (_, tail_of_source) = mf.get(&source).unwrap();
+            let (head_of_target, _) = mf.get(&target).unwrap();
             graph.add_edge(
-                *last_of_source,
-                *first_of_target,
+                *tail_of_source,
+                *head_of_target,
                 SimpleSeqEdge::new(weight.copy_num),
             );
+
+            // add edge for backward
+            // (tail of target) -> (head of source)
+            if with_revcomp {
+                let (_, tail_of_target) = mb.get(&target).unwrap();
+                let (head_of_source, _) = mb.get(&source).unwrap();
+                graph.add_edge(
+                    *tail_of_target,
+                    *head_of_source,
+                    SimpleSeqEdge::new(weight.copy_num),
+                );
+            }
         }
 
         graph
@@ -294,11 +361,29 @@ mod tests {
         let mut g = DiGraph::new();
         g.add_node(GenomeNode::new(b"GATGCTAGTT", 1));
         let gg = GenomeGraph(g);
+
+        // forward only
         let sg = gg.to_seq_graph();
         assert_eq!(sg.node_count(), 10);
         assert_eq!(sg.edge_count(), 9);
         println!("{}", Dot::with_config(&sg, &[]));
         assert_eq!(get_start_points(&sg), vec![ni(0)]);
+
+        // both strand
+        let sg = gg.to_seq_graph_with_revcomp(true);
+        println!("{}", Dot::with_config(&sg, &[]));
+        let start_points = get_start_points(&sg);
+        assert_eq!(start_points, vec![ni(0), ni(10)]);
+        let start_point_sources: Vec<_> = start_points
+            .iter()
+            .map(|&v| sg.node_weight(v).unwrap().source())
+            .collect();
+        assert_eq!(
+            start_point_sources,
+            vec![GenomeGraphPos::new(ni(0), 0), GenomeGraphPos::new(ni(0), 9)]
+        );
+        assert_eq!(sg.node_count(), 20);
+        assert_eq!(sg.edge_count(), 18);
     }
 
     #[test]
@@ -316,6 +401,10 @@ mod tests {
         println!("{}", Dot::with_config(&sg, &[]));
         println!("{:?}", get_start_points(&sg));
         assert_eq!(get_start_points(&sg), vec![ni(0), ni(5)]);
+
+        // both strand
+        let sg = gg.to_seq_graph_with_revcomp(true);
+        println!("{}", Dot::with_config(&sg, &[]));
     }
 
     #[test]

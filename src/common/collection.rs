@@ -47,6 +47,10 @@ pub fn complement(base: u8) -> u8 {
 /// Seq trait
 /// It can be converted into &Bases with `as_ref()`.
 ///
+/// * `as_ref`
+/// * `to_str`
+/// * `to_revcomp`
+///
 pub trait Seq: AsRef<Bases> {
     ///
     /// convert bases into &str for displaying

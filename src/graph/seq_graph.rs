@@ -283,10 +283,12 @@ impl std::fmt::Display for SimpleSeqNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} (x{}) (starting={})",
+            "{} (x{}) (s={}, revcomp={}, source={})",
             self.base() as char,
             self.copy_num(),
-            self.is_start_point()
+            self.is_start_point(),
+            self.is_revcomp,
+            self.source,
         )
     }
 }
