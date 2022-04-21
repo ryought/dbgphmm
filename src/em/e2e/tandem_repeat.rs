@@ -11,7 +11,7 @@ mod tests {
     use crate::kmer::VecKmer;
     use crate::random_seq::generate;
 
-    fn generate_e2e_fragment_mock() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
+    fn generate_dataset() -> (Genome, Reads, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
         // (1) generate genome and reads
         println!("generating genome");
         let genome_size = 200;
@@ -49,27 +49,7 @@ mod tests {
     }
 
     #[test]
-    fn e2e_fragment() {
-        let (genome, reads, dbg_raw, dbg_true) = generate_e2e_fragment_mock();
-
-        println!("|V|={}", dbg_raw.n_nodes());
-
-        /*
-        let (dbg, _) = compression(&dbg_raw, &reads, &PHMMParams::default(), 1.0, 10);
-        let (dbg, logs) = compression_with_depths(
-            &dbg_raw,
-            &reads,
-            &PHMMParams::default(),
-            &[
-                1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 5.0, 5.0, 8.0, 8.0, 10.0, 10.0,
-            ],
-        );
-        println!("{}", dbg);
-        println!("{:?}", logs);
-        println!("{}", dbg_true);
-
-        let r = dbg.compare(&dbg_true);
-        println!("{:?}", r);
-        */
+    fn e2e_tandem_repeat() {
+        let (genome, reads, dbg_raw, dbg_true) = generate_dataset();
     }
 }
