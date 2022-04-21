@@ -339,6 +339,14 @@ impl GenomeGraph {
         historys.to_positioned_reads(&sg)
     }
     pub fn show_coverage(&self, reads: &PositionedReads) {
+        let coverages = self.collect_coverage_info(reads);
+        for i in 0..self.node_count() {
+            for j in 0..coverages[i].len() {
+                println!("{} {} {}", i, j, coverages[i][j]);
+            }
+        }
+    }
+    pub fn collect_coverage_info(&self, reads: &PositionedReads) -> Vec<Vec<usize>> {
         let mut coverages: Vec<Vec<usize>> = self
             .0
             .node_indices()
@@ -350,16 +358,10 @@ impl GenomeGraph {
             .collect();
         for read in reads.iter() {
             for origin in read.origins() {
-                println!("{:?}", origin);
                 coverages[origin.node.index()][origin.pos] += 1;
             }
         }
-
-        for i in 0..self.node_count() {
-            for j in 0..coverages[i].len() {
-                println!("{} {} {}", i, j, coverages[i][j]);
-            }
-        }
+        coverages
     }
 }
 
@@ -555,6 +557,17 @@ mod tests {
             }
         }
         assert_eq!(n_revcomp, 9);
+
+        graph.show_coverage(&reads);
+        let coverages = graph.collect_coverage_info(&reads);
+        println!("{:?}", coverages);
+        assert_eq!(
+            coverages,
+            vec![
+                vec![9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9],
+                vec![6, 6, 6, 7, 6, 6, 6, 6, 6, 6, 6, 6]
+            ]
+        );
 
         // convert to read (with justifying)
         let justified_reads = reads.to_reads(true);
