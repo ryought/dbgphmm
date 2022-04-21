@@ -340,11 +340,14 @@ impl GenomeGraph {
     }
     pub fn show_coverage(&self, reads: &PositionedReads) {
         let coverages = self.collect_coverage_info(reads);
+        /*
         for i in 0..self.node_count() {
             for j in 0..coverages[i].len() {
                 println!("{} {} {}", i, j, coverages[i][j]);
             }
         }
+        */
+        println!("{:?}", coverages);
     }
     pub fn collect_coverage_info(&self, reads: &PositionedReads) -> Vec<Vec<usize>> {
         let mut coverages: Vec<Vec<usize>> = self
