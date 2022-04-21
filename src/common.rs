@@ -29,6 +29,16 @@ pub const VALID_BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
 ///
 pub const BASES: [u8; 5] = [b'A', b'C', b'G', b'T', NULL_BASE];
 
+pub fn different_bases(base: u8) -> &'static [u8] {
+    match base {
+        b'A' => &[b'C', b'G', b'T'],
+        b'C' => &[b'A', b'G', b'T'],
+        b'G' => &[b'A', b'C', b'T'],
+        b'T' => &[b'A', b'C', b'G'],
+        _ => panic!(),
+    }
+}
+
 ///
 /// short-hand of `NodeIndex::new`
 ///
