@@ -313,7 +313,7 @@ impl GenomeGraph {
     }
     /// Sample reads from the genome graph.
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
-        self.sample_positioned_reads(prof).to_reads()
+        self.sample_positioned_reads(prof).to_reads(false)
     }
     ///
     /// Sample positioned reads
@@ -531,7 +531,7 @@ mod tests {
         let reads = graph.sample_positioned_reads(&ReadProfile {
             has_revcomp: true,
             sample_profile: SampleProfile {
-                read_amount: ReadAmount::Count(10),
+                read_amount: ReadAmount::Count(15),
                 seed: 0,
                 length: 1000,
                 start_points: StartPoints::AllStartPoints,
@@ -539,8 +539,45 @@ mod tests {
             },
             phmm_params: PHMMParams::default(),
         });
+        let is_valid_end_origin = |origin: GenomeGraphPos| {
+            origin == GenomeGraphPos::new(ni(0), 0)
+                || origin == GenomeGraphPos::new(ni(0), 10)
+                || origin == GenomeGraphPos::new(ni(1), 0)
+                || origin == GenomeGraphPos::new(ni(1), 11)
+        };
+        let mut n_revcomp = 0;
         for read in reads.iter() {
             println!("{}", read);
+            assert!(is_valid_end_origin(read.head_origin()));
+            assert!(is_valid_end_origin(read.tail_origin()));
+            if read.is_revcomp() {
+                n_revcomp += 1;
+            }
         }
+        assert_eq!(n_revcomp, 9);
+
+        // convert to read (with justifying)
+        let justified_reads = reads.to_reads(true);
+        let s: Vec<_> = justified_reads.iter().map(|read| read.to_str()).collect();
+        assert_eq!(
+            s,
+            vec![
+                "ATCGATTCGAT",
+                "ATCGATTCGAT",
+                "CTCTTCTTCTCT",
+                "CTCTATCTTCTCT",
+                "ATCGATTCGAT",
+                "ATCATTCGAT",
+                "CTCTTCTTCTCT",
+                "ATCGATTCGAT",
+                "ATCGATTCGAT",
+                "CTCTTCTTCTCT",
+                "ATCGATTCGAT",
+                "CTCTTCTTCTCT",
+                "GTCGATTCGAT",
+                "ATCGATTCAAT",
+                "CTCTTCTTCTCT",
+            ]
+        );
     }
 }

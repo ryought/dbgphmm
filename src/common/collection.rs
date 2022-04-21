@@ -12,7 +12,7 @@
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
-use crate::graph::genome_graph::GenomeGraphPosVec;
+use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::str::FromStr;
@@ -119,10 +119,24 @@ impl<S: Seq> ReadCollection<S> {
 
 impl PositionedReads {
     ///
-    /// Remove position information
+    /// Remove position information and convert to `Reads`.
     ///
-    pub fn to_reads(self) -> Reads {
-        let reads: Vec<Sequence> = self.reads.into_iter().map(|pos_seq| pos_seq.seq).collect();
+    /// * `justify_strand` (bool)
+    ///     if true, align all reads in forward strand
+    ///     by revcomping backward reads.
+    ///
+    pub fn to_reads(self, justify_strand: bool) -> Reads {
+        let reads: Vec<Sequence> = self
+            .reads
+            .into_iter()
+            .map(|pos_seq| {
+                if justify_strand && pos_seq.is_revcomp() {
+                    pos_seq.seq.to_revcomp()
+                } else {
+                    pos_seq.seq
+                }
+            })
+            .collect();
         Reads::from(reads)
     }
 }
@@ -285,6 +299,14 @@ impl PositionedSequence {
     }
     pub fn origins(&self) -> &GenomeGraphPosVec {
         &self.origins
+    }
+    /// origin position of first base
+    pub fn head_origin(&self) -> GenomeGraphPos {
+        *self.origins.first().unwrap()
+    }
+    /// origin position of last base
+    pub fn tail_origin(&self) -> GenomeGraphPos {
+        *self.origins.last().unwrap()
     }
     pub fn is_revcomp(&self) -> bool {
         self.is_revcomp
