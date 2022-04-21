@@ -4,6 +4,7 @@
 //!
 
 use crate::common::{CopyNum, NULL_BASE};
+use crate::graph::genome_graph::GenomeGraphPos;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
@@ -217,22 +218,51 @@ pub fn get_start_points(g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>) -> Vec<NodeIn
         .collect()
 }
 
+/// Find a node in seqgraph
+/// with given GenomeGraphPos and revcomp info
+pub fn find_node_from_source_pos(
+    g: &DiGraph<SimpleSeqNode, SimpleSeqEdge>,
+    source: GenomeGraphPos,
+    is_revcomp: bool,
+) -> Option<NodeIndex> {
+    g.node_indices().find(|&v| {
+        let weight = g.node_weight(v).unwrap();
+        weight.source == source && weight.is_revcomp == is_revcomp
+    })
+}
+
 pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
     is_start_point: bool,
+    is_revcomp: bool,
+    source: GenomeGraphPos,
 }
 
 impl SimpleSeqNode {
-    pub fn new(copy_num: CopyNum, base: u8, is_start_point: bool) -> SimpleSeqNode {
+    pub fn new(
+        copy_num: CopyNum,
+        base: u8,
+        is_start_point: bool,
+        is_revcomp: bool,
+        source: GenomeGraphPos,
+    ) -> SimpleSeqNode {
         SimpleSeqNode {
             copy_num,
             base,
             is_start_point,
+            is_revcomp,
+            source,
         }
     }
     pub fn is_start_point(&self) -> bool {
         self.is_start_point
+    }
+    pub fn source(&self) -> GenomeGraphPos {
+        self.source
+    }
+    pub fn is_revcomp(&self) -> bool {
+        self.is_revcomp
     }
 }
 
@@ -269,10 +299,12 @@ impl std::fmt::Display for SimpleSeqNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} (x{}) (starting={})",
+            "{} (x{}) (s={}, revcomp={}, source={})",
             self.base() as char,
             self.copy_num(),
-            self.is_start_point()
+            self.is_start_point(),
+            self.is_revcomp,
+            self.source,
         )
     }
 }

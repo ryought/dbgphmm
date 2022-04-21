@@ -15,6 +15,9 @@ pub trait Seq: AsRef<Bases> {
 }
 impl<T: AsRef<Bases>> Seq for T {}
 
+///
+/// A mock function that takes a collection of seq.
+///
 fn bar<T>(xs: T)
 where
     T: IntoIterator,
@@ -26,9 +29,19 @@ where
     }
 }
 
-fn foo<'a, I: IntoIterator<Item = &'a u8>>(xs: I) {
+///
+/// Run iterator twice test
+///
+fn foo<T>(xs: T)
+where
+    T: IntoIterator + Clone,
+    T::Item: Seq,
+{
+    for x in xs.clone() {
+        println!("foo1={:?}", x.as_ref());
+    }
     for x in xs {
-        println!("{:?}", x);
+        println!("foo2={:?}", x.as_ref());
     }
 }
 
@@ -97,5 +110,7 @@ mod tests {
             SampledRead::new(b"CTCGCTCTC".to_vec(), 1),
         ]);
         bar(&ss);
+        bar(&ss);
+        foo(&ss);
     }
 }

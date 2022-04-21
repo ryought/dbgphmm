@@ -5,12 +5,15 @@
 //!
 //! * `Sequence`
 //! * `StyledSequence`
+//! * `PositionedSequence`
 //!
 //! ## Sequences
 //!
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
+use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
+use itertools::Itertools;
 use rayon::prelude::*;
 use std::str::FromStr;
 
@@ -29,12 +32,42 @@ pub type Sequence = Vec<u8>;
 /// It is used in `AsRef<Bases>` or `&Bases`
 pub type Bases = [u8];
 
+///
+/// Get the complemented base A <=> T, G <=> C
+///
+pub fn complement(base: u8) -> u8 {
+    match base {
+        b'A' | b'a' => b'T',
+        b'T' | b't' => b'A',
+        b'C' | b'c' => b'G',
+        b'G' | b'g' => b'C',
+        n => n,
+    }
+}
+
 /// Seq trait
 /// It can be converted into &Bases with `as_ref()`.
 ///
+/// * `as_ref`
+/// * `to_str`
+/// * `to_revcomp`
+///
 pub trait Seq: AsRef<Bases> {
+    ///
+    /// convert bases into &str for displaying
+    ///
     fn to_str(&self) -> &str {
         std::str::from_utf8(self.as_ref()).unwrap()
+    }
+    ///
+    /// convert into reverse complemented sequence
+    ///
+    fn to_revcomp(&self) -> Sequence {
+        self.as_ref()
+            .iter()
+            .rev()
+            .map(|&base| complement(base))
+            .collect()
     }
 }
 impl<T: AsRef<Bases>> Seq for T {}
@@ -51,22 +84,60 @@ pub type Genome = Vec<Sequence>;
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]
-pub struct Reads {
-    pub reads: Vec<Sequence>,
+pub struct ReadCollection<S: Seq> {
+    pub reads: Vec<S>,
 }
 
-impl Reads {
+///
+/// Reads
+///
+/// ReadCollection of Sequences
+///
+pub type Reads = ReadCollection<Sequence>;
+
+///
+/// PositionedReads
+///
+/// ReadCollection of PositionedSequences
+///
+pub type PositionedReads = ReadCollection<PositionedSequence>;
+
+impl<S: Seq> ReadCollection<S> {
     /// Constructor of reads
-    pub fn from(reads: Vec<Sequence>) -> Self {
-        Reads { reads }
+    pub fn from(reads: Vec<S>) -> Self {
+        ReadCollection { reads }
     }
     /// get an iterator over the reads
-    pub fn iter(&self) -> impl Iterator<Item = &Sequence> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &S> + '_ {
         self.reads.iter()
     }
     /// the number of reads.
     pub fn len(&self) -> usize {
         self.reads.len()
+    }
+}
+
+impl PositionedReads {
+    ///
+    /// Remove position information and convert to `Reads`.
+    ///
+    /// * `justify_strand` (bool)
+    ///     if true, align all reads in forward strand
+    ///     by revcomping backward reads.
+    ///
+    pub fn to_reads(self, justify_strand: bool) -> Reads {
+        let reads: Vec<Sequence> = self
+            .reads
+            .into_iter()
+            .map(|pos_seq| {
+                if justify_strand && pos_seq.is_revcomp() {
+                    pos_seq.seq.to_revcomp()
+                } else {
+                    pos_seq.seq
+                }
+            })
+            .collect();
+        Reads::from(reads)
     }
 }
 
@@ -204,6 +275,65 @@ impl AsRef<Bases> for StyledSequence {
     }
 }
 
+///
+/// PositionedSequence
+///
+#[derive(Clone, Debug)]
+pub struct PositionedSequence {
+    /// sequence (bases) of the read
+    seq: Sequence,
+    /// origin position of each base of the read
+    origins: GenomeGraphPosVec,
+    /// is reverse complemented or not
+    is_revcomp: bool,
+}
+
+impl PositionedSequence {
+    /// Constructor of positioned sequence.
+    pub fn new(seq: Sequence, origins: GenomeGraphPosVec, is_revcomp: bool) -> Self {
+        PositionedSequence {
+            seq,
+            origins,
+            is_revcomp,
+        }
+    }
+    pub fn origins(&self) -> &GenomeGraphPosVec {
+        &self.origins
+    }
+    /// origin position of first base
+    pub fn head_origin(&self) -> GenomeGraphPos {
+        *self.origins.first().unwrap()
+    }
+    /// origin position of last base
+    pub fn tail_origin(&self) -> GenomeGraphPos {
+        *self.origins.last().unwrap()
+    }
+    pub fn is_revcomp(&self) -> bool {
+        self.is_revcomp
+    }
+}
+
+impl AsRef<Bases> for PositionedSequence {
+    fn as_ref(&self) -> &Bases {
+        &self.seq
+    }
+}
+
+impl std::fmt::Display for PositionedSequence {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (revcomp={}, origins={})",
+            self.seq.to_str(),
+            self.is_revcomp(),
+            self.origins
+                .iter()
+                .map(|origin| origin.to_string())
+                .join(","),
+        )
+    }
+}
+
 //
 // tests
 //
@@ -234,5 +364,13 @@ mod tests {
         let s2 = StyledSequence::new(b"CTCGATCG".to_vec(), SeqStyle::Linear);
         let e2 = "L:CTCGATCG".to_string();
         assert_eq!(s2, StyledSequence::from_str(&e2).unwrap());
+    }
+    #[test]
+    fn seq_revcomp() {
+        let s1 = b"ATCGGCCC".to_vec();
+        let s2 = s1.to_revcomp();
+        println!("{}", s1.to_str());
+        println!("{}", s2.to_str());
+        assert_eq!(s2, b"GGGCCGAT");
     }
 }

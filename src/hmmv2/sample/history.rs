@@ -5,7 +5,9 @@ use super::super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::super::freq::NodeFreqs;
 use super::super::trans_table::EdgeFreqs;
 use super::{Emission, State};
-use crate::common::{Reads, Sequence};
+use crate::common::{PositionedReads, PositionedSequence, Reads, Sequence};
+use crate::graph::genome_graph::GenomeGraphPosVec;
+use crate::graph::seq_graph::SimpleSeqGraph;
 use itertools::Itertools;
 
 ///
@@ -88,6 +90,45 @@ impl History {
         }
         ef
     }
+    ///
+    /// Convert into genome graph pos list.
+    ///
+    fn to_genome_graph_pos(&self, sg: &SimpleSeqGraph) -> GenomeGraphPosVec {
+        self.0
+            .iter()
+            .filter_map(|(state, _)| {
+                state
+                    .to_node_index()
+                    .map(|v| sg.node_weight(v).unwrap().source())
+            })
+            .collect()
+    }
+    ///
+    /// Determine this sampling comes from revcomped node?
+    ///
+    fn to_genome_graph_is_revcomp(&self, sg: &SimpleSeqGraph) -> bool {
+        self.0
+            .iter()
+            .filter_map(|(state, _)| {
+                state
+                    .to_node_index()
+                    .map(|v| sg.node_weight(v).unwrap().is_revcomp())
+            })
+            .next()
+            .expect(
+                "Could not determine a strand of sampling history, because it not passed any nodes",
+            )
+    }
+    ///
+    /// Convert into positioned sequence
+    ///
+    pub fn to_positioned_sequence(&self, sg: &SimpleSeqGraph) -> PositionedSequence {
+        PositionedSequence::new(
+            self.to_sequence(),
+            self.to_genome_graph_pos(sg),
+            self.to_genome_graph_is_revcomp(sg),
+        )
+    }
 }
 
 //
@@ -116,7 +157,21 @@ impl Historys {
     }
     pub fn to_reads(&self) -> Reads {
         let reads: Vec<Sequence> = self.0.iter().map(|history| history.to_sequence()).collect();
-        Reads { reads }
+        Reads::from(reads)
+    }
+    pub fn to_pos(&self, sg: &SimpleSeqGraph) -> Vec<GenomeGraphPosVec> {
+        self.0
+            .iter()
+            .map(|history| history.to_genome_graph_pos(sg))
+            .collect()
+    }
+    pub fn to_positioned_reads(&self, sg: &SimpleSeqGraph) -> PositionedReads {
+        let reads: Vec<PositionedSequence> = self
+            .0
+            .iter()
+            .map(|history| history.to_positioned_sequence(sg))
+            .collect();
+        PositionedReads::from(reads)
     }
     pub fn iter(&self) -> impl Iterator<Item = &History> + '_ {
         self.0.iter()
