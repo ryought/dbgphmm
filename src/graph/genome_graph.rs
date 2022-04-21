@@ -16,11 +16,24 @@ use petgraph::visit::IntoNodeReferences;
 use petgraph::Direction;
 use std::collections::HashMap;
 
-/// Read sampling profile
+///
+/// A profile for read sampling from GenomeGraph
 ///
 #[derive(Clone, Debug)]
 pub struct ReadProfile {
+    ///
+    /// enable revcomp part or not
+    /// when converting GenomeGraph into SeqGraph
+    ///
+    pub has_revcomp: bool,
+    ///
+    /// settings of phmm sampling.
+    /// passed to `sample_by_profile`
+    ///
     pub sample_profile: SampleProfile,
+    ///
+    /// PHMM params
+    ///
     pub phmm_params: PHMMParams,
 }
 
@@ -307,7 +320,7 @@ impl GenomeGraph {
     ///
     pub fn sample_positioned_reads(&self, prof: &ReadProfile) -> PositionedReads {
         // convert to phmm
-        let sg = self.to_seq_graph();
+        let sg = self.to_seq_graph_with_revcomp(prof.has_revcomp);
         let phmm = sg.to_phmm(prof.phmm_params.clone());
 
         // determine automatically the starting node list
@@ -470,6 +483,7 @@ mod tests {
         let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
         let graph = GenomeGraph::from_seqs(&seqs);
         let reads = graph.sample_reads(&ReadProfile {
+            has_revcomp: false,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(10),
                 seed: 0,
@@ -489,6 +503,7 @@ mod tests {
         let genome = vec![generate(500, 0)];
         let g = GenomeGraph::from_seqs(&genome);
         let profile = ReadProfile {
+            has_revcomp: false,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(100),
                 seed: 0,
@@ -507,6 +522,25 @@ mod tests {
             } else if i == 1 {
                 assert_eq!(sequence_to_string(read), "AGCGATTAAACACCCTATAAAAATGGCCATCCGCTGAGCTTGCATCACAGTTGGTCTTACACATGCCTGCTTCATCAAAGTCCCACTGCGCCATCA");
             }
+        }
+    }
+    #[test]
+    fn genome_graph_sampling_both_strand() {
+        let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
+        let graph = GenomeGraph::from_seqs(&seqs);
+        let reads = graph.sample_positioned_reads(&ReadProfile {
+            has_revcomp: true,
+            sample_profile: SampleProfile {
+                read_amount: ReadAmount::Count(10),
+                seed: 0,
+                length: 1000,
+                start_points: StartPoints::AllStartPoints,
+                endable: false,
+            },
+            phmm_params: PHMMParams::default(),
+        });
+        for read in reads.iter() {
+            println!("{}", read);
         }
     }
 }

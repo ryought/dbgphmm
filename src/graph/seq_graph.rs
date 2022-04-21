@@ -261,6 +261,9 @@ impl SimpleSeqNode {
     pub fn source(&self) -> GenomeGraphPos {
         self.source
     }
+    pub fn is_revcomp(&self) -> bool {
+        self.is_revcomp
+    }
 }
 
 impl SeqNode for SimpleSeqNode {

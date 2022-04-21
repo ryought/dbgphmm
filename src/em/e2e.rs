@@ -60,6 +60,7 @@ mod tests {
         println!("generating reads");
         let g = GenomeGraph::from_seqs(genome);
         let profile = ReadProfile {
+            has_revcomp: false,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(count),
                 seed: 0,

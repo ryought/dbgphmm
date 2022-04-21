@@ -13,6 +13,7 @@
 //! * `Reads`: read collections
 //!
 use crate::graph::genome_graph::GenomeGraphPosVec;
+use itertools::Itertools;
 use rayon::prelude::*;
 use std::str::FromStr;
 
@@ -293,6 +294,21 @@ impl PositionedSequence {
 impl AsRef<Bases> for PositionedSequence {
     fn as_ref(&self) -> &Bases {
         &self.seq
+    }
+}
+
+impl std::fmt::Display for PositionedSequence {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (revcomp={}, origins={})",
+            self.seq.to_str(),
+            self.is_revcomp(),
+            self.origins
+                .iter()
+                .map(|origin| origin.to_string())
+                .join(","),
+        )
     }
 }
 
