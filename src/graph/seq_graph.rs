@@ -222,6 +222,7 @@ pub struct SimpleSeqNode {
     copy_num: CopyNum,
     base: u8,
     is_start_point: bool,
+    is_revcomp: bool,
     source: GenomeGraphPos,
 }
 
@@ -230,12 +231,14 @@ impl SimpleSeqNode {
         copy_num: CopyNum,
         base: u8,
         is_start_point: bool,
+        is_revcomp: bool,
         source: GenomeGraphPos,
     ) -> SimpleSeqNode {
         SimpleSeqNode {
             copy_num,
             base,
             is_start_point,
+            is_revcomp,
             source,
         }
     }

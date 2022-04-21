@@ -281,6 +281,9 @@ impl PositionedSequence {
     pub fn origins(&self) -> &GenomeGraphPosVec {
         &self.origins
     }
+    pub fn is_revcomp(&self) -> bool {
+        self.is_revcomp
+    }
 }
 
 impl AsRef<Bases> for PositionedSequence {

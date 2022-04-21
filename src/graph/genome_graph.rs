@@ -118,9 +118,85 @@ impl GenomeGraph {
     pub fn edge_count(&self) -> usize {
         self.0.edge_count()
     }
+    /// wrapper of DiGraph::node_indices
+    pub fn node_indices(&self) -> impl Iterator<Item = NodeIndex> {
+        self.0.node_indices()
+    }
+    /// wrapper of DiGraph::edge_indices
+    pub fn edge_indices(&self) -> impl Iterator<Item = EdgeIndex> {
+        self.0.edge_indices()
+    }
+    /// wrapper of DiGraph::node_weight
+    pub fn node_weight(&self, node: NodeIndex) -> Option<&GenomeNode> {
+        self.0.node_weight(node)
+    }
+    /// wrapper of DiGraph::edge_weight
+    pub fn edge_weight(&self, edge: EdgeIndex) -> Option<&GenomeEdge> {
+        self.0.edge_weight(edge)
+    }
+    /// wrapper of DiGraph::edge_endpoints
+    pub fn edge_endpoints(&self, edge: EdgeIndex) -> Option<(NodeIndex, NodeIndex)> {
+        self.0.edge_endpoints(edge)
+    }
     /// if node has no incoming edge, it is a start point node
     pub fn is_start_point_node(&self, node: NodeIndex) -> bool {
         self.0.edges_directed(node, Direction::Incoming).count() == 0
+    }
+    fn insert_nodes_for_node(
+        &self,
+        graph: &mut SimpleSeqGraph,
+        node: NodeIndex,
+    ) -> (NodeIndex, NodeIndex) {
+        let weight = self.node_weight(node).unwrap();
+        let seq = &weight.seq;
+        let copy_num = weight.copy_num;
+        let is_start_point_node = self.is_start_point_node(node);
+        self.insert_nodes_for_seq(
+            graph,
+            seq,
+            |index, base| {
+                let pos = GenomeGraphPos::new(node, index);
+                let is_start_point = is_start_point_node && (index == 0);
+                SimpleSeqNode::new(copy_num, base, is_start_point, false, pos)
+            },
+            |_index| SimpleSeqEdge::new(Some(copy_num)),
+        )
+    }
+    ///
+    /// convert a seq into nodes/edges in seq graph.
+    ///
+    /// seq ATCGATCG
+    ///
+    /// return tuple of NodeIndex of the first and last node.
+    ///
+    fn insert_nodes_for_seq<N, E>(
+        &self,
+        graph: &mut SimpleSeqGraph,
+        seq: &Sequence,
+        node_fn: N,
+        edge_fn: E,
+    ) -> (NodeIndex, NodeIndex)
+    where
+        N: Fn(usize, u8) -> SimpleSeqNode,
+        E: Fn(usize) -> SimpleSeqEdge,
+    {
+        // add a new node for each bases
+        let nodes: Vec<NodeIndex> = seq
+            .iter()
+            .enumerate()
+            .map(|(index, &base)| graph.add_node(node_fn(index, base)))
+            .collect();
+
+        // add edges between adjacent two bases
+        nodes
+            .iter()
+            .tuple_windows()
+            .enumerate()
+            .for_each(|(index, (&v0, &v1))| {
+                graph.add_edge(v0, v1, edge_fn(index));
+            });
+
+        (*nodes.first().unwrap(), *nodes.last().unwrap())
     }
     ///
     /// Convert `GenomeGraph` into `SimpleSeqGraph`
@@ -131,39 +207,15 @@ impl GenomeGraph {
 
         // for each node
         let mut m: HashMap<NodeIndex, (NodeIndex, NodeIndex)> = HashMap::new();
-        for (node, node_weight) in self.0.node_references() {
-            let seq = &node_weight.seq;
-            let copy_num = node_weight.copy_num;
-
-            // add a new node for each bases
-            // TODO move this to seq_graph.rs?
-            let is_start_point_node = self.is_start_point_node(node);
-            let nodes: Vec<NodeIndex> = seq
-                .iter()
-                .enumerate()
-                .map(|(i, &base)| {
-                    let pos = GenomeGraphPos::new(node, i);
-                    let is_start_point = is_start_point_node && (i == 0);
-                    graph.add_node(SimpleSeqNode::new(copy_num, base, is_start_point, pos))
-                })
-                .collect();
-
-            // add edges between adjacent two bases
-            let edges: Vec<EdgeIndex> = nodes
-                .iter()
-                .tuple_windows()
-                .map(|(&v0, &v1)| graph.add_edge(v0, v1, SimpleSeqEdge::new(Some(copy_num))))
-                .collect();
-
-            // store the first/last node
-            m.insert(node, (*nodes.first().unwrap(), *nodes.last().unwrap()));
+        for node in self.node_indices() {
+            let (first, last) = self.insert_nodes_for_node(&mut graph, node);
+            m.insert(node, (first, last));
         }
 
-        // for each node
-        for er in self.0.edge_references() {
-            let source = er.source();
-            let target = er.target();
-            let weight = er.weight();
+        // for each edge
+        for edge in self.edge_indices() {
+            let (source, target) = self.edge_endpoints(edge).unwrap();
+            let weight = self.edge_weight(edge).unwrap();
 
             // add an edge
             // from "the last node of the source"
