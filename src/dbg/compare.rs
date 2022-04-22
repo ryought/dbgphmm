@@ -19,7 +19,7 @@ pub struct CompareResult {
 /// Result of comparing two Dbgs along with a seq.
 ///
 #[derive(Clone, Debug, Default)]
-pub struct CompareWithSeqResult<K: KmerLike>(Vec<CompareWithSeqResultForBase<K>>);
+pub struct CompareWithSeqResult<K: KmerLike>(pub Vec<CompareWithSeqResultForBase<K>>);
 
 #[derive(Clone, Debug, Default)]
 pub struct CompareWithSeqResultForBase<K: KmerLike> {
@@ -28,10 +28,20 @@ pub struct CompareWithSeqResultForBase<K: KmerLike> {
     copy_num_self: CopyNum,
 }
 
+impl<K: KmerLike> CompareWithSeqResultForBase<K> {
+    pub fn is_correct(&self) -> bool {
+        self.copy_num_true == self.copy_num_self
+    }
+}
+
 impl<K: KmerLike> std::fmt::Display for CompareWithSeqResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for r in self.0.iter() {
-            writeln!(f, "{}\t{}\t{}", r.kmer, r.copy_num_true, r.copy_num_self)?;
+        for (i, r) in self.0.iter().enumerate() {
+            writeln!(
+                f,
+                "{}\t{}\t{}\t{}",
+                i, r.kmer, r.copy_num_true, r.copy_num_self
+            )?;
         }
         Ok(())
     }

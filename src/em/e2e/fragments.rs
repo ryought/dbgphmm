@@ -1,11 +1,17 @@
+//!
+//! Fragmented read test
+//!
+//! ## (Ignored) tests
+//!
+//! * e2e_fragment_full
+//!
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
-    use crate::em::infer;
-    use crate::em::scheduler::SchedulerType1;
+    use crate::em::e2e::runner::benchmark;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
@@ -64,29 +70,14 @@ mod tests {
     #[test]
     fn e2e_fragment_full() {
         let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = generate_e2e_fragment_mock();
-        println!("{}", dbg_raw.n_ambiguous_intersections());
-        println!("{}", dbg_raw.n_traverse_choices());
-        let scheduler = SchedulerType1::new(8, 50, 10.0);
-        let dbg_infer = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
-
-        println!("dbg_infer=\n{}", dbg_infer);
-        println!("{}", dbg_infer.n_traverse_choices());
-        println!("dbg_true=\n{}", dbg_true);
-        println!("{}", dbg_true.n_traverse_choices());
-        println!("genome=\n{}", sequence_to_string(&genome[0]));
-
-        let r = dbg_infer.compare(&dbg_true);
-        println!("{:?}", r);
-
-        let p_infer = dbg_infer
-            .to_phmm(PHMMParams::default())
-            .to_full_prob_parallel(&reads);
-        println!("p_infer={}", p_infer);
-
-        let p_true = dbg_true
-            .to_phmm(PHMMParams::default())
-            .to_full_prob_parallel(&reads);
-        println!("p_true={}", p_true);
+        let (dbg_infer, r, _) = benchmark(
+            &dbg_raw,
+            &dbg_true,
+            &reads,
+            &genome,
+            &PHMMParams::default(),
+            10.0,
+        );
 
         /*
         let (dbg, _) = compression(&dbg_raw, &reads, &PHMMParams::default(), 1.0, 10);

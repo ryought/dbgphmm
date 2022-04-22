@@ -2,11 +2,60 @@
 //! read and dbg generation functions
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
+use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::em::infer;
+use crate::em::scheduler::SchedulerType1;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+
+pub fn benchmark(
+    dbg_raw: &SimpleDbg<VecKmer>,
+    dbg_true: &SimpleDbg<VecKmer>,
+    reads: &Reads,
+    genome: &Genome,
+    phmm_params: &PHMMParams,
+    coverage: f64,
+) -> (
+    SimpleDbg<VecKmer>,
+    CompareResult,
+    Vec<CompareWithSeqResult<VecKmer>>,
+) {
+    let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
+    let dbg_infer = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+
+    println!("dbg_raw=\n{}", dbg_raw);
+    println!("{}", dbg_raw.n_traverse_choices());
+    println!("dbg_infer=\n{}", dbg_infer);
+    println!("{}", dbg_infer.n_traverse_choices());
+    println!("dbg_true=\n{}", dbg_true);
+    println!("{}", dbg_true.n_traverse_choices());
+    println!("genome=\n{}", sequence_to_string(&genome[0]));
+
+    let r = dbg_infer.compare(&dbg_true);
+    println!("{:?}", r);
+
+    let p_infer = dbg_infer
+        .to_phmm(phmm_params.clone())
+        .to_full_prob_parallel(reads);
+    println!("p_infer={}", p_infer);
+
+    let p_true = dbg_true
+        .to_phmm(phmm_params.clone())
+        .to_full_prob_parallel(reads);
+    println!("p_true={}", p_true);
+
+    let mut v = Vec::new();
+    for hap in genome {
+        let rs = dbg_infer.compare_with_seq(&dbg_true, hap);
+        println!("{}", rs);
+        v.push(rs);
+    }
+
+    (dbg_infer, r, v)
+}
 
 pub fn generate_full_length_reads_and_dbgs(
     genome: &Genome,

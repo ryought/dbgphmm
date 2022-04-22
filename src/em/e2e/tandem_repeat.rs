@@ -1,6 +1,12 @@
 //!
 //! Tandem repeat haploid/diploid assembly with full-length reads (coverage 10x).
 //!
+//! ## Ignored tests
+//!
+//! * e2e_tandem_repeat_haploid_error_2
+//! * e2e_tandem_repeat_haploid_error_1
+//! * e2e_tandem_repeat_diploid
+//!
 
 #[cfg(test)]
 mod tests {
@@ -9,7 +15,7 @@ mod tests {
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::genome::{generate_tandem_repeat_diploid, generate_tandem_repeat_haploid};
-    use crate::em::e2e::runner::generate_full_length_reads_and_dbgs;
+    use crate::em::e2e::runner::{benchmark, generate_full_length_reads_and_dbgs};
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
@@ -89,34 +95,46 @@ mod tests {
 
     #[ignore]
     #[test]
-    fn e2e_tandem_repeat_haploid() {
+    fn e2e_tandem_repeat_haploid_error_2() {
         let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
-            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::mid_error(), 30);
+            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::mid_error_2(), 10);
+        let (_, r, s) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 10.0);
+        assert_eq!(r.n_true, 248);
+        assert_eq!(r.n_error, 249);
+        for (i, result) in s[0].0.iter().enumerate() {
+            if i <= 221 {
+                assert!(result.is_correct());
+            } else if i <= 470 {
+                assert!(!result.is_correct());
+            } else {
+                assert!(result.is_correct());
+            }
+        }
+    }
 
-        let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), 10.0);
-        let dbg_infer = infer(&dbg_raw, &reads, &phmm_params, &scheduler, 5);
+    #[ignore]
+    #[test]
+    fn e2e_tandem_repeat_haploid_error_1() {
+        let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
+            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 10);
+        let (_, r, s) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 10.0);
+        assert_eq!(r.n_true, 408);
+        assert_eq!(r.n_error, 89);
+        for (i, result) in s[0].0.iter().enumerate() {
+            if i <= 397 {
+                assert!(result.is_correct());
+            }
+        }
+    }
 
-        println!("{} {}", dbg_true_init.n_traverse_choices(), dbg_true_init);
-        println!("{} {}", dbg_true.n_traverse_choices(), dbg_true);
-        println!("{} {}", dbg_infer.n_traverse_choices(), dbg_infer);
-
-        let r = dbg_infer.compare(&dbg_true);
-        println!("{:?}", r);
-        // assert_eq!(r.n_true, 408);
-        // assert_eq!(r.n_error, 89);
-
-        let r = dbg_infer.compare_with_seq(&dbg_true, &genome[0]);
-        println!("{}", r);
-
-        let p_infer = dbg_infer
-            .to_phmm(PHMMParams::mid_error())
-            .to_full_prob_parallel(&reads);
-        println!("p_infer={}", p_infer);
-
-        let p_true = dbg_true
-            .to_phmm(PHMMParams::mid_error())
-            .to_full_prob_parallel(&reads);
-        println!("p_true={}", p_true);
+    #[ignore]
+    #[test]
+    fn e2e_tandem_repeat_haploid_error_v2_1() {
+        let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
+            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
+        let (_, r, s) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 15.0);
+        assert_eq!(r.n_true, 362);
+        assert_eq!(r.n_error, 135);
     }
 
     #[ignore]
@@ -124,16 +142,7 @@ mod tests {
     fn e2e_tandem_repeat_diploid() {
         let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
             generate_dataset_diploid(10, 0, 2, 111);
-
-        let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), 10.0);
-        let dbg_infer = infer(&dbg_raw, &reads, &phmm_params, &scheduler, 5);
-
-        println!("{} {}", dbg_true_init.n_traverse_choices(), dbg_true_init);
-        println!("{} {}", dbg_true.n_traverse_choices(), dbg_true);
-        println!("{} {}", dbg_infer.n_traverse_choices(), dbg_infer);
-
-        let r = dbg_infer.compare(&dbg_true);
-        println!("{:?}", r);
+        let (_, r, _) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 10.0);
         assert_eq!(r.n_true, 732);
         assert_eq!(r.n_error, 0);
     }
