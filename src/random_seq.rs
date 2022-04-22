@@ -121,6 +121,17 @@ pub struct MutationProfile {
     p_del: f64,
 }
 
+impl MutationProfile {
+    pub fn uniform(divergence_rate: f64) -> MutationProfile {
+        MutationProfile {
+            divergence_rate,
+            p_mut: 1.0,
+            p_ins: 1.0,
+            p_del: 1.0,
+        }
+    }
+}
+
 ///
 /// Mutate randomly with MutationProfile
 ///
