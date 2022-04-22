@@ -15,6 +15,7 @@ use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::random_seq::generate;
 mod fragments;
+mod tandem_repeat;
 
 #[cfg(test)]
 mod tests {

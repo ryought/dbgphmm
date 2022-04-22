@@ -241,6 +241,9 @@ impl StyledSequence {
     pub fn seq(&self) -> &Sequence {
         &self.seq
     }
+    pub fn to_seq(self) -> Sequence {
+        self.seq
+    }
     pub fn style(&self) -> SeqStyle {
         self.style
     }
