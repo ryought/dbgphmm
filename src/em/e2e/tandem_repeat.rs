@@ -150,6 +150,8 @@ mod tests {
         println!("{:?}", r);
         assert_eq!(r.n_true, 408);
         assert_eq!(r.n_error, 89);
+
+        dbg_infer.compare_with_seq(&dbg_true, &genome[0]);
     }
 
     #[ignore]
