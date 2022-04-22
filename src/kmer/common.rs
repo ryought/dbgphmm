@@ -211,7 +211,7 @@ pub fn circular_sequence_to_kmers<'a, K: KmerLike>(
 ///
 /// * it does not works when `length of seq > k`.
 ///
-fn sequence_to_kmers<'a, K: KmerLike>(
+pub fn sequence_to_kmers<'a, K: KmerLike>(
     seq: &'a [u8],
     k: usize,
     seq_style: SeqStyle,
