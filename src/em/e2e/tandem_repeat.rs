@@ -30,6 +30,7 @@ mod tests {
     fn generate_dataset() -> (
         Genome,
         Reads,
+        PHMMParams,
         SimpleDbg<VecKmer>,
         SimpleDbg<VecKmer>,
         SimpleDbg<VecKmer>,
@@ -42,6 +43,7 @@ mod tests {
 
         println!("generating reads");
         let g = GenomeGraph::from_seqs(&genome);
+        let phmm_params = PHMMParams::default();
         let profile = ReadProfile {
             has_revcomp: true,
             sample_profile: SampleProfile {
@@ -51,7 +53,7 @@ mod tests {
                 start_points: StartPoints::AllStartPoints,
                 endable: false,
             },
-            phmm_params: PHMMParams::default(),
+            phmm_params: phmm_params.clone(),
         };
         let pos_reads = g.sample_positioned_reads(&profile);
         for pos_read in pos_reads.iter() {
@@ -69,15 +71,15 @@ mod tests {
         // (5) true k=50 (read length)
         let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(100, &genome);
 
-        (genome, reads, dbg_raw, dbg_true_init, dbg_true)
+        (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true)
     }
 
     #[test]
     fn e2e_tandem_repeat() {
-        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = generate_dataset();
+        let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) = generate_dataset();
 
         let scheduler = SchedulerType1::new(8, 100, 10.0);
-        let dbg_infer = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
+        let dbg_infer = infer(&dbg_raw, &reads, &phmm_params, &scheduler, 5);
 
         println!("{} {}", dbg_true_init.n_traverse_choices(), dbg_true_init);
         println!("{} {}", dbg_true.n_traverse_choices(), dbg_true);
