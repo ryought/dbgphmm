@@ -9,4 +9,5 @@
 mod fragments;
 mod full_length;
 mod genome;
+mod runner;
 mod tandem_repeat;

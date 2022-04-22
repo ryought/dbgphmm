@@ -66,7 +66,7 @@ mod tests {
         let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = generate_e2e_fragment_mock();
         println!("{}", dbg_raw.n_ambiguous_intersections());
         println!("{}", dbg_raw.n_traverse_choices());
-        let scheduler = SchedulerType1::new(8, 51, 10.0);
+        let scheduler = SchedulerType1::new(8, 50, 10.0);
         let dbg_infer = infer(&dbg_raw, &reads, &PHMMParams::default(), &scheduler, 5);
 
         println!("dbg_infer=\n{}", dbg_infer);
