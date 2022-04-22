@@ -32,7 +32,9 @@ pub fn benchmark(
     println!("{}", dbg_infer.n_traverse_choices());
     println!("dbg_true=\n{}", dbg_true);
     println!("{}", dbg_true.n_traverse_choices());
-    println!("genome=\n{}", sequence_to_string(&genome[0]));
+    for (i, haplotype) in genome.iter().enumerate() {
+        println!("genome{}=\n{}", i, sequence_to_string(haplotype));
+    }
 
     let r = dbg_infer.compare(&dbg_true);
     println!("{:?}", r);
