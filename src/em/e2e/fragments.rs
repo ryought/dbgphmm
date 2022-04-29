@@ -11,6 +11,7 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
+    use crate::em::e2e::genome::simple;
     use crate::em::e2e::runner::benchmark;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
@@ -26,10 +27,8 @@ mod tests {
         SimpleDbg<VecKmer>,
         SimpleDbg<VecKmer>,
     ) {
-        // (1) generate genome and reads
         println!("generating genome");
-        let genome_size = 200;
-        let genome = vec![generate(genome_size, 0)];
+        let (genome, genome_size) = simple();
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         println!("generating reads");

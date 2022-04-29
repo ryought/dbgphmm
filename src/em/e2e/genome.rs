@@ -9,7 +9,38 @@
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::random_seq::{generate, random_mutation, tandem_repeat, MutationProfile};
 
+pub fn simple_small() -> (Genome, usize) {
+    let genome_size = 100;
+    let genome = vec![generate(genome_size, 0)];
+    (genome, genome_size)
+}
+
+pub fn simple() -> (Genome, usize) {
+    let genome_size = 200;
+    let genome = vec![generate(genome_size, 0)];
+    (genome, genome_size)
+}
+
+pub fn simple_diploid() -> (Genome, usize) {
+    let genome_size_hap = 100;
+    let haplotype1 = generate(100, 0);
+    let mut haplotype2 = haplotype1.clone();
+    haplotype2[30] = b'C';
+    haplotype2[80] = b'T';
+    let genome = vec![haplotype1, haplotype2];
+    let genome_size = genome_size_hap * 2;
+    (genome, genome_size)
+}
+
 /// tandem repeat haploid genome
+///
+/// -->-->-->-->-->-->-->
+///  ^
+///  |
+/// -->-->-->-->-->-->-->
+///  ^
+///  |
+/// -->
 ///
 pub fn generate_tandem_repeat_haploid(
     unit_size: usize,
