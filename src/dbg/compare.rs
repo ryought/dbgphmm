@@ -126,19 +126,25 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Check k-mer existence (i.e. copy num > 0) of the seq.
     ///
-    pub fn check_kmer_existence_with_seq<S: Seq>(&self, seq: &S) -> KmerExistenceResult<N::Kmer> {
+    pub fn check_kmer_existence_with_seqs<T>(&self, seqs: T) -> KmerExistenceResult<N::Kmer>
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
         let counts = self.to_kmer_profile();
         let mut r = KmerExistenceResult::new();
-        for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
-            let copy_num = match counts.get(&kmer) {
-                Some(copy_num) => *copy_num,
-                None => 0,
-            };
-            if copy_num > 0 {
-                r.n_exists += 1;
-            } else {
-                r.n_not_exists += 1;
-                r.kmers_not_exists.push(kmer);
+        for seq in seqs {
+            for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
+                let copy_num = match counts.get(&kmer) {
+                    Some(copy_num) => *copy_num,
+                    None => 0,
+                };
+                if copy_num > 0 {
+                    r.n_exists += 1;
+                } else {
+                    r.n_not_exists += 1;
+                    r.kmers_not_exists.push(kmer);
+                }
             }
         }
         r
@@ -184,7 +190,7 @@ mod tests {
         // compare with true seq
         let s = b"ATCGGATCGATGC";
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
-        let r = dbg.check_kmer_existence_with_seq(s);
+        let r = dbg.check_kmer_existence_with_seqs(&[s]);
         println!("{:?}", r);
         assert_eq!(r.n_exists, 20);
         assert_eq!(r.n_not_exists, 0);
@@ -192,7 +198,7 @@ mod tests {
 
         // compare with false seq with additional A in the last
         let s2 = b"ATCGGATCGATGCA";
-        let r = dbg.check_kmer_existence_with_seq(s2);
+        let r = dbg.check_kmer_existence_with_seqs(&[s2]);
         println!("{:?}", r);
         assert_eq!(r.n_exists, 13);
         assert_eq!(r.n_not_exists, 8);
