@@ -56,7 +56,6 @@ mod tests {
                 phmm_params,
                 coverage,
             );
-
         (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true)
     }
 

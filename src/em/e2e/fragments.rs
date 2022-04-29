@@ -12,7 +12,7 @@ mod tests {
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::genome::simple;
-    use crate::em::e2e::runner::benchmark;
+    use crate::em::e2e::runner::{benchmark, generate_reads_and_dbgs, ReadType};
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
@@ -27,41 +27,23 @@ mod tests {
         SimpleDbg<VecKmer>,
         SimpleDbg<VecKmer>,
     ) {
-        println!("generating genome");
         let (genome, genome_size) = simple(200, 0);
         println!("genome: {}", sequence_to_string(&genome[0]));
 
-        println!("generating reads");
         let g = GenomeGraph::from_seqs(&genome);
         let coverage = 10;
         let read_length = 50;
-        let profile = ReadProfile {
-            has_revcomp: true,
-            sample_profile: SampleProfile {
-                read_amount: ReadAmount::TotalBases(genome_size * coverage),
-                seed: 11,
-                length: read_length,
-                start_points: StartPoints::Random,
-                endable: false,
-            },
-            phmm_params: PHMMParams::default(),
-        };
-        let pos_reads = g.sample_positioned_reads(&profile);
-        for pos_read in pos_reads.iter() {
-            println!("{}", pos_read);
-        }
-        g.show_coverage(&pos_reads);
-        let reads = pos_reads.to_reads(true);
-
-        let k: usize = 8;
-        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);
-        // println!("{}", dbg_raw);
-
-        // (4) compare with true dbg with k=8 (init)
-        let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seq(k, &genome[0]);
-
-        // (5) true k=50 (read length)
-        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seq(read_length, &genome[0]);
+        let (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) = generate_reads_and_dbgs(
+            &genome,               //
+            genome_size,           //
+            11,                    // read_seed
+            PHMMParams::default(), //
+            coverage,              //
+            read_length,           //
+            ReadType::Fragment,    //
+            8,                     // k_init
+            read_length,           // k_target
+        );
 
         (genome, reads, dbg_raw, dbg_true_init, dbg_true)
     }
