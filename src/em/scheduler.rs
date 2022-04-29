@@ -21,6 +21,7 @@ pub enum Task {
     Extension(usize),
 }
 
+#[derive(Clone, Debug)]
 pub enum TaskLog {
     Compression(Vec<CompressionLog>),
     Extension(Vec<ExtensionLog>),

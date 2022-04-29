@@ -52,11 +52,6 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<ExtensionLog>) {
-    println!(
-        "extension! k={} n_ambiguous={}",
-        dbg.k(),
-        dbg.n_ambiguous_intersections()
-    );
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
@@ -167,9 +162,9 @@ fn m_step<N: DbgNode, E: DbgEdge>(
                     // get an optimized flow intersection
                     let (fio, cost) = fi.resolve();
 
-                    if !fi.can_unique_resolvable() {
-                        println!("extension optimized iter m {} {}", fi, fio);
-                    }
+                    // if !fi.can_unique_resolvable() {
+                    //     println!("extension optimized iter m {} {}", fi, fio);
+                    // }
 
                     // add cost
                     if let Some(cost) = cost {

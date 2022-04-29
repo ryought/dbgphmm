@@ -15,7 +15,9 @@ mod tests {
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::genome::{tandem_repeat_diploid, tandem_repeat_haploid};
-    use crate::em::e2e::runner::{benchmark, generate_full_length_reads_and_dbgs};
+    use crate::em::e2e::runner::{
+        benchmark, benchmark_em_steps, generate_full_length_reads_and_dbgs,
+    };
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
@@ -144,5 +146,13 @@ mod tests {
         let (_, r, _) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 10.0);
         assert_eq!(r.n_true, 732);
         assert_eq!(r.n_error, 0);
+    }
+
+    #[ignore]
+    #[test]
+    fn e2e_tandem_repeat_haploid_error_inspection() {
+        let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
+            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
+        benchmark_em_steps(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 15.0);
     }
 }

@@ -11,6 +11,21 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 
+pub fn benchmark_em_steps(
+    dbg_raw: &SimpleDbg<VecKmer>,
+    dbg_true: &SimpleDbg<VecKmer>,
+    reads: &Reads,
+    genome: &Genome,
+    phmm_params: &PHMMParams,
+    coverage: f64,
+) {
+    let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
+    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+    for (i, log) in logs.iter().enumerate() {
+        println!("iter#{}\t{:?}", i, log);
+    }
+}
+
 pub fn benchmark(
     dbg_raw: &SimpleDbg<VecKmer>,
     dbg_true: &SimpleDbg<VecKmer>,
