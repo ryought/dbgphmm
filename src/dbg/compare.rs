@@ -47,6 +47,26 @@ impl<K: KmerLike> std::fmt::Display for CompareWithSeqResult<K> {
     }
 }
 
+///
+/// result struct of `check_kmer_existence_with_seq`
+///
+#[derive(Clone, Debug)]
+pub struct KmerExistenceResult<K: KmerLike> {
+    pub n_exists: usize,
+    pub n_not_exists: usize,
+    pub kmers_not_exists: Vec<K>,
+}
+
+impl<K: KmerLike> KmerExistenceResult<K> {
+    pub fn new() -> Self {
+        KmerExistenceResult {
+            n_exists: 0,
+            n_not_exists: 0,
+            kmers_not_exists: Vec::new(),
+        }
+    }
+}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// compare with other dbg (as answer) and calculate the number of kmers with same copy number
@@ -103,6 +123,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         CompareWithSeqResult(results)
     }
+    ///
+    /// Check k-mer existence (i.e. copy num > 0) of the seq.
+    ///
+    pub fn check_kmer_existence_with_seq<S: Seq>(&self, seq: &S) -> KmerExistenceResult<N::Kmer> {
+        let counts = self.to_kmer_profile();
+        let mut r = KmerExistenceResult::new();
+        for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
+            let copy_num = match counts.get(&kmer) {
+                Some(copy_num) => *copy_num,
+                None => 0,
+            };
+            if copy_num > 0 {
+                r.n_exists += 1;
+            } else {
+                r.n_not_exists += 1;
+                r.kmers_not_exists.push(kmer);
+            }
+        }
+        r
+    }
 }
 
 //
@@ -138,5 +178,39 @@ mod tests {
         let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
         let r = dbg.compare_with_seq(&dbg_true, s);
         println!("{}", r);
+    }
+    #[test]
+    fn dbg_compare_check_kmer_existence() {
+        // compare with true seq
+        let s = b"ATCGGATCGATGC";
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
+        let r = dbg.check_kmer_existence_with_seq(s);
+        println!("{:?}", r);
+        assert_eq!(r.n_exists, 20);
+        assert_eq!(r.n_not_exists, 0);
+        assert_eq!(r.kmers_not_exists.len(), 0);
+
+        // compare with false seq with additional A in the last
+        let s2 = b"ATCGGATCGATGCA";
+        let r = dbg.check_kmer_existence_with_seq(s2);
+        println!("{:?}", r);
+        assert_eq!(r.n_exists, 13);
+        assert_eq!(r.n_not_exists, 8);
+        for kmer in r.kmers_not_exists.iter() {
+            println!("{}", kmer);
+        }
+        assert_eq!(
+            r.kmers_not_exists,
+            vec![
+                VecKmer::from_bases(b"TCGATGCA"),
+                VecKmer::from_bases(b"CGATGCAn"),
+                VecKmer::from_bases(b"GATGCAnn"),
+                VecKmer::from_bases(b"ATGCAnnn"),
+                VecKmer::from_bases(b"TGCAnnnn"),
+                VecKmer::from_bases(b"GCAnnnnn"),
+                VecKmer::from_bases(b"CAnnnnnn"),
+                VecKmer::from_bases(b"Annnnnnn"),
+            ]
+        );
     }
 }
