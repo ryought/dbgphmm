@@ -2,6 +2,8 @@
 //! EM scheduler
 //!
 
+use super::compression::CompressionLog;
+use super::extension::ExtensionLog;
 use crate::common::Freq;
 
 ///
@@ -17,6 +19,11 @@ pub enum Task {
     /// Run extension to specified k-mer length
     ///
     Extension(usize),
+}
+
+pub enum TaskLog {
+    Compression(Vec<CompressionLog>),
+    Extension(Vec<ExtensionLog>),
 }
 
 ///

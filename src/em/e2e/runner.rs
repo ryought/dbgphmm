@@ -24,7 +24,7 @@ pub fn benchmark(
     Vec<CompareWithSeqResult<VecKmer>>,
 ) {
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
-    let dbg_infer = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+    let (dbg_infer, _) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
 
     println!("dbg_raw=\n{}", dbg_raw);
     println!("{}", dbg_raw.n_traverse_choices());
