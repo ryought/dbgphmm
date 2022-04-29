@@ -14,7 +14,7 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
-    use crate::em::e2e::genome::{generate_tandem_repeat_diploid, generate_tandem_repeat_haploid};
+    use crate::em::e2e::genome::{tandem_repeat_diploid, tandem_repeat_haploid};
     use crate::em::e2e::runner::{benchmark, generate_full_length_reads_and_dbgs};
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
@@ -44,7 +44,7 @@ mod tests {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =
-            generate_tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
+            tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
         println!("genome hap_a: {}", sequence_to_string(&genome[0]));
 
         // (2) reads and dbgs
@@ -76,7 +76,7 @@ mod tests {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =
-            generate_tandem_repeat_diploid(20, 20, 0.1, unit_seed, hap_seed, 0.01, div_seed);
+            tandem_repeat_diploid(20, 20, 0.1, unit_seed, hap_seed, 0.01, div_seed);
         println!("genome hap_a: {}", sequence_to_string(&genome[0]));
         println!("genome hap_b: {}", sequence_to_string(&genome[1]));
 

@@ -28,7 +28,7 @@ mod tests {
         SimpleDbg<VecKmer>,
     ) {
         println!("generating genome");
-        let (genome, genome_size) = simple();
+        let (genome, genome_size) = simple(200, 0);
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         println!("generating reads");

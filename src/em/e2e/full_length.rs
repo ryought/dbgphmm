@@ -4,7 +4,7 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step};
-    use crate::em::e2e::genome::{simple_diploid, simple_small};
+    use crate::em::e2e::genome::{simple, simple_diploid};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
     use crate::em::infer;
@@ -25,7 +25,7 @@ mod tests {
     ) {
         // (1) generate genome and reads
         println!("generating genome");
-        let (genome, genome_size) = simple_small();
+        let (genome, genome_size) = simple(100, 0);
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         // (2) generate reads
