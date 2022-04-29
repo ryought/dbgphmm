@@ -22,7 +22,7 @@ pub fn benchmark_em_steps(
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
     let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
     for (i, log) in logs.iter().enumerate() {
-        println!("iter#{}\t{:?}", i, log);
+        println!("iter#{}\t{}", i, log);
     }
 }
 

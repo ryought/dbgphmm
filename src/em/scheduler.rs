@@ -5,6 +5,7 @@
 use super::compression::CompressionLog;
 use super::extension::ExtensionLog;
 use crate::common::Freq;
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 
 ///
 /// EM two task
@@ -21,10 +22,25 @@ pub enum Task {
     Extension(usize),
 }
 
-#[derive(Clone, Debug)]
-pub enum TaskLog {
-    Compression(Vec<CompressionLog>),
-    Extension(Vec<ExtensionLog>),
+#[derive(Clone)]
+pub enum TaskLog<N: DbgNode, E: DbgEdge> {
+    Compression(Vec<CompressionLog<N, E>>),
+    Extension(Vec<ExtensionLog<N, E>>),
+}
+
+impl<N: DbgNode, E: DbgEdge> std::fmt::Display for TaskLog<N, E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TaskLog::Compression(logs) => logs
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, log)| writeln!(f, "Compression\t{}\t{}", i, log)),
+            TaskLog::Extension(logs) => logs
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, log)| writeln!(f, "Extension\t{}\t{}", i, log)),
+        }
+    }
 }
 
 ///

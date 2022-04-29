@@ -19,20 +19,35 @@ use crate::prob::Prob;
 ///
 /// Log information store of each iteration in compression
 ///
-#[derive(Clone, Debug)]
-pub struct CompressionLog {
+#[derive(Clone)]
+pub struct CompressionLog<N: DbgNode, E: DbgEdge> {
     /// Full probability
     full_prob: Prob,
     /// Min-flow error
     min_flow_score: Cost,
+    /// resulting dbg
+    dbg: Dbg<N, E>,
 }
 
-impl CompressionLog {
-    pub fn new(full_prob: Prob, min_flow_score: Cost) -> Self {
+impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
+    pub fn new(full_prob: Prob, min_flow_score: Cost, dbg: Dbg<N, E>) -> Self {
         CompressionLog {
             full_prob,
             min_flow_score,
+            dbg,
         }
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionLog<N, E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\t{}\t{}",
+            self.full_prob.to_log_value(),
+            self.min_flow_score,
+            self.dbg
+        )
     }
 }
 
@@ -47,7 +62,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     depth: Freq,
     max_iter: usize,
-) -> (Dbg<N, E>, Vec<CompressionLog>) {
+) -> (Dbg<N, E>, Vec<CompressionLog<N, E>>) {
     let depths = vec![depth; max_iter];
     compression_with_depths(dbg, reads, params, &depths)
 }
@@ -61,7 +76,7 @@ pub fn compression_with_depths<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     depths: &[Freq],
-) -> (Dbg<N, E>, Vec<CompressionLog>) {
+) -> (Dbg<N, E>, Vec<CompressionLog<N, E>>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
@@ -92,7 +107,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     depth: Freq,
-) -> (Dbg<N, E>, bool, CompressionLog) {
+) -> (Dbg<N, E>, bool, CompressionLog<N, E>) {
     // e-step
     // calculate node_freqs by using current dbg.
     let (node_freqs, full_prob) = e_step(dbg, reads, params);
@@ -105,7 +120,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     new_dbg.remove_zero_copy_node();
 
     // create log
-    let log = CompressionLog::new(full_prob, min_flow_score);
+    let log = CompressionLog::new(full_prob, min_flow_score, new_dbg.clone());
 
     (new_dbg, is_updated, log)
 }

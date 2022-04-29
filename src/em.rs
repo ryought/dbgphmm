@@ -17,7 +17,7 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
     params: &PHMMParams,
     scheduler: &S,
     max_iter: usize,
-) -> (Dbg<N, E>, Vec<TaskLog>) {
+) -> (Dbg<N, E>, Vec<TaskLog<N, E>>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 

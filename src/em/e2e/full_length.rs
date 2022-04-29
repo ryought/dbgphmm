@@ -87,7 +87,9 @@ mod tests {
 
         let (dbg, logs) = compression(&dbg_raw, &reads, &PHMMParams::default(), 10.0, 5);
         println!("{}", dbg);
-        println!("{:?}", logs);
+        for log in logs.iter() {
+            println!("{}", log);
+        }
 
         let r = dbg.compare(&dbg_true_init);
         println!("{:?}", r);
