@@ -105,12 +105,20 @@ impl KmerHists {
 
 impl std::fmt::Display for KmerHists {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for copy_num in 0..=self.max_copy_num() {
+        (0..=self.max_copy_num()).try_for_each(|copy_num| {
             let hist = self.get_hist(copy_num);
-            writeln!(f, "x{}: {}", copy_num, hist.len())?;
-            write!(f, "{}", hist)?;
-        }
-        Ok(())
+            write!(
+                f,
+                "x{}={}{}",
+                copy_num,
+                hist,
+                if copy_num != self.max_copy_num() {
+                    ";"
+                } else {
+                    ""
+                }
+            )
+        })
     }
 }
 
@@ -224,6 +232,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
 
+        // TODO
+        // add x0 kmer (= error and not in true seqs) histogram
+
         hists
     }
 }
@@ -302,7 +313,6 @@ mod tests {
         let s = b"ATCGGATCGATGC";
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
         let kh = dbg.kmer_hists_from_seqs(&[s]);
-        println!("{}", kh);
         assert_eq!(kh.max_copy_num(), 1);
         let c0: Vec<_> = kh.get_hist(0).iter().collect();
         println!("{:?}", c0);
@@ -310,5 +320,7 @@ mod tests {
         let c1: Vec<_> = kh.get_hist(1).iter().collect();
         println!("{:?}", c1);
         assert_eq!(c1, vec![(1, 20)]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x0=;x1=1:20");
     }
 }
