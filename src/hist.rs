@@ -40,16 +40,31 @@ impl Hist {
     ///
     /// Get the min/max of the values
     ///
-    pub fn range(&self) -> (usize, usize) {
-        let min = *self.0.keys().min().unwrap();
-        let max = *self.0.keys().max().unwrap();
-        (min, max)
+    pub fn range(&self) -> Option<(usize, usize)> {
+        if !self.0.is_empty() {
+            let min = *self.0.keys().min().unwrap();
+            let max = *self.0.keys().max().unwrap();
+            Some((min, max))
+        } else {
+            None
+        }
     }
     ///
     /// Iterate over values and its counts
     ///
     pub fn iter(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
         self.0.iter().map(|(k, v)| (*k, *v))
+    }
+}
+
+impl std::fmt::Display for Hist {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.range() {
+            Some((min, max)) => {
+                (min..=max).try_for_each(|value| writeln!(f, "{}\t{}", value, self.get(value)))
+            }
+            None => Ok(()),
+        }
     }
 }
 
@@ -66,12 +81,13 @@ mod tests {
         h.add(2);
         h.add(3);
         println!("{:?}", h);
-        assert_eq!(h.range(), (2, 10));
+        assert_eq!(h.range(), Some((2, 10)));
         assert_eq!(h.get(10), 3);
         assert_eq!(h.get(2), 2);
         assert_eq!(h.get(3), 1);
         assert_eq!(h.get(0), 0);
         let c: Vec<_> = h.iter().collect();
         assert_eq!(c, vec![(2, 2), (3, 1), (10, 3)]);
+        println!("{}", h);
     }
 }
