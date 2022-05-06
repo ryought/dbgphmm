@@ -25,11 +25,11 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 #[derive(Clone)]
 pub struct ExtensionLog<N: DbgNode, E: DbgEdge> {
     /// Full probability
-    full_prob: Option<Prob>,
+    pub full_prob: Option<Prob>,
     /// min flow cost for intersecting nodes
-    min_flow_cost: Cost,
+    pub min_flow_cost: Cost,
     /// resulting dbg
-    dbg: Dbg<N, E>,
+    pub dbg: Dbg<N, E>,
 }
 
 impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {

@@ -3,6 +3,7 @@
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
+use crate::dbg::dbg::{DbgEdge, DbgNode};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::em::infer;
 use crate::em::scheduler::{SchedulerType1, TaskLog};
@@ -10,6 +11,46 @@ use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+
+pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &Genome) {
+    // header
+    println!("iter\ttype\tstep\tprob\tmin_flow\tcompare\tdbg\t");
+
+    // body
+    for (iteration, task_log) in task_logs.iter().enumerate() {
+        match task_log {
+            TaskLog::Compression(logs) => {
+                for (step, log) in logs.iter().enumerate() {
+                    println!(
+                        "{}\tC\t{}\t{}\t{}\t{:?}\t{}",
+                        iteration,
+                        step,
+                        log.full_prob.to_log_value(),
+                        log.min_flow_score,
+                        log.dbg.kmer_hists_from_seqs(genome),
+                        log.dbg,
+                    );
+                }
+            }
+            TaskLog::Extension(logs) => {
+                for (step, log) in logs.iter().enumerate() {
+                    println!(
+                        "{}\tE\t{}\t{}\t{}\t{:?}\t{}",
+                        iteration,
+                        step,
+                        match log.full_prob {
+                            Some(p) => p.to_log_value().to_string(),
+                            None => "-".to_string(),
+                        },
+                        log.min_flow_cost,
+                        log.dbg.kmer_hists_from_seqs(genome),
+                        log.dbg
+                    );
+                }
+            }
+        }
+    }
+}
 
 pub fn benchmark_em_steps(
     dbg_raw: &SimpleDbg<VecKmer>,
@@ -21,10 +62,7 @@ pub fn benchmark_em_steps(
 ) {
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
     let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
-    for (i, log) in logs.iter().enumerate() {
-        println!("iter#{}", i);
-        // print!("{}", log);
-    }
+    show_logs(&logs, genome);
 }
 
 pub fn benchmark(

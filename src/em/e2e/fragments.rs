@@ -12,7 +12,9 @@ mod tests {
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::genome::simple;
-    use crate::em::e2e::runner::{benchmark, generate_reads_and_dbgs, ReadType};
+    use crate::em::e2e::runner::{
+        benchmark, benchmark_em_steps, generate_reads_and_dbgs, ReadType,
+    };
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
@@ -46,6 +48,19 @@ mod tests {
         );
 
         (genome, reads, dbg_raw, dbg_true_init, dbg_true)
+    }
+
+    #[test]
+    fn e2e_fragment_full_benchmark_em_steps() {
+        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = generate_e2e_fragment_mock();
+        benchmark_em_steps(
+            &dbg_raw,
+            &dbg_true,
+            &reads,
+            &genome,
+            &PHMMParams::default(),
+            10.0,
+        );
     }
 
     #[test]

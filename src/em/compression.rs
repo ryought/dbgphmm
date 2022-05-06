@@ -22,11 +22,11 @@ use crate::prob::Prob;
 #[derive(Clone)]
 pub struct CompressionLog<N: DbgNode, E: DbgEdge> {
     /// Full probability
-    full_prob: Prob,
+    pub full_prob: Prob,
     /// Min-flow error
-    min_flow_score: Cost,
+    pub min_flow_score: Cost,
     /// resulting dbg
-    dbg: Dbg<N, E>,
+    pub dbg: Dbg<N, E>,
 }
 
 impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
