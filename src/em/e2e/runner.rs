@@ -5,7 +5,7 @@ use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::em::infer;
-use crate::em::scheduler::SchedulerType1;
+use crate::em::scheduler::{SchedulerType1, TaskLog};
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
@@ -22,7 +22,8 @@ pub fn benchmark_em_steps(
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
     let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
     for (i, log) in logs.iter().enumerate() {
-        println!("iter#{}\t{}", i, log);
+        println!("iter#{}", i);
+        // print!("{}", log);
     }
 }
 

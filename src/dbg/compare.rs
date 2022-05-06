@@ -3,6 +3,8 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::{CopyNum, Seq, SeqStyle, Sequence};
+use crate::dbg::hashdbg_v2::HashDbg;
+use crate::hist::Hist;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 
@@ -64,6 +66,51 @@ impl<K: KmerLike> KmerExistenceResult<K> {
             n_not_exists: 0,
             kmers_not_exists: Vec::new(),
         }
+    }
+}
+
+///
+/// Histgram of copy_nums of kmers with the specified copy_num.
+///
+#[derive(Clone, Debug)]
+pub struct KmerHists(Vec<Hist>);
+
+impl KmerHists {
+    ///
+    /// Create a new kmer hists struct
+    ///
+    pub fn new(max_copy_num: usize) -> Self {
+        let hists = vec![Hist::new(); max_copy_num + 1];
+        KmerHists(hists)
+    }
+    ///
+    /// get the maximum copy number
+    ///
+    pub fn max_copy_num(&self) -> usize {
+        self.0.len() - 1
+    }
+    ///
+    ///
+    ///
+    pub fn get_hist(&self, copy_num: usize) -> &Hist {
+        &self.0[copy_num]
+    }
+    ///
+    ///
+    ///
+    pub fn get_hist_mut(&mut self, copy_num: usize) -> &mut Hist {
+        &mut self.0[copy_num]
+    }
+}
+
+impl std::fmt::Display for KmerHists {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for copy_num in 0..=self.max_copy_num() {
+            let hist = self.get_hist(copy_num);
+            writeln!(f, "x{}: {}", copy_num, hist.len())?;
+            write!(f, "{}", hist)?;
+        }
+        Ok(())
     }
 }
 
@@ -149,6 +196,36 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         r
     }
+    ///
+    ///
+    pub fn kmer_hists_from_seqs<T>(&self, seqs: T) -> KmerHists
+    where
+        T: IntoIterator + Clone,
+        T::Item: Seq,
+    {
+        // (1) calculate the true copy numbers in seqs
+        let hd: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), seqs.clone());
+        let copy_nums = hd.to_kmer_profile();
+        let max_copy_num = copy_nums.values().max().copied().unwrap();
+
+        // (2) collect counts of dbg
+        let counts = self.to_kmer_profile();
+
+        let mut hists = KmerHists::new(max_copy_num);
+
+        for seq in seqs {
+            for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
+                let copy_num = *copy_nums.get(&kmer).unwrap();
+                let count = match counts.get(&kmer) {
+                    Some(count) => *count,
+                    None => 0,
+                };
+                hists.get_hist_mut(copy_num).add(count);
+            }
+        }
+
+        hists
+    }
 }
 
 //
@@ -218,5 +295,20 @@ mod tests {
                 VecKmer::from_bases(b"Annnnnnn"),
             ]
         );
+    }
+    #[test]
+    fn dbg_compare_kmer_hists() {
+        // compare with true seq
+        let s = b"ATCGGATCGATGC";
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
+        let kh = dbg.kmer_hists_from_seqs(&[s]);
+        println!("{}", kh);
+        assert_eq!(kh.max_copy_num(), 1);
+        let c0: Vec<_> = kh.get_hist(0).iter().collect();
+        println!("{:?}", c0);
+        assert_eq!(c0, vec![]);
+        let c1: Vec<_> = kh.get_hist(1).iter().collect();
+        println!("{:?}", c1);
+        assert_eq!(c1, vec![(1, 20)]);
     }
 }

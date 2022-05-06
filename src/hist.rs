@@ -55,6 +55,12 @@ impl Hist {
     pub fn iter(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
         self.0.iter().map(|(k, v)| (*k, *v))
     }
+    ///
+    /// Get the number of elements stored in the histogram
+    ///
+    pub fn len(&self) -> usize {
+        self.0.values().sum()
+    }
 }
 
 impl std::fmt::Display for Hist {
