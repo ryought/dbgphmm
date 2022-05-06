@@ -221,6 +221,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         let mut hists = KmerHists::new(max_copy_num);
 
+        // (3) count true kmers with copy_num >= 1.
         for seq in seqs {
             for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
                 let copy_num = *copy_nums.get(&kmer).unwrap();
@@ -232,8 +233,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
 
-        // TODO
+        // (4) count false kmers with copy_num == 0.
         // add x0 kmer (= error and not in true seqs) histogram
+        for (kmer, &count) in counts.iter() {
+            match copy_nums.get(kmer) {
+                Some(&copy_num) => {
+                    if copy_num == 0 {
+                        hists.get_hist_mut(0).add(count);
+                    }
+                }
+                None => {
+                    hists.get_hist_mut(0).add(count);
+                }
+            }
+        }
 
         hists
     }
@@ -309,7 +322,7 @@ mod tests {
     }
     #[test]
     fn dbg_compare_kmer_hists() {
-        // compare with true seq
+        // [1] compare with true seq
         let s = b"ATCGGATCGATGC";
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
         let kh = dbg.kmer_hists_from_seqs(&[s]);
@@ -322,5 +335,18 @@ mod tests {
         assert_eq!(c1, vec![(1, 20)]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x0=;x1=1:20");
+
+        // [2] compare with true seq
+        let s1 = b"ATCGGATCGATGC".to_vec();
+        let s2 = b"GGCTAGCTGAT".to_vec();
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &[&s1, &s2]);
+        // 1
+        let kh = dbg.kmer_hists_from_seqs(&[&s1, &s2]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x0=;x1=1:38");
+        // 2
+        let kh = dbg.kmer_hists_from_seqs(&[&s1]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x0=1:18;x1=1:20");
     }
 }
