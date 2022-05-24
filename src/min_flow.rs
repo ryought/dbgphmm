@@ -126,7 +126,7 @@ fn min_cost_flow_from<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>, init_fl
 ///
 /// Find minimum cost by starting from the specified flow values in ConvexCost Flowgraph.
 ///
-fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
+pub fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
     graph: &DiGraph<N, E>,
     init_flow: &Flow,
 ) -> Flow {

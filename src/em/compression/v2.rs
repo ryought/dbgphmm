@@ -10,7 +10,7 @@ use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
-use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
+use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
@@ -165,17 +165,14 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     genome_size: CopyNum,
     penalty_weight: f64,
 ) -> (NodeCopyNums, Cost) {
+    // construct edbg with KmerInfo
     let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     let edbg = dbg.to_edbg_with_attr(Some(&infos));
-    // TODO starts from current copy nums
-    let flow = min_cost_flow_convex_fast(&edbg.graph);
-    match flow {
-        None => panic!("compression::v2::m_step cannot find optimal flow."),
-        // an edge in edbg corresponds to a node in dbg
-        // so edgevec for edbg can be converted to nodevec for dbg.
-        Some(copy_nums) => {
-            let cost = total_cost(&edbg.graph, &copy_nums);
-            (copy_nums.switch_index(), cost)
-        }
-    }
+
+    // min-flow optimization starts from current copy nums
+    let original_copy_nums = dbg.to_node_copy_nums().switch_index();
+    let copy_nums = min_cost_flow_from_convex(&edbg.graph, &original_copy_nums);
+    let cost_diff =
+        total_cost(&edbg.graph, &copy_nums) + total_cost(&edbg.graph, &original_copy_nums);
+    (copy_nums.switch_index(), cost_diff)
 }
