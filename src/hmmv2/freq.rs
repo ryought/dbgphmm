@@ -233,6 +233,12 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// Calculate the probability that the hidden states (that is (type, node))
     /// emits the i-th emission.
     ///
+    /// ## Description
+    ///
+    /// HMM state
+    ///
+    /// ## Old Description
+    ///
     /// `freq[i][t_k]`
     /// = P(base `x[i]` is emitted from node `t_k`)
     /// = `(ft_i[k] * bt_i+1[k]) / P(x)`
@@ -244,9 +250,9 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = StateProbs> + 'a {
         let n = self.forward.n_emissions();
         let p = self.to_full_prob_forward();
-        (0..n).map(move |i| {
-            let f = self.forward.table_merged(i + 1);
-            let b = self.backward.table_merged(i + 1);
+        (0..=n).map(move |i| {
+            let f = self.forward.table_merged(i);
+            let b = self.backward.table_merged(i);
             (&f * &b) / p
         })
     }
@@ -387,11 +393,12 @@ mod tests {
         for ep in eps.iter() {
             println!("{}", ep);
         }
-        assert_abs_diff_eq!(eps[4].m[ni(7)], p(1.0), epsilon = 0.00001);
-        assert_abs_diff_eq!(eps[3].m[ni(6)], p(1.0), epsilon = 0.00001);
-        assert_abs_diff_eq!(eps[2].m[ni(5)], p(1.0), epsilon = 0.00001);
-        assert_abs_diff_eq!(eps[1].m[ni(4)], p(1.0), epsilon = 0.00001);
-        assert_abs_diff_eq!(eps[0].m[ni(3)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[5].m[ni(7)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[4].m[ni(6)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[3].m[ni(5)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[2].m[ni(4)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[1].m[ni(3)], p(1.0), epsilon = 0.00001);
+        assert_abs_diff_eq!(eps[0].mb, p(1.0), epsilon = 0.00001);
 
         let sps = o.to_state_probs();
         println!("{}", sps);

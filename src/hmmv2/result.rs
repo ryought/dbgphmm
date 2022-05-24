@@ -13,6 +13,9 @@ use crate::vector::{DenseStorage, SparseStorage, Storage};
 /// Trait that generalizes PHMMResultFull and PHMMResultSparse
 ///
 pub trait PHMMResultLike {
+    ///
+    /// This PHMM result represents forward or backward?
+    ///
     fn is_forward(&self) -> bool;
     /// The number of emissions that this result stores.
     fn n_emissions(&self) -> usize;
