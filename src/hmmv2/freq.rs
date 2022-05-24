@@ -137,7 +137,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     /// calculate edge freqs of multiple emission sequences (`Reads`).
     /// with rayon parallel calculation
-    pub fn to_edge_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, Prob)
+    pub fn to_edge_and_init_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, NodeFreqs, Prob)
     where
         T: IntoParallelIterator,
         T::Item: Seq,
@@ -148,16 +148,33 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 let forward = self.forward(read);
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
-                (o.to_edge_freqs(self, read), o.to_full_prob_forward())
+                let (efs, ifs) = o.to_edge_and_init_freqs(self, read);
+                (efs, ifs, o.to_full_prob_forward())
             })
             .reduce(
-                || (EdgeFreqs::new(self.n_edges(), 0.0), Prob::one()),
-                |(mut freq_a, mut p_a), (freq_b, p_b)| {
-                    freq_a += &freq_b;
+                || {
+                    (
+                        EdgeFreqs::new(self.n_edges(), 0.0),
+                        NodeFreqs::new(self.n_nodes(), 0.0),
+                        Prob::one(),
+                    )
+                },
+                |(mut efs_a, mut ifs_a, mut p_a), (efs_b, ifs_b, p_b)| {
+                    efs_a += &efs_b;
+                    ifs_a += &ifs_b;
                     p_a *= p_b;
-                    (freq_a, p_a)
+                    (efs_a, ifs_a, p_a)
                 },
             )
+    }
+    /// wrapper of to_edge_and_init_freqs_parallel
+    pub fn to_edge_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, Prob)
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        let (efs, _, p) = self.to_edge_and_init_freqs_parallel(seqs);
+        (efs, p)
     }
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.

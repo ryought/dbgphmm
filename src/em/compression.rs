@@ -16,6 +16,7 @@ use crate::min_flow::Cost;
 use crate::prob::Prob;
 pub mod v1;
 pub mod v2;
+pub use v1::compression_step;
 
 ///
 /// Log information store of each iteration in compression

@@ -183,12 +183,35 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn has_freqs(&self) -> bool {
         self.iter_edges().all(|(_, _, e)| e.freq.is_some())
     }
+    ///
+    /// sum of freqs of all edges between in/out nodes
+    ///
+    pub fn total_freq(&self) -> Option<Freq> {
+        if self.has_freqs() {
+            let freq: Freq = self.iter_edges().map(|(_, _, e)| e.freq.unwrap()).sum();
+            Some(freq)
+        } else {
+            None
+        }
+    }
 }
 
 ///
 /// Upconvert related
 ///
 impl<K: KmerLike> FlowIntersection<K> {
+    ///
+    /// sum of copy nums of in_nodes
+    ///
+    pub fn total_in_copy_num(&self) -> CopyNum {
+        self.iter_in_nodes().map(|n| n.copy_num).sum()
+    }
+    ///
+    /// sum of copy nums of out_nodes
+    ///
+    pub fn total_out_copy_num(&self) -> CopyNum {
+        self.iter_out_nodes().map(|n| n.copy_num).sum()
+    }
     ///
     /// ambiguous <=> not uniquely resolvable and not tip_intersection
     ///
@@ -199,9 +222,7 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// sum of copynums of in_nodes/out_nodes are the same?
     ///
     pub fn has_valid_node_copy_nums(&self) -> bool {
-        let sum_in_nodes: usize = self.iter_in_nodes().map(|n| n.copy_num).sum();
-        let sum_out_nodes: usize = self.iter_out_nodes().map(|n| n.copy_num).sum();
-        sum_in_nodes == sum_out_nodes
+        self.total_in_copy_num() == self.total_out_copy_num()
     }
     pub fn can_unique_resolvable(&self) -> bool {
         self.n_in_nodes() == 1 || self.n_out_nodes() == 1
