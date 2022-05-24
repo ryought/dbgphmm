@@ -15,6 +15,7 @@ use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
 use crate::prob::Prob;
+pub mod v2;
 
 ///
 /// Log information store of each iteration in compression
