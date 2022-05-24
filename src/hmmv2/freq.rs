@@ -231,11 +231,15 @@ pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
 
 impl<R: PHMMResultLike> PHMMOutput<R> {
     /// Calculate the probability that the hidden states (that is (type, node))
-    /// emits the i-th emission.
+    /// emits the i-th state.
     ///
     /// ## Description
     ///
-    /// HMM state
+    /// HMM state probability
+    ///
+    /// P(pi=s)
+    ///  = P(emits x[:i] and pi=s) P(emits x[i:] | pi=s)
+    ///  = f[i] + b[i]
     ///
     /// ## Old Description
     ///
@@ -308,7 +312,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
 
         let mut freq: EdgeFreqs = EdgeFreqs::new(phmm.n_edges(), 0.0);
 
-        for i in 0..self.forward.n_emissions() {
+        for i in 0..=self.forward.n_emissions() {
             let tp = self.to_trans_probs(phmm, emissions, i);
             for (e, _, _, _) in phmm.edges() {
                 freq[e] += tp[e].sum().to_value();
@@ -318,47 +322,53 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         freq
     }
     /// Calculate the expected value of the usage frequency of each edges
-    /// TBW
+    ///
+    /// ```text
+    /// P(pi[i]=k and pi[i+1]=l)
+    ///  = P(emits x[:i] and pi=k) p_trans(k,l) p_emit(l, x[i]) P(emits x[i+1:] | pi=l)
+    ///  = f[i][k] * p_trans * p_emit * b[i+1][l]
+    /// ```
+    ///
+    /// range of i: 0 <= i <= n
+    ///
     pub fn to_trans_probs<N: PHMMNode, E: PHMMEdge>(
         &self,
         phmm: &PHMMModel<N, E>,
         emissions: &[u8],
         i: usize,
     ) -> TransProbs {
-        assert_eq!(emissions.len(), self.forward.n_emissions());
-        assert_eq!(emissions.len(), self.backward.n_emissions());
+        let n = emissions.len();
+        assert_eq!(n, self.forward.n_emissions());
+        assert_eq!(n, self.backward.n_emissions());
+        assert!(i <= n);
 
         let mut t: TransProbs = TransProbs::new(phmm.n_edges(), TransProb::zero());
 
         let param = &phmm.param;
         let p = self.to_full_prob_forward();
-        let n = self.forward.n_emissions();
 
         // get table references
-        let fi0 = self.forward.table_merged(i + 1);
-        let bi2 = self.backward.table_merged(i + 2);
-        let bi1 = self.backward.table_merged(i + 1);
+        let fi0 = self.forward.table_merged(i);
+        let bi2 = self.backward.table_merged(i + 1);
+        let bi1 = self.backward.table_merged(i);
 
-        // to m (normal state)
-        if i + 1 < n {
-            for (e, k, l, ew) in phmm.edges() {
-                let p_emit = phmm.p_match_emit(l, emissions[i + 1]);
-                let p_trans = ew.trans_prob();
+        for (e, k, l, ew) in phmm.edges() {
+            let p_trans = ew.trans_prob();
+
+            // to m (normal state)
+            if i < n {
+                let p_emit = phmm.p_match_emit(l, emissions[i]);
                 t[e].mm = fi0.m(k) * p_trans * param.p_MM * p_emit * bi2.m(l) / p;
                 t[e].im = fi0.i(k) * p_trans * param.p_IM * p_emit * bi2.m(l) / p;
                 t[e].dm = fi0.d(k) * p_trans * param.p_DM * p_emit * bi2.m(l) / p;
             }
+
+            // to d (silent state)
+            t[e].md = fi0.m(k) * p_trans * param.p_MD * bi1.d(l) / p;
+            t[e].id = fi0.i(k) * p_trans * param.p_ID * bi1.d(l) / p;
+            t[e].dd = fi0.d(k) * p_trans * param.p_DD * bi1.d(l) / p;
         }
 
-        // to d (silent state)
-        if i < n {
-            for (e, k, l, weight) in phmm.edges() {
-                let p_trans = weight.trans_prob();
-                t[e].md = fi0.m(k) * p_trans * param.p_MD * bi1.d(l) / p;
-                t[e].id = fi0.i(k) * p_trans * param.p_ID * bi1.d(l) / p;
-                t[e].dd = fi0.d(k) * p_trans * param.p_DD * bi1.d(l) / p;
-            }
-        }
         t
     }
 }
@@ -465,31 +475,39 @@ mod tests {
         let o = phmm.run(es);
 
         // (1) trans_probs
-        for i in 0..5 {
+        for i in 0..=es.len() {
             let tps = o.to_trans_probs(&phmm, es, i);
             println!("{}", i);
             phmm.draw_edge_vec(&tps);
         }
+        assert!(o
+            .to_trans_probs(&phmm, es, 0)
+            .iter()
+            .all(|(_, t)| t.sum().is_zero()));
         assert_abs_diff_eq!(
-            o.to_trans_probs(&phmm, es, 0)[ei(3)].mm,
+            o.to_trans_probs(&phmm, es, 1)[ei(3)].mm,
             p(1.0),
             epsilon = 0.00001
         );
         assert_abs_diff_eq!(
-            o.to_trans_probs(&phmm, es, 1)[ei(4)].mm,
+            o.to_trans_probs(&phmm, es, 2)[ei(4)].mm,
             p(1.0),
             epsilon = 0.00001
         );
         assert_abs_diff_eq!(
-            o.to_trans_probs(&phmm, es, 2)[ei(5)].mm,
+            o.to_trans_probs(&phmm, es, 3)[ei(5)].mm,
             p(1.0),
             epsilon = 0.00001
         );
         assert_abs_diff_eq!(
-            o.to_trans_probs(&phmm, es, 3)[ei(6)].mm,
+            o.to_trans_probs(&phmm, es, 4)[ei(6)].mm,
             p(1.0),
             epsilon = 0.00001
         );
+        assert!(o
+            .to_trans_probs(&phmm, es, 5)
+            .iter()
+            .all(|(_, t)| t.sum().is_zero()));
 
         // edge_freqs
         let efs = o.to_edge_freqs(&phmm, es);
@@ -518,7 +536,7 @@ mod tests {
         }
 
         // (1) trans_probs
-        let tps: Vec<TransProbs> = (0..es.len())
+        let tps: Vec<TransProbs> = (1..=es.len())
             .map(|i| o.to_trans_probs(&phmm, es, i))
             .collect();
         for (i, t) in tps.iter().enumerate() {

@@ -35,9 +35,11 @@ pub trait PHMMResultLike {
     /// Forward[i]
     ///  = init_table  if i==0
     ///    table(i-1)  otherwise
+    ///  = P(emits x[:i] and now in a state)
     /// Backward[i]
     ///  = init_table  if i==n
     ///    table(i)    otherwise
+    ///  = P(emits x[i:] | starts from a state)
     ///
     fn table_merged(&self, merged_index: usize) -> PHMMTableRef {
         if self.is_forward() {
