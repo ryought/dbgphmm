@@ -14,7 +14,7 @@ use crate::kmer::VecKmer;
 
 pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &Genome) {
     // header
-    println!("iter\ttype\tstep\tprob\tmin_flow\tcompare\tdbg\t");
+    println!("iter\ttype\tstep\tprob\tmin_flow\tgenome_size\tcompare\tdbg\t");
 
     // body
     for (iteration, task_log) in task_logs.iter().enumerate() {
@@ -22,11 +22,12 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
             TaskLog::Compression(logs) => {
                 for (step, log) in logs.iter().enumerate() {
                     println!(
-                        "{}\tC\t{}\t{}\t{}\t{:?}\t{}",
+                        "{}\tC\t{}\t{}\t{}\t{}\t{}\t{}",
                         iteration,
                         step,
                         log.full_prob.to_log_value(),
                         log.min_flow_score,
+                        log.dbg.genome_size(),
                         log.dbg.kmer_hists_from_seqs(genome),
                         log.dbg,
                     );
@@ -35,7 +36,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
             TaskLog::Extension(logs) => {
                 for (step, log) in logs.iter().enumerate() {
                     println!(
-                        "{}\tE\t{}\t{}\t{}\t{:?}\t{}",
+                        "{}\tE\t{}\t{}\t{}\t{}\t{}\t{}",
                         iteration,
                         step,
                         match log.full_prob {
@@ -43,6 +44,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
                             None => "-".to_string(),
                         },
                         log.min_flow_cost,
+                        log.dbg.genome_size(),
                         log.dbg.kmer_hists_from_seqs(genome),
                         log.dbg
                     );
@@ -78,7 +80,7 @@ pub fn benchmark(
     Vec<CompareWithSeqResult<VecKmer>>,
 ) {
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
-    let (dbg_infer, _) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
 
     println!("dbg_raw=\n{}", dbg_raw);
     println!("{}", dbg_raw.n_traverse_choices());
@@ -109,6 +111,8 @@ pub fn benchmark(
         println!("{}", rs);
         v.push(rs);
     }
+
+    show_logs(&logs, genome);
 
     (dbg_infer, r, v)
 }
