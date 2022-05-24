@@ -302,27 +302,42 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// * `e = (k: N or S, l: S)` transition
     ///     `freq[i][e] = (f_i[k] * a_kl * b_i+1[l]) / P(x)`
     ///
+    pub fn to_edge_and_init_freqs<N: PHMMNode, E: PHMMEdge>(
+        &self,
+        phmm: &PHMMModel<N, E>,
+        emissions: &[u8],
+    ) -> (EdgeFreqs, NodeFreqs) {
+        assert_eq!(emissions.len(), self.forward.n_emissions());
+        assert_eq!(emissions.len(), self.backward.n_emissions());
+
+        let mut edge_freqs = EdgeFreqs::new(phmm.n_edges(), 0.0);
+        let mut init_freqs = NodeFreqs::new(phmm.n_nodes(), 0.0);
+
+        for i in 0..=self.forward.n_emissions() {
+            let (tp, ip) = self.to_trans_and_init_probs(phmm, emissions, i);
+            for (e, _, _, _) in phmm.edges() {
+                edge_freqs[e] += tp[e].sum().to_value();
+            }
+            for (v, _) in phmm.nodes() {
+                init_freqs[v] += ip[v].sum().to_value();
+            }
+        }
+
+        (edge_freqs, init_freqs)
+    }
+    ///
+    /// wrapper of to_edge_and_init_freqs
+    ///
     pub fn to_edge_freqs<N: PHMMNode, E: PHMMEdge>(
         &self,
         phmm: &PHMMModel<N, E>,
         emissions: &[u8],
     ) -> EdgeFreqs {
-        assert_eq!(emissions.len(), self.forward.n_emissions());
-        assert_eq!(emissions.len(), self.backward.n_emissions());
-
-        let mut freq: EdgeFreqs = EdgeFreqs::new(phmm.n_edges(), 0.0);
-
-        for i in 0..=self.forward.n_emissions() {
-            let tp = self.to_trans_probs(phmm, emissions, i);
-            for (e, _, _, _) in phmm.edges() {
-                freq[e] += tp[e].sum().to_value();
-            }
-        }
-
-        freq
+        let (ef, _) = self.to_edge_and_init_freqs(phmm, emissions);
+        ef
     }
     ///
-    /// wrapper of PHMMResult.to_trans_init_probs
+    /// wrapper of PHMMResult.to_trans_and_init_probs
     ///
     pub fn to_trans_probs<N: PHMMNode, E: PHMMEdge>(
         &self,
@@ -330,7 +345,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         emissions: &[u8],
         i: usize,
     ) -> TransProbs {
-        let (tp, _) = self.to_trans_init_probs(phmm, emissions, i);
+        let (tp, _) = self.to_trans_and_init_probs(phmm, emissions, i);
         tp
     }
     /// Calculate the expected value of the usage frequency of each edges
@@ -343,7 +358,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     ///
     /// range of i: 0 <= i <= n
     ///
-    pub fn to_trans_init_probs<N: PHMMNode, E: PHMMEdge>(
+    pub fn to_trans_and_init_probs<N: PHMMNode, E: PHMMEdge>(
         &self,
         phmm: &PHMMModel<N, E>,
         emissions: &[u8],
@@ -506,10 +521,10 @@ mod tests {
 
         // (1) trans_probs
         for i in 0..=es.len() {
-            let (tps, itps) = o.to_trans_init_probs(&phmm, es, i);
+            let (tp, ip) = o.to_trans_and_init_probs(&phmm, es, i);
             println!("{}", i);
-            phmm.draw_edge_vec(&tps);
-            phmm.draw_node_vec(&itps);
+            phmm.draw_edge_vec(&tp);
+            phmm.draw_node_vec(&ip);
         }
         assert!(o
             .to_trans_probs(&phmm, es, 0)
