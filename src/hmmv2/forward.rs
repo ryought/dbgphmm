@@ -24,6 +24,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMResult {
             init_table: self.f_init(),
             tables: Vec::new(),
+            is_forward: true,
         };
         emissions
             .iter()

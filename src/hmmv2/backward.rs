@@ -25,6 +25,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMResult {
             init_table: self.b_init(),
             tables: Vec::new(),
+            is_forward: false,
         };
         // feed the emissions backward
         let mut r = emissions
