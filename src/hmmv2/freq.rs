@@ -19,7 +19,7 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
-use super::trans_table::{EdgeFreqs, TransProb, TransProbs};
+use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::{Freq, Reads, Seq, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
@@ -321,6 +321,18 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
 
         freq
     }
+    ///
+    /// wrapper of PHMMResult.to_trans_init_probs
+    ///
+    pub fn to_trans_probs<N: PHMMNode, E: PHMMEdge>(
+        &self,
+        phmm: &PHMMModel<N, E>,
+        emissions: &[u8],
+        i: usize,
+    ) -> TransProbs {
+        let (tp, _) = self.to_trans_init_probs(phmm, emissions, i);
+        tp
+    }
     /// Calculate the expected value of the usage frequency of each edges
     ///
     /// ```text
@@ -331,18 +343,19 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     ///
     /// range of i: 0 <= i <= n
     ///
-    pub fn to_trans_probs<N: PHMMNode, E: PHMMEdge>(
+    pub fn to_trans_init_probs<N: PHMMNode, E: PHMMEdge>(
         &self,
         phmm: &PHMMModel<N, E>,
         emissions: &[u8],
         i: usize,
-    ) -> TransProbs {
+    ) -> (TransProbs, InitTransProbs) {
         let n = emissions.len();
         assert_eq!(n, self.forward.n_emissions());
         assert_eq!(n, self.backward.n_emissions());
         assert!(i <= n);
 
         let mut t: TransProbs = TransProbs::new(phmm.n_edges(), TransProb::zero());
+        let mut t0: InitTransProbs = InitTransProbs::new(phmm.n_nodes(), TransProb::zero());
 
         let param = &phmm.param;
         let p = self.to_full_prob_forward();
@@ -352,6 +365,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         let bi2 = self.backward.table_merged(i + 1);
         let bi1 = self.backward.table_merged(i);
 
+        // (1) fill TransProbs
         for (e, k, l, ew) in phmm.edges() {
             let p_trans = ew.trans_prob();
 
@@ -369,7 +383,23 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             t[e].dd = fi0.d(k) * p_trans * param.p_DD * bi1.d(l) / p;
         }
 
-        t
+        // (2) fill InitTransProbs
+        for (v, vw) in phmm.nodes() {
+            let p_init = vw.init_prob();
+
+            // to m (normal state)
+            if i < n {
+                let p_emit = phmm.p_match_emit(v, emissions[i]);
+                t0[v].mm = fi0.mb() * p_init * param.p_MM * p_emit * bi2.m(v) / p;
+                t0[v].im = fi0.ib() * p_init * param.p_IM * p_emit * bi2.m(v) / p;
+            }
+
+            // to d (silent state)
+            t0[v].md = fi0.mb() * p_init * param.p_MD * bi1.d(v) / p;
+            t0[v].id = fi0.ib() * p_init * param.p_ID * bi1.d(v) / p;
+        }
+
+        (t, t0)
     }
 }
 
@@ -476,9 +506,10 @@ mod tests {
 
         // (1) trans_probs
         for i in 0..=es.len() {
-            let tps = o.to_trans_probs(&phmm, es, i);
+            let (tps, itps) = o.to_trans_init_probs(&phmm, es, i);
             println!("{}", i);
             phmm.draw_edge_vec(&tps);
+            phmm.draw_node_vec(&itps);
         }
         assert!(o
             .to_trans_probs(&phmm, es, 0)
