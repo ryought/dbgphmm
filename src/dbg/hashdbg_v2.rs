@@ -153,10 +153,23 @@ impl<K: KmerLike> HashDbg<K> {
     }
 }
 
+impl<K: KmerLike> HashDbg<K> {
+    ///
+    /// to kmer count profile
+    ///
+    pub fn to_kmer_profile(&self) -> HashMap<K, CopyNum> {
+        let mut hm = HashMap::default();
+        for kmer in self.kmers() {
+            hm.insert(kmer.clone(), self.get(kmer));
+        }
+        hm
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kmer::veckmer::VecKmer;
+    use crate::kmer::veckmer::{kmer, VecKmer};
 
     #[test]
     fn hashdbg_v2_new() {
@@ -225,5 +238,30 @@ mod tests {
 
         // consistency
         assert!(hd.is_consistent());
+    }
+    #[test]
+    fn hashdbg_v2_profile() {
+        let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGATTCGAT");
+        let p = hd.to_kmer_profile();
+        for (k, v) in p.iter() {
+            println!("{} {}", k, v);
+        }
+
+        // answer
+        let mut p2 = HashMap::default();
+        p2.insert(kmer(b"ATTC"), 1);
+        p2.insert(kmer(b"TTCG"), 1);
+        p2.insert(kmer(b"nnAT"), 1);
+        p2.insert(kmer(b"CGAT"), 2);
+        p2.insert(kmer(b"TCGA"), 2);
+        p2.insert(kmer(b"nATC"), 1);
+        p2.insert(kmer(b"GATT"), 1);
+        p2.insert(kmer(b"GATn"), 1);
+        p2.insert(kmer(b"nnnA"), 1);
+        p2.insert(kmer(b"ATnn"), 1);
+        p2.insert(kmer(b"ATCG"), 1);
+        p2.insert(kmer(b"Tnnn"), 1);
+
+        assert_eq!(p, p2);
     }
 }

@@ -14,8 +14,10 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
-    use crate::em::e2e::genome::{generate_tandem_repeat_diploid, generate_tandem_repeat_haploid};
-    use crate::em::e2e::runner::{benchmark, generate_full_length_reads_and_dbgs};
+    use crate::em::e2e::genome::{tandem_repeat_diploid, tandem_repeat_haploid};
+    use crate::em::e2e::runner::{
+        benchmark, benchmark_em_steps, generate_full_length_reads_and_dbgs,
+    };
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
@@ -44,7 +46,7 @@ mod tests {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =
-            generate_tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
+            tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
         println!("genome hap_a: {}", sequence_to_string(&genome[0]));
 
         // (2) reads and dbgs
@@ -56,7 +58,6 @@ mod tests {
                 phmm_params,
                 coverage,
             );
-
         (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true)
     }
 
@@ -76,7 +77,7 @@ mod tests {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =
-            generate_tandem_repeat_diploid(20, 20, 0.1, unit_seed, hap_seed, 0.01, div_seed);
+            tandem_repeat_diploid(20, 20, 0.1, unit_seed, hap_seed, 0.01, div_seed);
         println!("genome hap_a: {}", sequence_to_string(&genome[0]));
         println!("genome hap_b: {}", sequence_to_string(&genome[1]));
 
@@ -145,5 +146,13 @@ mod tests {
         let (_, r, _) = benchmark(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 10.0);
         assert_eq!(r.n_true, 732);
         assert_eq!(r.n_error, 0);
+    }
+
+    #[ignore]
+    #[test]
+    fn e2e_tandem_repeat_haploid_error_inspection() {
+        let (genome, reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) =
+            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
+        benchmark_em_steps(&dbg_raw, &dbg_true, &reads, &genome, &phmm_params, 15.0);
     }
 }

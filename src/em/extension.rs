@@ -22,19 +22,41 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 ///
 /// Log information store of each iteration in extension
 ///
-#[derive(Clone, Debug)]
-pub struct ExtensionLog {
+#[derive(Clone)]
+pub struct ExtensionLog<N: DbgNode, E: DbgEdge> {
     /// Full probability
-    full_prob: Option<Prob>,
+    pub full_prob: Option<Prob>,
     /// min flow cost for intersecting nodes
-    min_flow_cost: Cost,
+    pub min_flow_cost: Cost,
+    /// resulting dbg
+    pub dbg: Dbg<N, E>,
 }
 
-impl ExtensionLog {
-    pub fn new(full_prob: Option<Prob>, min_flow_cost: Cost) -> Self {
+impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
+    pub fn new(full_prob: Option<Prob>, min_flow_cost: Cost, dbg: Dbg<N, E>) -> Self {
         ExtensionLog {
             full_prob,
             min_flow_cost,
+            dbg,
+        }
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> std::fmt::Display for ExtensionLog<N, E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.full_prob {
+            Some(p) => {
+                write!(
+                    f,
+                    "{}\t{}\t{}",
+                    p.to_log_value(),
+                    self.min_flow_cost,
+                    self.dbg
+                )
+            }
+            None => {
+                write!(f, "-\t{}\t{}", self.min_flow_cost, self.dbg)
+            }
         }
     }
 }
@@ -51,12 +73,7 @@ pub fn extension<N: DbgNode, E: DbgEdge>(
     reads: &Reads,
     params: &PHMMParams,
     max_iter: usize,
-) -> (Dbg<N, E>, Vec<ExtensionLog>) {
-    println!(
-        "extension! k={} n_ambiguous={}",
-        dbg.k(),
-        dbg.n_ambiguous_intersections()
-    );
+) -> (Dbg<N, E>, Vec<ExtensionLog<N, E>>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
@@ -100,7 +117,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
-) -> (Dbg<N, E>, bool, ExtensionLog) {
+) -> (Dbg<N, E>, bool, ExtensionLog<N, E>) {
     // (1) e-step infer edge freqs if needed
     let (edge_freqs, full_prob) = if dbg.n_ambiguous_intersections() > 0 {
         let (edge_freqs, full_prob) = e_step(dbg, reads, params);
@@ -115,7 +132,7 @@ pub fn extension_step<N: DbgNode, E: DbgEdge>(
     let mut new_dbg = dbg.clone();
     let is_updated = new_dbg.set_edge_copy_nums(Some(&copy_nums));
 
-    let log = ExtensionLog::new(full_prob, cost);
+    let log = ExtensionLog::new(full_prob, cost, new_dbg.clone());
 
     (new_dbg, is_updated, log)
 }
@@ -167,9 +184,9 @@ fn m_step<N: DbgNode, E: DbgEdge>(
                     // get an optimized flow intersection
                     let (fio, cost) = fi.resolve();
 
-                    if !fi.can_unique_resolvable() {
-                        println!("extension optimized iter m {} {}", fi, fio);
-                    }
+                    // if !fi.can_unique_resolvable() {
+                    //     println!("extension optimized iter m {} {}", fi, fio);
+                    // }
 
                     // add cost
                     if let Some(cost) = cost {
@@ -275,7 +292,7 @@ mod tests {
         let (dbg_v2, is_updated, log) = extension_step(&dbg, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
-        println!("log={:?}", log);
+        println!("log={}", log);
         assert_relative_eq!(log.min_flow_cost, 0.004705572023128938);
         assert!(is_updated);
 
@@ -283,7 +300,7 @@ mod tests {
         let (dbg_v3, is_updated, log) = extension_step(&dbg_v2, &reads, &params);
         println!("{}", dbg_v2);
         println!("is_updated={}", is_updated);
-        println!("log={:?}", log);
+        println!("log={}", log);
         assert_relative_eq!(log.min_flow_cost, 0.0);
         assert!(!is_updated);
     }

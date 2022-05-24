@@ -290,11 +290,9 @@ impl<K: KmerLike> FlowIntersection<K> {
     /// by converting the bipartite into flow network definitions
     ///
     pub fn resolve_min_flow(&self) -> (FlowIntersection<K>, Cost) {
-        println!("resolving: {}", self);
         let flow_graph = self.to_flow_graph();
         match min_cost_flow_convex_fast(&flow_graph) {
             Some(flow) => {
-                println!("flow_found = {}", flow);
                 let mut opt = self.clone();
 
                 for e in flow_graph.edge_indices() {
@@ -314,8 +312,6 @@ impl<K: KmerLike> FlowIntersection<K> {
                 }
                 let cost = total_cost(&flow_graph, &flow);
                 assert!(opt.all_edges_has_copy_num());
-                println!("optimized: {}", opt);
-                println!("cost: {}", cost);
                 (opt, cost)
             }
             None => {

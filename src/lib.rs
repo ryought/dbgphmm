@@ -8,6 +8,7 @@ pub mod dbg;
 pub mod distribution;
 pub mod em;
 pub mod graph;
+pub mod hist;
 pub mod hmm;
 pub mod hmmv2;
 pub mod io;

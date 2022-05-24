@@ -4,7 +4,8 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step};
-    use crate::em::e2e::runner::benchmark;
+    use crate::em::e2e::genome::{simple, simple_diploid};
+    use crate::em::e2e::runner::{benchmark, generate_reads_and_dbgs, ReadType};
     use crate::em::extension::{extension, extension_step};
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
@@ -24,11 +25,12 @@ mod tests {
     ) {
         // (1) generate genome and reads
         println!("generating genome");
-        let genome = vec![generate(100, 0)];
+        let (genome, genome_size) = simple(100, 0);
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         // (2) generate reads
-        let (reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock_from_genome(&genome, 10, 40);
+        let (reads, dbg_raw, dbg_true_init, dbg_true) =
+            e2e_mock_from_genome(&genome, genome_size, 10, 40);
 
         (genome, reads, dbg_raw, dbg_true_init, dbg_true)
     }
@@ -42,22 +44,20 @@ mod tests {
     ) {
         // (1) generate genome and reads
         println!("generating genome");
-        let haplotype1 = generate(100, 0);
-        let mut haplotype2 = haplotype1.clone();
-        haplotype2[30] = b'C';
-        haplotype2[80] = b'T';
-        let genome = vec![haplotype1, haplotype2];
+        let (genome, genome_size) = simple_diploid();
         println!("hap1: {}", sequence_to_string(&genome[0]));
         println!("hap2: {}", sequence_to_string(&genome[1]));
 
         // (2) generate reads
-        let (reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock_from_genome(&genome, 20, 60);
+        let (reads, dbg_raw, dbg_true_init, dbg_true) =
+            e2e_mock_from_genome(&genome, genome_size, 20, 60);
 
         (genome, reads, dbg_raw, dbg_true_init, dbg_true)
     }
 
     fn e2e_mock_from_genome(
         genome: &Genome,
+        genome_size: usize,
         count: usize,
         k_target: usize,
     ) -> (
@@ -67,34 +67,17 @@ mod tests {
         SimpleDbg<VecKmer>,
     ) {
         println!("generating reads");
-        let g = GenomeGraph::from_seqs(genome);
-        let profile = ReadProfile {
-            has_revcomp: false,
-            sample_profile: SampleProfile {
-                read_amount: ReadAmount::Count(count),
-                seed: 0,
-                length: 1000,
-                start_points: StartPoints::AllStartPoints,
-                endable: false,
-            },
-            phmm_params: PHMMParams::default(),
-        };
-        let reads = g.sample_reads(&profile);
-        println!("n_reads: {}", reads.len());
-
-        // (2) crate dbg from the reads.
-        //
-        println!("constructing dbg");
-        let k: usize = 8;
-        let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);
-        println!("{}", dbg_raw);
-
-        // (4) compare with true dbg with k_init
-        let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, genome);
-
-        // (4) compare with true dbg
-        let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, genome);
-
+        let (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) = generate_reads_and_dbgs(
+            genome,
+            genome_size,
+            0,
+            PHMMParams::default(),
+            count,
+            1000,
+            ReadType::FullLength,
+            8,
+            k_target,
+        );
         (reads, dbg_raw, dbg_true_init, dbg_true)
     }
 
@@ -104,7 +87,9 @@ mod tests {
 
         let (dbg, logs) = compression(&dbg_raw, &reads, &PHMMParams::default(), 10.0, 5);
         println!("{}", dbg);
-        println!("{:?}", logs);
+        for log in logs.iter() {
+            println!("{}", log);
+        }
 
         let r = dbg.compare(&dbg_true_init);
         println!("{:?}", r);
