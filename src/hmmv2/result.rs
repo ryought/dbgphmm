@@ -44,7 +44,7 @@ pub trait PHMMResultLike {
                 self.table(merged_index - 1)
             }
         } else {
-            if merged_index == self.n_emissions() {
+            if merged_index >= self.n_emissions() {
                 self.init_table()
             } else {
                 self.table(merged_index)

@@ -243,12 +243,8 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         let n = self.forward.n_emissions();
         let p = self.to_full_prob_forward();
         (0..n).map(move |i| {
-            let f = self.forward.table(i);
-            let b = if i + 1 < n {
-                self.backward.table(i + 1)
-            } else {
-                self.backward.init_table()
-            };
+            let f = self.forward.table_merged(i + 1);
+            let b = self.backward.table_merged(i + 1);
             (&f * &b) / p
         })
     }
@@ -327,22 +323,15 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         let mut t: TransProbs = TransProbs::new(phmm.n_edges(), TransProb::zero());
 
         let param = &phmm.param;
-        let fi0 = self.forward.table(i);
         let p = self.to_full_prob_forward();
         let n = self.forward.n_emissions();
 
-        // to m (normal state)
-        let bi2 = if i + 2 < n {
-            self.backward.table(i + 2)
-        } else {
-            self.backward.init_table()
-        };
-        let bi1 = if i + 1 < n {
-            self.backward.table(i + 1)
-        } else {
-            self.backward.init_table()
-        };
+        // get table references
+        let fi0 = self.forward.table_merged(i + 1);
+        let bi2 = self.backward.table_merged(i + 2);
+        let bi1 = self.backward.table_merged(i + 1);
 
+        // to m (normal state)
         if i + 1 < n {
             for (e, k, l, ew) in phmm.edges() {
                 let p_emit = phmm.p_match_emit(l, emissions[i + 1]);
