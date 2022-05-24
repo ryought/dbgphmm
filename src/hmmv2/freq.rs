@@ -39,7 +39,9 @@ pub struct PHMMOutput<R: PHMMResultLike> {
 /// Constructors
 impl<R: PHMMResultLike> PHMMOutput<R> {
     fn new(forward: R, backward: R) -> Self {
-        // TODO check forward is created by phmm.forward()
+        // check forward/backward is created by phmm.forward/backward()
+        assert!(forward.is_forward());
+        assert!(!backward.is_forward());
         PHMMOutput { forward, backward }
     }
 }
