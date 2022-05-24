@@ -12,7 +12,7 @@ pub struct CompressionV2KmerInfo {
     ///
     /// frequency of the node
     ///
-    freq_node: Freq,
+    freq: Freq,
     ///
     /// frequency of the intersection
     ///
@@ -24,15 +24,15 @@ pub struct CompressionV2KmerInfo {
     ///
     /// current genome size
     ///
-    size_total: CopyNum,
+    copy_num_total: CopyNum,
     ///
     /// current size of the intersection
     ///
-    size_intersection: CopyNum,
+    copy_num_intersection: CopyNum,
     ///
     /// expected genome size
     ///
-    size_total_expected: CopyNum,
+    copy_num_total_expected: CopyNum,
     ///
     /// lambda
     ///
