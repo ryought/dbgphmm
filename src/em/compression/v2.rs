@@ -216,6 +216,8 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     // min-flow optimization starts from current copy nums
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
     let copy_nums = min_cost_flow_from_convex(&edbg.graph, &original_copy_nums);
+    println!("cost_old={}", total_cost(&edbg.graph, &original_copy_nums));
+    println!("cost_new={}", total_cost(&edbg.graph, &copy_nums));
     let cost_diff =
         total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
     (copy_nums.switch_index(), cost_diff)
@@ -297,12 +299,21 @@ mod tests {
         println!("{}", ef);
         println!("{}", nf);
 
-        let infos = create_kmer_infos(&dbg, &ef, &nf, 10, 0.0);
+        let lambda = 0.0;
+        let genome_size = 10;
+
+        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
         dbg.draw_with_vecs(&[&nf], &[&ef]);
         // println!("{}", infos);
-        let qs = q_score(&dbg, &ef, &nf, 10, 0.0);
+        let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         println!("{:?}", qs);
 
-        let (ncn, c) = m_step(&dbg, &ef, &nf, 10, 0.0);
+        let (ncn, c) = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        println!("{}", ncn);
+
+        let mut new_dbg = dbg.clone();
+        let is_updated = new_dbg.set_node_copy_nums(&ncn);
+        let qs = q_score(&new_dbg, &ef, &nf, genome_size, lambda);
+        println!("{:?}", qs);
     }
 }
