@@ -69,6 +69,14 @@ impl CompressionV2KmerInfo {
         copy_num_total_expected: CopyNum,
         penalty_weight: f64,
     ) -> Self {
+        assert!(copy_num >= 0);
+        assert!(freq >= 0.0);
+        assert!(freq_intersection >= 0.0);
+        assert!(freq_init >= 0.0);
+        assert!(copy_num_total >= 0);
+        assert!(copy_num_intersection >= 0);
+        assert!(copy_num_total_expected >= 0);
+        assert!(penalty_weight >= 0.0);
         CompressionV2KmerInfo {
             copy_num,
             freq,
@@ -106,7 +114,10 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
         let z = attr.freq_intersection / attr.copy_num_intersection as f64
             + attr.freq_init / attr.copy_num_total as f64
             + attr.penalty_weight * attr.copy_num_total_expected as f64;
-        -x * clamped_log(flow) + y * flow.pow(2) as f64 + z * flow as f64
+        assert!(x >= 0.0);
+        assert!(y >= 0.0);
+        assert!(z >= 0.0);
+        (-x * clamped_log(flow)) + (y * flow.pow(2) as f64) + (z * flow as f64)
     }
 }
 
