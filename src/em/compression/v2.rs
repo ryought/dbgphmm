@@ -19,6 +19,11 @@ use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
 pub struct CompressionV2KmerInfo {
     ///
+    /// This is emittable kmer or not.
+    /// If not emittable, the kmer will be excluded for the cost.
+    ///
+    is_emittable: bool,
+    ///
     /// copy num of the node (k-mer)
     ///
     copy_num: CopyNum,
@@ -60,6 +65,7 @@ pub struct CompressionV2KmerInfo {
 
 impl CompressionV2KmerInfo {
     fn new(
+        is_emittable: bool,
         copy_num: CopyNum,
         freq: Freq,
         freq_intersection: Freq,
@@ -78,6 +84,7 @@ impl CompressionV2KmerInfo {
         assert!(copy_num_total_expected >= 0);
         assert!(penalty_weight >= 0.0);
         CompressionV2KmerInfo {
+            is_emittable,
             copy_num,
             freq,
             freq_intersection,
@@ -109,15 +116,22 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
     ///
     fn convex_cost(&self, flow: usize) -> f64 {
         let attr = self.attribute;
-        let x = attr.freq;
-        let y = attr.penalty_weight * attr.copy_num_total as f64 / attr.copy_num as f64;
-        let z = attr.freq_intersection / attr.copy_num_intersection as f64
-            + attr.freq_init / attr.copy_num_total as f64
-            + attr.penalty_weight * attr.copy_num_total_expected as f64;
-        assert!(x >= 0.0);
-        assert!(y >= 0.0);
-        assert!(z >= 0.0);
-        (-x * clamped_log(flow)) + (y * flow.pow(2) as f64) + (z * flow as f64)
+        if attr.is_emittable {
+            let x = attr.freq;
+            let y = attr.penalty_weight * attr.copy_num_total as f64 / attr.copy_num as f64;
+            let z = attr.freq_intersection / attr.copy_num_intersection as f64
+                + attr.freq_init / attr.copy_num_total as f64
+                + attr.penalty_weight * attr.copy_num_total_expected as f64;
+            assert!(x >= 0.0);
+            assert!(y >= 0.0);
+            assert!(z >= 0.0);
+            assert!(!x.is_nan());
+            assert!(!y.is_nan());
+            assert!(!z.is_nan());
+            (-x * clamped_log(flow)) + (y * flow.pow(2) as f64) + (z * flow as f64)
+        } else {
+            0.0
+        }
     }
 }
 
@@ -146,11 +160,13 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
         for node_info in intersection.iter_out_nodes() {
             let node = node_info.index;
             let copy_num = node_info.copy_num;
+            let is_emittable = dbg.node(node).is_emittable();
 
             let freq_parents: f64 = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
             let freq = init_freqs[node] + freq_parents;
 
             ki[node] = CompressionV2KmerInfo::new(
+                is_emittable,
                 copy_num,
                 freq,
                 freq_intersection,
