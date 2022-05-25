@@ -6,7 +6,7 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{restore_convex_flow, to_fixed_flow_graph, ConvexCost};
+use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 pub use flow::total_cost;
 use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
@@ -131,6 +131,9 @@ pub fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
     init_flow: &Flow,
 ) -> Flow {
     let mut flow = init_flow.clone();
+
+    // assert graph edge has convex function?
+    assert!(is_convex_cost_flow_graph(graph));
 
     loop {
         assert!(is_valid_flow(&flow, &graph));

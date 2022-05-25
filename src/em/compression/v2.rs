@@ -201,6 +201,12 @@ struct QScore {
     prior: f64,
 }
 
+impl QScore {
+    pub fn total(&self) -> f64 {
+        self.init + self.trans + self.prior
+    }
+}
+
 ///
 /// Calculate (exact) Q function score.
 ///
@@ -269,5 +275,7 @@ mod tests {
         // println!("{}", infos);
         let qs = q_score(&dbg, &ef, &nf, 10, 0.0);
         println!("{:?}", qs);
+
+        let (ncn, c) = m_step(&dbg, &ef, &nf, 10, 0.0);
     }
 }

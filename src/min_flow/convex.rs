@@ -38,6 +38,16 @@ impl<E: ConvexCost> EdgeCost for E {
     }
 }
 
+///
+/// Check if cost function of all edges is actually convex.
+///
+pub fn is_convex_cost_flow_graph<N, E: FlowEdge + ConvexCost>(graph: &DiGraph<N, E>) -> bool {
+    graph.edge_indices().all(|e| {
+        let ew = graph.edge_weight(e).unwrap();
+        ew.is_convex()
+    })
+}
+
 //
 // Base implementations
 //
