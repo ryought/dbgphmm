@@ -247,15 +247,18 @@ fn node_list_to_edge_list(graph: &ResidueGraph, nodes: &[NodeIndex]) -> Vec<Edge
     edges
 }
 
-fn is_negative_cycle(graph: &ResidueGraph, edges: &[EdgeIndex]) -> bool {
-    let total_weight: Cost = edges
+fn total_weight(graph: &ResidueGraph, edges: &[EdgeIndex]) -> Cost {
+    edges
         .iter()
         .map(|&e| {
             let ew = graph.edge_weight(e).unwrap();
             ew.weight
         })
-        .sum();
-    total_weight < 0.0
+        .sum()
+}
+
+fn is_negative_cycle(graph: &ResidueGraph, edges: &[EdgeIndex]) -> bool {
+    total_weight(graph, edges) < 0.0
 }
 
 ///
