@@ -480,6 +480,34 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         self.to_copy_nums_of_styled_seq(&styled_sequence)
     }
     ///
+    /// generate node/edge copy numbers of the given multiple sequences
+    /// useful for benchmarking
+    ///
+    /// returns None if any of kmers in the seqs does not exist in dBG.
+    ///
+    pub fn to_copy_nums_of_styled_seqs<T>(&self, seqs: T) -> Option<(NodeCopyNums, EdgeCopyNums)>
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let mut nc_ret: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
+        let mut ec_ret: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
+
+        for seq in seqs {
+            let s = seq.as_ref();
+            match self.to_copy_nums_of_styled_seq(seq.as_ref()) {
+                Some((nc, ec)) => {
+                    nc_ret += &nc;
+                    ec_ret += &ec;
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+        Some((nc_ret, ec_ret))
+    }
+    ///
     /// generate node/edge copy numbers of the given sequence
     ///
     pub fn to_copy_nums_of_styled_seq(
@@ -939,6 +967,36 @@ mod tests {
             0,
         ));
         assert_eq!(dbg.has_consistent_node_copy_nums(), false);
+    }
+    #[test]
+    fn dbg_copy_nums_from_styled_seq() {
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &vec![b"ATTCGATCGAT".to_vec()]);
+        println!("{}", dbg);
+
+        // (1) StyledSeqs that not exists in dbg
+        let ret = dbg.to_copy_nums_of_styled_seqs(&[
+            StyledSequence::linear(b"ATCGTC".to_vec()),
+            StyledSequence::linear(b"ATCGTC".to_vec()),
+        ]);
+        assert!(ret.is_none());
+
+        // (2) true genomic StyledSeqs
+        let ret = dbg.to_copy_nums_of_styled_seqs(&[
+            StyledSequence::linear(b"ATTCGATCGAT".to_vec()),
+            StyledSequence::linear(b"ATTCGATCGAT".to_vec()),
+        ]);
+        assert!(ret.is_some());
+        let (nc, ec) = ret.unwrap();
+        println!("nc={}", nc);
+        println!("ec={}", ec);
+        assert_eq!(
+            nc.to_vec(),
+            vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        );
+        assert_eq!(
+            ec.to_vec(),
+            vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        );
     }
     #[test]
     fn manual_dbg() {
