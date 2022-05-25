@@ -182,18 +182,20 @@ where
         let mut edges = Vec::new();
         if f < ew.capacity() {
             // up movable
+            // cost=cost(f+1)-cost(f)
             edges.push((
                 v,
                 w,
-                ResidueEdge::new(1, ew.cost(f + 1) - ew.cost(f), e, ResidueDirection::Up),
+                ResidueEdge::new(1, ew.cost_diff(f), e, ResidueDirection::Up),
             ));
         }
         if f > ew.demand() {
             // down movable
+            // cost=cost(f-1)-cost(f)
             edges.push((
                 w,
                 v,
-                ResidueEdge::new(1, ew.cost(f - 1) - ew.cost(f), e, ResidueDirection::Down),
+                ResidueEdge::new(1, -ew.cost_diff(f - 1), e, ResidueDirection::Down),
             ));
         }
         rg.extend_with_edges(&edges);
