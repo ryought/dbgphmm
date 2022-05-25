@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
-    /// visualize node vec
+    /// visualize dbg (by linearization) with node/edge vec(s)
     ///
     pub fn draw_with_vecs<S>(&self, nvs: &[&NodeVec<S>], evs: &[&EdgeVec<S>])
     where
@@ -46,5 +46,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 );
             }
         }
+    }
+    ///
+    /// visualize dbg intersections with node/edge vec(s)
+    ///
+    pub fn draw_intersections_with_vecs<S>(&self, nvs: &[&NodeVec<S>], evs: &[&EdgeVec<S>])
+    where
+        S: Storage,
+        S::Item: std::fmt::Display,
+    {
+        unimplemented!();
     }
 }

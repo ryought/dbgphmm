@@ -160,6 +160,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         self.graph.node_weight(v).unwrap().emission()
     }
     ///
+    /// Check that the node is emittable or not.
+    ///
+    pub fn is_emittable(&self, v: NodeIndex) -> bool {
+        self.graph.node_weight(v).unwrap().is_emittable()
+    }
+    ///
     /// emission probability of observing the emission from
     /// Match state of node v.
     ///

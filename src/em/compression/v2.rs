@@ -4,6 +4,7 @@
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::hmmv2::common::{PHMMEdge, PHMMNode};
 use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
@@ -193,6 +194,13 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     (copy_nums.switch_index(), cost_diff)
 }
 
+#[derive(Clone, Debug, Copy, Default)]
+struct QScore {
+    init: f64,
+    trans: f64,
+    prior: f64,
+}
+
 ///
 /// Calculate (exact) Q function score.
 ///
@@ -202,8 +210,32 @@ fn q_score<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> Cost {
-    unimplemented!();
+) -> QScore {
+    let mut qs = QScore::default();
+    let phmm = dbg.to_phmm(PHMMParams::default());
+
+    for (node, node_weight) in phmm.nodes() {
+        if phmm.is_emittable(node) {
+            // (1) init score
+            // A(Begin, v) log p_init(v)
+            qs.init += init_freqs[node] * node_weight.init_prob().to_log_value();
+
+            for (edge, child, edge_weight) in phmm.childs(node) {
+                if phmm.is_emittable(child) {
+                    // (2) trans score
+                    // A(v,w) log p_trans(v, w)
+                    qs.trans += edge_freqs[edge] * edge_weight.trans_prob().to_log_value();
+                }
+            }
+        }
+    }
+
+    // (3) prior score
+    // -lambda (genome_size - genome_size_expected)^2
+    let size_diff = genome_size as f64 - dbg.genome_size() as f64;
+    qs.prior = -penalty_weight * size_diff.powi(2);
+
+    qs
 }
 
 //
@@ -235,5 +267,7 @@ mod tests {
         let infos = create_kmer_infos(&dbg, &ef, &nf, 10, 0.0);
         dbg.draw_with_vecs(&[&nf], &[&ef]);
         // println!("{}", infos);
+        let qs = q_score(&dbg, &ef, &nf, 10, 0.0);
+        println!("{:?}", qs);
     }
 }
