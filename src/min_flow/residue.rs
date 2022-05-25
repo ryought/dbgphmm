@@ -233,16 +233,15 @@ fn pick_minimum_weight_edge(graph: &ResidueGraph, v: NodeIndex, w: NodeIndex) ->
 /// by choosing the minimum weight edge if there are parallel edges
 fn node_list_to_edge_list(graph: &ResidueGraph, nodes: &[NodeIndex]) -> Vec<EdgeIndex> {
     let mut edges = Vec::new();
+    let n = nodes.len();
 
-    // (1) nodes[i] and nodes[i+1] from i=0..n-1
-    for (v, w) in nodes.iter().tuple_windows() {
-        let edge = pick_minimum_weight_edge(graph, *v, *w);
+    // convert (nodes[i], nodes[i+1]) into an edge
+    for i in 0..n {
+        let v = nodes[i];
+        let w = nodes[(i + 1) % n];
+        let edge = pick_minimum_weight_edge(graph, v, w);
         edges.push(edge);
     }
-
-    // (2) tail and head, node[n-1] and node[0]
-    let edge = pick_minimum_weight_edge(graph, nodes[nodes.len() - 1], nodes[0]);
-    edges.push(edge);
 
     edges
 }
