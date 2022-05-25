@@ -10,6 +10,7 @@ use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::utils::clamped_log;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
@@ -88,8 +89,17 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithKmerInfos<K> {
 }
 
 impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
+    ///
+    /// convex cost for exact compression EM algorithm
+    ///
     fn convex_cost(&self, flow: usize) -> f64 {
-        unimplemented!();
+        let attr = self.attribute;
+        let x = attr.freq;
+        let y = attr.penalty_weight * attr.copy_num_total as f64 / attr.copy_num as f64;
+        let z = attr.freq_intersection / attr.copy_num_intersection as f64
+            + attr.freq_init / attr.copy_num_total as f64
+            + attr.penalty_weight * attr.copy_num_total_expected as f64;
+        -x * clamped_log(flow) + y * flow.pow(2) as f64 + z * flow as f64
     }
 }
 
@@ -173,6 +183,6 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
     let copy_nums = min_cost_flow_from_convex(&edbg.graph, &original_copy_nums);
     let cost_diff =
-        total_cost(&edbg.graph, &copy_nums) + total_cost(&edbg.graph, &original_copy_nums);
+        total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
     (copy_nums.switch_index(), cost_diff)
 }
