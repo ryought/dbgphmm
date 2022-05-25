@@ -334,7 +334,12 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
             let edges = node_list_to_edge_list(&rg, &nodes);
 
             // check if this is actually negative cycle
-            assert!(is_negative_cycle(&rg, &edges));
+            assert!(
+                is_negative_cycle(&rg, &edges),
+                "total weight of the found negative cycle is not negative. edges={:?} total_weight={}",
+                edges,
+                total_weight(&rg, &edges)
+            );
 
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
