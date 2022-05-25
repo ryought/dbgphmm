@@ -51,6 +51,12 @@ pub struct CompressionV2KmerInfo {
     penalty_weight: f64,
 }
 
+// impl std::fmt::Display for CompressionV2KmerInfo {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "{}", self.penalty_weight)
+//     }
+// }
+
 impl CompressionV2KmerInfo {
     fn new(
         copy_num: CopyNum,
@@ -185,4 +191,49 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     let cost_diff =
         total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
     (copy_nums.switch_index(), cost_diff)
+}
+
+///
+/// Calculate (exact) Q function score.
+///
+fn q_score<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> Cost {
+    unimplemented!();
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dbg::mocks::*;
+
+    #[test]
+    fn em_compression_v2_e_step() {
+        let dbg = mock_intersection();
+        let reads = Reads {
+            reads: vec![
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+            ],
+        };
+        let params = PHMMParams::zero_error();
+        println!("{}", dbg);
+        println!("{}", dbg.n_traverse_choices());
+        let (ef, nf, p) = e_step(&dbg, &reads, &params);
+        println!("{}", ef);
+        println!("{}", nf);
+
+        let infos = create_kmer_infos(&dbg, &ef, &nf, 10, 0.0);
+        dbg.draw_with_vecs(&[&nf], &[&ef]);
+        // println!("{}", infos);
+    }
 }
