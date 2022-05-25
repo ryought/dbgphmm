@@ -132,8 +132,8 @@ pub fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
 ) -> Flow {
     let mut flow = init_flow.clone();
 
-    // assert graph edge has convex function?
-    assert!(is_convex_cost_flow_graph(graph));
+    // TODO assert graph edge has convex function?
+    // assert!(is_convex_cost_flow_graph(graph));
 
     loop {
         assert!(is_valid_flow(&flow, &graph));
