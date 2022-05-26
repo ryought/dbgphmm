@@ -36,7 +36,7 @@ pub struct CompressionV2KmerInfo {
     ///
     freq_intersection: Freq,
     ///
-    /// total frequency of Begin->node
+    /// total frequency from Begin
     ///
     freq_init: Freq,
     ///
@@ -61,21 +61,36 @@ impl std::fmt::Display for CompressionV2KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "c={} f={} fi={} fB={} cG={} ci={} cG0={} w={} x={} y={} z={} 0={} +1={} -1={}",
+            "e={} c={} ci={} cG={} cG0={} f={:.4} fi={:.4} fB={:.4} w={:.4} x={:.4} y={:.4} z={:.4} 0={:.4} +1={:.4} -1={:.4}",
+            self.is_emittable,
             self.copy_num,
+            self.copy_num_intersection,
+            self.copy_num_total,
+            self.copy_num_total_expected,
             self.freq,
             self.freq_intersection,
             self.freq_init,
-            self.copy_num_total,
-            self.copy_num_intersection,
-            self.copy_num_total_expected,
             self.penalty_weight,
             self.x(),
             self.y(),
             self.z(),
             self.score(self.copy_num),
-            self.score(self.copy_num + 1) - self.score(self.copy_num),
-            self.score(self.copy_num - 1) - self.score(self.copy_num),
+            if self.copy_num < MAX_COPY_NUM_OF_EDGE {
+                format!(
+                    "{}",
+                    self.score(self.copy_num + 1) - self.score(self.copy_num)
+                )
+            } else {
+                "x".to_string()
+            },
+            if self.copy_num > 0 {
+                format!(
+                    "{}",
+                    self.score(self.copy_num - 1) - self.score(self.copy_num)
+                )
+            } else {
+                "x".to_string()
+            },
         )
     }
 }
@@ -334,7 +349,8 @@ mod tests {
         let genome_size = 10;
 
         let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
-        dbg.draw_with_vecs(&[&nf], &[&ef]);
+        // dbg.draw_with_vecs(&[&nf], &[&ef]);
+        dbg.draw_with_vecs(&[&infos], &[]);
         // println!("{}", infos);
         let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         println!("{:?}", qs);
