@@ -8,6 +8,16 @@ use petgraph::visit::{
     IntoEdges, IntoNodeIdentifiers, NodeCount, NodeIndexable, VisitMap, Visitable,
 };
 
+pub trait HasEpsilon: FloatMeasure {
+    fn epsilon() -> Self;
+}
+
+impl HasEpsilon for f64 {
+    fn epsilon() -> Self {
+        f64::EPSILON
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Paths<NodeId, EdgeWeight> {
     pub distances: Vec<EdgeWeight>,
@@ -86,7 +96,7 @@ pub fn bellman_ford<G>(
 ) -> Result<Paths<G::NodeId, G::EdgeWeight>, NegativeCycle>
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable,
-    G::EdgeWeight: FloatMeasure,
+    G::EdgeWeight: FloatMeasure + HasEpsilon,
 {
     let ix = |i| g.to_index(i);
 
@@ -98,7 +108,7 @@ where
         for edge in g.edges(i) {
             let j = edge.target();
             let w = *edge.weight();
-            if distances[ix(i)] + w < distances[ix(j)] {
+            if distances[ix(i)] + w + G::EdgeWeight::epsilon() < distances[ix(j)] {
                 return Err(NegativeCycle(()));
             }
         }
@@ -146,7 +156,7 @@ where
 pub fn find_negative_cycle<G>(g: G, source: G::NodeId) -> Option<Vec<G::NodeId>>
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable + Visitable,
-    G::EdgeWeight: FloatMeasure,
+    G::EdgeWeight: FloatMeasure + HasEpsilon,
 {
     let ix = |i| g.to_index(i);
     let mut path = Vec::<G::NodeId>::new();
@@ -159,7 +169,7 @@ where
         for edge in g.edges(i) {
             let j = edge.target();
             let w = *edge.weight();
-            if distance[ix(i)] + w < distance[ix(j)] {
+            if distance[ix(i)] + w + G::EdgeWeight::epsilon() < distance[ix(j)] {
                 // Step 3: negative cycle found
                 let start = j;
                 let mut node = start;
@@ -216,7 +226,7 @@ fn bellman_ford_initialize_relax<G>(
 ) -> (Vec<G::EdgeWeight>, Vec<Option<G::NodeId>>)
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable,
-    G::EdgeWeight: FloatMeasure,
+    G::EdgeWeight: FloatMeasure + HasEpsilon,
 {
     // Step 1: initialize graph
     let mut predecessor = vec![None; g.node_bound()];
@@ -231,7 +241,7 @@ where
             for edge in g.edges(i) {
                 let j = edge.target();
                 let w = *edge.weight();
-                if distance[ix(i)] + w < distance[ix(j)] {
+                if distance[ix(i)] + w + G::EdgeWeight::epsilon() < distance[ix(j)] {
                     distance[ix(j)] = distance[ix(i)] + w;
                     predecessor[ix(j)] = Some(i);
                     did_update = true;
@@ -243,4 +253,34 @@ where
         }
     }
     (distance, predecessor)
+}
+
+//
+// test
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bellman_ford_custom() {
+        let g = DiGraph::<(), f64>::from_edges(&[
+            (0, 1, 1000000.1),
+            (0, 2, 10.001),
+            (1, 2, 0.0001),
+            (2, 1, -0.0001),
+        ]);
+        let path = find_negative_cycle(&g, NodeIndex::new(0));
+        println!("{:?}", path);
+
+        let g = DiGraph::<(), f64>::from_edges(&[
+            (0, 1, 1000000.1),
+            (0, 2, 10.001),
+            (1, 2, 0.0002),
+            (2, 1, -0.0005),
+        ]);
+        let path = find_negative_cycle(&g, NodeIndex::new(0));
+        println!("{:?}", path);
+    }
 }

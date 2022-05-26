@@ -7,8 +7,8 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
+use crate::graph::bellman_ford::{find_negative_cycle, HasEpsilon};
 use itertools::Itertools; // for tuple_windows
-use petgraph::algo::find_negative_cycle;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
 use petgraph::visit::VisitMap;
@@ -81,6 +81,13 @@ impl petgraph::algo::FloatMeasure for ResidueEdge {
     }
     fn infinite() -> Self {
         ResidueEdge::only_weight(1. / 0.)
+    }
+}
+
+impl HasEpsilon for ResidueEdge {
+    fn epsilon() -> Self {
+        // TODO should be changed to f64::EPSILON?
+        ResidueEdge::only_weight(0.00001)
     }
 }
 
@@ -310,6 +317,12 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
     loop {
         let path = find_negative_cycle(&graph, node);
 
+        // // TODO
+        // let g2 = residue_to_float_weighted_graph(&graph);
+        // let path2 = find_negative_cycle(&g2, node);
+        // println!("path2={:?}", path2);
+        // draw(&g2);
+
         if path.is_some() {
             return path;
         }
@@ -344,24 +357,17 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
         Some(nodes) => {
             let edges = node_list_to_edge_list(&rg, &nodes);
 
-            // TODO what happened find_negative_cycle function
-            // returns non-negative cycle??
-            if is_negative_cycle(&rg, &edges) {
-                // check if this is actually negative cycle
-                assert!(
-                    is_negative_cycle(&rg, &edges),
-                    "total weight of the found negative cycle is not negative. edges={:?} total_weight={}",
-                    edges,
-                    total_weight(&rg, &edges)
-                );
+            // check if this is actually negative cycle
+            assert!(
+                is_negative_cycle(&rg, &edges),
+                "total weight of the found negative cycle is not negative. edges={:?} total_weight={}",
+                edges,
+                total_weight(&rg, &edges)
+            );
 
-                // apply these changes along the cycle to current flow
-                let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
-                println!("{:?}", new_flow);
-                Some(new_flow)
-            } else {
-                None
-            }
+            // apply these changes along the cycle to current flow
+            let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
+            Some(new_flow)
         }
         None => None,
     }
@@ -398,7 +404,7 @@ mod tests {
     #[test]
     fn petgraph_negative_cycle_test() {
         // small cycle test
-        let mut g: DiGraph<(), f32> = Graph::new();
+        let mut g: DiGraph<(), f64> = Graph::new();
         let a = g.add_node(());
         let b = g.add_node(());
         g.add_edge(a, b, -10.0);
@@ -413,7 +419,7 @@ mod tests {
     #[test]
     fn petgraph_negative_cycle_test2() {
         // self loop test, it will work fine
-        let mut g: DiGraph<(), f32> = Graph::new();
+        let mut g: DiGraph<(), f64> = Graph::new();
         let a = g.add_node(());
         g.add_edge(a, a, -10.0);
         let path = find_negative_cycle(&g, NodeIndex::new(0));
