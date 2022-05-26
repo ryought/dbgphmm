@@ -61,7 +61,7 @@ impl std::fmt::Display for CompressionV2KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "e={} c={} ci={} cG={} cG0={} f={:.4} fi={:.4} fB={:.4} w={:.4} x={:.4} y={:.4} z={:.4} 0={:.4} +1={:.4} -1={:.4}",
+            "e={} c={} ci={} cG={} cG0={} f={} fi={} fB={} w={} x={:.4} y={:.4} z={:.4} 0={} +1={} -1={}",
             self.is_emittable,
             self.copy_num,
             self.copy_num_intersection,
