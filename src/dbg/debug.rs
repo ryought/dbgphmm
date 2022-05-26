@@ -9,6 +9,36 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// visualize dbg (by linearization) with node/edge vec(s)
     ///
+    pub fn draw_plain_with_vecs<S>(&self, nvs: &[&NodeVec<S>], evs: &[&EdgeVec<S>])
+    where
+        S: Storage,
+        S::Item: std::fmt::Display,
+    {
+        for (node, node_weight) in self.nodes() {
+            let node_infos = nvs.iter().map(|nv| nv[node].to_string()).join("\t");
+            println!(
+                "v{}\t{}\tx{}\t{}",
+                node.index(),
+                node_weight.kmer(),
+                node_weight.copy_num(),
+                node_infos,
+            );
+        }
+
+        for (edge, v, w, edge_weight) in self.edges() {
+            let edge_infos = evs.iter().map(|ev| ev[edge].to_string()).join("\t");
+            println!(
+                "e{}\t{}->{}\t{}",
+                edge.index(),
+                v.index(),
+                w.index(),
+                edge_infos,
+            );
+        }
+    }
+    ///
+    /// visualize dbg (by linearization) with node/edge vec(s)
+    ///
     pub fn draw_with_vecs<S>(&self, nvs: &[&NodeVec<S>], evs: &[&EdgeVec<S>])
     where
         S: Storage,
