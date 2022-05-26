@@ -152,7 +152,12 @@ impl CompressionV2KmerInfo {
             assert!(!x.is_nan());
             assert!(!y.is_nan());
             assert!(!z.is_nan());
-            (-x * clamped_log(copy_num)) + (y * copy_num.pow(2) as f64) + (z * copy_num as f64)
+            if copy_num == 0 {
+                // to avoid Inf*0
+                -x * clamped_log(copy_num)
+            } else {
+                (-x * clamped_log(copy_num)) + (y * copy_num.pow(2) as f64) + (z * copy_num as f64)
+            }
         } else {
             0.0
         }
