@@ -57,11 +57,28 @@ pub struct CompressionV2KmerInfo {
     penalty_weight: f64,
 }
 
-// impl std::fmt::Display for CompressionV2KmerInfo {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "{}", self.penalty_weight)
-//     }
-// }
+impl std::fmt::Display for CompressionV2KmerInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "c={} f={} fi={} fB={} cG={} ci={} cG0={} w={} x={} y={} z={} 0={} +1={} -1={}",
+            self.copy_num,
+            self.freq,
+            self.freq_intersection,
+            self.freq_init,
+            self.copy_num_total,
+            self.copy_num_intersection,
+            self.copy_num_total_expected,
+            self.penalty_weight,
+            self.x(),
+            self.y(),
+            self.z(),
+            self.score(self.copy_num),
+            self.score(self.copy_num + 1) - self.score(self.copy_num),
+            self.score(self.copy_num - 1) - self.score(self.copy_num),
+        )
+    }
+}
 
 impl CompressionV2KmerInfo {
     fn new(
@@ -95,6 +112,36 @@ impl CompressionV2KmerInfo {
             penalty_weight,
         }
     }
+    /// Coefficient of log(copy_num)
+    pub fn x(&self) -> f64 {
+        self.freq
+    }
+    /// Coefficient of (copy_num)^2
+    pub fn y(&self) -> f64 {
+        self.penalty_weight * self.copy_num_total as f64 / self.copy_num as f64
+    }
+    /// Coefficient of (copy_num)
+    pub fn z(&self) -> f64 {
+        self.freq_intersection / self.copy_num_intersection as f64
+            + self.freq_init / self.copy_num_total as f64
+            + self.penalty_weight * self.copy_num_total_expected as f64
+    }
+    pub fn score(&self, copy_num: CopyNum) -> f64 {
+        if self.is_emittable {
+            let x = self.x();
+            let y = self.y();
+            let z = self.z();
+            assert!(x >= 0.0);
+            assert!(y >= 0.0);
+            assert!(z >= 0.0);
+            assert!(!x.is_nan());
+            assert!(!y.is_nan());
+            assert!(!z.is_nan());
+            (-x * clamped_log(copy_num)) + (y * copy_num.pow(2) as f64) + (z * copy_num as f64)
+        } else {
+            0.0
+        }
+    }
 }
 
 pub type KmerInfos = NodeVec<DenseStorage<CompressionV2KmerInfo>>;
@@ -115,23 +162,7 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
     /// convex cost for exact compression EM algorithm
     ///
     fn convex_cost(&self, flow: usize) -> f64 {
-        let attr = self.attribute;
-        if attr.is_emittable {
-            let x = attr.freq;
-            let y = attr.penalty_weight * attr.copy_num_total as f64 / attr.copy_num as f64;
-            let z = attr.freq_intersection / attr.copy_num_intersection as f64
-                + attr.freq_init / attr.copy_num_total as f64
-                + attr.penalty_weight * attr.copy_num_total_expected as f64;
-            assert!(x >= 0.0);
-            assert!(y >= 0.0);
-            assert!(z >= 0.0);
-            assert!(!x.is_nan());
-            assert!(!y.is_nan());
-            assert!(!z.is_nan());
-            (-x * clamped_log(flow)) + (y * flow.pow(2) as f64) + (z * flow as f64)
-        } else {
-            0.0
-        }
+        self.attribute.score(flow)
     }
 }
 
