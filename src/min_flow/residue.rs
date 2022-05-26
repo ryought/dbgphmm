@@ -198,6 +198,15 @@ where
                 ResidueEdge::new(1, -ew.cost_diff(f - 1), e, ResidueDirection::Down),
             ));
         }
+
+        // if up/down movable,
+        // self round loop (v->w and w->v) should not have negative weight.
+        if f < ew.capacity() && f > ew.demand() {
+            let cost_up = ew.cost_diff(f);
+            let cost_down = -ew.cost_diff(f - 1);
+            assert!(cost_up + cost_down >= 0.0);
+        }
+
         rg.extend_with_edges(&edges);
     }
     rg
