@@ -253,7 +253,7 @@ fn e_step<N: DbgNode, E: DbgEdge>(
 /// * Construct edbg whose edge has CompressionV2KmerInfo
 /// * Solve min-cost-flow
 ///
-fn m_step<N: DbgNode, E: DbgEdge>(
+fn m_step_once<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
@@ -263,15 +263,46 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     // construct edbg with KmerInfo
     let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     let edbg = dbg.to_edbg_with_attr(Some(&infos));
+    // dbg.draw_with_vecs(&[&infos], &[]);
+    // dbg.draw_plain_with_vecs(&[&infos], &[]);
 
     // min-flow optimization starts from current copy nums
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
     let copy_nums = min_cost_flow_from_convex(&edbg.graph, &original_copy_nums);
+    println!("old_copy_nums={}", original_copy_nums);
+    println!("new_copy_nums={}", copy_nums);
     println!("cost_old={}", total_cost(&edbg.graph, &original_copy_nums));
     println!("cost_new={}", total_cost(&edbg.graph, &copy_nums));
     let cost_diff =
         total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
+    println!("cost_diff={}", cost_diff);
     (copy_nums.switch_index(), cost_diff)
+}
+
+///
+/// M-step of compression_v2
+///
+/// * Construct edbg whose edge has CompressionV2KmerInfo
+/// * Solve min-cost-flow
+///
+fn m_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> Dbg<N, E> {
+    let mut dbg = dbg.clone();
+    loop {
+        let (new_copy_nums, cost_diff) =
+            m_step_once(&dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+        if cost_diff.is_nan() || cost_diff >= 0.0 {
+            // not improved
+            break;
+        }
+        dbg.set_node_copy_nums(&new_copy_nums);
+    }
+    dbg
 }
 
 #[derive(Clone, Debug, Copy, Default)]
@@ -343,15 +374,15 @@ mod tests {
                 b"AACTAGCTT".to_vec(),
             ],
         };
-        let params = PHMMParams::zero_error();
+        let params = PHMMParams::default();
         println!("{}", dbg);
         println!("{}", dbg.n_traverse_choices());
         let (ef, nf, p) = e_step(&dbg, &reads, &params);
         println!("{}", ef);
         println!("{}", nf);
 
-        let lambda = 0.0;
-        let genome_size = 10;
+        let lambda = 1.0;
+        let genome_size = 100;
 
         let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
         // dbg.draw_with_vecs(&[&nf], &[&ef]);
@@ -360,12 +391,14 @@ mod tests {
         let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         println!("{:?}", qs);
 
-        let (ncn, c) = m_step(&dbg, &ef, &nf, genome_size, lambda);
-        println!("{}", ncn);
+        let dbg = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        println!("{}", dbg);
 
+        /*
         let mut new_dbg = dbg.clone();
         let is_updated = new_dbg.set_node_copy_nums(&ncn);
         let qs = q_score(&new_dbg, &ef, &nf, genome_size, lambda);
         println!("{:?}", qs);
+        */
     }
 }
