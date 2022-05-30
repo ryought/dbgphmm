@@ -238,6 +238,18 @@ impl StyledSequence {
     pub fn new(seq: Sequence, style: SeqStyle) -> Self {
         StyledSequence { seq, style }
     }
+    /// Construct StyledSequence with SeqStyle::Circular
+    pub fn circular(seq: Sequence) -> Self {
+        StyledSequence::new(seq, SeqStyle::Circular)
+    }
+    /// Construct StyledSequence with SeqStyle::Linear
+    pub fn linear(seq: Sequence) -> Self {
+        StyledSequence::new(seq, SeqStyle::Linear)
+    }
+    /// Construct StyledSequence with SeqStyle::LinearFragment
+    pub fn linear_fragment(seq: Sequence) -> Self {
+        StyledSequence::new(seq, SeqStyle::LinearFragment)
+    }
     pub fn seq(&self) -> &Sequence {
         &self.seq
     }
@@ -275,6 +287,12 @@ impl FromStr for StyledSequence {
 impl AsRef<Bases> for StyledSequence {
     fn as_ref(&self) -> &Bases {
         &self.seq
+    }
+}
+
+impl AsRef<StyledSequence> for StyledSequence {
+    fn as_ref(&self) -> &StyledSequence {
+        self
     }
 }
 

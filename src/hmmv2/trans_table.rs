@@ -3,7 +3,7 @@
 //!
 use crate::common::Freq;
 use crate::prob::Prob;
-use crate::vector::{DenseStorage, EdgeVec};
+use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 
 #[derive(Debug, Copy, PartialEq, Clone, Default)]
 pub struct TransProb {
@@ -51,8 +51,12 @@ impl std::fmt::Display for TransProb {
     }
 }
 
-/// Prob assigned to each edge and each edge types
+/// TransProb assigned to each edge and each edge types
 pub type TransProbs = EdgeVec<DenseStorage<TransProb>>;
+
+/// TransProb assigned to each node
+/// represents edge from Begin state and the node.
+pub type InitTransProbs = NodeVec<DenseStorage<TransProb>>;
 
 /// Frequency (f64) assigned to each edges
 pub type EdgeFreqs = EdgeVec<DenseStorage<Freq>>;

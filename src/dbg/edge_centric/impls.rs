@@ -125,7 +125,7 @@ pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
 ///
 /// this corresponds to the capacity of edbg min-flow calculation.
 ///
-const MAX_COPY_NUM_OF_EDGE: usize = 1000;
+pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
 impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
     fn demand(&self) -> usize {

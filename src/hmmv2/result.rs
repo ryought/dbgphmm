@@ -13,14 +13,48 @@ use crate::vector::{DenseStorage, SparseStorage, Storage};
 /// Trait that generalizes PHMMResultFull and PHMMResultSparse
 ///
 pub trait PHMMResultLike {
+    ///
+    /// This PHMM result represents forward or backward?
+    ///
+    fn is_forward(&self) -> bool;
+    /// The number of emissions that this result stores.
     fn n_emissions(&self) -> usize;
+    /// index-access to table
     fn table(&self, index: usize) -> PHMMTableRef;
+    /// get init_table
     fn init_table(&self) -> PHMMTableRef;
     fn first_table(&self) -> PHMMTableRef {
         self.table(0)
     }
     fn last_table(&self) -> PHMMTableRef {
         self.table(self.n_emissions() - 1)
+    }
+    ///
+    /// Access to a table by merged_index (0 <= i <= n).
+    ///
+    /// Forward[i]
+    ///  = init_table  if i==0
+    ///    table(i-1)  otherwise
+    ///  = P(emits x[:i] and now in a state)
+    /// Backward[i]
+    ///  = init_table  if i==n
+    ///    table(i)    otherwise
+    ///  = P(emits x[i:] | starts from a state)
+    ///
+    fn table_merged(&self, merged_index: usize) -> PHMMTableRef {
+        if self.is_forward() {
+            if merged_index == 0 {
+                self.init_table()
+            } else {
+                self.table(merged_index - 1)
+            }
+        } else {
+            if merged_index >= self.n_emissions() {
+                self.init_table()
+            } else {
+                self.table(merged_index)
+            }
+        }
     }
 }
 
@@ -33,18 +67,19 @@ pub trait PHMMResultLike {
 pub struct PHMMResult {
     pub init_table: PHMMTable<DenseStorage<Prob>>,
     pub tables: Vec<PHMMTable<DenseStorage<Prob>>>,
+    pub is_forward: bool,
 }
 
 impl PHMMResultLike for PHMMResult {
-    /// The number of emissions that this result stores.
+    fn is_forward(&self) -> bool {
+        self.is_forward
+    }
     fn n_emissions(&self) -> usize {
         self.tables.len()
     }
-    /// get init_table
     fn init_table(&self) -> PHMMTableRef {
         PHMMTableRef::Dense(&self.init_table)
     }
-    /// index-access to table
     fn table(&self, index: usize) -> PHMMTableRef {
         PHMMTableRef::Dense(&self.tables[index])
     }
@@ -61,7 +96,9 @@ pub struct PHMMResultSparse {
 }
 
 impl PHMMResultLike for PHMMResultSparse {
-    /// The number of emissions that this result stores.
+    fn is_forward(&self) -> bool {
+        self.is_forward
+    }
     fn n_emissions(&self) -> usize {
         self.tables_warmup.len() + self.tables_sparse.len()
     }

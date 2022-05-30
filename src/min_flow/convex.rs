@@ -3,7 +3,7 @@
 //!
 pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
-use super::utils::{clamped_log, is_convex};
+use super::utils::{clamped_log, is_increasing};
 use super::{Cost, FlowRate};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -17,18 +17,27 @@ pub trait ConvexCost: FlowEdge {
     /// it is a convex function of the current flow
     fn convex_cost(&self, flow: FlowRate) -> Cost;
     ///
+    /// cost_diff(f) = cost(f+1) - cost(f)
+    ///
+    /// This value will be used as weight (fixed cost) of residue edges.
+    /// If cost(f+1)-cost(f) is numerically unstable (and analytically solvable)
+    /// you should implement manually this function (and override it).
+    ///
+    fn cost_diff(&self, flow: FlowRate) -> Cost {
+        self.convex_cost(flow + 1) - self.convex_cost(flow)
+    }
+    ///
     /// check if this edge has a finite capacity (`capacity < 100`).
     fn is_finite_capacity(&self) -> bool {
         self.capacity() < 100
     }
     ///
     /// check if the cost function of the edge is actually convex function
+    ///
     fn is_convex(&self) -> bool {
-        is_convex(
-            |flow| self.convex_cost(flow),
-            self.demand(),
-            self.capacity(),
-        )
+        // assert cost_diff is increasing function.
+        // (<=> cost function is convex function)
+        is_increasing(|flow| self.cost_diff(flow), self.demand(), self.capacity())
     }
 }
 
@@ -36,6 +45,16 @@ impl<E: ConvexCost> EdgeCost for E {
     fn cost(&self, flow: FlowRate) -> Cost {
         self.convex_cost(flow)
     }
+}
+
+///
+/// Check if cost function of all edges is actually convex.
+///
+pub fn is_convex_cost_flow_graph<N, E: FlowEdge + ConvexCost>(graph: &DiGraph<N, E>) -> bool {
+    graph.edge_indices().all(|e| {
+        let ew = graph.edge_weight(e).unwrap();
+        ew.is_convex()
+    })
 }
 
 //
@@ -183,7 +202,8 @@ where
         // (2) add aux edges of [demand,capacity]=[0,1]
         let edges: Vec<(NodeIndex, NodeIndex, FixedCostFlowEdge)> = (ew.demand()..ew.capacity())
             .map(|f| {
-                let cost = ew.cost(f + 1) - ew.cost(f);
+                // set a (constant) cost to cost(f+1)-cost(f)
+                let cost = ew.cost_diff(f);
                 let fe = FixedCostFlowEdge::new(0, 1, cost, e, f);
                 (v, w, fe)
             })
@@ -311,6 +331,10 @@ mod tests {
         assert_eq!(1, e.demand);
         assert_eq!(5, e.capacity);
         assert_eq!(true, e.is_convex());
+
+        // TODO
+        // let e = BaseConvexFlowEdge::new(1, 5, |f| 0.0001 * f as f64);
+        // assert_eq!(true, e.is_convex());
     }
 
     #[test]

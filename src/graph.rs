@@ -4,6 +4,7 @@ use serde::Serialize;
 pub mod active_nodes;
 pub mod bipartite;
 pub use bipartite::Bipartite;
+pub mod bellman_ford;
 pub mod genome_graph;
 pub mod iterators;
 pub mod mocks;
