@@ -7,6 +7,7 @@ pub use bipartite::Bipartite;
 pub mod bellman_ford;
 pub mod genome_graph;
 pub mod iterators;
+pub mod min_mean_weight_cycle;
 pub mod mocks;
 pub mod seq_graph;
 
