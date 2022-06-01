@@ -286,6 +286,7 @@ mod tests {
     fn shortest_paths_03() {
         let mut g: DiGraph<(), f64> = DiGraph::new();
         g.extend_with_edges(&[
+            (0, 1, 1.0),
             (1, 2, 3.0),
             (2, 0, -1.0),
             (1, 3, 2.0),
