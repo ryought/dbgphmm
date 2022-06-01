@@ -8,6 +8,7 @@
 //! * https://walkccc.me/CLRS/Chap24/Problems/24-5/
 //!
 use petgraph::prelude::*;
+use petgraph::visit::{VisitMap, Visitable};
 
 ///
 /// F[k][v] = (min weight path (with length k) from source to a node v)
@@ -79,6 +80,107 @@ pub fn shortest_paths<N, E: FloatWeight>(
     ShortestPaths { dists, preds }
 }
 
+///
+/// Find a minimizer pair `(k, v)`
+/// that satisfies `min_v max_k (F[n][v] - F[k][v]) / (n-k)`.
+///
+pub fn find_minimizer_pair<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    paths: &ShortestPaths,
+) -> Option<(usize, NodeIndex, f64)> {
+    let n = graph.node_count();
+    (0..n)
+        .filter_map(|v| {
+            (0..n)
+                .filter_map(|k| {
+                    let fnv = paths.dists[n][v];
+                    let fkv = paths.dists[k][v];
+                    if fnv != f64::INFINITY && fkv != f64::INFINITY {
+                        Some((k, (fnv - fkv) / (n - k) as f64))
+                    } else {
+                        None
+                    }
+                })
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .map(|(k, score)| (k, NodeIndex::new(v), score))
+        })
+        .min_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
+}
+
+///
+/// Traceback a path from source to target
+/// by using `preds` in paths
+///
+pub fn traceback_preds<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    target: NodeIndex,
+    paths: &ShortestPaths,
+) -> Vec<NodeIndex> {
+    let n = graph.node_count();
+    let ix = |node: NodeIndex| node.index();
+
+    let mut node = target;
+    let mut path = vec![target];
+
+    for k in (1..=n).rev() {
+        let pred = match paths.preds[k][ix(node)] {
+            Some(pred) => pred,
+            None => panic!("no parent"),
+        };
+        path.push(pred);
+        node = pred;
+    }
+
+    path.reverse();
+    path
+}
+
+///
+/// Find a cycle in a path
+///
+pub fn find_cycle<N, E>(graph: &DiGraph<N, E>, path: &[NodeIndex]) -> Option<Vec<NodeIndex>> {
+    let mut v = graph.visit_map();
+    let mut cycle = Vec::new();
+
+    for &node in path.iter().rev() {
+        if v.is_visited(&node) {
+            // this node is visited twice.  cycle is detected.
+            let prev_visit = cycle.iter().position(|&v| v == node).unwrap();
+            cycle = cycle[prev_visit..].to_vec();
+            cycle.reverse();
+            return Some(cycle);
+        } else {
+            // fisrt visit of this node
+            v.visit(node);
+            cycle.push(node);
+        }
+    }
+
+    None
+}
+
+///
+/// Find a minimum mean-weight cycle in a graph
+/// Returns None if there is no cycle.
+///
+pub fn find_minimum_mean_weight_cycle<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<Vec<NodeIndex>> {
+    let sp = shortest_paths(graph, source);
+    match find_minimizer_pair(graph, source, &sp) {
+        Some((_, v, _)) => {
+            let path = traceback_preds(graph, source, v, &sp);
+            let cycle = find_cycle(graph, &path)
+                .expect("minimizer pair was found, but no cycle was found when tracebacking");
+            Some(cycle)
+        }
+        None => None,
+    }
+}
+
 //
 // tests
 //
@@ -114,5 +216,52 @@ mod tests {
         // 0->2->4
         assert_eq!(sp.dists[2][4], 1.0 + 2.0);
         assert_eq!(sp.preds[2][4], Some(ni(2)));
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, None);
+    }
+
+    #[test]
+    fn shortest_paths_01() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 1.0),
+            (1, 2, 3.0),
+            (2, 0, 1.0),
+            (1, 3, 1.0),
+            (3, 4, 2.0),
+            (4, 5, 1.0),
+            (5, 1, 1.0),
+        ]);
+        let sp = shortest_paths(&g, ni(0));
+        println!("{:?}", sp);
+        let (k, v, s) = find_minimizer_pair(&g, ni(0), &sp).unwrap();
+        println!("k={} v={} s={}", k, v.index(), s);
+        let path = traceback_preds(&g, ni(0), v, &sp);
+        println!("path={:?}", path);
+        let cycle = find_cycle(&g, &path);
+        println!("cycle={:?}", cycle);
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some(vec![ni(3), ni(4), ni(5), ni(1)]));
+    }
+
+    #[test]
+    fn shortest_paths_02() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 3.0),
+            (0, 1, 1.0),
+            (1, 2, 1.0),
+            (2, 0, 1.0),
+            (1, 3, 1.0),
+            (3, 2, 4.0),
+        ]);
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some(vec![ni(2), ni(0), ni(1)]));
     }
 }
