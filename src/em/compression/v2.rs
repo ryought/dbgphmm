@@ -1,6 +1,7 @@
 //!
 //! CompressionV2
 //!
+pub use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInfo};
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
@@ -16,11 +17,83 @@ use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
-pub use super::kmer_info::CompressionV2KmerInfo;
-pub type KmerInfos = NodeVec<DenseStorage<CompressionV2KmerInfo>>;
-pub type SimpleEDbgEdgeWithKmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV2KmerInfo>;
+#[derive(Clone, Debug, Copy, PartialEq, Default)]
+pub struct CompressionV2KmerInfo(KmerInfo);
 
-impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithKmerInfos<K> {
+pub type V2KmerInfos = NodeVec<DenseStorage<CompressionV2KmerInfo>>;
+pub type SimpleEDbgEdgeWithV2KmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV2KmerInfo>;
+
+impl std::fmt::Display for CompressionV2KmerInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} x={:.4} y={:.4} z={:.4} 0={} +1={} -1={}",
+            self.0,
+            self.x(),
+            self.y(),
+            self.z(),
+            self.score(self.0.copy_num),
+            if self.0.copy_num < MAX_COPY_NUM_OF_EDGE {
+                format!(
+                    "{}",
+                    self.score(self.0.copy_num + 1) - self.score(self.0.copy_num)
+                )
+            } else {
+                "x".to_string()
+            },
+            if self.0.copy_num > 0 {
+                format!(
+                    "{}",
+                    self.score(self.0.copy_num - 1) - self.score(self.0.copy_num)
+                )
+            } else {
+                "x".to_string()
+            },
+        )
+    }
+}
+
+impl CompressionV2KmerInfo {
+    /// Coefficient of log(copy_num)
+    pub fn x(&self) -> f64 {
+        self.0.freq
+    }
+    /// Coefficient of (copy_num)^2
+    pub fn y(&self) -> f64 {
+        self.0.penalty_weight * self.0.copy_num_total as f64 / self.0.copy_num as f64
+    }
+    /// Coefficient of (copy_num)
+    pub fn z(&self) -> f64 {
+        self.0.freq_intersection / self.0.copy_num_intersection as f64
+            + self.0.freq_init / self.0.copy_num_total as f64
+            + self.0.penalty_weight * self.0.copy_num_total_expected as f64
+    }
+    ///
+    ///
+    pub fn score(&self, copy_num: CopyNum) -> f64 {
+        if self.0.is_emittable {
+            let x = self.x();
+            let y = self.y();
+            let z = self.z();
+            assert!(x >= 0.0);
+            assert!(y >= 0.0);
+            assert!(z >= 0.0);
+            assert!(!x.is_nan());
+            assert!(!y.is_nan());
+            assert!(!z.is_nan());
+            if copy_num == 0 {
+                // to avoid Inf*0
+                -x * clamped_log(copy_num)
+            } else {
+                (-x * clamped_log(copy_num)) + (y * copy_num.pow(2) as f64) + (z * copy_num as f64)
+            }
+        } else {
+            0.0
+        }
+    }
+}
+
+impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV2KmerInfos<K> {
     fn demand(&self) -> usize {
         0
     }
@@ -29,7 +102,7 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithKmerInfos<K> {
     }
 }
 
-impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
+impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithV2KmerInfos<K> {
     ///
     /// convex cost for exact compression EM algorithm
     ///
@@ -39,8 +112,7 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
 }
 
 ///
-/// Construct NodeVec of V2KmerInfo
-/// from necessary informations
+/// create plain KmerInfos and convert it to V2KmerInfos
 ///
 fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -48,40 +120,12 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> KmerInfos {
-    let mut ki = KmerInfos::new(dbg.n_nodes(), CompressionV2KmerInfo::default());
-
-    let copy_num_total = dbg.genome_size();
-    let freq_init = init_freqs.sum();
-
-    for intersection in dbg.iter_flow_intersections(edge_freqs) {
-        let copy_num_intersection = intersection.total_in_copy_num();
-        let freq_intersection = intersection.total_freq().unwrap();
-
-        // any node belongs to an intersection
-        // so these loops should enumerate all nodes.
-        for node_info in intersection.iter_out_nodes() {
-            let node = node_info.index;
-            let copy_num = node_info.copy_num;
-            let is_emittable = dbg.node(node).is_emittable();
-
-            let freq_parents: f64 = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
-            let freq = init_freqs[node] + freq_parents;
-
-            ki[node] = CompressionV2KmerInfo::new(
-                is_emittable,
-                copy_num,
-                freq,
-                freq_intersection,
-                freq_init,
-                copy_num_total,
-                copy_num_intersection,
-                genome_size,
-                penalty_weight,
-            );
-        }
+) -> V2KmerInfos {
+    let mut ki = V2KmerInfos::new(dbg.n_nodes(), CompressionV2KmerInfo::default());
+    let ki0 = create_plain_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    for (node, _) in dbg.nodes() {
+        ki[node] = CompressionV2KmerInfo(ki0[node]);
     }
-
     ki
 }
 

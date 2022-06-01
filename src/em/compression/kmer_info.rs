@@ -2,55 +2,58 @@
 //!
 //!
 use crate::common::{CopyNum, Freq, Reads};
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::min_flow::utils::clamped_log;
+use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
-pub struct CompressionV2KmerInfo {
+pub struct KmerInfo {
     ///
     /// This is emittable kmer or not.
     /// If not emittable, the kmer will be excluded for the cost.
     ///
-    is_emittable: bool,
+    pub is_emittable: bool,
     ///
     /// copy num of the node (k-mer)
     ///
-    copy_num: CopyNum,
+    pub copy_num: CopyNum,
     ///
     /// frequency of the node
     ///
-    freq: Freq,
+    pub freq: Freq,
     ///
     /// frequency of the intersection
     ///
-    freq_intersection: Freq,
+    pub freq_intersection: Freq,
     ///
     /// total frequency from Begin
     ///
-    freq_init: Freq,
+    pub freq_init: Freq,
     ///
     /// current genome size
     ///
-    copy_num_total: CopyNum,
+    pub copy_num_total: CopyNum,
     ///
     /// current size of the intersection
     ///
-    copy_num_intersection: CopyNum,
+    pub copy_num_intersection: CopyNum,
     ///
     /// expected genome size
     ///
-    copy_num_total_expected: CopyNum,
+    pub copy_num_total_expected: CopyNum,
     ///
     /// lambda
     ///
-    penalty_weight: f64,
+    pub penalty_weight: f64,
 }
 
-impl std::fmt::Display for CompressionV2KmerInfo {
+impl std::fmt::Display for KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "e={} c={} ci={} cG={} cG0={} f={} fi={} fB={} w={} x={:.4} y={:.4} z={:.4} 0={} +1={} -1={}",
+            "e={} c={} ci={} cG={} cG0={} f={} fi={} fB={} w={}",
             self.is_emittable,
             self.copy_num,
             self.copy_num_intersection,
@@ -60,31 +63,11 @@ impl std::fmt::Display for CompressionV2KmerInfo {
             self.freq_intersection,
             self.freq_init,
             self.penalty_weight,
-            self.x(),
-            self.y(),
-            self.z(),
-            self.score(self.copy_num),
-            if self.copy_num < MAX_COPY_NUM_OF_EDGE {
-                format!(
-                    "{}",
-                    self.score(self.copy_num + 1) - self.score(self.copy_num)
-                )
-            } else {
-                "x".to_string()
-            },
-            if self.copy_num > 0 {
-                format!(
-                    "{}",
-                    self.score(self.copy_num - 1) - self.score(self.copy_num)
-                )
-            } else {
-                "x".to_string()
-            },
         )
     }
 }
 
-impl CompressionV2KmerInfo {
+impl KmerInfo {
     pub fn new(
         is_emittable: bool,
         copy_num: CopyNum,
@@ -104,7 +87,7 @@ impl CompressionV2KmerInfo {
         assert!(copy_num_intersection >= 0);
         assert!(copy_num_total_expected >= 0);
         assert!(penalty_weight >= 0.0);
-        CompressionV2KmerInfo {
+        KmerInfo {
             is_emittable,
             copy_num,
             freq,
@@ -116,39 +99,56 @@ impl CompressionV2KmerInfo {
             penalty_weight,
         }
     }
-    /// Coefficient of log(copy_num)
-    pub fn x(&self) -> f64 {
-        self.freq
-    }
-    /// Coefficient of (copy_num)^2
-    pub fn y(&self) -> f64 {
-        self.penalty_weight * self.copy_num_total as f64 / self.copy_num as f64
-    }
-    /// Coefficient of (copy_num)
-    pub fn z(&self) -> f64 {
-        self.freq_intersection / self.copy_num_intersection as f64
-            + self.freq_init / self.copy_num_total as f64
-            + self.penalty_weight * self.copy_num_total_expected as f64
-    }
-    pub fn score(&self, copy_num: CopyNum) -> f64 {
-        if self.is_emittable {
-            let x = self.x();
-            let y = self.y();
-            let z = self.z();
-            assert!(x >= 0.0);
-            assert!(y >= 0.0);
-            assert!(z >= 0.0);
-            assert!(!x.is_nan());
-            assert!(!y.is_nan());
-            assert!(!z.is_nan());
-            if copy_num == 0 {
-                // to avoid Inf*0
-                -x * clamped_log(copy_num)
-            } else {
-                (-x * clamped_log(copy_num)) + (y * copy_num.pow(2) as f64) + (z * copy_num as f64)
-            }
-        } else {
-            0.0
+}
+
+///
+/// NodeVec of KmerInfo
+/// can be constructed by `create_kmer_infos`.
+///
+pub type KmerInfos = NodeVec<DenseStorage<KmerInfo>>;
+
+///
+/// Construct NodeVec of KmerInfo from necessary informations
+///
+pub fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> KmerInfos {
+    let mut ki = KmerInfos::new(dbg.n_nodes(), KmerInfo::default());
+
+    let copy_num_total = dbg.genome_size();
+    let freq_init = init_freqs.sum();
+
+    for intersection in dbg.iter_flow_intersections(edge_freqs) {
+        let copy_num_intersection = intersection.total_in_copy_num();
+        let freq_intersection = intersection.total_freq().unwrap();
+
+        // any node belongs to an intersection
+        // so these loops should enumerate all nodes.
+        for node_info in intersection.iter_out_nodes() {
+            let node = node_info.index;
+            let copy_num = node_info.copy_num;
+            let is_emittable = dbg.node(node).is_emittable();
+
+            let freq_parents: f64 = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
+            let freq = init_freqs[node] + freq_parents;
+
+            ki[node] = KmerInfo::new(
+                is_emittable,
+                copy_num,
+                freq,
+                freq_intersection,
+                freq_init,
+                copy_num_total,
+                copy_num_intersection,
+                genome_size,
+                penalty_weight,
+            );
         }
     }
+
+    ki
 }

@@ -14,3 +14,6 @@ pub mod table_ref;
 pub mod tests;
 pub mod tests_dbg;
 pub mod trans_table;
+
+pub use freq::NodeFreqs;
+pub use trans_table::EdgeFreqs;
