@@ -14,6 +14,7 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::Cost;
 use crate::prob::Prob;
+pub mod kmer_info;
 pub mod v1;
 pub mod v2;
 pub mod v3;
