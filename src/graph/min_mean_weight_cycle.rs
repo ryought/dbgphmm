@@ -168,14 +168,14 @@ pub fn find_cycle<N, E>(graph: &DiGraph<N, E>, path: &[NodeIndex]) -> Option<Vec
 pub fn find_minimum_mean_weight_cycle<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     source: NodeIndex,
-) -> Option<Vec<NodeIndex>> {
+) -> Option<(Vec<NodeIndex>, f64)> {
     let sp = shortest_paths(graph, source);
     match find_minimizer_pair(graph, source, &sp) {
-        Some((_, v, _)) => {
+        Some((_, v, mean_weight)) => {
             let path = traceback_preds(graph, source, v, &sp);
             let cycle = find_cycle(graph, &path)
                 .expect("minimizer pair was found, but no cycle was found when tracebacking");
-            Some(cycle)
+            Some((cycle, mean_weight))
         }
         None => None,
     }
@@ -222,6 +222,13 @@ mod tests {
         assert_eq!(cycle, None);
     }
 
+    /// more simple graph with two cycles
+    ///         3 ----> 4
+    ///         ^       |
+    ///         |       V
+    /// 0 ----> 1 <---- 5
+    /// ^       |
+    /// +-- 2 <-+
     #[test]
     fn shortest_paths_01() {
         let mut g: DiGraph<(), f64> = DiGraph::new();
@@ -245,9 +252,16 @@ mod tests {
 
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
-        assert_eq!(cycle, Some(vec![ni(3), ni(4), ni(5), ni(1)]));
+        assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(1)], 1.25)));
     }
 
+    /// example graph with parallel edges
+    ///     +----->
+    /// +-> 0 ----> 1 -----> 3
+    /// |           |        |
+    /// +----- 2 <--+        |
+    ///        ^             |
+    ///        +-------------+
     #[test]
     fn shortest_paths_02() {
         let mut g: DiGraph<(), f64> = DiGraph::new();
@@ -262,6 +276,54 @@ mod tests {
 
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
-        assert_eq!(cycle, Some(vec![ni(2), ni(0), ni(1)]));
+        assert_eq!(cycle, Some((vec![ni(2), ni(0), ni(1)], 1.0)));
+    }
+
+    ///
+    /// counterexample in 'A note on finding minimum mean cycle' (Chaturvedi, 2017)
+    ///
+    #[test]
+    fn shortest_paths_03() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (1, 2, 3.0),
+            (2, 0, -1.0),
+            (1, 3, 2.0),
+            (3, 4, 1.0),
+            (4, 5, -1.0),
+            (5, 6, 2.0),
+            (6, 1, 1.0),
+            (3, 7, 1.0),
+            (7, 4, 2.0),
+        ]);
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(6), ni(1)], 1.0)));
+    }
+
+    ///
+    /// graph has a unreachable cycle
+    ///
+    #[test]
+    fn shortest_paths_05() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            // component 1
+            (0, 1, 1.0),
+            (1, 2, 1.0),
+            (0, 2, 1.0),
+            // component 2
+            (3, 4, 1.0),
+            (4, 5, 1.0),
+            (5, 6, 1.0),
+            (6, 3, 1.0),
+        ]);
+        // from 0
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
+        assert_eq!(cycle, None);
+        // from 3
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(3));
+        assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(6)], 1.0)));
     }
 }
