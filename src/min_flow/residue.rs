@@ -7,7 +7,8 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
-use crate::graph::bellman_ford::{find_negative_cycle, HasEpsilon};
+use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::min_mean_weight_cycle::{find_negative_cycle, FloatWeight};
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
@@ -88,6 +89,12 @@ impl HasEpsilon for ResidueEdge {
     fn epsilon() -> Self {
         // TODO should be changed to f64::EPSILON?
         ResidueEdge::only_weight(0.00001)
+    }
+}
+
+impl FloatWeight for ResidueEdge {
+    fn float_weight(&self) -> f64 {
+        self.weight
     }
 }
 

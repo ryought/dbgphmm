@@ -181,6 +181,25 @@ pub fn find_minimum_mean_weight_cycle<N, E: FloatWeight>(
     }
 }
 
+///
+/// Find a negative cycle by using `find_minimum_mean_weight_cycle`.
+///
+pub fn find_negative_cycle<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<Vec<NodeIndex>> {
+    match find_minimum_mean_weight_cycle(graph, source) {
+        Some((cycle, mean_weight)) => {
+            if mean_weight < 0.0 {
+                Some(cycle)
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+
 //
 // tests
 //
