@@ -134,7 +134,7 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
 ///
 /// calculate edge_freqs (freq between v->w) and init_freqs (freq between Begin->w)
 ///
-fn e_step<N: DbgNode, E: DbgEdge>(
+pub fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,

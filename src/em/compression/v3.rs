@@ -13,9 +13,11 @@ use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
-use crate::em::compression::v2::CompressionV2KmerInfo;
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
+
+// use same e-step function in V2
+pub use crate::em::compression::v2::e_step;
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
 pub struct CompressionV3KmerInfo(KmerInfo);
@@ -56,7 +58,7 @@ impl CompressionV3KmerInfo {
     ///
     /// Exact Q function score
     ///
-    pub fn score(&self, copy_num: CopyNum) -> f64 {
+    pub fn score_from_copy_num(&self, copy_num: CopyNum) -> f64 {
         let diff = if copy_num == self.copy_num() {
             Diff::Nop
         } else if copy_num > self.copy_num() {
@@ -64,6 +66,12 @@ impl CompressionV3KmerInfo {
         } else {
             Diff::Dec
         };
+        self.score(diff)
+    }
+    ///
+    /// Exact Q function score
+    ///
+    pub fn score(&self, diff: Diff) -> f64 {
         self.x(diff) + self.y(diff) + self.z(diff) + self.r(diff)
     }
     ///
@@ -71,28 +79,31 @@ impl CompressionV3KmerInfo {
     ///
     pub fn x(&self, diff: Diff) -> f64 {
         let new_copy_num = diff.apply(self.0.copy_num);
-        self.0.freq * clamped_log(new_copy_num)
+        -self.0.freq * clamped_log(new_copy_num)
     }
     ///
     /// `Y_i log (copy_num_intersection)` term
     ///
     pub fn y(&self, diff: Diff) -> f64 {
         let new_copy_num_intersection = diff.apply(self.0.copy_num_intersection);
-        -self.0.freq_intersection * clamped_log(new_copy_num_intersection)
+        self.0.freq_intersection * clamped_log(new_copy_num_intersection)
     }
     ///
     /// `Z log (copy_num_total)` term
     ///
     pub fn z(&self, diff: Diff) -> f64 {
         let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        -self.0.freq_init * clamped_log(new_copy_num_total)
+        self.0.freq_init * clamped_log(new_copy_num_total)
     }
     ///
     /// regularization term `R`
     ///
     pub fn r(&self, diff: Diff) -> f64 {
         let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        -self.0.penalty_weight * (new_copy_num_total - self.0.copy_num_total_expected).pow(2) as f64
+        self.0.penalty_weight
+            * new_copy_num_total
+                .abs_diff(self.0.copy_num_total_expected)
+                .pow(2) as f64
     }
 }
 
@@ -106,17 +117,20 @@ impl std::fmt::Display for CompressionV3KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} 0={},{},{} +1={},{},{} -1={},{},{}",
+            "+1={}({},{},{},{}) -1={}({},{},{},{}) ({})",
+            // +1
+            self.score(Diff::Inc) - self.score(Diff::Nop),
+            self.x(Diff::Inc) - self.x(Diff::Nop),
+            self.y(Diff::Inc) - self.y(Diff::Nop),
+            self.z(Diff::Inc) - self.z(Diff::Nop),
+            self.r(Diff::Inc) - self.r(Diff::Nop),
+            // -1
+            self.score(Diff::Dec) - self.score(Diff::Nop),
+            self.x(Diff::Dec) - self.x(Diff::Nop),
+            self.y(Diff::Dec) - self.y(Diff::Nop),
+            self.z(Diff::Dec) - self.z(Diff::Nop),
+            self.r(Diff::Dec) - self.r(Diff::Nop),
             self.0,
-            self.x(Diff::Nop),
-            self.y(Diff::Nop),
-            self.z(Diff::Nop),
-            self.x(Diff::Inc),
-            self.y(Diff::Inc),
-            self.z(Diff::Inc),
-            self.x(Diff::Dec),
-            self.y(Diff::Dec),
-            self.z(Diff::Dec),
         )
     }
 }
@@ -141,7 +155,7 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithV3KmerInfos<K> {
     ///
     ///
     fn convex_cost(&self, flow: usize) -> f64 {
-        self.attribute.score(flow)
+        self.attribute.score_from_copy_num(flow)
     }
 }
 
@@ -169,3 +183,44 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
 // ** e-step **
 // Convert to min-flow network and solve it to find the best improvement of copy nums.
 //
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dbg::mocks::*;
+
+    #[test]
+    fn em_compression_v3() {
+        let dbg = mock_intersection();
+        let reads = Reads {
+            reads: vec![
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+            ],
+        };
+        let params = PHMMParams::default();
+        println!("{}", dbg);
+        println!("{}", dbg.n_traverse_choices());
+        let (ef, nf, p) = e_step(&dbg, &reads, &params);
+        println!("{}", ef);
+        println!("{}", nf);
+
+        let lambda = 0.0;
+        let genome_size = 9;
+
+        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
+        // dbg.draw_with_vecs(&[&nf], &[&ef]);
+        dbg.draw_with_vecs(&[&infos], &[]);
+        // println!("{}", infos);
+        // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
+        // println!("{:?}", qs);
+
+        // let dbg = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        // println!("{}", dbg);
+    }
+}
