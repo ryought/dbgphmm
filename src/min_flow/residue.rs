@@ -309,8 +309,8 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         let original_edge = ew.target;
 
         new_flow[original_edge] = match ew.direction {
-            ResidueDirection::Up => flow[original_edge] + flow_change_amount,
-            ResidueDirection::Down => flow[original_edge] - flow_change_amount,
+            ResidueDirection::Up => new_flow[original_edge] + flow_change_amount,
+            ResidueDirection::Down => new_flow[original_edge] - flow_change_amount,
         };
     }
 
