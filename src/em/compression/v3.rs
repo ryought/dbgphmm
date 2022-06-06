@@ -8,7 +8,9 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::kmer::kmer::KmerLike;
+use crate::min_flow::residue::improve_flow_convex;
 use crate::min_flow::utils::clamped_log;
+use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
@@ -117,7 +119,7 @@ impl std::fmt::Display for CompressionV3KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "+1={}({},{},{},{}) -1={}({},{},{},{}) ({})",
+            "+1={:.4}({:.4},{:.4},{:.4},{:.4}) -1={:.4}({:.4},{:.4},{:.4},{:.4}) ({})",
             // +1
             self.score(Diff::Inc) - self.score(Diff::Nop),
             self.x(Diff::Inc) - self.x(Diff::Nop),
@@ -179,7 +181,39 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
 
 // ** m-step **
 // Convert
-//
+
+///
+/// M-step of compression_v3
+///
+fn m_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> NodeCopyNums {
+    // construct edbg with KmerInfo
+    let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    let edbg = dbg.to_edbg_with_attr(Some(&infos));
+    // dbg.draw_with_vecs(&[&infos], &[]);
+    // dbg.draw_plain_with_vecs(&[&infos], &[]);
+
+    // min-flow optimization starts from current copy nums
+    let original_copy_nums = dbg.to_node_copy_nums().switch_index();
+    println!("old_copy_nums={}", original_copy_nums);
+    println!("cost_old={}", total_cost(&edbg.graph, &original_copy_nums));
+    let copy_nums = match improve_flow_convex(&edbg.graph, &original_copy_nums) {
+        Some(copy_nums) => copy_nums,
+        None => original_copy_nums,
+    };
+    println!("new_copy_nums={}", copy_nums);
+    println!("cost_new={}", total_cost(&edbg.graph, &copy_nums));
+    // let cost_diff =
+    //     total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
+    // println!("cost_diff={}", cost_diff);
+    copy_nums.switch_index()
+}
+
 // ** e-step **
 // Convert to min-flow network and solve it to find the best improvement of copy nums.
 //
@@ -220,7 +254,7 @@ mod tests {
         // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{:?}", qs);
 
-        // let dbg = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        let copy_nums = m_step(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{}", dbg);
     }
 }
