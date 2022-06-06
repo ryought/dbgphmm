@@ -8,7 +8,8 @@ use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
 use crate::graph::bellman_ford::HasEpsilon;
-use crate::graph::min_mean_weight_cycle::{find_negative_cycle, FloatWeight};
+use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;

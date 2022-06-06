@@ -7,6 +7,7 @@
 //!
 //! * https://walkccc.me/CLRS/Chap24/Problems/24-5/
 //!
+use super::FloatWeight;
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 
@@ -33,16 +34,6 @@ pub struct ShortestPaths {
 }
 
 impl ShortestPaths {}
-
-pub trait FloatWeight {
-    fn float_weight(&self) -> f64;
-}
-
-impl FloatWeight for f64 {
-    fn float_weight(&self) -> f64 {
-        *self
-    }
-}
 
 ///
 /// # Inputs
