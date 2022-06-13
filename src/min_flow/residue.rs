@@ -219,6 +219,8 @@ where
         if f < ew.capacity() && f > ew.demand() {
             let cost_up = ew.cost_diff(f);
             let cost_down = -ew.cost_diff(f - 1);
+
+            // TODO this assertion is valid only if the cost function is convex.
             assert!(cost_up + cost_down >= 0.0);
         }
 
