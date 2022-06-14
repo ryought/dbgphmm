@@ -77,3 +77,26 @@ pub fn node_list_to_edge_list<N, E: FloatWeight>(
 
     edges
 }
+
+///
+/// Convert edge list into node list
+///
+pub fn edge_list_to_node_list<N, E>(graph: &DiGraph<N, E>, edges: &[EdgeIndex]) -> Vec<NodeIndex> {
+    let mut nodes = Vec::new();
+
+    // (1) add first edge
+    let (v0, _) = graph
+        .edge_endpoints(edges[0])
+        .expect("edge is not in the graph");
+    nodes.push(v0);
+
+    // (2) add target node of each edge
+    for &edge in edges.iter() {
+        let (_, v) = graph
+            .edge_endpoints(edge)
+            .expect("edge is not in the graph");
+        nodes.push(v);
+    }
+
+    nodes
+}
