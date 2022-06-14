@@ -24,13 +24,13 @@ pub struct ShortestPaths {
     ///
     /// `dists[k: length of path][v: node]`
     ///
-    dists: Vec<Vec<f64>>,
+    pub dists: Vec<Vec<f64>>,
     ///
     /// Predecessors for backtracking
     /// `preds[k: length of path][v: node] = (w: node, e: edge)`
     /// means that "min weight path `F[k][v]` ends with the `e=w->v` edge"
     ///
-    preds: Vec<Vec<Option<(NodeIndex, EdgeIndex)>>>,
+    pub preds: Vec<Vec<Option<(NodeIndex, EdgeIndex)>>>,
 }
 
 impl ShortestPaths {}

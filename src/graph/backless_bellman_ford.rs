@@ -2,6 +2,7 @@
 //! Cusom bellman fords
 //!
 use super::FloatWeight;
+use crate::graph::min_mean_weight_cycle::ShortestPaths;
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 
@@ -30,6 +31,26 @@ pub struct ShortestPathsByEdge {
     /// means that "min weight path `F[k][e]` ends with edges `(...,e',e)`"
     ///
     preds: Vec<Vec<Option<EdgeIndex>>>,
+}
+
+impl ShortestPathsByEdge {
+    ///
+    /// Convert edge-indexed ShortestPathsByEdge into
+    /// node-indexed ShortestPaths.
+    ///
+    pub fn into_shortest_paths<N, E>(self, graph: &DiGraph<N, E>) -> ShortestPaths {
+        let n = graph.node_count();
+        let mut dists = vec![vec![f64::INFINITY; n]; n + 1];
+        let mut preds = vec![vec![None; n]; n + 1];
+
+        // TODO add assertion of ShortestPathsByEdge
+        assert_eq!(self.dists.len(), n);
+        assert_eq!(self.preds.len(), n);
+        for k in 0..n {
+            // TODO
+        }
+        ShortestPaths { dists, preds }
+    }
 }
 
 ///
@@ -86,136 +107,6 @@ where
     }
 
     ShortestPathsByEdge { dists, preds }
-}
-
-fn find_minimizer_pair<N, E: FloatWeight>(
-    graph: &DiGraph<N, E>,
-    paths: &ShortestPathsByEdge,
-) -> Option<(usize, EdgeIndex, f64)> {
-    let n = graph.node_count();
-    let ix = |edge: EdgeIndex| edge.index();
-    graph
-        .edge_indices()
-        .filter_map(|e| {
-            (0..n)
-                .filter_map(|k| {
-                    let fnv = paths.dists[n][ix(e)];
-                    let fkv = paths.dists[k][ix(e)];
-                    if fnv != f64::INFINITY && fkv != f64::INFINITY {
-                        Some((k, (fnv - fkv) / (n - k) as f64))
-                    } else {
-                        None
-                    }
-                })
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(k, score)| (k, e, score))
-        })
-        .min_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
-}
-
-///
-/// Traceback a path from source to target
-/// by using `preds` in paths
-///
-fn traceback_preds<N, E: FloatWeight>(
-    graph: &DiGraph<N, E>,
-    edge_last: EdgeIndex,
-    paths: &ShortestPathsByEdge,
-) -> Vec<EdgeIndex> {
-    let n = graph.node_count();
-    let ix = |edge: EdgeIndex| edge.index();
-
-    let mut edge = edge_last;
-    let mut path = vec![edge_last];
-
-    for k in (1..=n).rev() {
-        let pred = match paths.preds[k][ix(edge)] {
-            Some(pred) => pred,
-            None => panic!("no parent"),
-        };
-        path.push(pred);
-        edge = pred;
-    }
-
-    path.reverse();
-    path
-}
-
-///
-/// Find a cycle in a path (EdgeList)
-///
-fn find_cycle<N, E>(graph: &DiGraph<N, E>, path: &[EdgeIndex]) -> Option<Vec<NodeIndex>> {
-    let mut v = graph.visit_map();
-    let mut cycle = Vec::new();
-
-    for &edge in path.iter().rev() {
-        let (_, node) = graph
-            .edge_endpoints(edge)
-            .expect("an edge in the given path does not exist in the graph");
-        if v.is_visited(&node) {
-            // this node is visited twice.  cycle is detected.
-            let prev_visit = cycle.iter().position(|&v| v == node).unwrap();
-            cycle = cycle[prev_visit..].to_vec();
-            cycle.reverse();
-            return Some(cycle);
-        } else {
-            // fisrt visit of this node
-            v.visit(node);
-            cycle.push(node);
-        }
-    }
-
-    None
-}
-
-///
-/// Find a minimum mean-weight cycle in a graph
-/// Returns None if there is no cycle.
-///
-pub fn find_minimum_mean_weight_cycle<N, E, F>(
-    graph: &DiGraph<N, E>,
-    source: NodeIndex,
-    edge_moveable: F,
-) -> Option<(Vec<NodeIndex>, f64)>
-where
-    E: FloatWeight,
-    F: Fn(EdgeIndex, EdgeIndex) -> bool,
-{
-    let sp = shortest_paths_by_edge(graph, source, edge_moveable);
-    println!("sp={:?}", sp);
-    match find_minimizer_pair(graph, &sp) {
-        Some((_, v, mean_weight)) => {
-            let path = traceback_preds(graph, v, &sp);
-            let cycle = find_cycle(graph, &path)
-                .expect("minimizer pair was found, but no cycle was found when tracebacking");
-            Some((cycle, mean_weight))
-        }
-        None => None,
-    }
-}
-
-///
-/// Find a negative cycle by using `find_minimum_mean_weight_cycle`.
-///
-pub fn find_negative_cycle_with_edge_adj_condition<N, E, F>(
-    graph: &DiGraph<N, E>,
-    source: NodeIndex,
-    edge_adj_condition: F,
-) -> Option<Vec<NodeIndex>>
-where
-    E: FloatWeight,
-    F: Fn(EdgeIndex, EdgeIndex) -> bool,
-{
-    match find_minimum_mean_weight_cycle(graph, source, edge_adj_condition) {
-        Some((cycle, mean_weight)) => {
-            if mean_weight < 0.0 {
-                Some(cycle)
-            } else {
-                None
-            }
-        }
-        None => None,
-    }
 }
 
 //
