@@ -238,4 +238,59 @@ mod tests {
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some(vec![ni(0), ni(1), ni(2), ni(3)]));
     }
+    #[test]
+    fn mmwc_edge_01() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 1.0),
+            (1, 2, 3.0),
+            (2, 0, 1.0),
+            (1, 3, 1.0),
+            (3, 4, 2.0),
+            (4, 5, 1.0),
+            (5, 1, 1.0),
+        ]);
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, _| true);
+        println!("{:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(1)], 1.25)));
+    }
+    #[test]
+    fn mmwc_edge_02() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 3.0),
+            (0, 1, 1.0),
+            (1, 2, 1.0),
+            (2, 0, 1.0),
+            (1, 3, 1.0),
+            (3, 2, 4.0),
+        ]);
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, _| true);
+        println!("{:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(2), ni(0), ni(1)], 1.0)));
+    }
+    #[test]
+    fn mmwc_edge_03() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 1.0),
+            (1, 2, 3.0),
+            (2, 0, -1.0),
+            (1, 3, 2.0),
+            (3, 4, 1.0),
+            (4, 5, -1.0),
+            (5, 6, 2.0),
+            (6, 1, 1.0),
+            (3, 7, 1.0),
+            (7, 4, 2.0),
+        ]);
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, _| true);
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(2), ni(0), ni(1)], 1.0)));
+
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, e| e != ei(1));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(6), ni(1), ni(3), ni(4), ni(5)], 1.0)));
+    }
 }
