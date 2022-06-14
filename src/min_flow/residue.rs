@@ -7,7 +7,9 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
+use crate::graph::backless_bellman_ford::find_negative_cycle_with_edge_adj_condition;
 use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::float_weight::{is_negative_cycle, total_weight};
 use crate::graph::min_mean_weight_cycle::find_negative_cycle;
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
@@ -272,20 +274,6 @@ fn node_list_to_edge_list(graph: &ResidueGraph, nodes: &[NodeIndex]) -> Vec<Edge
     }
 
     edges
-}
-
-fn total_weight(graph: &ResidueGraph, edges: &[EdgeIndex]) -> Cost {
-    edges
-        .iter()
-        .map(|&e| {
-            let ew = graph.edge_weight(e).unwrap();
-            ew.weight
-        })
-        .sum()
-}
-
-fn is_negative_cycle(graph: &ResidueGraph, edges: &[EdgeIndex]) -> bool {
-    total_weight(graph, edges) < 0.0
 }
 
 ///

@@ -6,23 +6,14 @@ pub mod bipartite;
 pub use bipartite::Bipartite;
 pub mod backless_bellman_ford;
 pub mod bellman_ford;
+pub mod float_weight;
 pub mod floyd;
 pub mod genome_graph;
 pub mod iterators;
 pub mod min_mean_weight_cycle;
 pub mod mocks;
 pub mod seq_graph;
-
-pub trait FloatWeight {
-    fn float_weight(&self) -> f64;
-    // fn epsilon(&self) -> f64;
-}
-
-impl FloatWeight for f64 {
-    fn float_weight(&self) -> f64 {
-        *self
-    }
-}
+pub use float_weight::FloatWeight;
 
 //
 // Old codes
