@@ -7,7 +7,9 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
-use crate::graph::bellman_ford::{find_negative_cycle, HasEpsilon};
+use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
@@ -88,6 +90,12 @@ impl HasEpsilon for ResidueEdge {
     fn epsilon() -> Self {
         // TODO should be changed to f64::EPSILON?
         ResidueEdge::only_weight(0.00001)
+    }
+}
+
+impl FloatWeight for ResidueEdge {
+    fn float_weight(&self) -> f64 {
+        self.weight
     }
 }
 
@@ -211,6 +219,8 @@ where
         if f < ew.capacity() && f > ew.demand() {
             let cost_up = ew.cost_diff(f);
             let cost_down = -ew.cost_diff(f - 1);
+
+            // TODO this assertion is valid only if the cost function is convex.
             assert!(cost_up + cost_down >= 0.0);
         }
 
@@ -302,8 +312,8 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         let original_edge = ew.target;
 
         new_flow[original_edge] = match ew.direction {
-            ResidueDirection::Up => flow[original_edge] + flow_change_amount,
-            ResidueDirection::Down => flow[original_edge] - flow_change_amount,
+            ResidueDirection::Up => new_flow[original_edge] + flow_change_amount,
+            ResidueDirection::Down => new_flow[original_edge] - flow_change_amount,
         };
     }
 

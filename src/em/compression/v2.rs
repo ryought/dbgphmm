@@ -1,6 +1,7 @@
 //!
 //! CompressionV2
 //!
+pub use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInfo};
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
@@ -17,76 +18,33 @@ use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
-pub struct CompressionV2KmerInfo {
-    ///
-    /// This is emittable kmer or not.
-    /// If not emittable, the kmer will be excluded for the cost.
-    ///
-    is_emittable: bool,
-    ///
-    /// copy num of the node (k-mer)
-    ///
-    copy_num: CopyNum,
-    ///
-    /// frequency of the node
-    ///
-    freq: Freq,
-    ///
-    /// frequency of the intersection
-    ///
-    freq_intersection: Freq,
-    ///
-    /// total frequency from Begin
-    ///
-    freq_init: Freq,
-    ///
-    /// current genome size
-    ///
-    copy_num_total: CopyNum,
-    ///
-    /// current size of the intersection
-    ///
-    copy_num_intersection: CopyNum,
-    ///
-    /// expected genome size
-    ///
-    copy_num_total_expected: CopyNum,
-    ///
-    /// lambda
-    ///
-    penalty_weight: f64,
-}
+pub struct CompressionV2KmerInfo(KmerInfo);
+
+pub type V2KmerInfos = NodeVec<DenseStorage<CompressionV2KmerInfo>>;
+pub type SimpleEDbgEdgeWithV2KmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV2KmerInfo>;
 
 impl std::fmt::Display for CompressionV2KmerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "e={} c={} ci={} cG={} cG0={} f={} fi={} fB={} w={} x={:.4} y={:.4} z={:.4} 0={} +1={} -1={}",
-            self.is_emittable,
-            self.copy_num,
-            self.copy_num_intersection,
-            self.copy_num_total,
-            self.copy_num_total_expected,
-            self.freq,
-            self.freq_intersection,
-            self.freq_init,
-            self.penalty_weight,
+            "{} x={:.4} y={:.4} z={:.4} 0={} +1={} -1={}",
+            self.0,
             self.x(),
             self.y(),
             self.z(),
-            self.score(self.copy_num),
-            if self.copy_num < MAX_COPY_NUM_OF_EDGE {
+            self.score(self.0.copy_num),
+            if self.0.copy_num < MAX_COPY_NUM_OF_EDGE {
                 format!(
                     "{}",
-                    self.score(self.copy_num + 1) - self.score(self.copy_num)
+                    self.score(self.0.copy_num + 1) - self.score(self.0.copy_num)
                 )
             } else {
                 "x".to_string()
             },
-            if self.copy_num > 0 {
+            if self.0.copy_num > 0 {
                 format!(
                     "{}",
-                    self.score(self.copy_num - 1) - self.score(self.copy_num)
+                    self.score(self.0.copy_num - 1) - self.score(self.0.copy_num)
                 )
             } else {
                 "x".to_string()
@@ -96,53 +54,24 @@ impl std::fmt::Display for CompressionV2KmerInfo {
 }
 
 impl CompressionV2KmerInfo {
-    fn new(
-        is_emittable: bool,
-        copy_num: CopyNum,
-        freq: Freq,
-        freq_intersection: Freq,
-        freq_init: Freq,
-        copy_num_total: CopyNum,
-        copy_num_intersection: CopyNum,
-        copy_num_total_expected: CopyNum,
-        penalty_weight: f64,
-    ) -> Self {
-        assert!(copy_num >= 0);
-        assert!(freq >= 0.0);
-        assert!(freq_intersection >= 0.0);
-        assert!(freq_init >= 0.0);
-        assert!(copy_num_total >= 0);
-        assert!(copy_num_intersection >= 0);
-        assert!(copy_num_total_expected >= 0);
-        assert!(penalty_weight >= 0.0);
-        CompressionV2KmerInfo {
-            is_emittable,
-            copy_num,
-            freq,
-            freq_intersection,
-            freq_init,
-            copy_num_total,
-            copy_num_intersection,
-            copy_num_total_expected,
-            penalty_weight,
-        }
-    }
     /// Coefficient of log(copy_num)
     pub fn x(&self) -> f64 {
-        self.freq
+        self.0.freq
     }
     /// Coefficient of (copy_num)^2
     pub fn y(&self) -> f64 {
-        self.penalty_weight * self.copy_num_total as f64 / self.copy_num as f64
+        self.0.penalty_weight * self.0.copy_num_total as f64 / self.0.copy_num as f64
     }
     /// Coefficient of (copy_num)
     pub fn z(&self) -> f64 {
-        self.freq_intersection / self.copy_num_intersection as f64
-            + self.freq_init / self.copy_num_total as f64
-            + self.penalty_weight * self.copy_num_total_expected as f64
+        self.0.freq_intersection / self.0.copy_num_intersection as f64
+            + self.0.freq_init / self.0.copy_num_total as f64
+            + self.0.penalty_weight * self.0.copy_num_total_expected as f64
     }
+    ///
+    ///
     pub fn score(&self, copy_num: CopyNum) -> f64 {
-        if self.is_emittable {
+        if self.0.is_emittable {
             let x = self.x();
             let y = self.y();
             let z = self.z();
@@ -164,11 +93,7 @@ impl CompressionV2KmerInfo {
     }
 }
 
-pub type KmerInfos = NodeVec<DenseStorage<CompressionV2KmerInfo>>;
-
-pub type SimpleEDbgEdgeWithKmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV2KmerInfo>;
-
-impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithKmerInfos<K> {
+impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV2KmerInfos<K> {
     fn demand(&self) -> usize {
         0
     }
@@ -177,7 +102,7 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithKmerInfos<K> {
     }
 }
 
-impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
+impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithV2KmerInfos<K> {
     ///
     /// convex cost for exact compression EM algorithm
     ///
@@ -187,8 +112,7 @@ impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithKmerInfos<K> {
 }
 
 ///
-/// Construct NodeVec of V2KmerInfo
-/// from necessary informations
+/// create plain KmerInfos and convert it to V2KmerInfos
 ///
 fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -196,40 +120,12 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> KmerInfos {
-    let mut ki = KmerInfos::new(dbg.n_nodes(), CompressionV2KmerInfo::default());
-
-    let copy_num_total = dbg.genome_size();
-    let freq_init = init_freqs.sum();
-
-    for intersection in dbg.iter_flow_intersections(edge_freqs) {
-        let copy_num_intersection = intersection.total_in_copy_num();
-        let freq_intersection = intersection.total_freq().unwrap();
-
-        // any node belongs to an intersection
-        // so these loops should enumerate all nodes.
-        for node_info in intersection.iter_out_nodes() {
-            let node = node_info.index;
-            let copy_num = node_info.copy_num;
-            let is_emittable = dbg.node(node).is_emittable();
-
-            let freq_parents: f64 = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
-            let freq = init_freqs[node] + freq_parents;
-
-            ki[node] = CompressionV2KmerInfo::new(
-                is_emittable,
-                copy_num,
-                freq,
-                freq_intersection,
-                freq_init,
-                copy_num_total,
-                copy_num_intersection,
-                genome_size,
-                penalty_weight,
-            );
-        }
+) -> V2KmerInfos {
+    let mut ki = V2KmerInfos::new(dbg.n_nodes(), CompressionV2KmerInfo::default());
+    let ki0 = create_plain_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    for (node, _) in dbg.nodes() {
+        ki[node] = CompressionV2KmerInfo(ki0[node]);
     }
-
     ki
 }
 
@@ -238,7 +134,7 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
 ///
 /// calculate edge_freqs (freq between v->w) and init_freqs (freq between Begin->w)
 ///
-fn e_step<N: DbgNode, E: DbgEdge>(
+pub fn e_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
