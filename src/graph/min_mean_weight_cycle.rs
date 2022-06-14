@@ -27,10 +27,10 @@ pub struct ShortestPaths {
     dists: Vec<Vec<f64>>,
     ///
     /// Predecessors for backtracking
-    /// `preds[k: length of path][v: node] = w: node`
-    /// means that "min weight path `F[k][v]` ends with the `w->v` edge"
+    /// `preds[k: length of path][v: node] = (w: node, e: edge)`
+    /// means that "min weight path `F[k][v]` ends with the `e=w->v` edge"
     ///
-    preds: Vec<Vec<Option<NodeIndex>>>,
+    preds: Vec<Vec<Option<(NodeIndex, EdgeIndex)>>>,
 }
 
 impl ShortestPaths {}
@@ -56,13 +56,14 @@ pub fn shortest_paths<N, E: FloatWeight>(
     for k in 1..=n {
         for u in graph.node_indices() {
             for edge in graph.edges(u) {
-                // an edge u->v with weight w
+                // edge e: u->v with weight w
+                let e = edge.id();
                 let v = edge.target();
                 let w = edge.weight().float_weight();
                 // if s->u->v is shorter than s->v, update the route.
                 if dists[k - 1][ix(u)] + w < dists[k][ix(v)] {
                     dists[k][ix(v)] = dists[k - 1][ix(u)] + w;
-                    preds[k][ix(v)] = Some(u);
+                    preds[k][ix(v)] = Some((u, e));
                 }
             }
         }
@@ -108,24 +109,29 @@ pub fn traceback_preds<N, E: FloatWeight>(
     source: NodeIndex,
     target: NodeIndex,
     paths: &ShortestPaths,
-) -> Vec<NodeIndex> {
+) -> (Vec<NodeIndex>, Vec<EdgeIndex>) {
     let n = graph.node_count();
     let ix = |node: NodeIndex| node.index();
 
     let mut node = target;
-    let mut path = vec![target];
+    let mut nodes = vec![target];
+    let mut edges = vec![];
 
     for k in (1..=n).rev() {
-        let pred = match paths.preds[k][ix(node)] {
-            Some(pred) => pred,
+        //            edge_pred
+        // node_pred -----------> node
+        let (node_pred, edge_pred) = match paths.preds[k][ix(node)] {
+            Some((node_pred, edge_pred)) => (node_pred, edge_pred),
             None => panic!("no parent"),
         };
-        path.push(pred);
-        node = pred;
+        nodes.push(node_pred);
+        edges.push(edge_pred);
+        node = node_pred;
     }
 
-    path.reverse();
-    path
+    nodes.reverse();
+    edges.reverse();
+    (nodes, edges)
 }
 
 ///
@@ -163,7 +169,7 @@ pub fn find_minimum_mean_weight_cycle<N, E: FloatWeight>(
     let sp = shortest_paths(graph, source);
     match find_minimizer_pair(graph, source, &sp) {
         Some((_, v, mean_weight)) => {
-            let path = traceback_preds(graph, source, v, &sp);
+            let (path, _) = traceback_preds(graph, source, v, &sp);
             let cycle = find_cycle(graph, &path)
                 .expect("minimizer pair was found, but no cycle was found when tracebacking");
             Some((cycle, mean_weight))
@@ -198,7 +204,7 @@ pub fn find_negative_cycle<N, E: FloatWeight>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ni;
+    use crate::common::{ei, ni};
 
     #[test]
     fn shortest_paths_00() {
@@ -216,16 +222,16 @@ mod tests {
         assert_eq!(sp.preds[0][0], None);
         // 0->1
         assert_eq!(sp.dists[1][1], 1.0);
-        assert_eq!(sp.preds[1][1], Some(ni(0)));
+        assert_eq!(sp.preds[1][1], Some((ni(0), ei(0))));
         // 0->2
         assert_eq!(sp.dists[1][2], 1.0);
-        assert_eq!(sp.preds[1][2], Some(ni(0)));
+        assert_eq!(sp.preds[1][2], Some((ni(0), ei(1))));
         // 0->2->3
         assert_eq!(sp.dists[2][3], 1.0 + 1.0);
-        assert_eq!(sp.preds[2][3], Some(ni(2)));
+        assert_eq!(sp.preds[2][3], Some((ni(2), ei(3))));
         // 0->2->4
         assert_eq!(sp.dists[2][4], 1.0 + 2.0);
-        assert_eq!(sp.preds[2][4], Some(ni(2)));
+        assert_eq!(sp.preds[2][4], Some((ni(2), ei(4))));
 
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
@@ -255,7 +261,7 @@ mod tests {
         println!("{:?}", sp);
         let (k, v, s) = find_minimizer_pair(&g, ni(0), &sp).unwrap();
         println!("k={} v={} s={}", k, v.index(), s);
-        let path = traceback_preds(&g, ni(0), v, &sp);
+        let (path, _) = traceback_preds(&g, ni(0), v, &sp);
         println!("path={:?}", path);
         let cycle = find_cycle(&g, &path);
         println!("cycle={:?}", cycle);
