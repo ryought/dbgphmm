@@ -182,6 +182,7 @@ where
     F: Fn(EdgeIndex, EdgeIndex) -> bool,
 {
     let sp = shortest_paths_by_edge(graph, source, edge_moveable);
+    println!("sp={:?}", sp);
     match find_minimizer_pair(graph, &sp) {
         Some((_, v, mean_weight)) => {
             let path = traceback_preds(graph, v, &sp);
@@ -292,5 +293,33 @@ mod tests {
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, e| e != ei(1));
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(6), ni(1), ni(3), ni(4), ni(5)], 1.0)));
+    }
+    #[test]
+    fn mmwc_edge_04() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, -5.0),
+            (1, 2, -5.0),
+            (2, 3, -5.0),
+            (3, 4, -5.0),
+            (4, 0, -5.0),
+            (1, 0, -10.0),
+            (2, 1, 10.0),
+            (3, 2, 10.0),
+            (4, 3, 10.0),
+            (0, 4, 10.0),
+        ]);
+
+        // (1) mmwc among all cycles
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, _| true);
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(0), ni(1)], -7.5)));
+
+        // (2) restricted mmwc
+        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |e_a, e_b| {
+            e_a.index().abs_diff(e_b.index()) != 5
+        });
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(2), ni(3), ni(4), ni(0), ni(1)], -5.0)));
     }
 }
