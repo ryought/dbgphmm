@@ -9,7 +9,7 @@ use super::utils::draw;
 use super::{Cost, FlowRate};
 use crate::graph::backless_bellman_ford::find_negative_cycle_with_edge_adj_condition;
 use crate::graph::bellman_ford::HasEpsilon;
-use crate::graph::float_weight::{is_negative_cycle, total_weight};
+use crate::graph::float_weight::{is_negative_cycle, node_list_to_edge_list, total_weight};
 use crate::graph::min_mean_weight_cycle::find_negative_cycle;
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
@@ -240,41 +240,6 @@ fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), Cost> {
 // internal functions to find a update of the flow
 // (i.e. the negative cycle in ResidueGraph)
 //
-
-/// Find the minimum weight edge among all parallel edges between v and w
-/// Input: two nodes (v,w) in a graph
-/// Output: minimum weight edge among all parallel edge (v,w)
-///
-/// (Used in `node_list_to_edge_list`)
-fn pick_minimum_weight_edge(graph: &ResidueGraph, v: NodeIndex, w: NodeIndex) -> EdgeIndex {
-    let er = graph
-        .edges_connecting(v, w)
-        .min_by(|e1, e2| {
-            let w1 = e1.weight().weight;
-            let w2 = e2.weight().weight;
-            w1.partial_cmp(&w2).unwrap()
-        })
-        .unwrap();
-    let e = er.id();
-    e
-}
-
-/// Convert "a cycle as nodes [NodeIndex]" into "a cycle as edges [EdgeIndex]",
-/// by choosing the minimum weight edge if there are parallel edges
-fn node_list_to_edge_list(graph: &ResidueGraph, nodes: &[NodeIndex]) -> Vec<EdgeIndex> {
-    let mut edges = Vec::new();
-    let n = nodes.len();
-
-    // convert (nodes[i], nodes[i+1]) into an edge
-    for i in 0..n {
-        let v = nodes[i];
-        let w = nodes[(i + 1) % n];
-        let edge = pick_minimum_weight_edge(graph, v, w);
-        edges.push(edge);
-    }
-
-    edges
-}
 
 ///
 /// Update the flow by a negative cycle on a residue graph.
