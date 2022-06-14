@@ -4,6 +4,7 @@ use serde::Serialize;
 pub mod active_nodes;
 pub mod bipartite;
 pub use bipartite::Bipartite;
+pub mod backless_bellman_ford;
 pub mod bellman_ford;
 pub mod floyd;
 pub mod genome_graph;
@@ -14,6 +15,7 @@ pub mod seq_graph;
 
 pub trait FloatWeight {
     fn float_weight(&self) -> f64;
+    // fn epsilon(&self) -> f64;
 }
 
 impl FloatWeight for f64 {
