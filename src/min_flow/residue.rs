@@ -279,6 +279,14 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIn
 
     loop {
         let path = find_negative_cycle(&graph, node);
+        /*
+         * TODO
+        let path = find_negative_cycle_with_edge_adj_condition(&graph, node, |e_a, e_b| {
+            let ew_a = graph.edge_weight(e_a).unwrap();
+            let ew_b = graph.edge_weight(e_b).unwrap();
+            ew_a.target != ew_b.target
+        });
+        */
 
         // // TODO
         // let g2 = residue_to_float_weighted_graph(&graph);
