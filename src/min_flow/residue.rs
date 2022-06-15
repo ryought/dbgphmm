@@ -9,6 +9,7 @@ use super::utils::draw;
 use super::{Cost, FlowRate};
 use crate::graph::bellman_ford::HasEpsilon;
 use crate::graph::float_weight::{is_negative_cycle, node_list_to_edge_list, total_weight};
+use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
 use crate::graph::min_mean_weight_cycle::find_negative_cycle;
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows

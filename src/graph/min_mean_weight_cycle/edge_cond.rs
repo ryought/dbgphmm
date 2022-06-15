@@ -287,6 +287,30 @@ where
         .map(|(cycle, weight)| (edge_cycle_to_node_cycle(graph, &cycle), weight))
 }
 
+///
+/// Find a negative cycle by using `find_minimum_mean_weight_cycle`.
+///
+pub fn find_negative_cycle_with_edge_cond<N, E, F>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    edge_cond: F,
+) -> Option<Vec<EdgeIndex>>
+where
+    E: FloatWeight,
+    F: Fn(EdgeIndex, EdgeIndex) -> bool,
+{
+    match find_minimum_mean_weight_cycle_with_edge_cond(graph, source, edge_cond) {
+        Some((cycle, mean_weight)) => {
+            if mean_weight < 0.0 {
+                Some(cycle)
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+
 //
 // tests
 //
