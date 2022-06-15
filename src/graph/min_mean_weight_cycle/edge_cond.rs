@@ -369,7 +369,7 @@ mod tests {
         g.extend_with_edges(&[
             (0, 1, 1.0),
             (1, 2, 3.0),
-            (2, 0, -1.0),
+            (2, 0, -10.0),
             (1, 3, 2.0),
             (3, 4, 1.0),
             (4, 5, -1.0),
@@ -381,11 +381,11 @@ mod tests {
 
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
-        assert_eq!(cycle, Some((vec![ni(1), ni(2), ni(0)], 1.0)));
+        assert_eq!(cycle, Some((vec![ni(1), ni(2), ni(0)], -2.0)));
 
-        // let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, e| e != ei(1));
-        // println!("cycle={:?}", cycle);
-        // assert_eq!(cycle, Some((vec![ni(6), ni(1), ni(3), ni(4), ni(5)], 1.0)));
+        let cycle = find_minimum_mean_weight_cycle_with_edge_cond(&g, ni(0), |_, e| e != ei(1));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ei(5), ei(6), ei(7), ei(3), ei(4)], 1.0)));
     }
     #[test]
     fn mmwc_edge_04() {
@@ -408,12 +408,12 @@ mod tests {
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(1), ni(0)], -7.5)));
 
-        // // (2) restricted mmwc
-        // let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |e_a, e_b| {
-        //     e_a.index().abs_diff(e_b.index()) != 5
-        // });
-        // println!("cycle={:?}", cycle);
-        // assert_eq!(cycle, Some((vec![ni(2), ni(3), ni(4), ni(0), ni(1)], -5.0)));
+        // (2) restricted mmwc
+        let cycle = find_minimum_mean_weight_cycle_with_edge_cond(&g, ni(0), |e_a, e_b| {
+            e_a.index().abs_diff(e_b.index()) != 5
+        });
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ei(4), ei(0), ei(1), ei(2), ei(3)], -5.0)));
     }
     #[test]
     fn mmwc_edge_05() {
