@@ -112,7 +112,6 @@ where
 {
     let n = graph.edge_count();
     let ix = |edge: EdgeIndex| edge.index();
-    let eps = f64::EPSILON;
 
     // (1) Initialize
     //     e
@@ -139,7 +138,7 @@ where
                 if edge_moveable(ep, e) {
                     //  ep       e
                     // ----> v ----> *
-                    if dists[k - 1][ix(ep)] + w + eps < dists[k][ix(e)] {
+                    if dists[k - 1][ix(ep)] + w + E::epsilon() < dists[k][ix(e)] {
                         dists[k][ix(e)] = dists[k - 1][ix(ep)] + w;
                         preds[k][ix(e)] = Some(ep);
                     }

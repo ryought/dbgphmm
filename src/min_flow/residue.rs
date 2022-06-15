@@ -99,6 +99,9 @@ impl FloatWeight for ResidueEdge {
     fn float_weight(&self) -> f64 {
         self.weight
     }
+    fn epsilon() -> f64 {
+        0.00001
+    }
 }
 
 /// Residue direction enum

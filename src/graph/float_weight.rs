@@ -5,12 +5,15 @@ use petgraph::prelude::*;
 
 pub trait FloatWeight {
     fn float_weight(&self) -> f64;
-    // fn epsilon(&self) -> f64;
+    fn epsilon() -> f64;
 }
 
 impl FloatWeight for f64 {
     fn float_weight(&self) -> f64 {
         *self
+    }
+    fn epsilon() -> f64 {
+        f64::EPSILON
     }
 }
 
