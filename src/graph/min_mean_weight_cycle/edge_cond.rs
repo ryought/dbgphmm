@@ -3,7 +3,10 @@
 //! custom shortest paths with edge indexing for using edge-adjacency condition
 //!
 use super::ShortestPaths;
+use crate::graph::float_weight::total_weight;
 use crate::graph::FloatWeight;
+use fnv::FnvHashMap as HashMap;
+use itertools::Itertools;
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 
@@ -51,9 +54,9 @@ impl ShortestPathsByEdge {
         let mut dists = vec![vec![f64::INFINITY; n]; n + 1];
         let mut preds = vec![vec![None; n]; n + 1];
 
-        // assertion of ShortestPathsByEdge
-        assert_eq!(self.dists.len(), n);
-        assert_eq!(self.preds.len(), n);
+        // TODO fix assertion of ShortestPathsByEdge
+        // assert_eq!(self.dists.len(), n);
+        // assert_eq!(self.preds.len(), n);
 
         // (1) fill dists_node[0]
         dists[0][source.index()] = 0.0;
@@ -107,22 +110,21 @@ where
     E: FloatWeight,
     F: Fn(EdgeIndex, EdgeIndex) -> bool,
 {
-    let n_nodes = graph.node_count();
-    let n_edges = graph.edge_count();
+    let n = graph.edge_count();
     let ix = |edge: EdgeIndex| edge.index();
     let eps = f64::EPSILON;
 
     // (1) Initialize
     //     e
     // s ----> *
-    let mut dists = vec![vec![f64::INFINITY; n_edges]; n_nodes];
-    let mut preds = vec![vec![None; n_edges]; n_nodes];
+    let mut dists = vec![vec![f64::INFINITY; n]; n + 1];
+    let mut preds = vec![vec![None; n]; n + 1];
     for edge in graph.edges_directed(source, Direction::Outgoing) {
         dists[0][ix(edge.id())] = edge.weight().float_weight();
     }
 
     // (2) Update
-    for k in 1..n_nodes {
+    for k in 1..=n {
         // for each edge
         // * weight w
         // * from a to b
@@ -139,7 +141,7 @@ where
                     // ----> v ----> *
                     if dists[k - 1][ix(ep)] + w + eps < dists[k][ix(e)] {
                         dists[k][ix(e)] = dists[k - 1][ix(ep)] + w;
-                        preds[k][ix(e)] = Some((ep));
+                        preds[k][ix(e)] = Some(ep);
                     }
                 }
             }
@@ -147,6 +149,104 @@ where
     }
 
     ShortestPathsByEdge { dists, preds }
+}
+
+///
+/// Find a minimizer pair `(k, e)`
+/// that satisfies `min_e max_k (F[n][e] - F[k][e]) / (n-k)`.
+///
+fn find_minimizer_pair<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    paths: &ShortestPathsByEdge,
+) -> Option<(usize, EdgeIndex, f64)> {
+    let n = graph.edge_count();
+    (0..n)
+        .filter_map(|e| {
+            (0..n)
+                .filter_map(|k| {
+                    let fnv = paths.dists[n][e];
+                    let fkv = paths.dists[k][e];
+                    if fnv != f64::INFINITY && fkv != f64::INFINITY {
+                        Some((k, (fnv - fkv) / (n - k) as f64))
+                    } else {
+                        None
+                    }
+                })
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .map(|(k, score)| (k, EdgeIndex::new(e), score))
+        })
+        .min_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
+}
+
+///
+/// Traceback a path from source to target
+///
+pub fn traceback<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    target: EdgeIndex,
+    paths: &ShortestPathsByEdge,
+) -> Vec<EdgeIndex> {
+    let n = graph.edge_count();
+    let ix = |edge: EdgeIndex| edge.index();
+
+    let mut edge = target;
+    let mut edges = vec![target];
+
+    for k in (1..=n).rev() {
+        let edge_pred = match paths.preds[k][ix(edge)] {
+            Some(e) => e,
+            None => panic!("no parent"),
+        };
+        edges.push(edge_pred);
+        edge = edge_pred;
+    }
+
+    edges.reverse();
+    edges
+}
+
+///
+///
+pub fn find_all_cycles_in_path<N, E>(
+    graph: &DiGraph<N, E>,
+    path: &[EdgeIndex],
+) -> Vec<(usize, usize)> {
+    // create occurrence table
+    let mut pos: HashMap<EdgeIndex, Vec<usize>> = HashMap::default();
+    for (i, &edge) in path.iter().enumerate() {
+        pos.entry(edge).or_insert_with(|| Vec::new()).push(i);
+    }
+
+    // for each edge that is used multiple times
+    let mut cycles = Vec::new();
+    for (edge, occ) in &pos {
+        if occ.len() > 1 {
+            for (&i, &j) in occ.iter().sorted().tuple_combinations() {
+                cycles.push((i, j));
+            }
+        }
+    }
+
+    cycles
+}
+
+///
+/// Find a cycle in a path
+///
+pub fn find_min_weight_cycle_in_path<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    path: &[EdgeIndex],
+) -> Option<Vec<EdgeIndex>> {
+    let cycles = find_all_cycles_in_path(graph, path);
+
+    cycles
+        .iter()
+        .min_by(|(ia, ja), (ib, jb)| {
+            let wa = total_weight(graph, &path[*ia..*ja]);
+            let wb = total_weight(graph, &path[*ib..*jb]);
+            wa.partial_cmp(&wb).expect("dists contains nan")
+        })
+        .map(|(i, j)| path[*i..*j].to_vec())
 }
 
 //
@@ -157,6 +257,42 @@ where
 mod tests {
     use super::*;
     use crate::common::{ei, ni};
+
+    fn into_path(edges: &[usize]) -> Vec<EdgeIndex> {
+        edges.iter().map(|&i| ei(i)).collect()
+    }
+
+    #[test]
+    fn find_all_cycles_00() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            // cycle 1
+            (0, 1, 1.0),
+            (1, 2, 1.0),
+            (2, 3, 1.0),
+            (3, 0, 1.0),
+            // cycle 2
+            (2, 4, 1.0),
+            (4, 5, 1.0),
+            (5, 6, 1.0),
+            (6, 2, 1.0),
+        ]);
+        // (a)
+        let ix = vec![0, 1, 2, 3, 0];
+        let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
+        println!("{:?}", cycles);
+        let cycle = find_min_weight_cycle_in_path(&g, &into_path(&ix));
+        println!("{:?}", cycle);
+        assert_eq!(cycle, Some(into_path(&[0, 1, 2, 3])));
+
+        // (b)
+        let ix = vec![0, 1, 4, 5, 6, 7, 4, 5, 6, 7, 2, 3, 0];
+        let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
+        println!("{:?}", cycles);
+        let cycle = find_min_weight_cycle_in_path(&g, &into_path(&ix));
+        println!("{:?}", cycle);
+        assert_eq!(cycle, Some(into_path(&[5, 6, 7, 4])));
+    }
 
     #[test]
     fn mmwc_edge_05() {
@@ -172,5 +308,7 @@ mod tests {
         ]);
         let sp = shortest_paths_by_edge(&g, ni(0), |_, _| true);
         println!("{:?}", sp);
+        let mp = find_minimizer_pair(&g, &sp);
+        println!("{:?}", mp);
     }
 }
