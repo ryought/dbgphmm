@@ -8,6 +8,7 @@
 //! * https://walkccc.me/CLRS/Chap24/Problems/24-5/
 //!
 use super::FloatWeight;
+use crate::graph::float_weight::node_list_to_edge_list;
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 pub mod edge_cond;
@@ -200,6 +201,16 @@ pub fn find_negative_cycle<N, E: FloatWeight>(
         }
         None => None,
     }
+}
+
+///
+/// Find a negative cycle by using `find_minimum_mean_weight_cycle`.
+///
+pub fn find_negative_edge_cycle<N, E: FloatWeight>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<Vec<EdgeIndex>> {
+    find_negative_cycle(graph, source).map(|nodes| node_list_to_edge_list(graph, &nodes))
 }
 
 //

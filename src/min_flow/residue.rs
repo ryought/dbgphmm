@@ -8,9 +8,11 @@ use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate};
 use crate::graph::bellman_ford::HasEpsilon;
-use crate::graph::float_weight::{is_negative_cycle, node_list_to_edge_list, total_weight};
+use crate::graph::float_weight::{
+    edge_cycle_to_node_cycle, is_negative_cycle, node_list_to_edge_list, total_weight,
+};
 use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
-use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+use crate::graph::min_mean_weight_cycle::{find_negative_cycle, find_negative_edge_cycle};
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -276,12 +278,12 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
     new_flow
 }
 
-fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<NodeIndex>> {
+fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
     let mut node = NodeIndex::new(0);
     let mut dfs = Dfs::new(&graph, node);
 
     loop {
-        let path = find_negative_cycle(&graph, node);
+        let path = find_negative_edge_cycle(&graph, node);
         /*
          * TODO
         let path = find_negative_cycle_with_edge_adj_condition(&graph, node, |e_a, e_b| {
@@ -328,9 +330,7 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
     // draw(&rg);
 
     match path {
-        Some(nodes) => {
-            let edges = node_list_to_edge_list(&rg, &nodes);
-
+        Some(edges) => {
             // check if this is actually negative cycle
             assert!(
                 is_negative_cycle(&rg, &edges),
@@ -425,7 +425,7 @@ mod tests {
         );
         let path = find_negative_cycle_in_whole_graph(&g);
         assert_eq!(path.is_some(), true);
-        let nodes = path.unwrap();
+        let nodes = edge_cycle_to_node_cycle(&g, &path.unwrap());
         assert!(nodes.contains(&NodeIndex::new(2)));
     }
 }
