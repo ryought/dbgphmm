@@ -208,7 +208,7 @@ pub fn traceback<N, E: FloatWeight>(
 ///
 ///
 pub fn find_all_cycles_in_path<N, E>(
-    graph: &DiGraph<N, E>,
+    _graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
 ) -> Vec<(usize, usize)> {
     // create occurrence table
@@ -219,7 +219,7 @@ pub fn find_all_cycles_in_path<N, E>(
 
     // for each edge that is used multiple times
     let mut cycles = Vec::new();
-    for (edge, occ) in &pos {
+    for (_edge, occ) in &pos {
         if occ.len() > 1 {
             for (&i, &j) in occ.iter().sorted().tuple_combinations() {
                 cycles.push((i, j));
