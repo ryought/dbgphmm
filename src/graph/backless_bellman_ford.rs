@@ -137,20 +137,5 @@ mod tests {
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(2), ni(3), ni(4), ni(0), ni(1)], -5.0)));
     }
-    #[test]
-    fn mmwc_edge_05() {
-        let mut g: DiGraph<(), f64> = DiGraph::new();
-        g.extend_with_edges(&[
-            (0, 1, 5.0),
-            (1, 2, -5.0),
-            (1, 3, 5.0),
-            (3, 4, 5.0),
-            (4, 5, -100.0),
-            (5, 6, 5.0),
-            (6, 1, 5.0),
-        ]);
-        let cycle = find_minimum_mean_weight_cycle(&g, ni(0), |_, _| true);
-        println!("cycle={:?}", cycle);
-    }
 }
 */

@@ -109,20 +109,59 @@ pub struct ShortestPathsByEdge {
 
 impl ShortestPathsByEdge {
     ///
-    /// Convert edge-indexed ShortestPathsByEdge into
-    /// node-indexed ShortestPaths.
+    /// Convert edge-indexed `ShortestPathsByEdge` into
+    /// node-indexed `ShortestPaths`.
     ///
-    pub fn into_shortest_paths<N, E>(self, graph: &DiGraph<N, E>) -> ShortestPaths {
+    /// `nd[k][v]` = (min weight path with k edges from source to v)
+    /// `ed[k][e]` = (min weight path with k+1 edges from source ending with edge e)
+    ///
+    pub fn into_shortest_paths<N, E>(
+        self,
+        graph: &DiGraph<N, E>,
+        source: NodeIndex,
+    ) -> ShortestPaths {
         let n = graph.node_count();
         let mut dists = vec![vec![f64::INFINITY; n]; n + 1];
         let mut preds = vec![vec![None; n]; n + 1];
 
-        // TODO add assertion of ShortestPathsByEdge
+        // assertion of ShortestPathsByEdge
         assert_eq!(self.dists.len(), n);
         assert_eq!(self.preds.len(), n);
+
+        // (1) fill dists_node[0]
+        dists[0][source.index()] = 0.0;
+
+        // (2) fill dists_node[k+1] by dists_edge[k]
         for k in 0..n {
-            // TODO
+            for v in graph.node_indices() {
+                // dists[k][v]
+                // = min_{e: edge *->v} dists[k-1][e]
+                //
+                //     e0
+                // * -----> v
+                let e0 = graph
+                    .edges_directed(v, Direction::Incoming)
+                    .min_by(|ea, eb| {
+                        let da = self.dists[k][ea.id().index()];
+                        let db = self.dists[k][eb.id().index()];
+                        da.partial_cmp(&db).expect("dists contains nan")
+                    });
+                match e0 {
+                    Some(e0) => {
+                        // the min-path (ending with node v) ends with edge e0
+                        dists[k + 1][v.index()] = self.dists[k][e0.id().index()];
+                        preds[k + 1][v.index()] = Some((e0.source(), e0.id()));
+                    }
+                    None => {
+                        // no incoming edges into the node
+                        // so the node is marked as unreachable.
+                        dists[k + 1][v.index()] = f64::INFINITY;
+                        preds[k + 1][v.index()] = None;
+                    }
+                }
+            }
         }
+
         ShortestPaths { dists, preds }
     }
 }
@@ -453,5 +492,20 @@ mod tests {
         // from 3
         let cycle = find_minimum_mean_weight_cycle(&g, ni(3));
         assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(6)], 1.0)));
+    }
+    #[test]
+    fn mmwc_edge_05() {
+        let mut g: DiGraph<(), f64> = DiGraph::new();
+        g.extend_with_edges(&[
+            (0, 1, 5.0),
+            (1, 2, -5.0),
+            (1, 3, 5.0),
+            (3, 4, 5.0),
+            (4, 5, -100.0),
+            (5, 6, 5.0),
+            (6, 1, 5.0),
+        ]);
+        let sp = shortest_paths_by_edge(&g, ni(0), |_, _| true);
+        println!("{:?}", sp);
     }
 }
