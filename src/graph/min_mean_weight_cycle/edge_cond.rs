@@ -233,7 +233,7 @@ pub fn find_all_cycles_in_path<N, E>(
 ///
 /// Find a cycle in a path
 ///
-pub fn find_min_weight_cycle_in_path<N, E: FloatWeight>(
+pub fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
 ) -> Option<Vec<EdgeIndex>> {
@@ -242,8 +242,8 @@ pub fn find_min_weight_cycle_in_path<N, E: FloatWeight>(
     cycles
         .iter()
         .min_by(|(ia, ja), (ib, jb)| {
-            let wa = total_weight(graph, &path[*ia..*ja]);
-            let wb = total_weight(graph, &path[*ib..*jb]);
+            let wa = total_weight(graph, &path[*ia..*ja]) / (ja - ia) as f64;
+            let wb = total_weight(graph, &path[*ib..*jb]) / (jb - ib) as f64;
             wa.partial_cmp(&wb).expect("dists contains nan")
         })
         .map(|(i, j)| path[*i..*j].to_vec())
@@ -281,7 +281,7 @@ mod tests {
         let ix = vec![0, 1, 2, 3, 0];
         let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
         println!("{:?}", cycles);
-        let cycle = find_min_weight_cycle_in_path(&g, &into_path(&ix));
+        let cycle = find_min_mean_weight_cycle_in_path(&g, &into_path(&ix));
         println!("{:?}", cycle);
         assert_eq!(cycle, Some(into_path(&[0, 1, 2, 3])));
 
@@ -289,7 +289,7 @@ mod tests {
         let ix = vec![0, 1, 4, 5, 6, 7, 4, 5, 6, 7, 2, 3, 0];
         let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
         println!("{:?}", cycles);
-        let cycle = find_min_weight_cycle_in_path(&g, &into_path(&ix));
+        let cycle = find_min_mean_weight_cycle_in_path(&g, &into_path(&ix));
         println!("{:?}", cycle);
         assert_eq!(cycle, Some(into_path(&[5, 6, 7, 4])));
     }
