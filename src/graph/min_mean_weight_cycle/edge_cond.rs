@@ -3,7 +3,7 @@
 //! custom shortest paths with edge indexing for using edge-adjacency condition
 //!
 use super::ShortestPaths;
-use crate::graph::float_weight::total_weight;
+use crate::graph::float_weight::{edge_cycle_to_node_cycle, total_weight};
 use crate::graph::FloatWeight;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
@@ -233,7 +233,7 @@ pub fn find_all_cycles_in_path<N, E>(
 ///
 /// Find a cycle in a path
 ///
-pub fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
+fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
 ) -> Option<Vec<EdgeIndex>> {
@@ -241,12 +241,50 @@ pub fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
 
     cycles
         .iter()
-        .min_by(|(ia, ja), (ib, jb)| {
-            let wa = total_weight(graph, &path[*ia..*ja]) / (ja - ia) as f64;
-            let wb = total_weight(graph, &path[*ib..*jb]) / (jb - ib) as f64;
-            wa.partial_cmp(&wb).expect("dists contains nan")
-        })
-        .map(|(i, j)| path[*i..*j].to_vec())
+        .map(|(i, j)| (*i, *j, total_weight(graph, &path[*i..*j]) / (j - i) as f64))
+        .min_by(|(_, _, wa), (_, _, wb)| wa.partial_cmp(&wb).expect("dists contains nan"))
+        .map(|(i, j, _)| path[i..j].to_vec())
+}
+
+///
+/// Find a minimum mean-weight cycle in a graph
+/// with edge condition
+/// Returns None if there is no cycle.
+///
+pub fn find_minimum_mean_weight_cycle_with_edge_cond<N, E, F>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    edge_cond: F,
+) -> Option<(Vec<EdgeIndex>, f64)>
+where
+    E: FloatWeight,
+    F: Fn(EdgeIndex, EdgeIndex) -> bool,
+{
+    let sp = shortest_paths_by_edge(graph, source, edge_cond);
+    match find_minimizer_pair(graph, &sp) {
+        Some((_, e, mean_weight)) => {
+            let path = traceback(graph, e, &sp);
+            let cycle = find_min_mean_weight_cycle_in_path(graph, &path)
+                .expect("minimizer pair was found, but no cycle was found when tracebacking");
+            Some((cycle, mean_weight))
+        }
+        None => None,
+    }
+}
+
+///
+/// wrapper of `find_minimum_mean_weight_cycle_with_edge_cond`
+/// as same return type of original `find_minimum_mean_weight_cycle`.
+///
+pub fn find_minimum_mean_weight_cycle<N, E>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<(Vec<NodeIndex>, f64)>
+where
+    E: FloatWeight,
+{
+    find_minimum_mean_weight_cycle_with_edge_cond(graph, source, |_, _| true)
+        .map(|(cycle, weight)| (edge_cycle_to_node_cycle(graph, &cycle), weight))
 }
 
 //

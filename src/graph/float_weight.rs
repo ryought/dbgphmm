@@ -100,3 +100,21 @@ pub fn edge_list_to_node_list<N, E>(graph: &DiGraph<N, E>, edges: &[EdgeIndex]) 
 
     nodes
 }
+
+///
+/// Convert cycle of edge into node list
+///
+pub fn edge_cycle_to_node_cycle<N, E>(
+    graph: &DiGraph<N, E>,
+    cycle: &[EdgeIndex],
+) -> Vec<NodeIndex> {
+    cycle
+        .iter()
+        .map(|&edge| {
+            let (v, _) = graph
+                .edge_endpoints(edge)
+                .expect("edge is not in the graph");
+            v
+        })
+        .collect()
+}

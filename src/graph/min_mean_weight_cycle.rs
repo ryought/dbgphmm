@@ -274,6 +274,10 @@ mod tests {
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(1)], 1.25)));
+
+        let cycle = edge_cond::find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(4), ni(5), ni(1), ni(3)], 1.25)));
     }
 
     /// example graph with parallel edges
@@ -298,6 +302,10 @@ mod tests {
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(2), ni(0), ni(1)], 1.0)));
+
+        let cycle = edge_cond::find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(0), ni(1), ni(2)], 1.0)));
     }
 
     ///
@@ -322,6 +330,10 @@ mod tests {
         let cycle = find_minimum_mean_weight_cycle(&g, ni(0));
         println!("cycle={:?}", cycle);
         assert_eq!(cycle, Some((vec![ni(3), ni(4), ni(5), ni(6), ni(1)], 1.0)));
+
+        let cycle = edge_cond::find_minimum_mean_weight_cycle(&g, ni(0));
+        println!("cycle={:?}", cycle);
+        assert_eq!(cycle, Some((vec![ni(1), ni(2), ni(0)], 1.0)));
     }
 
     ///
