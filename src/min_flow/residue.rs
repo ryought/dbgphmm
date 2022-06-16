@@ -109,7 +109,7 @@ impl FloatWeight for ResidueEdge {
 
 /// Residue direction enum
 /// residue edge has two types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ResidueDirection {
     /// Up edge: it can increase(+1) flow
     Up,
@@ -288,10 +288,20 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
     let mut dfs = Dfs::new(&graph, node);
 
     loop {
+        // find negative cycle with prohibiting e1 -> e2 transition
+        //
+        //    e1 (+1 of e)
+        // v --->
+        //   <--- w
+        //    e2 (-1 of e)
+        //
         let path = find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
             let ew_a = graph.edge_weight(e_a).unwrap();
             let ew_b = graph.edge_weight(e_b).unwrap();
-            ew_a.target != ew_b.target
+
+            let target_is_different = ew_a.target != ew_b.target;
+            let dir_is_same = ew_a.direction == ew_b.direction;
+            target_is_different || dir_is_same
         });
 
         if path.is_some() {
