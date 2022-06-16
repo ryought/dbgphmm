@@ -356,7 +356,14 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
 
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
-            Some(new_flow)
+
+            // if applying edges did not changed the flow (i.e. the edges was meaningless)
+            // improve should fail.
+            if &new_flow == flow {
+                None
+            } else {
+                Some(new_flow)
+            }
         }
         None => None,
     }
