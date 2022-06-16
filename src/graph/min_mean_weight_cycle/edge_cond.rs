@@ -273,8 +273,6 @@ where
             let path = traceback(graph, e, &sp);
             let cycle = find_min_mean_weight_cycle_in_path(graph, &path)
                 .expect("minimizer pair was found, but no cycle was found when tracebacking");
-            assert!(is_edge_simple(graph, &cycle));
-            assert!(is_cycle(graph, &cycle));
             Some((cycle, mean_weight))
         }
         None => None,
@@ -311,6 +309,7 @@ where
     match find_minimum_mean_weight_cycle_with_edge_cond(graph, source, edge_cond) {
         Some((cycle, mean_weight)) => {
             if mean_weight < 0.0 {
+                println!("mmwc={:?} weight={}", cycle, mean_weight);
                 Some(cycle)
             } else {
                 None
