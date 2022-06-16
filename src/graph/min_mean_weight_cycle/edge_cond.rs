@@ -205,14 +205,18 @@ pub fn traceback<N, E: FloatWeight>(
 }
 
 ///
+/// Find all edge simple cycles in the given path.
 ///
-pub fn find_all_cycles_in_path<N, E>(
+pub fn find_all_simple_cycles_in_path<N, E>(
     _graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
 ) -> Vec<(usize, usize)> {
-    // create occurrence table
+    // create occurrence table of edges
+    //
+    // Example
+    // pos[edge] = vec![9, 5, 2]
     let mut pos: HashMap<EdgeIndex, Vec<usize>> = HashMap::default();
-    for (i, &edge) in path.iter().enumerate() {
+    for (i, &edge) in path.iter().enumerate().rev() {
         pos.entry(edge).or_insert_with(|| Vec::new()).push(i);
     }
 
@@ -220,8 +224,10 @@ pub fn find_all_cycles_in_path<N, E>(
     let mut cycles = Vec::new();
     for (_edge, occ) in &pos {
         if occ.len() > 1 {
-            for (&i, &j) in occ.iter().sorted().tuple_combinations() {
-                cycles.push((i, j));
+            for (&i, &j) in occ.iter().tuple_windows() {
+                // occ is sorted in decreasing order and no repeating values
+                assert!(i > j);
+                cycles.push((j, i));
             }
         }
     }
@@ -236,7 +242,7 @@ fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
 ) -> Option<Vec<EdgeIndex>> {
-    let cycles = find_all_cycles_in_path(graph, path);
+    let cycles = find_all_simple_cycles_in_path(graph, path);
 
     cycles
         .iter()
@@ -324,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn find_all_cycles_00() {
+    fn find_all_simple_cycles_00() {
         let mut g: DiGraph<(), f64> = DiGraph::new();
         g.extend_with_edges(&[
             // cycle 1
@@ -340,16 +346,18 @@ mod tests {
         ]);
         // (a)
         let ix = vec![0, 1, 2, 3, 0];
-        let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
+        let cycles = find_all_simple_cycles_in_path(&g, &into_path(&ix));
         println!("{:?}", cycles);
+        assert_eq!(cycles, vec![(0, 4)]);
         let cycle = find_min_mean_weight_cycle_in_path(&g, &into_path(&ix));
         println!("{:?}", cycle);
         assert_eq!(cycle, Some(into_path(&[0, 1, 2, 3])));
 
         // (b)
         let ix = vec![0, 1, 4, 5, 6, 7, 4, 5, 6, 7, 2, 3, 0];
-        let cycles = find_all_cycles_in_path(&g, &into_path(&ix));
+        let cycles = find_all_simple_cycles_in_path(&g, &into_path(&ix));
         println!("{:?}", cycles);
+        assert_eq!(cycles, vec![(3, 7), (2, 6), (5, 9), (4, 8), (0, 12)]);
         let cycle = find_min_mean_weight_cycle_in_path(&g, &into_path(&ix));
         println!("{:?}", cycle);
         assert_eq!(cycle, Some(into_path(&[5, 6, 7, 4])));
