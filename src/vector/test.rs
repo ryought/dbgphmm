@@ -342,4 +342,37 @@ mod tests {
         // println!("{}", vx);
         assert_eq!(vy.to_vec(), vec![4, 1, 2, 2, 0, 0, 50]);
     }
+    #[test]
+    fn vector_partial_eq() {
+        // (1) dense
+        let vx: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[8, 3, 4, 2], 0);
+        let vy: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[8, 3, 4, 2], 0);
+        let vz: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[8, 3, 1, 2], 0);
+        // between objects
+        assert!(vx == vy);
+        assert!(vx == vx);
+        assert!(vx != vz);
+        // between refs
+        assert!(&vx == &vy);
+        assert!(&vx == &vx);
+        assert!(&vx != &vz);
+
+        // (2) sparse
+        //   0               5
+        // [10, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0]
+        let vx: Vector<SparseStorage<u32>, usize> = Vector::from_vec(10, 0, &[(0, 10), (5, 20)]);
+        // [10, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0]
+        let vy: Vector<SparseStorage<u32>, usize> =
+            Vector::from_vec(10, 0, &[(5, 20), (1, 0), (0, 10)]);
+        // [10, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0]
+        let vz: Vector<SparseStorage<u32>, usize> = Vector::from_vec(10, 0, &[(0, 10), (5, 11)]);
+        // between objects
+        assert!(vx == vy);
+        assert!(vx == vx);
+        assert!(vx != vz);
+        // between refs
+        assert!(&vx == &vy);
+        assert!(&vx == &vx);
+        assert!(&vx != &vz);
+    }
 }
