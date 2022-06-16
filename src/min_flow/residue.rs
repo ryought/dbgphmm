@@ -109,7 +109,7 @@ impl FloatWeight for ResidueEdge {
 
 /// Residue direction enum
 /// residue edge has two types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ResidueDirection {
     /// Up edge: it can increase(+1) flow
     Up,
@@ -288,21 +288,21 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
     let mut dfs = Dfs::new(&graph, node);
 
     loop {
-        let path = find_negative_edge_cycle(&graph, node);
-        /*
-         * TODO
-        let path = find_negative_cycle_with_edge_adj_condition(&graph, node, |e_a, e_b| {
+        // find negative cycle with prohibiting e1 -> e2 transition
+        //
+        //    e1 (+1 of e)
+        // v --->
+        //   <--- w
+        //    e2 (-1 of e)
+        //
+        let path = find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
             let ew_a = graph.edge_weight(e_a).unwrap();
             let ew_b = graph.edge_weight(e_b).unwrap();
-            ew_a.target != ew_b.target
-        });
-        */
 
-        // // TODO
-        // let g2 = residue_to_float_weighted_graph(&graph);
-        // let path2 = find_negative_cycle(&g2, node);
-        // println!("path2={:?}", path2);
-        // draw(&g2);
+            let target_is_different = ew_a.target != ew_b.target;
+            let dir_is_same = ew_a.direction == ew_b.direction;
+            target_is_different || dir_is_same
+        });
 
         if path.is_some() {
             return path;
@@ -337,8 +337,16 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
     match path {
         Some(edges) => {
             // check if this is actually negative cycle
-            assert!(is_cycle(&rg, &edges), "the cycle was not valid");
-            assert!(is_edge_simple(&rg, &edges), "the cycle is not edge-simple");
+            assert!(
+                is_cycle(&rg, &edges),
+                "the cycle was not valid. edges={:?}",
+                edges
+            );
+            assert!(
+                is_edge_simple(&rg, &edges),
+                "the cycle is not edge-simple. edges={:?}",
+                edges
+            );
             assert!(
                 is_negative_cycle(&rg, &edges),
                 "total weight of the found negative cycle is not negative. edges={:?} total_weight={}",
@@ -381,6 +389,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ei;
 
     #[test]
     fn petgraph_negative_cycle_test() {
@@ -423,16 +432,15 @@ mod tests {
         g.add_edge(
             b,
             a,
-            ResidueEdge::new(1, -1.0, EdgeIndex::new(0), ResidueDirection::Up),
+            ResidueEdge::new(1, -1.0, EdgeIndex::new(1), ResidueDirection::Up),
         );
         g.add_edge(
             c,
             c,
-            ResidueEdge::new(1, -1.0, EdgeIndex::new(0), ResidueDirection::Up),
+            ResidueEdge::new(1, -1.0, EdgeIndex::new(2), ResidueDirection::Up),
         );
         let path = find_negative_cycle_in_whole_graph(&g);
         assert_eq!(path.is_some(), true);
-        let nodes = edge_cycle_to_node_cycle(&g, &path.unwrap());
-        assert!(nodes.contains(&NodeIndex::new(2)));
+        assert_eq!(path, Some(vec![ei(2)]));
     }
 }
