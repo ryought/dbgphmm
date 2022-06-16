@@ -228,7 +228,6 @@ mod tests {
     use crate::dbg::mocks::*;
 
     #[test]
-    #[should_panic]
     fn em_compression_v3() {
         //
         // FIXME

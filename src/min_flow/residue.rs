@@ -229,7 +229,7 @@ where
             let cost_down = -ew.cost_diff(f - 1);
 
             // TODO this assertion is valid only if the cost function is convex.
-            assert!(cost_up + cost_down >= 0.0);
+            // assert!(cost_up + cost_down >= 0.0);
         }
 
         rg.extend_with_edges(&edges);
