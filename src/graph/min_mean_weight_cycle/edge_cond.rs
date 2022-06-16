@@ -240,6 +240,14 @@ pub fn find_all_simple_cycles_in_path<N, E>(
 ///
 /// Find a cycle in a path
 ///
+/// ## TODO
+///
+/// This function can be slow because
+///
+/// * cycles found by `find_all_simple_cycles_in_path` may have duplicates.
+/// * only one cycle which has similar weight as the calculated mean-weight,
+///   so it does not have to calculate all weights of cycles.
+///
 fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
