@@ -3,7 +3,9 @@
 //! custom shortest paths with edge indexing for using edge-adjacency condition
 //!
 use super::ShortestPaths;
-use crate::graph::float_weight::{edge_cycle_to_node_cycle, total_weight};
+use crate::graph::float_weight::{
+    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, total_weight,
+};
 use crate::graph::FloatWeight;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
@@ -271,6 +273,8 @@ where
             let path = traceback(graph, e, &sp);
             let cycle = find_min_mean_weight_cycle_in_path(graph, &path)
                 .expect("minimizer pair was found, but no cycle was found when tracebacking");
+            assert!(is_edge_simple(graph, &cycle));
+            assert!(is_cycle(graph, &cycle));
             Some((cycle, mean_weight))
         }
         None => None,
