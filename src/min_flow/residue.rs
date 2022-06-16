@@ -269,9 +269,13 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         // convert back to the original edgeindex
         let original_edge = ew.target;
 
+        // use `wrapping_{add,sub}` because
+        // in the some ordering of residue edges, applying -1 on a zero-flow edge can happen.
+        // As long as the residue edges is valid (i.e. it makes cycle in the residue graph)
+        // the final flow should satisfy the flow condition.
         new_flow[original_edge] = match ew.direction {
-            ResidueDirection::Up => new_flow[original_edge] + flow_change_amount,
-            ResidueDirection::Down => new_flow[original_edge] - flow_change_amount,
+            ResidueDirection::Up => new_flow[original_edge].wrapping_add(flow_change_amount),
+            ResidueDirection::Down => new_flow[original_edge].wrapping_sub(flow_change_amount),
         };
     }
 
