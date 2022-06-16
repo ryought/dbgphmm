@@ -9,7 +9,8 @@ use super::utils::draw;
 use super::{Cost, FlowRate};
 use crate::graph::bellman_ford::HasEpsilon;
 use crate::graph::float_weight::{
-    edge_cycle_to_node_cycle, is_negative_cycle, node_list_to_edge_list, total_weight,
+    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
+    total_weight,
 };
 use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
 use crate::graph::min_mean_weight_cycle::{find_negative_cycle, find_negative_edge_cycle};
@@ -269,9 +270,13 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         // convert back to the original edgeindex
         let original_edge = ew.target;
 
+        // use `wrapping_{add,sub}` because
+        // in the some ordering of residue edges, applying -1 on a zero-flow edge can happen.
+        // As long as the residue edges is valid (i.e. it makes cycle in the residue graph)
+        // the final flow should satisfy the flow condition.
         new_flow[original_edge] = match ew.direction {
-            ResidueDirection::Up => new_flow[original_edge] + flow_change_amount,
-            ResidueDirection::Down => new_flow[original_edge] - flow_change_amount,
+            ResidueDirection::Up => new_flow[original_edge].wrapping_add(flow_change_amount),
+            ResidueDirection::Down => new_flow[original_edge].wrapping_sub(flow_change_amount),
         };
     }
 
@@ -332,6 +337,8 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
     match path {
         Some(edges) => {
             // check if this is actually negative cycle
+            assert!(is_cycle(&rg, &edges), "the cycle was not valid");
+            assert!(is_edge_simple(&rg, &edges), "the cycle is not edge-simple");
             assert!(
                 is_negative_cycle(&rg, &edges),
                 "total weight of the found negative cycle is not negative. edges={:?} total_weight={}",

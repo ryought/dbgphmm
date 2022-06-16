@@ -1,6 +1,7 @@
 //!
 //! FloatWeight
 //!
+use fnv::FnvHashSet as HashSet;
 use petgraph::prelude::*;
 
 pub trait FloatWeight {
@@ -35,6 +36,60 @@ pub fn total_weight<N, E: FloatWeight>(graph: &DiGraph<N, E>, edges: &[EdgeIndex
 ///
 pub fn is_negative_cycle<N, E: FloatWeight>(graph: &DiGraph<N, E>, edges: &[EdgeIndex]) -> bool {
     total_weight(graph, edges) < 0.0
+}
+
+///
+/// Check if the edge list forms a cycle in the graph.
+///
+/// * For all two adjacent edges e1 and e2, target(e1) and source(e2) is the same node.
+///
+pub fn is_cycle<N, E>(graph: &DiGraph<N, E>, edges: &[EdgeIndex]) -> bool {
+    let n = edges.len();
+    (0..n).all(|i| {
+        let e1 = edges[i];
+        let e2 = edges[(i + 1) % n];
+
+        //   e1           e2
+        // -----> v1/v2 ------>
+        let (_, v1) = graph
+            .edge_endpoints(e1)
+            .expect("the edge is not in the graph");
+        let (v2, _) = graph
+            .edge_endpoints(e2)
+            .expect("the edge is not in the graph");
+
+        v1 == v2
+    })
+}
+
+///
+/// determine if the path (= a list of nodes) is node-simple
+///
+pub fn is_node_simple<N, E>(graph: &DiGraph<N, E>, nodes: &[NodeIndex]) -> bool {
+    let mut used: HashSet<NodeIndex> = HashSet::default();
+    for &node in nodes {
+        if used.contains(&node) {
+            return false;
+        } else {
+            used.insert(node);
+        }
+    }
+    return true;
+}
+
+///
+/// determine if the path (= a list of edges) is edge-simple
+///
+pub fn is_edge_simple<N, E>(graph: &DiGraph<N, E>, edges: &[EdgeIndex]) -> bool {
+    let mut used: HashSet<EdgeIndex> = HashSet::default();
+    for &edge in edges {
+        if used.contains(&edge) {
+            return false;
+        } else {
+            used.insert(edge);
+        }
+    }
+    return true;
 }
 
 /// Find the minimum weight edge among all parallel edges between v and w
