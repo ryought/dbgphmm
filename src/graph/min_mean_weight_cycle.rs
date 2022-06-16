@@ -8,7 +8,7 @@
 //! * https://walkccc.me/CLRS/Chap24/Problems/24-5/
 //!
 use super::FloatWeight;
-use crate::graph::float_weight::node_list_to_edge_list;
+use crate::graph::float_weight::{is_node_simple, node_list_to_edge_list};
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 pub mod edge_cond;
@@ -194,6 +194,7 @@ pub fn find_negative_cycle<N, E: FloatWeight>(
     match find_minimum_mean_weight_cycle(graph, source) {
         Some((cycle, mean_weight)) => {
             if mean_weight < 0.0 {
+                assert!(is_node_simple(graph, &cycle));
                 Some(cycle)
             } else {
                 None
