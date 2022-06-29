@@ -3,6 +3,7 @@
 //! By Naive main factor improving
 //!
 use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInfo};
+use super::q::{q_score_clamped, QScore};
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::params::PHMMParams;
@@ -179,11 +180,13 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     ki
 }
 
-// ** m-step **
-// Convert
-
 ///
 /// M-step of compression_v3
+///
+/// Returned value is (new copy_nums, expected improvement of the cost)
+///
+/// find a candidate update of current flow
+/// using variational approximation
 ///
 fn m_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -191,7 +194,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> NodeCopyNums {
+) -> (NodeCopyNums, Cost) {
     // construct edbg with KmerInfo
     let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     let edbg = dbg.to_edbg_with_attr(Some(&infos));
@@ -200,23 +203,89 @@ fn m_step<N: DbgNode, E: DbgEdge>(
 
     // min-flow optimization starts from current copy nums
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
-    println!("old_copy_nums={}", original_copy_nums);
-    println!("cost_old={}", total_cost(&edbg.graph, &original_copy_nums));
-    let copy_nums = match improve_flow_convex(&edbg.graph, &original_copy_nums) {
-        Some(copy_nums) => copy_nums,
-        None => original_copy_nums,
+    let (copy_nums, cost_diff) = match improve_flow_convex(&edbg.graph, &original_copy_nums) {
+        Some(copy_nums) => {
+            let cost_diff =
+                total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
+            (copy_nums, cost_diff)
+        }
+        None => (original_copy_nums, 0.0),
     };
-    println!("new_copy_nums={}", copy_nums);
-    println!("cost_new={}", total_cost(&edbg.graph, &copy_nums));
-    // let cost_diff =
-    //     total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
-    // println!("cost_diff={}", cost_diff);
-    copy_nums.switch_index()
+
+    (copy_nums.switch_index(), cost_diff)
 }
 
-// ** e-step **
-// Convert to min-flow network and solve it to find the best improvement of copy nums.
-//
+pub fn compression_step<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
+    // [1] e-step
+    let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
+
+    // calculate current q-score
+    let q_score = q_score_clamped(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+
+    // [2] m-step
+    let (copy_nums_new, cost_diff) =
+        m_step(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+
+    // construct new candidate dbg
+    let mut new_dbg = dbg.clone();
+    let is_updated = new_dbg.set_node_copy_nums(&copy_nums_new);
+    // new_dbg.remove_zero_copy_node();
+    let q_score_new = q_score_clamped(
+        &new_dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+    );
+
+    // [3] history
+    let log = CompressionV3Log::new(q_score, q_score_new, cost_diff, new_dbg.clone());
+    println!("{}", log);
+
+    (new_dbg, is_updated, log)
+}
+
+///
+/// Log information store of each iteration in compression v3
+///
+#[derive(Clone)]
+pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
+    /// q-score before m-step
+    pub q0: QScore,
+    /// q-score after m-step
+    pub q1: QScore,
+    /// cost improvement with variational-approximated q-score
+    pub cost_diff: Cost,
+    /// resulting dbg
+    pub dbg: Dbg<N, E>,
+}
+
+impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
+    pub fn new(q0: QScore, q1: QScore, cost_diff: Cost, dbg: Dbg<N, E>) -> Self {
+        CompressionV3Log {
+            q0,
+            q1,
+            cost_diff,
+            dbg,
+        }
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\t{}\t{}\t{}",
+            self.q0, self.q1, self.cost_diff, self.dbg
+        )
+    }
+}
 
 //
 // tests
@@ -228,12 +297,7 @@ mod tests {
     use crate::dbg::mocks::*;
 
     #[test]
-    #[should_panic]
-    fn em_compression_v3() {
-        //
-        // FIXME
-        // the score funciton is not convex, so the optimization is not working currently.
-        //
+    fn em_compression_v3_m() {
         let dbg = mock_intersection();
         let reads = Reads {
             reads: vec![
@@ -259,7 +323,29 @@ mod tests {
         // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{:?}", qs);
 
-        let copy_nums = m_step(&dbg, &ef, &nf, genome_size, lambda);
-        // println!("{}", dbg);
+        let (copy_nums, d) = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        println!("{}", copy_nums);
+        println!("{}", d);
+        assert_eq!(
+            copy_nums.to_vec(),
+            vec![0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0]
+        );
+    }
+
+    #[test]
+    fn em_compression_v3_step() {
+        let dbg = mock_intersection();
+        let reads = Reads {
+            reads: vec![
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+                b"AACTAGCTT".to_vec(),
+            ],
+        };
+        let params = PHMMParams::default();
+        println!("dbg0={}", dbg);
+
+        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0);
+        println!("dbg1={}", new_dbg);
     }
 }
