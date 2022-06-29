@@ -3,7 +3,7 @@
 //! By Naive main factor improving
 //!
 use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInfo};
-use super::q::q_score_clamped;
+use super::q::{q_score_clamped, QScore};
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::params::PHMMParams;
@@ -221,7 +221,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> (Dbg<N, E>, bool) {
+) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
     // [1] e-step
     let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
 
@@ -244,10 +244,11 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
         penalty_weight,
     );
 
-    println!("q_score={:?}", q_score);
-    println!("q_score_new={:?}", q_score_new);
+    // [3] history
+    let log = CompressionV3Log::new(q_score, q_score_new, cost_diff, new_dbg.clone());
+    println!("{}", log);
 
-    (new_dbg, is_updated)
+    (new_dbg, is_updated, log)
 }
 
 ///
@@ -256,22 +257,33 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 #[derive(Clone)]
 pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
     /// q-score before m-step
-    pub q0: Prob,
+    pub q0: QScore,
     /// q-score after m-step
-    pub q1: Prob,
+    pub q1: QScore,
+    /// cost improvement with variational-approximated q-score
+    pub cost_diff: Cost,
     /// resulting dbg
     pub dbg: Dbg<N, E>,
 }
 
 impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
-    pub fn new(full_prob: Prob, min_flow_score: Cost, dbg: Dbg<N, E>) -> Self {
-        unimplemented!();
+    pub fn new(q0: QScore, q1: QScore, cost_diff: Cost, dbg: Dbg<N, E>) -> Self {
+        CompressionV3Log {
+            q0,
+            q1,
+            cost_diff,
+            dbg,
+        }
     }
 }
 
 impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "")
+        write!(
+            f,
+            "{}\t{}\t{}\t{}",
+            self.q0, self.q1, self.cost_diff, self.dbg
+        )
     }
 }
 
@@ -333,7 +345,7 @@ mod tests {
         let params = PHMMParams::default();
         println!("dbg0={}", dbg);
 
-        let (new_dbg, is_updated) = compression_step(&dbg, &reads, &params, 9, 0.0);
+        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0);
         println!("dbg1={}", new_dbg);
     }
 }

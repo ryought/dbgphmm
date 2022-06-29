@@ -24,6 +24,19 @@ impl QScore {
     }
 }
 
+impl std::fmt::Display for QScore {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}(init={} trans={} prior={})",
+            self.total(),
+            self.init,
+            self.trans,
+            self.prior
+        )
+    }
+}
+
 ///
 /// calculate exact Q-function score with clamped log
 ///
