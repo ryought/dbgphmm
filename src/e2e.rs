@@ -19,10 +19,32 @@ pub enum ReadType {
     Fragment,
 }
 
+///
+/// Dataset
+///
 pub struct DatasetConfig {}
 
 pub struct Dataset {
-    reads: Reads,
+    ///
+    /// sampled reads
+    ///
+    pub reads: Reads,
+    ///
+    /// Profile HMM parameters
+    ///
+    pub phmm_params: PHMMParams,
+    ///
+    /// raw read-dbg k=k_init
+    ///
+    pub dbg_raw: SimpleDbg<VecKmer>,
+    ///
+    /// true-dbg k=k_init
+    ///
+    pub dbg_true_init: SimpleDbg<VecKmer>,
+    ///
+    /// true-dbg k=k_target
+    ///
+    pub dbg_true: SimpleDbg<VecKmer>,
 }
 
 pub fn generate_reads_and_dbgs(
@@ -35,13 +57,7 @@ pub fn generate_reads_and_dbgs(
     read_type: ReadType,
     k_init: usize,
     k_target: usize,
-) -> (
-    Reads,
-    PHMMParams,
-    SimpleDbg<VecKmer>,
-    SimpleDbg<VecKmer>,
-    SimpleDbg<VecKmer>,
-) {
+) -> Dataset {
     let g = GenomeGraph::from_seqs(genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
@@ -82,7 +98,13 @@ pub fn generate_reads_and_dbgs(
     // (5) true k=50 (read length)
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, genome);
 
-    (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true)
+    Dataset {
+        reads,
+        phmm_params,
+        dbg_raw,
+        dbg_true_init,
+        dbg_true,
+    }
 }
 
 pub fn generate_full_length_reads_and_dbgs(

@@ -68,7 +68,7 @@ mod tests {
         SimpleDbg<VecKmer>,
     ) {
         println!("generating reads");
-        let (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) = generate_reads_and_dbgs(
+        let dataset = generate_reads_and_dbgs(
             genome,
             genome_size,
             0,
@@ -79,7 +79,12 @@ mod tests {
             8,
             k_target,
         );
-        (reads, dbg_raw, dbg_true_init, dbg_true)
+        (
+            dataset.reads,
+            dataset.dbg_raw,
+            dataset.dbg_true_init,
+            dataset.dbg_true,
+        )
     }
 
     #[test]
