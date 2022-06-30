@@ -3,12 +3,13 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+    use crate::e2e::{generate_dataset, ReadType};
     use crate::em::compression::{compression, compression_step};
-    use crate::em::e2e::genome::{simple, simple_diploid};
-    use crate::em::e2e::runner::{benchmark, generate_reads_and_dbgs, ReadType};
+    use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
+    use crate::genome::{simple, simple_diploid};
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
@@ -67,7 +68,7 @@ mod tests {
         SimpleDbg<VecKmer>,
     ) {
         println!("generating reads");
-        let (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true) = generate_reads_and_dbgs(
+        let dataset = generate_dataset(
             genome,
             genome_size,
             0,
@@ -78,7 +79,12 @@ mod tests {
             8,
             k_target,
         );
-        (reads, dbg_raw, dbg_true_init, dbg_true)
+        (
+            dataset.reads,
+            dataset.dbg_raw,
+            dataset.dbg_true_init,
+            dataset.dbg_true,
+        )
     }
 
     #[test]

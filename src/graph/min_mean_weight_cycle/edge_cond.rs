@@ -317,7 +317,7 @@ where
     match find_minimum_mean_weight_cycle_with_edge_cond(graph, source, edge_cond) {
         Some((cycle, mean_weight)) => {
             if mean_weight < 0.0 {
-                println!("mmwc={:?} weight={}", cycle, mean_weight);
+                // println!("mmwc={:?} weight={}", cycle, mean_weight);
                 Some(cycle)
             } else {
                 None

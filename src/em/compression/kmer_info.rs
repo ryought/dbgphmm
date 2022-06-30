@@ -79,13 +79,9 @@ impl KmerInfo {
         copy_num_total_expected: CopyNum,
         penalty_weight: f64,
     ) -> Self {
-        assert!(copy_num >= 0);
         assert!(freq >= 0.0);
         assert!(freq_intersection >= 0.0);
         assert!(freq_init >= 0.0);
-        assert!(copy_num_total >= 0);
-        assert!(copy_num_intersection >= 0);
-        assert!(copy_num_total_expected >= 0);
         assert!(penalty_weight >= 0.0);
         KmerInfo {
             is_emittable,
