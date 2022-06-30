@@ -20,10 +20,19 @@ pub enum ReadType {
 }
 
 ///
-/// Dataset
+/// Dataset configuration
 ///
 pub struct DatasetConfig {}
 
+///
+/// Dataset collection struct
+///
+/// * Dataset.reads
+/// * Dataset.phmm_params
+/// * Dataset.dbg_raw
+/// * Dataset.dbg_true_init
+/// * Dataset.dbg_true
+///
 pub struct Dataset {
     ///
     /// sampled reads
@@ -47,7 +56,7 @@ pub struct Dataset {
     pub dbg_true: SimpleDbg<VecKmer>,
 }
 
-pub fn generate_reads_and_dbgs(
+pub fn generate_dataset(
     genome: &Genome,
     genome_size: usize,
     read_seed: u64,

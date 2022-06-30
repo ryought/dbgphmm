@@ -3,7 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_reads_and_dbgs, ReadType};
+    use crate::e2e::{generate_dataset, ReadType};
     use crate::em::compression::{compression, compression_step};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
@@ -68,7 +68,7 @@ mod tests {
         SimpleDbg<VecKmer>,
     ) {
         println!("generating reads");
-        let dataset = generate_reads_and_dbgs(
+        let dataset = generate_dataset(
             genome,
             genome_size,
             0,
