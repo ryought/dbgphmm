@@ -245,7 +245,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     );
 
     // [3] history
-    let log = CompressionV3Log::new(q_score, q_score_new, cost_diff, new_dbg.clone());
+    let log = CompressionV3Log::new(q_score, q_score_new, cost_diff, is_updated, new_dbg.clone());
     println!("{}", log);
 
     (new_dbg, is_updated, log)
@@ -262,16 +262,19 @@ pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
     pub q1: QScore,
     /// cost improvement with variational-approximated q-score
     pub cost_diff: Cost,
+    /// the dbg changed by this compression step?
+    pub is_updated: bool,
     /// resulting dbg
     pub dbg: Dbg<N, E>,
 }
 
 impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
-    pub fn new(q0: QScore, q1: QScore, cost_diff: Cost, dbg: Dbg<N, E>) -> Self {
+    pub fn new(q0: QScore, q1: QScore, cost_diff: Cost, is_updated: bool, dbg: Dbg<N, E>) -> Self {
         CompressionV3Log {
             q0,
             q1,
             cost_diff,
+            is_updated,
             dbg,
         }
     }
@@ -281,8 +284,8 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}",
-            self.q0, self.q1, self.cost_diff, self.dbg
+            "{}\t{}\t{}\tis_updated={}\t{}",
+            self.q0, self.q1, self.cost_diff, self.is_updated, self.dbg
         )
     }
 }
