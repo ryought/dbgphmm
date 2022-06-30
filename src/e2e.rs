@@ -56,6 +56,17 @@ pub struct Dataset {
     pub dbg_true: SimpleDbg<VecKmer>,
 }
 
+impl Dataset {
+    ///
+    /// show reads
+    ///
+    pub fn show_reads(&self) {
+        for (i, read) in self.reads.iter().enumerate() {
+            println!("read#{}\t{}", i, read.to_str());
+        }
+    }
+}
+
 pub fn generate_dataset(
     genome: &Genome,
     genome_size: usize,
@@ -95,9 +106,6 @@ pub fn generate_dataset(
     let pos_reads = g.sample_positioned_reads(&profile);
     g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
-    for (i, read) in reads.iter().enumerate() {
-        println!("read#{}\t{}", i, read.to_str());
-    }
 
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);
 
