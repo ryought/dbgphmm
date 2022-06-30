@@ -11,11 +11,11 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
-    use crate::em::e2e::genome::simple;
     use crate::em::e2e::runner::{
         benchmark, benchmark_em_steps, generate_reads_and_dbgs, show_logs, ReadType,
     };
     use crate::em::scheduler::TaskLog;
+    use crate::genome::simple;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::params::PHMMParams;
