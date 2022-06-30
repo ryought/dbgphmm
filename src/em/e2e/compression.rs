@@ -43,7 +43,7 @@ mod tests {
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.0,
+            0.1,
             10,
         );
         println!("log={}", log);

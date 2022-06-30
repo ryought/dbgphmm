@@ -143,13 +143,21 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV3KmerInfos<K> {
     /// demand is set to be current copy_num - 1
     ///
     fn demand(&self) -> usize {
-        0_usize.max(self.attribute.copy_num() - 1)
+        if self.attribute.copy_num() > 0 {
+            self.attribute.copy_num() - 1
+        } else {
+            0
+        }
     }
     ///
     /// capacity is set to be current copy_num + 1
     ///
     fn capacity(&self) -> usize {
-        MAX_COPY_NUM_OF_EDGE.min(self.attribute.copy_num() + 1)
+        if self.attribute.copy_num() < MAX_COPY_NUM_OF_EDGE {
+            self.attribute.copy_num() + 1
+        } else {
+            MAX_COPY_NUM_OF_EDGE
+        }
     }
 }
 
