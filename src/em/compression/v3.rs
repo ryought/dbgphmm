@@ -215,40 +215,69 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     (copy_nums.switch_index(), cost_diff)
 }
 
+///
+/// Do compression v3
+///
 pub fn compression_step<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     reads: &Reads,
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
+    n_max_update: usize,
 ) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
     // [1] e-step
+    println!("e-step");
     let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
 
     // calculate current q-score
     let q_score = q_score_clamped(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
 
     // [2] m-step
-    let (copy_nums_new, cost_diff) =
-        m_step(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+    let mut q_score_updated = q_score;
+    let mut dbg_updated = dbg.clone();
+    let mut is_updated = false;
+    for i in 0..n_max_update {
+        println!("m-step ({}/{})", i, n_max_update);
+        let (copy_nums_new, cost_diff) = m_step(
+            &dbg_updated,
+            &edge_freqs,
+            &init_freqs,
+            genome_size,
+            penalty_weight,
+        );
 
-    // construct new candidate dbg
-    let mut new_dbg = dbg.clone();
-    let is_updated = new_dbg.set_node_copy_nums(&copy_nums_new);
-    // new_dbg.remove_zero_copy_node();
-    let q_score_new = q_score_clamped(
-        &new_dbg,
-        &edge_freqs,
-        &init_freqs,
-        genome_size,
-        penalty_weight,
-    );
+        // construct new candidate dbg
+        let mut dbg_tmp = dbg.clone();
+        dbg_tmp.set_node_copy_nums(&copy_nums_new);
+        let q_score = q_score_clamped(
+            &dbg_tmp,
+            &edge_freqs,
+            &init_freqs,
+            genome_size,
+            penalty_weight,
+        );
+
+        // stop iteration when the suggested dbg did not improve q-score
+        if q_score_updated.total() >= q_score.total() {
+            break;
+        }
+
+        dbg_updated = dbg_tmp;
+        is_updated = true;
+    }
 
     // [3] history
-    let log = CompressionV3Log::new(q_score, q_score_new, cost_diff, is_updated, new_dbg.clone());
+    let log = CompressionV3Log::new(
+        q_score,
+        q_score_updated,
+        0.0, //TODO
+        is_updated,
+        dbg_updated.clone(),
+    );
     println!("{}", log);
 
-    (new_dbg, is_updated, log)
+    (dbg_updated, is_updated, log)
 }
 
 ///
@@ -348,7 +377,7 @@ mod tests {
         let params = PHMMParams::default();
         println!("dbg0={}", dbg);
 
-        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0);
+        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0, 1);
         println!("dbg1={}", new_dbg);
     }
 }

@@ -44,6 +44,7 @@ mod tests {
             &dataset.phmm_params,
             genome_size,
             0.0,
+            10,
         );
         println!("log={}", log);
         println!("dbg_opt={}", new_dbg);
