@@ -323,6 +323,45 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 }
 
 ///
+/// Compression full algorithm by running `compression_step` iteratively.
+///
+/// * max_iter: max iteration loop count of EM.
+///
+pub fn compression<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+    n_max_update: usize,
+    max_iter: usize,
+) -> (Dbg<N, E>, Vec<CompressionV3Log<N, E>>) {
+    let mut dbg = dbg.clone();
+    let mut logs = Vec::new();
+
+    // iterate EM steps
+    for _i in 0..max_iter {
+        let (dbg_new, is_updated, log) = compression_step(
+            &dbg,
+            reads,
+            params,
+            genome_size,
+            penalty_weight,
+            n_max_update,
+        );
+        logs.push(log);
+
+        // if the single EM step does not change the DBG model, stop iteration.
+        if !is_updated {
+            break;
+        }
+        dbg = dbg_new;
+    }
+
+    (dbg, logs)
+}
+
+///
 /// Log information store of each iteration in compression v3
 ///
 #[derive(Clone)]

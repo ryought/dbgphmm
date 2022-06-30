@@ -2,7 +2,7 @@
 //! Compression (v3) test
 //!
 use crate::e2e::{generate_dataset, Dataset, ReadType};
-use crate::em::compression::v3::compression_step;
+use crate::em::compression::v3::{compression, compression_step};
 
 ///
 /// run compression for given dataset
@@ -38,15 +38,19 @@ mod tests {
         println!("dbg_true_init:{}", dataset.dbg_true_init);
 
         // optimize
-        let (new_dbg, is_updated, log) = compression_step(
+        let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.1,
+            1.0,
+            10,
             10,
         );
-        println!("log={}", log);
+        for log in logs {
+            println!("log={}", log);
+        }
         println!("dbg_opt={}", new_dbg);
+        println!("dbg_tur={}", dataset.dbg_true_init);
     }
 }
