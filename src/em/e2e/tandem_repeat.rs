@@ -13,10 +13,9 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+    use crate::e2e::generate_full_length_reads_and_dbgs;
     use crate::em::compression::{compression, compression_step, compression_with_depths};
-    use crate::em::e2e::runner::{
-        benchmark, benchmark_em_steps, generate_full_length_reads_and_dbgs,
-    };
+    use crate::em::e2e::runner::{benchmark, benchmark_em_steps};
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
     use crate::genome::{tandem_repeat_diploid, tandem_repeat_haploid};
