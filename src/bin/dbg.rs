@@ -1,13 +1,13 @@
 use dbgphmm::common::Reads;
-use dbgphmm::dbg::hashdbg_v2::HashDbg;
-use dbgphmm::dbg::impls::SimpleDbg;
-use dbgphmm::dbg::mocks::{mock_intersection, mock_random, mock_simple};
-use dbgphmm::graph::mocks::mock_crossing;
-use dbgphmm::graph::seq_graph::SeqGraph;
-use dbgphmm::hmmv2::mocks::mock_linear_random_phmm;
+// use dbgphmm::dbg::hashdbg_v2::HashDbg;
+// use dbgphmm::dbg::impls::SimpleDbg;
+use dbgphmm::dbg::mocks::mock_intersection;
+// use dbgphmm::graph::mocks::mock_crossing;
+// use dbgphmm::graph::seq_graph::SeqGraph;
+// use dbgphmm::hmmv2::mocks::mock_linear_random_phmm;
 use dbgphmm::hmmv2::params::PHMMParams;
-use dbgphmm::io::cytoscape::NodeAttrVec;
-use dbgphmm::kmer::veckmer::VecKmer;
+// use dbgphmm::io::cytoscape::NodeAttrVec;
+// use dbgphmm::kmer::veckmer::VecKmer;
 
 fn main() {
     /*
@@ -62,7 +62,7 @@ fn main() {
     // (a)
     let phmm = dbg.to_phmm(PHMMParams::default());
     // println!("{}", phmm);
-    let nf = phmm.to_node_freqs(&reads);
+    let _nf = phmm.to_node_freqs(&reads);
     // println!("{}", nf);
     /*
     println!(
