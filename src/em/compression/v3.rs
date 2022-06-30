@@ -306,12 +306,15 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 
     // [3] history
     if steps.len() > 0 {
-        let (dbg_updated, q_score_updated, cost) = steps.pop().unwrap();
-        let log = CompressionV3Log::new(q_score, q_score_updated, cost, true, dbg_updated.clone());
+        let (mut dbg_updated, q_score_updated, cost) = steps.pop().unwrap();
+        dbg_updated.remove_zero_copy_node();
+        let log =
+            CompressionV3Log::new(p, q_score, q_score_updated, cost, true, dbg_updated.clone());
         (dbg_updated, true, log)
     } else {
         // dbg is not updated
         let log = CompressionV3Log::new(
+            p,
             q_score,
             q_score,
             0.0, //TODO
@@ -366,6 +369,8 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
 ///
 #[derive(Clone)]
 pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
+    /// Full probability P(R|G)
+    pub p: Prob,
     /// q-score before m-step
     pub q0: QScore,
     /// q-score after m-step
@@ -379,8 +384,16 @@ pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
 }
 
 impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
-    pub fn new(q0: QScore, q1: QScore, cost_diff: Cost, is_updated: bool, dbg: Dbg<N, E>) -> Self {
+    pub fn new(
+        p: Prob,
+        q0: QScore,
+        q1: QScore,
+        cost_diff: Cost,
+        is_updated: bool,
+        dbg: Dbg<N, E>,
+    ) -> Self {
         CompressionV3Log {
+            p,
             q0,
             q1,
             cost_diff,
@@ -394,8 +407,8 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\tis_updated={}\t{}",
-            self.q0, self.q1, self.cost_diff, self.is_updated, self.dbg
+            "{}\t{}\t{}\t{}\tis_updated={}\t{}",
+            self.p, self.q0, self.q1, self.cost_diff, self.is_updated, self.dbg
         )
     }
 }
