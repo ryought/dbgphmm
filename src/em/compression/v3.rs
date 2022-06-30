@@ -180,10 +180,54 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     ki
 }
 
+fn m_step_once<N: DbgNode, E: DbgEdge>(
+    dbg: &Dbg<N, E>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+) -> Option<(Dbg<N, E>, QScore, Cost)> {
+    // (0) calculate original q_score
+    let q_score = q_score_clamped(&dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+
+    // (1) construct edbg with KmerInfo
+    let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    let edbg = dbg.to_edbg_with_attr(Some(&infos));
+    // dbg.draw_with_vecs(&[&infos], &[]);
+    // dbg.draw_plain_with_vecs(&[&infos], &[]);
+
+    // (2) min-flow optimization starts from current copy nums
+    let original_copy_nums = dbg.to_node_copy_nums().switch_index();
+    match improve_flow_convex(&edbg.graph, &original_copy_nums) {
+        Some(copy_nums) => {
+            // approximated cost difference
+            let cost_diff =
+                total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
+
+            // calculate actual q-score
+            let mut dbg_new = dbg.clone();
+            dbg_new.set_node_copy_nums(&copy_nums.switch_index());
+            let q_score_new = q_score_clamped(
+                &dbg_new,
+                &edge_freqs,
+                &init_freqs,
+                genome_size,
+                penalty_weight,
+            );
+
+            // if new q_score is bigger, accept the change.
+            if q_score_new.total() > q_score.total() {
+                Some((dbg_new, q_score_new, cost_diff))
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+
 ///
 /// M-step of compression_v3
-///
-/// Returned value is (new copy_nums, expected improvement of the cost)
 ///
 /// find a candidate update of current flow
 /// using variational approximation
@@ -194,25 +238,34 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> (NodeCopyNums, Cost) {
-    // construct edbg with KmerInfo
-    let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
-    let edbg = dbg.to_edbg_with_attr(Some(&infos));
-    // dbg.draw_with_vecs(&[&infos], &[]);
-    // dbg.draw_plain_with_vecs(&[&infos], &[]);
+    n_max_update: usize,
+) -> Vec<(Dbg<N, E>, QScore, Cost)> {
+    let mut dbg_current = dbg.clone();
+    let mut ret = Vec::new();
 
-    // min-flow optimization starts from current copy nums
-    let original_copy_nums = dbg.to_node_copy_nums().switch_index();
-    let (copy_nums, cost_diff) = match improve_flow_convex(&edbg.graph, &original_copy_nums) {
-        Some(copy_nums) => {
-            let cost_diff =
-                total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
-            (copy_nums, cost_diff)
+    for i in 0..n_max_update {
+        println!("m-step ({}/{})", i, n_max_update);
+        // try to improve
+        match m_step_once(
+            &dbg_current,
+            edge_freqs,
+            init_freqs,
+            genome_size,
+            penalty_weight,
+        ) {
+            Some((dbg_new, q_score, cost)) => {
+                // found better dbg!
+                ret.push((dbg_new.clone(), q_score, cost));
+                dbg_current = dbg_new;
+            }
+            None => {
+                // not found
+                break;
+            }
         }
-        None => (original_copy_nums, 0.0),
-    };
+    }
 
-    (copy_nums.switch_index(), cost_diff)
+    ret
 }
 
 ///
@@ -234,50 +287,31 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     let q_score = q_score_clamped(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
 
     // [2] m-step
-    let mut q_score_updated = q_score;
-    let mut dbg_updated = dbg.clone();
-    let mut is_updated = false;
-    for i in 0..n_max_update {
-        println!("m-step ({}/{})", i, n_max_update);
-        let (copy_nums_new, cost_diff) = m_step(
-            &dbg_updated,
-            &edge_freqs,
-            &init_freqs,
-            genome_size,
-            penalty_weight,
-        );
-
-        // construct new candidate dbg
-        let mut dbg_tmp = dbg.clone();
-        dbg_tmp.set_node_copy_nums(&copy_nums_new);
-        let q_score = q_score_clamped(
-            &dbg_tmp,
-            &edge_freqs,
-            &init_freqs,
-            genome_size,
-            penalty_weight,
-        );
-
-        // stop iteration when the suggested dbg did not improve q-score
-        if q_score_updated.total() >= q_score.total() {
-            break;
-        }
-
-        dbg_updated = dbg_tmp;
-        is_updated = true;
-    }
+    let mut steps = m_step(
+        dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+        n_max_update,
+    );
 
     // [3] history
-    let log = CompressionV3Log::new(
-        q_score,
-        q_score_updated,
-        0.0, //TODO
-        is_updated,
-        dbg_updated.clone(),
-    );
-    println!("{}", log);
-
-    (dbg_updated, is_updated, log)
+    if steps.len() > 0 {
+        let (dbg_updated, q_score_updated, cost) = steps.pop().unwrap();
+        let log = CompressionV3Log::new(q_score, q_score_updated, cost, true, dbg_updated.clone());
+        (dbg_updated, true, log)
+    } else {
+        // dbg is not updated
+        let log = CompressionV3Log::new(
+            q_score,
+            q_score,
+            0.0, //TODO
+            false,
+            dbg.clone(),
+        );
+        (dbg.clone(), false, log)
+    }
 }
 
 ///
@@ -355,9 +389,12 @@ mod tests {
         // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{:?}", qs);
 
-        let (copy_nums, d) = m_step(&dbg, &ef, &nf, genome_size, lambda);
+        let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda);
+        assert!(r.is_some());
+        let (dbg, q_score, cost) = r.unwrap();
+        let copy_nums = dbg.to_node_copy_nums();
         println!("{}", copy_nums);
-        println!("{}", d);
+        println!("{}", cost);
         assert_eq!(
             copy_nums.to_vec(),
             vec![0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0]
