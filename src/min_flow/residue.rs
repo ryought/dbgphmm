@@ -327,9 +327,10 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
     return None;
 }
 
-/// create a new improved flow from current flow
-/// by upgrading along the negative weight cycle in the residual graph
-fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> {
+///
+/// Update residue graph by finding negative cycle
+///
+fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     // draw(&rg);
@@ -354,15 +355,36 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<Flow> 
                 total_weight(&rg, &edges)
             );
 
+            // TODO assert using is_meaningful_cycle?
+
+            Some(edges)
+        }
+        None => None,
+    }
+}
+
+///
+/// WIP
+///
+fn is_meaningful_cycle(rg: &ResidueGraph, cycle: &[EdgeIndex]) -> bool {
+    unimplemented!();
+}
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<(Flow, Vec<EdgeIndex>)> {
+    match improve_residue_graph(rg) {
+        Some(cycle) => {
             // apply these changes along the cycle to current flow
-            let new_flow = apply_residual_edges_to_flow(&flow, &rg, &edges);
+            let new_flow = apply_residual_edges_to_flow(&flow, &rg, &cycle);
 
             // if applying edges did not changed the flow (i.e. the edges was meaningless)
             // improve should fail.
             if &new_flow == flow {
+                println!("meaningless cycle was found!");
                 None
             } else {
-                Some(new_flow)
+                Some((new_flow, cycle))
             }
         }
         None => None,
@@ -380,6 +402,22 @@ pub fn improve_flow<N, E: FlowEdge + ConstCost>(
     flow: &Flow,
 ) -> Option<Flow> {
     let rg = flow_to_residue(graph, flow);
+    match update_flow_in_residue_graph(flow, &rg) {
+        Some((new_flow, _)) => Some(new_flow),
+        None => None,
+    }
+}
+
+/// create a new improved flow from current flow
+/// by upgrading along the negative weight cycle in the residual graph
+pub fn improve_flow_convex_with_cycle<N, E>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow,
+) -> Option<(Flow, Vec<EdgeIndex>)>
+where
+    E: FlowEdge + ConvexCost,
+{
+    let rg = flow_to_residue_convex(graph, flow);
     update_flow_in_residue_graph(flow, &rg)
 }
 
@@ -390,7 +428,10 @@ where
     E: FlowEdge + ConvexCost,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    update_flow_in_residue_graph(flow, &rg)
+    match update_flow_in_residue_graph(flow, &rg) {
+        Some((new_flow, _)) => Some(new_flow),
+        None => None,
+    }
 }
 
 #[cfg(test)]
