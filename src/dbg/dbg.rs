@@ -448,6 +448,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         is_updated
     }
     ///
+    /// Get a concatenated sequence from node list
+    ///
+    fn to_styled_seq_of_nodes(&self, nodes: &[NodeIndex]) -> Option<StyledSequence> {
+        if nodes.len() == 0 {
+            Some(StyledSequence::linear_fragment(vec![]))
+        } else {
+            let bases = self.kmer(*nodes.first().unwrap()).to_bases();
+
+            // skip first element
+            let mut iter = nodes.iter();
+            iter.next();
+
+            let seq = iter.fold(bases, |mut bases, &node| {
+                bases.push(self.emission(node));
+                bases
+            });
+            Some(StyledSequence::linear_fragment(seq))
+        }
+    }
+    ///
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
     /// as a sequence with SeqStyle::Linear.
     ///
@@ -1222,5 +1242,15 @@ mod tests {
         println!("{}", dbg.to_dot());
         println!("{}", dbg.n_ambiguous_intersections());
         assert_eq!(dbg.n_ambiguous_intersections(), 2);
+    }
+    #[test]
+    fn dbg_nodes_vs_styled_seq() {
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(4, &vec![b"ATTCGATCGAT".to_vec()]);
+        let seq = StyledSequence::linear_fragment(b"TCGATCG".to_vec());
+        let nodes = dbg.to_nodes_of_styled_seq(&seq).unwrap();
+        println!("nodes={:?}", nodes);
+        let seq2 = dbg.to_styled_seq_of_nodes(&nodes).unwrap();
+        println!("seq2={}", seq2);
+        assert_eq!(seq, seq2);
     }
 }
