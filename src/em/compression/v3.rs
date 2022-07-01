@@ -188,13 +188,53 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     ki
 }
 
+///
+/// result of m-step oneshot run
+///
+/// * Update
+/// * NoImprove
+/// * NoNegCycle
+///
+pub enum MStepResult<N: DbgNode, E: DbgEdge> {
+    /// The found negative cycle improved q-score
+    Update(Dbg<N, E>, QScore, Cost),
+    /// A negative cycle was found, but it did not improve q-score
+    NoImprove(QScore, Cost),
+    /// Any negative cycle was not found.
+    NoNegCycle,
+}
+
+impl<N: DbgNode, E: DbgEdge> MStepResult<N, E> {
+    ///
+    /// is MStepResult::Update or not?
+    ///
+    pub fn is_update(&self) -> bool {
+        match self {
+            MStepResult::Update(_, _, _) => true,
+            _ => false,
+        }
+    }
+    ///
+    /// return contents of MStepResult::Update
+    ///
+    pub fn unwrap(self) -> (Dbg<N, E>, QScore, Cost) {
+        match self {
+            MStepResult::Update(d, q, c) => (d, q, c),
+            _ => panic!(),
+        }
+    }
+}
+
+///
+/// Run a single update
+///
 fn m_step_once<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
-) -> Option<(Dbg<N, E>, QScore, Cost)> {
+) -> MStepResult<N, E> {
     // (0) calculate original q_score
     let q_score = q_score_clamped(&dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
 
@@ -225,12 +265,12 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
 
             // if new q_score is bigger, accept the change.
             if q_score_new.total() > q_score.total() {
-                Some((dbg_new, q_score_new, cost_diff))
+                MStepResult::Update(dbg_new, q_score_new, cost_diff)
             } else {
-                None
+                MStepResult::NoImprove(q_score_new, cost_diff)
             }
         }
-        None => None,
+        None => MStepResult::NoNegCycle,
     }
 }
 
@@ -261,13 +301,19 @@ fn m_step<N: DbgNode, E: DbgEdge>(
             genome_size,
             penalty_weight,
         ) {
-            Some((dbg_new, q_score, cost)) => {
+            MStepResult::Update(dbg_new, q_score, cost) => {
                 // found better dbg!
                 ret.push((dbg_new.clone(), q_score, cost));
                 dbg_current = dbg_new;
             }
-            None => {
+            MStepResult::NoImprove(_, _) => {
                 // not found
+                println!("no improve");
+                break;
+            }
+            MStepResult::NoNegCycle => {
+                // not found
+                println!("no neg cycle");
                 break;
             }
         }
@@ -450,7 +496,7 @@ mod tests {
         // println!("{:?}", qs);
 
         let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda);
-        assert!(r.is_some());
+        assert!(r.is_update());
         let (dbg, q_score, cost) = r.unwrap();
         let copy_nums = dbg.to_node_copy_nums();
         println!("{}", copy_nums);
