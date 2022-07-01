@@ -101,6 +101,16 @@ impl KmerHists {
     pub fn get_hist_mut(&mut self, copy_num: usize) -> &mut Hist {
         &mut self.0[copy_num]
     }
+    ///
+    /// total count of missed kmers,
+    /// that is a kmer whose true copy number is 1 or more, but
+    /// is not in the dbg.
+    ///
+    pub fn n_missed_kmers(&self) -> usize {
+        (1..=self.max_copy_num())
+            .map(|copy_num| self.get_hist(copy_num).get(0))
+            .sum()
+    }
 }
 
 impl std::fmt::Display for KmerHists {
@@ -319,6 +329,7 @@ mod tests {
         // [1] compare with true seq
         let s = b"ATCGGATCGATGC";
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seq(8, s);
+        // 1
         let kh = dbg.kmer_hists_from_seqs(&[s]);
         assert_eq!(kh.max_copy_num(), 1);
         let c0: Vec<_> = kh.get_hist(0).iter().collect();
@@ -329,6 +340,7 @@ mod tests {
         assert_eq!(c1, vec![(1, 20)]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=1:20;");
+        assert_eq!(kh.n_missed_kmers(), 0);
 
         // [2] compare with true seq
         let s1 = b"ATCGGATCGATGC".to_vec();
@@ -338,9 +350,20 @@ mod tests {
         let kh = dbg.kmer_hists_from_seqs(&[&s1, &s2]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=1:38;");
+        assert_eq!(kh.n_missed_kmers(), 0);
         // 2
         let kh = dbg.kmer_hists_from_seqs(&[&s1]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x0=1:18;x1=1:20;");
+        assert_eq!(kh.n_missed_kmers(), 0);
+
+        // [3] missing seqs
+        let s1 = b"ATCGGATCGATGC".to_vec();
+        let s2 = b"GGCTAGCTGAT".to_vec();
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &[&s1]);
+        let kh = dbg.kmer_hists_from_seqs(&[&s1, &s2]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x1=0:18,1:20;");
+        assert_eq!(kh.n_missed_kmers(), 18);
     }
 }
