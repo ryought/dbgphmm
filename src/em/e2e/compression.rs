@@ -20,8 +20,9 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
     for (iteration, log) in logs.iter().enumerate() {
         // println!("log={}", log);
         let kh = log.dbg.kmer_hists_from_seqs(genome);
+        let ke = log.dbg.check_kmer_existence_with_seqs(genome);
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             iteration,
             log.p.to_log_value(),
             log.q0,
@@ -29,6 +30,7 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
             log.cost_diff,
             log.dbg.genome_size(),
             kh.n_missed_kmers(),
+            ke,
             kh,
             // log.dbg,
         );

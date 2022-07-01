@@ -7,6 +7,7 @@ use crate::dbg::hashdbg_v2::HashDbg;
 use crate::hist::Hist;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
+use itertools::Itertools;
 
 ///
 /// Result of comparing two Dbgs.
@@ -66,6 +67,18 @@ impl<K: KmerLike> KmerExistenceResult<K> {
             n_not_exists: 0,
             kmers_not_exists: Vec::new(),
         }
+    }
+}
+
+impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "n_exists={} n_not_exists={}({})",
+            self.n_exists,
+            self.n_not_exists,
+            self.kmers_not_exists.iter().format(","),
+        )
     }
 }
 
