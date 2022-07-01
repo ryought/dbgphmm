@@ -77,67 +77,40 @@ impl PHMMParams {
             n_max_gaps: 4,
         }
     }
-    pub fn default() -> PHMMParams {
+    /// uniform error rate profile
+    /// `p_mut = p_ins = p_del = p`
+    pub fn uniform(p: f64) -> PHMMParams {
         PHMMParams::new(
-            Prob::from_prob(0.01),    // mismatch
-            Prob::from_prob(0.01),    // gap_open
-            Prob::from_prob(0.01),    // gap_ext
+            Prob::from_prob(p),       // mismatch
+            Prob::from_prob(p),       // gap_open
+            Prob::from_prob(p),       // gap_ext
             Prob::from_prob(0.00001), // end
             40,                       // active nodes
             16,                       // warm up
         )
     }
+    pub fn default() -> PHMMParams {
+        PHMMParams::uniform(0.01)
+    }
     /// PHMM Param for medium-error sequence
     /// `p_mut, p_ins, p_del = 2%`
-    ///
     pub fn mid_error_2() -> PHMMParams {
-        PHMMParams::new(
-            Prob::from_prob(0.02),    // mismatch
-            Prob::from_prob(0.02),    // gap_open
-            Prob::from_prob(0.02),    // gap_ext
-            Prob::from_prob(0.00001), // end
-            40,
-            16,
-        )
+        PHMMParams::uniform(0.02)
     }
     /// PHMM Param for medium-error sequence
     /// `p_mismatch = 5%`
-    ///
     pub fn mid_error() -> PHMMParams {
-        PHMMParams::new(
-            Prob::from_prob(0.05),    // mismatch
-            Prob::from_prob(0.05),    // gap_open
-            Prob::from_prob(0.05),    // gap_ext
-            Prob::from_prob(0.00001), // end
-            40,
-            16,
-        )
+        PHMMParams::uniform(0.05)
     }
     /// PHMM Param for highly-error sequence
     /// `p_mismatch = 10%`
-    ///
     pub fn high_error() -> PHMMParams {
-        PHMMParams::new(
-            Prob::from_prob(0.1),     // mismatch
-            Prob::from_prob(0.1),     // gap_open
-            Prob::from_prob(0.1),     // gap_ext
-            Prob::from_prob(0.00001), // end
-            40,
-            16,
-        )
+        PHMMParams::uniform(0.1)
     }
     /// PHMM Param for no-error sequence
     /// `p_mismatch = 0%`
-    ///
     pub fn zero_error() -> PHMMParams {
-        PHMMParams::new(
-            Prob::from_prob(0.0),     // mismatch
-            Prob::from_prob(0.0),     // gap_open
-            Prob::from_prob(0.0),     // gap_ext
-            Prob::from_prob(0.00001), // end
-            40,
-            16,
-        )
+        PHMMParams::uniform(0.0)
     }
 }
 
