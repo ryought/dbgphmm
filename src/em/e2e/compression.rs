@@ -7,10 +7,16 @@ use crate::e2e::{generate_dataset, Dataset, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
 
 ///
+/// result of compression benchmark
+///
+pub struct CompressionBenchResult {}
+
+///
 /// run compression for given dataset
 ///
-pub fn benchmark_compression_v3(dataset: &Dataset) {
+pub fn benchmark(dataset: &Dataset) -> CompressionBenchResult {
     // run compression
+    unimplemented!();
 }
 
 pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
@@ -88,7 +94,7 @@ mod tests {
             genome_size,
             0,
             PHMMParams::default(),
-            20, // coverage
+            10, // coverage
             2000,
             ReadType::FullLength,
             8,
@@ -105,8 +111,8 @@ mod tests {
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.0001,
-            10,
+            0.01,
+            50,
             50,
         );
         inspect_compression_logs(&logs, &genome);
