@@ -107,17 +107,11 @@ impl std::fmt::Display for KmerHists {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         (0..=self.max_copy_num()).try_for_each(|copy_num| {
             let hist = self.get_hist(copy_num);
-            write!(
-                f,
-                "x{}={}{}",
-                copy_num,
-                hist,
-                if copy_num != self.max_copy_num() {
-                    ";"
-                } else {
-                    ""
-                }
-            )
+            if !hist.is_empty() {
+                write!(f, "x{}={};", copy_num, hist)
+            } else {
+                write!(f, "")
+            }
         })
     }
 }
@@ -334,7 +328,7 @@ mod tests {
         println!("{:?}", c1);
         assert_eq!(c1, vec![(1, 20)]);
         println!("{}", kh);
-        assert_eq!(kh.to_string(), "x0=;x1=1:20");
+        assert_eq!(kh.to_string(), "x1=1:20;");
 
         // [2] compare with true seq
         let s1 = b"ATCGGATCGATGC".to_vec();
@@ -343,10 +337,10 @@ mod tests {
         // 1
         let kh = dbg.kmer_hists_from_seqs(&[&s1, &s2]);
         println!("{}", kh);
-        assert_eq!(kh.to_string(), "x0=;x1=1:38");
+        assert_eq!(kh.to_string(), "x1=1:38;");
         // 2
         let kh = dbg.kmer_hists_from_seqs(&[&s1]);
         println!("{}", kh);
-        assert_eq!(kh.to_string(), "x0=1:18;x1=1:20");
+        assert_eq!(kh.to_string(), "x0=1:18;x1=1:20;");
     }
 }

@@ -62,6 +62,12 @@ impl Hist {
     pub fn len(&self) -> usize {
         self.0.values().sum()
     }
+    ///
+    /// the histgram is empty or not.
+    ///
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl std::fmt::Display for Hist {
