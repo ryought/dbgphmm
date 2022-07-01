@@ -9,7 +9,7 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::residue::improve_flow_convex;
+use crate::min_flow::residue::improve_flow_convex_with_update_info;
 use crate::min_flow::utils::clamped_log;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
@@ -246,11 +246,13 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
 
     // (2) min-flow optimization starts from current copy nums
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
-    match improve_flow_convex(&edbg.graph, &original_copy_nums) {
-        Some(copy_nums) => {
+    match improve_flow_convex_with_update_info(&edbg.graph, &original_copy_nums) {
+        Some((copy_nums, update_info)) => {
             // approximated cost difference
             let cost_diff =
                 total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
+
+            println!("{:?}", update_info);
 
             // calculate actual q-score
             let mut dbg_new = dbg.clone();

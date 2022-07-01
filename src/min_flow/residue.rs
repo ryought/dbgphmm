@@ -391,6 +391,16 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<(Flow,
     }
 }
 
+fn cycle_in_residue_graph_into_update_info(rg: &ResidueGraph, cycle: &[EdgeIndex]) -> UpdateInfo {
+    cycle
+        .iter()
+        .map(|&e| {
+            let ew = rg.edge_weight(e).unwrap();
+            (ew.target, ew.direction)
+        })
+        .collect()
+}
+
 //
 // public functions
 //
@@ -408,17 +418,28 @@ pub fn improve_flow<N, E: FlowEdge + ConstCost>(
     }
 }
 
+///
+/// information of updating a edge of either direction?
+///
+pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
+
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow_convex_with_cycle<N, E>(
+pub fn improve_flow_convex_with_update_info<N, E>(
     graph: &DiGraph<N, E>,
     flow: &Flow,
-) -> Option<(Flow, Vec<EdgeIndex>)>
+) -> Option<(Flow, UpdateInfo)>
 where
     E: FlowEdge + ConvexCost,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    update_flow_in_residue_graph(flow, &rg)
+    match update_flow_in_residue_graph(flow, &rg) {
+        Some((new_flow, cycle)) => Some((
+            new_flow,
+            cycle_in_residue_graph_into_update_info(&rg, &cycle),
+        )),
+        None => None,
+    }
 }
 
 /// create a new improved flow from current flow
