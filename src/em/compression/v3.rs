@@ -9,11 +9,14 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::residue::improve_flow_convex_with_update_info;
+use crate::min_flow::residue::{
+    improve_flow_convex_with_update_info, ResidueDirection, UpdateInfo,
+};
 use crate::min_flow::utils::clamped_log;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
+use petgraph::graph::{EdgeIndex, NodeIndex};
 
 use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
 use crate::min_flow::convex::ConvexCost;
@@ -197,9 +200,9 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
 ///
 pub enum MStepResult<N: DbgNode, E: DbgEdge> {
     /// The found negative cycle improved q-score
-    Update(Dbg<N, E>, QScore, Cost),
+    Update(Dbg<N, E>, QScore, Cost, Updates),
     /// A negative cycle was found, but it did not improve q-score
-    NoImprove(QScore, Cost),
+    NoImprove(QScore, Cost, Updates),
     /// Any negative cycle was not found.
     NoNegCycle,
 }
@@ -210,19 +213,34 @@ impl<N: DbgNode, E: DbgEdge> MStepResult<N, E> {
     ///
     pub fn is_update(&self) -> bool {
         match self {
-            MStepResult::Update(_, _, _) => true,
+            MStepResult::Update(_, _, _, _) => true,
             _ => false,
         }
     }
     ///
     /// return contents of MStepResult::Update
     ///
-    pub fn unwrap(self) -> (Dbg<N, E>, QScore, Cost) {
+    pub fn unwrap(self) -> (Dbg<N, E>, QScore, Cost, Updates) {
         match self {
-            MStepResult::Update(d, q, c) => (d, q, c),
+            MStepResult::Update(d, q, c, u) => (d, q, c, u),
             _ => panic!(),
         }
     }
+}
+
+pub type Updates = Vec<(NodeIndex, ResidueDirection)>;
+
+///
+/// conversion from UpdateInfo (= edge index of edbg and its up/down)
+/// into node UpdateInfo
+///
+fn edbg_update_info_to_kmer_update_info(
+    update_info: &[(EdgeIndex, ResidueDirection)],
+) -> Vec<(NodeIndex, ResidueDirection)> {
+    update_info
+        .iter()
+        .map(|(e, dir)| (NodeIndex::new(e.index()), *dir))
+        .collect()
 }
 
 ///
@@ -252,7 +270,8 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
             let cost_diff =
                 total_cost(&edbg.graph, &copy_nums) - total_cost(&edbg.graph, &original_copy_nums);
 
-            println!("{:?}", update_info);
+            // collect copy number updates
+            let updates = edbg_update_info_to_kmer_update_info(&update_info);
 
             // calculate actual q-score
             let mut dbg_new = dbg.clone();
@@ -267,12 +286,25 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
 
             // if new q_score is bigger, accept the change.
             if q_score_new.total() > q_score.total() {
-                MStepResult::Update(dbg_new, q_score_new, cost_diff)
+                MStepResult::Update(dbg_new, q_score_new, cost_diff, updates)
             } else {
-                MStepResult::NoImprove(q_score_new, cost_diff)
+                MStepResult::NoImprove(q_score_new, cost_diff, updates)
             }
         }
         None => MStepResult::NoNegCycle,
+    }
+}
+
+fn show_updates<N: DbgNode, E: DbgEdge>(dbg: &Dbg<N, E>, updates: &Updates) {
+    for (node, direction) in updates {
+        match direction {
+            ResidueDirection::Up => {
+                println!("+1 {}", dbg.kmer(*node));
+            }
+            ResidueDirection::Down => {
+                println!("-1 {}", dbg.kmer(*node));
+            }
+        }
     }
 }
 
@@ -303,12 +335,13 @@ fn m_step<N: DbgNode, E: DbgEdge>(
             genome_size,
             penalty_weight,
         ) {
-            MStepResult::Update(dbg_new, q_score, cost) => {
+            MStepResult::Update(dbg_new, q_score, cost, updates) => {
                 // found better dbg!
+                show_updates(&dbg_current, &updates);
                 ret.push((dbg_new.clone(), q_score, cost));
                 dbg_current = dbg_new;
             }
-            MStepResult::NoImprove(_, _) => {
+            MStepResult::NoImprove(_, _, _) => {
                 // not found
                 println!("no improve");
                 break;
@@ -468,6 +501,7 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     use crate::dbg::mocks::*;
 
     #[test]
@@ -499,7 +533,7 @@ mod tests {
 
         let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda);
         assert!(r.is_update());
-        let (dbg, q_score, cost) = r.unwrap();
+        let (dbg, q_score, cost, _) = r.unwrap();
         let copy_nums = dbg.to_node_copy_nums();
         println!("{}", copy_nums);
         println!("{}", cost);

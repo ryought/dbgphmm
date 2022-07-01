@@ -423,6 +423,24 @@ pub fn improve_flow<N, E: FlowEdge + ConstCost>(
 ///
 pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
 
+///
+/// summary of UpdateInfo
+///
+pub type UpdateSummary = Vec<(Vec<EdgeIndex>, ResidueDirection)>;
+
+///
+/// Convert a update cycle
+///     [(1, +), (2, +), (3, +), (3, -), (2, -), (1, -)]
+///     [(2, +), (3, +), (3, -), (2, -), (1, -), (1, +)]
+/// into a normalized summary
+///     [([1,2,3], +), ([3,2,1], -)]
+///
+fn to_contiguous_direction_list(
+    updates: &[(EdgeIndex, ResidueDirection)],
+) -> Vec<(Vec<EdgeIndex>, ResidueDirection)> {
+    unimplemented!();
+}
+
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
 pub fn improve_flow_convex_with_update_info<N, E>(

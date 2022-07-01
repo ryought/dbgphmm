@@ -19,15 +19,17 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
 ) {
     for (iteration, log) in logs.iter().enumerate() {
         // println!("log={}", log);
+        let kh = log.dbg.kmer_hists_from_seqs(genome);
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             iteration,
             log.p.to_log_value(),
             log.q0,
             log.q1,
             log.cost_diff,
             log.dbg.genome_size(),
-            log.dbg.kmer_hists_from_seqs(genome),
+            kh.n_missed_kmers(),
+            kh,
             // log.dbg,
         );
     }
@@ -101,8 +103,8 @@ mod tests {
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.1,
-            50,
+            0.0001,
+            10,
             50,
         );
         inspect_compression_logs(&logs, &genome);
