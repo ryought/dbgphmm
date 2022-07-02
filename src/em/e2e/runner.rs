@@ -1,6 +1,7 @@
 //!
 //! read and dbg generation functions
 //!
+use crate::common::collection::genome_size;
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
 use crate::dbg::dbg::{DbgEdge, DbgNode};
@@ -50,6 +51,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
                     );
                 }
             }
+            _ => panic!(),
         }
     }
 }
@@ -63,7 +65,8 @@ pub fn benchmark_em_steps(
     coverage: f64,
 ) {
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
-    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+    let genome_size = genome_size(genome);
+    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, genome_size, 5);
     show_logs(&logs, genome);
 }
 
@@ -80,7 +83,8 @@ pub fn benchmark(
     Vec<CompareWithSeqResult<VecKmer>>,
 ) {
     let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
-    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, 5);
+    let genome_size = genome_size(genome);
+    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, genome_size, 5);
 
     println!("dbg_raw=\n{}", dbg_raw);
     println!("{}", dbg_raw.n_traverse_choices());

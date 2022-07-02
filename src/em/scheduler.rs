@@ -2,6 +2,7 @@
 //! EM scheduler
 //!
 
+use super::compression::v3::CompressionV3Log;
 use super::compression::CompressionLog;
 use super::extension::ExtensionLog;
 use crate::common::Freq;
@@ -17,6 +18,10 @@ pub enum Task {
     ///
     Compression(Freq),
     ///
+    /// V3 compression with lambda (f64)
+    ///
+    CompressionV3(f64),
+    ///
     /// Run extension to specified k-mer length
     ///
     Extension(usize),
@@ -25,6 +30,7 @@ pub enum Task {
 #[derive(Clone)]
 pub enum TaskLog<N: DbgNode, E: DbgEdge> {
     Compression(Vec<CompressionLog<N, E>>),
+    CompressionV3(Vec<CompressionV3Log<N, E>>),
     Extension(Vec<ExtensionLog<N, E>>),
 }
 
@@ -35,6 +41,10 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for TaskLog<N, E> {
                 .iter()
                 .enumerate()
                 .try_for_each(|(i, log)| writeln!(f, "Compression\t{}\t{}", i, log)),
+            TaskLog::CompressionV3(logs) => logs
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, log)| writeln!(f, "CompressionV3\t{}\t{}", i, log)),
             TaskLog::Extension(logs) => logs
                 .iter()
                 .enumerate()
