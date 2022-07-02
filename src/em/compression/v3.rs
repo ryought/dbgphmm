@@ -326,7 +326,6 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     let mut ret = Vec::new();
 
     for i in 0..n_max_update {
-        println!("m-step ({}/{})", i, n_max_update);
         // try to improve
         match m_step_once(
             &dbg_current,
@@ -337,18 +336,16 @@ fn m_step<N: DbgNode, E: DbgEdge>(
         ) {
             MStepResult::Update(dbg_new, q_score, cost, updates) => {
                 // found better dbg!
-                show_updates(&dbg_current, &updates);
+                // show_updates(&dbg_current, &updates);
                 ret.push((dbg_new.clone(), q_score, cost));
                 dbg_current = dbg_new;
             }
             MStepResult::NoImprove(_, _, _) => {
                 // not found
-                println!("no improve");
                 break;
             }
             MStepResult::NoNegCycle => {
                 // not found
-                println!("no neg cycle");
                 break;
             }
         }
@@ -369,7 +366,6 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     n_max_update: usize,
 ) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
     // [1] e-step
-    println!("e-step");
     let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
 
     // calculate current q-score
@@ -450,7 +446,8 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
 ///
 #[derive(Clone)]
 pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
-    /// Full probability P(R|G)
+    /// Full probability P(R|G) in e-step
+    /// that is P(R|G) before improving q-score-function
     pub p: Prob,
     /// q-score before m-step
     pub q0: QScore,
