@@ -1,3 +1,5 @@
 /target
 /data
 /scripts/__pycache__/
+/logs
+/output
