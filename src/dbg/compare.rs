@@ -4,9 +4,11 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::{CopyNum, Seq, SeqStyle, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
+use crate::e2e::Dataset;
 use crate::hist::Hist;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
+use crate::prob::Prob;
 use itertools::Itertools;
 
 ///
@@ -139,6 +141,49 @@ impl std::fmt::Display for KmerHists {
     }
 }
 
+//
+// CompressionBenchResult
+//
+
+///
+/// result of compression benchmark
+///
+pub struct CompressionBenchResult<K: KmerLike> {
+    ///
+    /// P(R|G)
+    ///
+    full_prob: Prob,
+    ///
+    /// genome size of dbg
+    ///
+    genome_size: CopyNum,
+    ///
+    ///
+    ///
+    kmer_existence: KmerExistenceResult<K>,
+    ///
+    /// histogram of kmer
+    ///
+    kmer_hists: KmerHists,
+}
+
+impl<K: KmerLike> std::fmt::Display for CompressionBenchResult<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\t{}\t{}\t{}",
+            self.full_prob.to_log_value(),
+            self.genome_size,
+            self.kmer_existence,
+            self.kmer_hists,
+        )
+    }
+}
+
+//
+// compare methods for dbg
+//
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// compare with other dbg (as answer) and calculate the number of kmers with same copy number
@@ -266,6 +311,27 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         hists
+    }
+    ///
+    /// benchmark the dbg infered by compression algorithm
+    /// using the dataset
+    ///
+    /// * score
+    /// * genome_size
+    /// * kmer_existence
+    /// * kmer_hists
+    ///
+    pub fn benchmark_compression(&self, dataset: &Dataset) -> CompressionBenchResult<N::Kmer> {
+        let p = self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads);
+        let kh = self.kmer_hists_from_seqs(&dataset.genome);
+        let ke = self.check_kmer_existence_with_seqs(&dataset.genome);
+
+        CompressionBenchResult {
+            full_prob: p,
+            genome_size: self.genome_size(),
+            kmer_existence: ke,
+            kmer_hists: kh,
+        }
     }
 }
 

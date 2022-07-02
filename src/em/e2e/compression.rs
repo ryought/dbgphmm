@@ -70,6 +70,8 @@ mod tests {
         inspect_compression_logs(&logs, &genome);
         println!("dbg_opt={}", new_dbg);
         println!("dbg_tur={}", dataset.dbg_true_init);
+        let b = new_dbg.benchmark_compression(&dataset);
+        println!("bench_result={}", b);
     }
 
     #[test]
