@@ -36,7 +36,7 @@ mod tests {
         let coverage = 10;
         let read_length = 50;
         let dataset = generate_dataset(
-            &genome,               //
+            genome.clone(),        //
             genome_size,           //
             11,                    // read_seed
             PHMMParams::default(), //

@@ -10,7 +10,7 @@ fn main() {
         let (genome, genome_size) =
             genome::tandem_repeat_diploid(20, 20, 0.1, seed, seed, 0.01, seed);
         let dataset = generate_dataset(
-            &genome,
+            genome,
             genome_size,
             seed,
             PHMMParams::default(),
@@ -26,7 +26,7 @@ fn main() {
             &dataset.dbg_raw,
             &dataset.reads,
             &dataset.phmm_params,
-            genome_size,
+            dataset.genome_size,
             lambda,
             50,
             50,

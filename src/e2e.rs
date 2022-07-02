@@ -35,6 +35,14 @@ pub struct DatasetConfig {}
 ///
 pub struct Dataset {
     ///
+    /// genome sequence
+    ///
+    pub genome: Genome,
+    ///
+    /// size of the genome
+    ///
+    pub genome_size: usize,
+    ///
     /// sampled reads
     ///
     pub reads: Reads,
@@ -68,7 +76,7 @@ impl Dataset {
 }
 
 pub fn generate_dataset(
-    genome: &Genome,
+    genome: Genome,
     genome_size: usize,
     read_seed: u64,
     phmm_params: PHMMParams,
@@ -78,7 +86,7 @@ pub fn generate_dataset(
     k_init: usize,
     k_target: usize,
 ) -> Dataset {
-    let g = GenomeGraph::from_seqs(genome);
+    let g = GenomeGraph::from_seqs(&genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
             has_revcomp: true,
@@ -110,12 +118,14 @@ pub fn generate_dataset(
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);
 
     // (4) compare with true dbg
-    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, genome);
+    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &genome);
 
     // (5) true k=50 (read length)
-    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, genome);
+    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, &genome);
 
     Dataset {
+        genome,
+        genome_size,
         reads,
         phmm_params,
         dbg_raw,

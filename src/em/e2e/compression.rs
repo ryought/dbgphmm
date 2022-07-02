@@ -1,23 +1,10 @@
 //!
 //! Compression (v3) test
 //!
-use crate::common::Genome;
+use crate::common::{CopyNum, Genome};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::e2e::{generate_dataset, Dataset, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
-
-///
-/// result of compression benchmark
-///
-pub struct CompressionBenchResult {}
-
-///
-/// run compression for given dataset
-///
-pub fn benchmark(dataset: &Dataset) -> CompressionBenchResult {
-    // run compression
-    unimplemented!();
-}
 
 pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
     logs: &[CompressionV3Log<N, E>],
@@ -55,7 +42,7 @@ mod tests {
         // data generation
         let (genome, genome_size) = genome::simple(200, 5);
         let dataset = generate_dataset(
-            &genome,
+            genome.clone(),
             genome_size,
             0,
             PHMMParams::default(),
@@ -90,7 +77,7 @@ mod tests {
         // data generation
         let (genome, genome_size) = genome::tandem_repeat_diploid(20, 20, 0.1, 0, 0, 0.01, 0);
         let dataset = generate_dataset(
-            &genome,
+            genome.clone(),
             genome_size,
             0,
             PHMMParams::default(),

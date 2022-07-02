@@ -69,7 +69,7 @@ mod tests {
     ) {
         println!("generating reads");
         let dataset = generate_dataset(
-            genome,
+            genome.clone(),
             genome_size,
             0,
             PHMMParams::default(),
