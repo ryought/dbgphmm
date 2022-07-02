@@ -81,6 +81,13 @@ pub fn sequence_to_string<T: AsRef<Bases>>(seq: &T) -> &str {
 /// Type of Genome, the collection of sequences.
 pub type Genome = Vec<Sequence>;
 
+///
+/// calculate genome size of the given genome.
+///
+pub fn genome_size(genome: &Genome) -> usize {
+    genome.iter().map(|seq| seq.len()).sum()
+}
+
 /// Struct for storing multiple emissions, reads.
 ///
 #[derive(Debug, Clone)]

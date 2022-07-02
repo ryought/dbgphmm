@@ -84,6 +84,61 @@ impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
     }
 }
 
+// kmer classification
+#[derive(Clone, Debug, Default)]
+pub struct KmerCounts {
+    pub n_normal: usize,
+    pub n_has_null: usize,
+}
+
+impl KmerCounts {
+    pub fn add<K: KmerLike>(&mut self, kmer: &K) {
+        if kmer.has_null() {
+            self.n_has_null += 1;
+        } else {
+            self.n_normal += 1;
+        }
+    }
+}
+
+impl std::fmt::Display for KmerCounts {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}/{}", self.n_normal, self.n_has_null)
+    }
+}
+
+///
+///
+#[derive(Clone, Debug, Default)]
+pub struct KmerClassificationResult {
+    /// FalsePositive: marked as >0x mistakenly
+    pub n_false_kmer_in_dbg: KmerCounts,
+    /// TrueNegative: marked as 0x correctly
+    pub n_false_kmer_not_in_dbg: KmerCounts,
+    /// TruePositive: marked as >0x correctly
+    pub n_true_kmer_in_dbg: KmerCounts,
+    /// FalseNegative: marked as 0x mistakenly
+    pub n_true_kmer_not_in_dbg: KmerCounts,
+    ///
+    pub n_true_kmer_not_in_reads: KmerCounts,
+}
+
+impl std::fmt::Display for KmerClassificationResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "TP={};FP={};TN={};FN={};XX={};",
+            self.n_true_kmer_in_dbg,
+            self.n_false_kmer_in_dbg,
+            self.n_false_kmer_not_in_dbg,
+            self.n_true_kmer_not_in_dbg,
+            self.n_true_kmer_not_in_reads,
+        )
+    }
+}
+
+// kmer histogram
+
 ///
 /// Histgram of copy_nums of kmers with the specified copy_num.
 ///
@@ -165,16 +220,21 @@ pub struct CompressionBenchResult<K: KmerLike> {
     /// histogram of kmer
     ///
     kmer_hists: KmerHists,
+    ///
+    /// kmer classification result (TP/TN/FP/FN)
+    ///
+    kmer_classification: KmerClassificationResult,
 }
 
 impl<K: KmerLike> std::fmt::Display for CompressionBenchResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}",
             self.full_prob.to_log_value(),
             self.genome_size,
             self.kmer_existence,
+            self.kmer_classification,
             self.kmer_hists,
         )
     }
@@ -239,6 +299,61 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .collect();
 
         CompareWithSeqResult(results)
+    }
+    ///
+    ///
+    ///
+    pub fn kmer_classification_result<G, R>(&self, genome: G, reads: R) -> KmerClassificationResult
+    where
+        G: IntoIterator,
+        G::Item: Seq,
+        R: IntoIterator,
+        R::Item: Seq,
+    {
+        let mut r = KmerClassificationResult::default();
+
+        // counts: dbg
+        let counts = self.to_kmer_profile();
+
+        // copy_nums: genome
+        let hd_g: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), genome);
+        let copy_nums = hd_g.to_kmer_profile();
+
+        // read_counts: reads
+        let hd_r: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), reads);
+        let read_counts = hd_r.to_kmer_profile();
+
+        // [1] for all kmers in read
+        for (kmer, &read_count) in read_counts.iter() {
+            let count = counts.get(&kmer).copied().unwrap_or(0);
+            let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
+
+            if copy_num > 0 {
+                // this is true kmer
+                if count > 0 {
+                    r.n_true_kmer_in_dbg.add(kmer);
+                } else {
+                    r.n_true_kmer_not_in_dbg.add(kmer);
+                }
+            } else {
+                // this is false kmer
+                if count > 0 {
+                    r.n_false_kmer_in_dbg.add(kmer);
+                } else {
+                    r.n_false_kmer_not_in_dbg.add(kmer);
+                }
+            }
+        }
+
+        // [2] for all kmers in genome but not in read
+        for (kmer, &copy_num) in copy_nums.iter() {
+            let read_count = read_counts.get(&kmer).copied().unwrap_or(0);
+            if read_count == 0 {
+                r.n_true_kmer_not_in_reads.add(kmer);
+            }
+        }
+
+        r
     }
     ///
     /// Check k-mer existence (i.e. copy num > 0) of the seq.
@@ -320,12 +435,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let p = self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads);
         let kh = self.kmer_hists_from_seqs(&dataset.genome);
         let ke = self.check_kmer_existence_with_seqs(&dataset.genome);
+        let kc = self.kmer_classification_result(&dataset.genome, &dataset.reads);
 
         CompressionBenchResult {
             full_prob: p,
             genome_size: self.genome_size(),
             kmer_existence: ke,
             kmer_hists: kh,
+            kmer_classification: kc,
         }
     }
 }
