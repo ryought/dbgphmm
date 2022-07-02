@@ -119,7 +119,7 @@ impl KmerHists {
     ///
     /// total count of missed kmers,
     /// that is a kmer whose true copy number is 1 or more, but
-    /// is not in the dbg.
+    /// is not in the dbg. (true-negative)
     ///
     pub fn n_missed_kmers(&self) -> usize {
         (1..=self.max_copy_num())
@@ -274,36 +274,31 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T::Item: Seq,
     {
         // (1) calculate the true copy numbers in seqs
+        // and create hashmap `copy_nums`
         let hd: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), seqs.clone());
         let copy_nums = hd.to_kmer_profile();
         let max_copy_num = copy_nums.values().max().copied().unwrap();
 
         // (2) collect counts of dbg
+        // and create hashmap `counts`
         let counts = self.to_kmer_profile();
 
         let mut hists = KmerHists::new(max_copy_num);
 
-        // (3) count true kmers with copy_num >= 1.
-        for seq in seqs {
-            for kmer in linear_sequence_to_kmers(seq.as_ref(), self.k()) {
-                let copy_num = *copy_nums.get(&kmer).unwrap();
-                let count = match counts.get(&kmer) {
-                    Some(count) => *count,
-                    None => 0,
-                };
-                hists.get_hist_mut(copy_num).add(count);
-            }
+        // (3) count true kmers that is stored in copy_nums
+        for (kmer, &copy_num) in copy_nums.iter() {
+            let count = match counts.get(&kmer) {
+                Some(count) => *count,
+                None => 0,
+            };
+            hists.get_hist_mut(copy_num).add(count);
         }
 
-        // (4) count false kmers with copy_num == 0.
+        // (4) count false kmers that is not in copy_nums but in counts
         // add x0 kmer (= error and not in true seqs) histogram
         for (kmer, &count) in counts.iter() {
             match copy_nums.get(kmer) {
-                Some(&copy_num) => {
-                    if copy_num == 0 {
-                        hists.get_hist_mut(0).add(count);
-                    }
-                }
+                Some(_) => {}
                 None => {
                     hists.get_hist_mut(0).add(count);
                 }
@@ -444,5 +439,12 @@ mod tests {
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=0:18,1:20;");
         assert_eq!(kh.n_missed_kmers(), 18);
+
+        // [4] duplicating
+        let s1 = b"ATCGGATCGATGC".to_vec();
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &[&s1, &s1]);
+        let kh = dbg.kmer_hists_from_seqs(&[&s1]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x1=2:20;");
     }
 }

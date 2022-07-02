@@ -112,7 +112,7 @@ pub fn generate_dataset(
         },
     };
     let pos_reads = g.sample_positioned_reads(&profile);
-    g.show_coverage(&pos_reads);
+    // g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
 
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);

@@ -14,7 +14,7 @@
 //! * FullLengthRead: `full_length`
 //! * FragmentRead: `fragments`
 //!
-mod compression;
+pub mod compression;
 mod fragments;
 mod full_length;
 mod runner;
