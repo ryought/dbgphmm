@@ -209,10 +209,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
     /// Lookup a node from k-mer. It takes O(V).
     pub fn find_node_from_kmer(&self, kmer: &N::Kmer) -> Option<NodeIndex> {
+        assert_eq!(kmer.k(), self.k());
         self.graph.node_indices().find(|&v| self.kmer(v) == kmer)
     }
     /// Lookup an edge from k+1-mer. It takes O(E).
     pub fn find_edge_from_kp1mer(&self, kp1mer: &N::Kmer) -> Option<EdgeIndex> {
+        assert_eq!(kp1mer.k(), self.k() + 1);
         let prefix = kp1mer.prefix();
         let suffix = kp1mer.suffix();
         self.edges()
