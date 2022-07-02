@@ -14,16 +14,17 @@ fn run(output_dir: &Path) {
     let mut summary_file = File::create(output_dir.join("summary.txt")).unwrap();
     // writeln!(summary_file, "hoge");
 
-    for ((unit_size, n_unit), div_init, div_hap, coverage, lambda) in iproduct!(
+    for ((unit_size, n_unit), div_init, div_hap, coverage, lambda, error_rate) in iproduct!(
         [(20, 20), (10, 40), (100, 4)],
         [0.0, 0.01, 0.05, 0.1],
         [0.0, 0.01, 0.05, 0.1],
         [10, 20],
-        [0.001, 0.01, 0.1]
+        [0.001, 0.01, 0.1],
+        [0.01, 0.02, 0.001]
     ) {
         for seed in 0..5 {
             let header = format!(
-                "u{unit_size}n{n_unit}di{div_init}dh{div_hap}c{coverage}l{lambda}seed{seed}"
+                "u{unit_size}n{n_unit}di{div_init}dh{div_hap}c{coverage}l{lambda}e{error_rate}seed{seed}"
             );
             eprintln!("running {}", header);
             let (genome, genome_size) = genome::tandem_repeat_diploid(
@@ -33,7 +34,7 @@ fn run(output_dir: &Path) {
                 genome,
                 genome_size,
                 seed,
-                PHMMParams::default(),
+                PHMMParams::uniform(error_rate),
                 coverage,
                 2000,
                 ReadType::FullLength,
