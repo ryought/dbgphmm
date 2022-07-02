@@ -5,8 +5,17 @@ use crate::common::{CopyNum, Genome};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::e2e::{generate_dataset, Dataset, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
+use std::io::Write;
 
 pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
+    logs: &[CompressionV3Log<N, E>],
+    genome: &Genome,
+) {
+    write_compression_logs(&mut std::io::stdout(), logs, genome);
+}
+
+pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
+    f: &mut F,
     logs: &[CompressionV3Log<N, E>],
     genome: &Genome,
 ) {
@@ -14,8 +23,9 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
         // println!("log={}", log);
         let kh = log.dbg.kmer_hists_from_seqs(genome);
         let ke = log.dbg.check_kmer_existence_with_seqs(genome);
-        println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        writeln!(
+            f,
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             iteration,
             log.p.to_log_value(),
             log.q0,
@@ -25,7 +35,7 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
             kh.n_missed_kmers(),
             ke,
             kh,
-            // log.dbg,
+            log.dbg,
         );
     }
 }
