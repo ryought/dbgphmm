@@ -85,28 +85,42 @@ impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
 }
 
 // kmer classification
-
-///
-///
-#[derive(Clone, Debug)]
-pub struct KmerClassificationResult {
-    pub n_false_kmer_in_dbg: usize,
-    pub n_false_kmer_not_in_dbg: usize,
-    pub n_true_kmer_in_dbg: usize,
-    pub n_true_kmer_not_in_dbg: usize,
-    pub n_true_kmer_not_in_reads: usize,
+#[derive(Clone, Debug, Default)]
+pub struct KmerCounts {
+    pub n_normal: usize,
+    pub n_has_null: usize,
 }
 
-impl KmerClassificationResult {
-    pub fn new() -> Self {
-        KmerClassificationResult {
-            n_false_kmer_in_dbg: 0,
-            n_false_kmer_not_in_dbg: 0,
-            n_true_kmer_in_dbg: 0,
-            n_true_kmer_not_in_dbg: 0,
-            n_true_kmer_not_in_reads: 0,
+impl KmerCounts {
+    pub fn add<K: KmerLike>(&mut self, kmer: &K) {
+        if kmer.has_null() {
+            self.n_has_null += 1;
+        } else {
+            self.n_normal += 1;
         }
     }
+}
+
+impl std::fmt::Display for KmerCounts {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}/{}", self.n_normal, self.n_has_null)
+    }
+}
+
+///
+///
+#[derive(Clone, Debug, Default)]
+pub struct KmerClassificationResult {
+    /// FalsePositive: marked as >0x mistakenly
+    pub n_false_kmer_in_dbg: KmerCounts,
+    /// TrueNegative: marked as 0x correctly
+    pub n_false_kmer_not_in_dbg: KmerCounts,
+    /// TruePositive: marked as >0x correctly
+    pub n_true_kmer_in_dbg: KmerCounts,
+    /// FalseNegative: marked as 0x mistakenly
+    pub n_true_kmer_not_in_dbg: KmerCounts,
+    ///
+    pub n_true_kmer_not_in_reads: KmerCounts,
 }
 
 impl std::fmt::Display for KmerClassificationResult {
@@ -296,7 +310,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         R: IntoIterator,
         R::Item: Seq,
     {
-        let mut r = KmerClassificationResult::new();
+        let mut r = KmerClassificationResult::default();
 
         // counts: dbg
         let counts = self.to_kmer_profile();
@@ -317,16 +331,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             if copy_num > 0 {
                 // this is true kmer
                 if count > 0 {
-                    r.n_true_kmer_in_dbg += 1;
+                    r.n_true_kmer_in_dbg.add(kmer);
                 } else {
-                    r.n_true_kmer_not_in_dbg += 1;
+                    r.n_true_kmer_not_in_dbg.add(kmer);
                 }
             } else {
                 // this is false kmer
                 if count > 0 {
-                    r.n_false_kmer_in_dbg += 1;
+                    r.n_false_kmer_in_dbg.add(kmer);
                 } else {
-                    r.n_false_kmer_not_in_dbg += 1;
+                    r.n_false_kmer_not_in_dbg.add(kmer);
                 }
             }
         }
@@ -335,7 +349,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         for (kmer, &copy_num) in copy_nums.iter() {
             let read_count = read_counts.get(&kmer).copied().unwrap_or(0);
             if read_count == 0 {
-                r.n_true_kmer_not_in_reads += 1;
+                r.n_true_kmer_not_in_reads.add(kmer);
             }
         }
 
