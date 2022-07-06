@@ -244,11 +244,12 @@ impl<K: KmerLike> std::fmt::Display for CompressionBenchResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}",
             self.full_prob.to_log_value(),
             self.genome_size,
             self.kmer_existence,
             self.kmer_classification,
+            self.kmer_hists.n_under_estimated_kmers(),
             self.kmer_hists,
         )
     }
