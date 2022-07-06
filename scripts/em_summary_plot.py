@@ -64,6 +64,7 @@ class Algorithm(Enum):
     TRUE = 1
     RAW = 2
     V3 = 3
+    V1 = 4
     def from_str(s):
         if s == 'TRUE':
             return Algorithm.TRUE
@@ -71,6 +72,8 @@ class Algorithm(Enum):
             return Algorithm.RAW
         elif s == 'V3':
             return Algorithm.V3
+        elif s == 'V1':
+            return Algorithm.V1
         else:
             raise Exception
 
@@ -110,6 +113,8 @@ def param_to_color_by_lambda(param):
         return 'blue'
     elif param.l == 0.001:
         return 'green'
+    elif param.l == 0.0:
+        return 'black'
     else:
         raise Exception
 
@@ -130,10 +135,10 @@ def plot_fn_tn_by_unit_size(rs):
     plt.show()
 
 def plot_fn_tn_by_lambda(rs):
-    # for (e, marker) in [(0.01, '+'), (0.001, '.'), (0.02, 'x')]:
+    # for (e, marker) in [(0.02, 'x')]:
     # for (e, marker) in [(0.01, '+')]:
-    for (e, marker) in [(0.02, 'x')]:
-        rs_v3 = [r for r in rs if r.algorithm == Algorithm.V3 and r.params.e == e]
+    for (e, marker) in [(0.01, '+'), (0.001, '.'), (0.02, 'x')]:
+        rs_v3 = [r for r in rs if r.algorithm != Algorithm.RAW and r.algorithm != Algorithm.TRUE and r.params.e == e]
         tn = [r.classification.tn for r in rs_v3]
         fn = [r.classification.fn for r in rs_v3]
         c = [param_to_color_by_lambda(r.params) for r in rs_v3]
@@ -144,6 +149,8 @@ def plot_fn_tn_by_lambda(rs):
             marker=marker,
             label='e={}'.format(e),
         )
+    plt.xlim(0, 1500)
+    plt.ylim(0, 150)
     plt.xlabel('TN')
     plt.ylabel('FN')
     plt.legend()
