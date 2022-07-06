@@ -263,7 +263,14 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
     zero_penalty: f64,
 ) -> MStepResult<N, E> {
     // (0) calculate original q_score
-    let q_score = q_score_clamped(&dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+    let q_score = q_score_clamped(
+        &dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
 
     // (1) construct edbg with KmerInfo
     let infos = create_kmer_infos(
@@ -298,6 +305,7 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
                 &init_freqs,
                 genome_size,
                 penalty_weight,
+                zero_penalty,
             );
 
             // if new q_score is bigger, accept the change.
@@ -388,7 +396,14 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
 
     // calculate current q-score
-    let q_score = q_score_clamped(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+    let q_score = q_score_clamped(
+        dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
 
     // [2] m-step
     let mut steps = m_step(
