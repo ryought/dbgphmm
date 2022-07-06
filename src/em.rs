@@ -30,13 +30,14 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
                 logs.push(TaskLog::Compression(log));
                 dbg = dbg_new;
             }
-            Task::CompressionV3(lambda) => {
+            Task::CompressionV3(lambda, zero_penalty) => {
                 let (dbg_new, log) = compression::v3::compression(
                     &dbg,
                     reads,
                     params,
                     genome_size,
                     lambda,
+                    zero_penalty,
                     max_iter,
                     max_iter,
                 );

@@ -39,8 +39,10 @@ pub fn is_increasing<F: Fn(usize) -> f64>(f: F, x_min: usize, x_max: usize) -> b
 /// by setting ln(0) = (default constant -1000.0)
 ///
 pub fn clamped_log(x: usize) -> f64 {
-    clamped_log_with(x, -1000.0)
+    clamped_log_with(x, DEFAULT_CLAMP_VALUE)
 }
+
+pub const DEFAULT_CLAMP_VALUE: f64 = -1000.0;
 
 ///
 /// Avoid `ln(0) = -\infty`

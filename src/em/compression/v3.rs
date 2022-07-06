@@ -189,11 +189,12 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
 ) -> V3KmerInfos {
     let mut ki = V3KmerInfos::new(dbg.n_nodes(), CompressionV3KmerInfo::default());
     let ki0 = create_plain_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     for (node, _) in dbg.nodes() {
-        ki[node] = CompressionV3KmerInfo::new(ki0[node], -1000.0);
+        ki[node] = CompressionV3KmerInfo::new(ki0[node], zero_penalty);
     }
     ki
 }
@@ -259,12 +260,20 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
 ) -> MStepResult<N, E> {
     // (0) calculate original q_score
     let q_score = q_score_clamped(&dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
 
     // (1) construct edbg with KmerInfo
-    let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    let infos = create_kmer_infos(
+        dbg,
+        edge_freqs,
+        init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
     let edbg = dbg.to_edbg_with_attr(Some(&infos));
     // dbg.draw_with_vecs(&[&infos], &[]);
     // dbg.draw_plain_with_vecs(&[&infos], &[]);
@@ -327,6 +336,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
 ) -> Vec<(Dbg<N, E>, QScore, Cost)> {
     let mut dbg_current = dbg.clone();
@@ -340,6 +350,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
             init_freqs,
             genome_size,
             penalty_weight,
+            zero_penalty,
         ) {
             MStepResult::Update(dbg_new, q_score, cost, updates) => {
                 // found better dbg!
@@ -370,6 +381,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
 ) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
     // [1] e-step
@@ -385,6 +397,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
         &init_freqs,
         genome_size,
         penalty_weight,
+        zero_penalty,
         n_max_update,
     );
 
@@ -420,6 +433,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<CompressionV3Log<N, E>>) {
@@ -434,6 +448,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
             params,
             genome_size,
             penalty_weight,
+            zero_penalty,
             n_max_update,
         );
         logs.push(log);
@@ -507,6 +522,7 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::dbg::mocks::*;
+    use crate::min_flow::utils::DEFAULT_CLAMP_VALUE;
 
     #[test]
     fn em_compression_v3_m() {
@@ -528,14 +544,14 @@ mod tests {
         let lambda = 0.0;
         let genome_size = 9;
 
-        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
+        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda, DEFAULT_CLAMP_VALUE);
         // dbg.draw_with_vecs(&[&nf], &[&ef]);
         dbg.draw_with_vecs(&[&infos], &[]);
         // println!("{}", infos);
         // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{:?}", qs);
 
-        let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda);
+        let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda, DEFAULT_CLAMP_VALUE);
         assert!(r.is_update());
         let (dbg, q_score, cost, _) = r.unwrap();
         let copy_nums = dbg.to_node_copy_nums();
@@ -560,7 +576,8 @@ mod tests {
         let params = PHMMParams::default();
         println!("dbg0={}", dbg);
 
-        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0, 1);
+        let (new_dbg, is_updated, log) =
+            compression_step(&dbg, &reads, &params, 9, 0.0, DEFAULT_CLAMP_VALUE, 1);
         println!("dbg1={}", new_dbg);
     }
 }
