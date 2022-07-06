@@ -181,6 +181,20 @@ impl KmerHists {
             .map(|copy_num| self.get_hist(copy_num).get(0))
             .sum()
     }
+    ///
+    /// total count of kmers whose copy number is under-estimated
+    /// i.e. infered copy number < true copy number
+    ///
+    pub fn n_under_estimated_kmers(&self) -> usize {
+        (1..=self.max_copy_num())
+            .map(|copy_num| {
+                self.get_hist(copy_num)
+                    .iter()
+                    .map(|(occurence, n_kmers)| if occurence < copy_num { n_kmers } else { 0 })
+                    .sum::<usize>()
+            })
+            .sum()
+    }
 }
 
 impl std::fmt::Display for KmerHists {
@@ -532,6 +546,7 @@ mod tests {
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=1:20;");
         assert_eq!(kh.n_missed_kmers(), 0);
+        assert_eq!(kh.n_under_estimated_kmers(), 0);
 
         // [2] compare with true seq
         let s1 = b"ATCGGATCGATGC".to_vec();
@@ -542,11 +557,13 @@ mod tests {
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=1:38;");
         assert_eq!(kh.n_missed_kmers(), 0);
+        assert_eq!(kh.n_under_estimated_kmers(), 0);
         // 2
         let kh = dbg.kmer_hists_from_seqs(&[&s1]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x0=1:18;x1=1:20;");
         assert_eq!(kh.n_missed_kmers(), 0);
+        assert_eq!(kh.n_under_estimated_kmers(), 0);
 
         // [3] missing seqs
         let s1 = b"ATCGGATCGATGC".to_vec();
@@ -556,6 +573,7 @@ mod tests {
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=0:18,1:20;");
         assert_eq!(kh.n_missed_kmers(), 18);
+        assert_eq!(kh.n_under_estimated_kmers(), 18);
 
         // [4] duplicating
         let s1 = b"ATCGGATCGATGC".to_vec();
@@ -563,5 +581,16 @@ mod tests {
         let kh = dbg.kmer_hists_from_seqs(&[&s1]);
         println!("{}", kh);
         assert_eq!(kh.to_string(), "x1=2:20;");
+        assert_eq!(kh.n_missed_kmers(), 0);
+        assert_eq!(kh.n_under_estimated_kmers(), 0);
+
+        // [5] halving
+        let s1 = b"ATCGGATCGATGC".to_vec();
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(8, &[&s1]);
+        let kh = dbg.kmer_hists_from_seqs(&[&s1, &s1]);
+        println!("{}", kh);
+        assert_eq!(kh.to_string(), "x2=1:20;");
+        assert_eq!(kh.n_missed_kmers(), 0);
+        assert_eq!(kh.n_under_estimated_kmers(), 20);
     }
 }
