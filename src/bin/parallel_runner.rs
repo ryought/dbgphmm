@@ -15,17 +15,28 @@ fn run(output_dir: &Path) {
     let mut summary_file = File::create(output_dir.join("summary.txt")).unwrap();
     // writeln!(summary_file, "hoge");
 
-    for ((unit_size, n_unit), div_init, div_hap, coverage, lambda, error_rate) in iproduct!(
-        [(20, 20), (10, 40), (100, 4)],
-        [0.01, 0.05, 0.1],
-        [0.01, 0.05, 0.1],
+    for (
+        (unit_size, n_unit),
+        div_init,
+        div_hap,
+        coverage,
+        lambda,
+        zero_penalty,
+        error_rate,
+        k_init,
+    ) in iproduct!(
+        [(20, 20)],
+        [0.1],
+        [0.01],
         [10],
-        [0.0],
-        [0.01, 0.02]
+        [0.0, 0.0001, 0.001, 0.01, 0.1],
+        [-1000.0, -100.0, -10.0, -5.0, -1.0],
+        [0.01],
+        [8]
     ) {
         for seed in 0..5 {
             let header = format!(
-                "u{unit_size}n{n_unit}di{div_init}dh{div_hap}c{coverage}l{lambda}e{error_rate}seed{seed}"
+                "u{unit_size}n{n_unit}di{div_init}dh{div_hap}c{coverage}l{lambda}z{zero_penalty}e{error_rate}seed{seed}ki{k_init}"
             );
             eprintln!("running {}", header);
             let (genome, genome_size) = genome::tandem_repeat_diploid(
@@ -39,30 +50,31 @@ fn run(output_dir: &Path) {
                 coverage,
                 2000,
                 ReadType::FullLength,
-                8,
+                k_init,
                 32,
             );
 
             // v3
-            // let (new_dbg, logs) = v3::compression(
-            //     &dataset.dbg_raw,
-            //     &dataset.reads,
-            //     &dataset.phmm_params,
-            //     dataset.genome_size,
-            //     lambda,
-            //     50,
-            //     50,
-            // );
-            // let mut task_file = File::create(output_dir.join(format!("{}.txt", header))).unwrap();
-            // write_compression_logs(&mut task_file, &logs, &dataset.genome);
-
-            // v1
-            let (new_dbg, logs) = compression_with_depths(
+            let (new_dbg, logs) = v3::compression(
                 &dataset.dbg_raw,
                 &dataset.reads,
                 &dataset.phmm_params,
-                &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
+                dataset.genome_size,
+                lambda,
+                zero_penalty,
+                50,
+                50,
             );
+            let mut task_file = File::create(output_dir.join(format!("{}.txt", header))).unwrap();
+            write_compression_logs(&mut task_file, &logs, &dataset.genome);
+
+            // v1
+            // let (new_dbg, logs) = compression_with_depths(
+            //     &dataset.dbg_raw,
+            //     &dataset.reads,
+            //     &dataset.phmm_params,
+            //     &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
+            // );
 
             let b0 = dataset.dbg_true_init.benchmark_compression(&dataset);
             writeln!(summary_file, "{}\tTRUE\t{}", header, b0);

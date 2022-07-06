@@ -25,7 +25,7 @@ pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
         let ke = log.dbg.check_kmer_existence_with_seqs(genome);
         writeln!(
             f,
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             iteration,
             log.p.to_log_value(),
             log.q0,
@@ -33,6 +33,7 @@ pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
             log.cost_diff,
             log.dbg.genome_size(),
             kh.n_missed_kmers(),
+            kh.n_under_estimated_kmers(),
             ke,
             kh,
             log.dbg,
@@ -117,8 +118,8 @@ mod tests {
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.1,
-            DEFAULT_CLAMP_VALUE,
+            0.001, // lambda
+            -10.0, // clamp
             50,
             50,
         );
