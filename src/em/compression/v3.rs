@@ -26,7 +26,10 @@ use crate::min_flow::flow::FlowEdge;
 pub use crate::em::compression::v2::e_step;
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
-pub struct CompressionV3KmerInfo(KmerInfo);
+pub struct CompressionV3KmerInfo {
+    kmer_info: KmerInfo,
+    zero_penalty: f64,
+}
 
 pub type V3KmerInfos = NodeVec<DenseStorage<CompressionV3KmerInfo>>;
 pub type SimpleEDbgEdgeWithV3KmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV3KmerInfo>;
@@ -59,7 +62,7 @@ impl CompressionV3KmerInfo {
     /// Current copy number of the kmer
     ///
     pub fn copy_num(&self) -> CopyNum {
-        self.0.copy_num
+        self.kmer_info.copy_num
     }
     ///
     /// Exact Q function score
@@ -84,38 +87,41 @@ impl CompressionV3KmerInfo {
     /// `X_l log (copy_num)` term
     ///
     pub fn x(&self, diff: Diff) -> f64 {
-        let new_copy_num = diff.apply(self.0.copy_num);
-        -self.0.freq * clamped_log(new_copy_num)
+        let new_copy_num = diff.apply(self.kmer_info.copy_num);
+        -self.kmer_info.freq * clamped_log(new_copy_num)
     }
     ///
     /// `Y_i log (copy_num_intersection)` term
     ///
     pub fn y(&self, diff: Diff) -> f64 {
-        let new_copy_num_intersection = diff.apply(self.0.copy_num_intersection);
-        self.0.freq_intersection * clamped_log(new_copy_num_intersection)
+        let new_copy_num_intersection = diff.apply(self.kmer_info.copy_num_intersection);
+        self.kmer_info.freq_intersection * clamped_log(new_copy_num_intersection)
     }
     ///
     /// `Z log (copy_num_total)` term
     ///
     pub fn z(&self, diff: Diff) -> f64 {
-        let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        self.0.freq_init * clamped_log(new_copy_num_total)
+        let new_copy_num_total = diff.apply(self.kmer_info.copy_num_total);
+        self.kmer_info.freq_init * clamped_log(new_copy_num_total)
     }
     ///
     /// regularization term `R`
     ///
     pub fn r(&self, diff: Diff) -> f64 {
-        let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        self.0.penalty_weight
+        let new_copy_num_total = diff.apply(self.kmer_info.copy_num_total);
+        self.kmer_info.penalty_weight
             * new_copy_num_total
-                .abs_diff(self.0.copy_num_total_expected)
+                .abs_diff(self.kmer_info.copy_num_total_expected)
                 .pow(2) as f64
     }
 }
 
-impl std::convert::From<KmerInfo> for CompressionV3KmerInfo {
-    fn from(kmer_info: KmerInfo) -> Self {
-        CompressionV3KmerInfo(kmer_info)
+impl CompressionV3KmerInfo {
+    fn new(kmer_info: KmerInfo, zero_penalty: f64) -> Self {
+        CompressionV3KmerInfo {
+            kmer_info,
+            zero_penalty,
+        }
     }
 }
 
@@ -136,7 +142,7 @@ impl std::fmt::Display for CompressionV3KmerInfo {
             self.y(Diff::Dec) - self.y(Diff::Nop),
             self.z(Diff::Dec) - self.z(Diff::Nop),
             self.r(Diff::Dec) - self.r(Diff::Nop),
-            self.0,
+            self.kmer_info,
         )
     }
 }
@@ -186,7 +192,7 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     let mut ki = V3KmerInfos::new(dbg.n_nodes(), CompressionV3KmerInfo::default());
     let ki0 = create_plain_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     for (node, _) in dbg.nodes() {
-        ki[node] = CompressionV3KmerInfo::from(ki0[node]);
+        ki[node] = CompressionV3KmerInfo::new(ki0[node], -1000.0);
     }
     ki
 }
