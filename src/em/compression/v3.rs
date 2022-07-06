@@ -12,7 +12,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::residue::{
     improve_flow_convex_with_update_info, ResidueDirection, UpdateInfo,
 };
-use crate::min_flow::utils::clamped_log;
+use crate::min_flow::utils::clamped_log_with;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
@@ -88,21 +88,22 @@ impl CompressionV3KmerInfo {
     ///
     pub fn x(&self, diff: Diff) -> f64 {
         let new_copy_num = diff.apply(self.kmer_info.copy_num);
-        -self.kmer_info.freq * clamped_log(new_copy_num)
+        -self.kmer_info.freq * clamped_log_with(new_copy_num, self.zero_penalty)
     }
     ///
     /// `Y_i log (copy_num_intersection)` term
     ///
     pub fn y(&self, diff: Diff) -> f64 {
         let new_copy_num_intersection = diff.apply(self.kmer_info.copy_num_intersection);
-        self.kmer_info.freq_intersection * clamped_log(new_copy_num_intersection)
+        self.kmer_info.freq_intersection
+            * clamped_log_with(new_copy_num_intersection, self.zero_penalty)
     }
     ///
     /// `Z log (copy_num_total)` term
     ///
     pub fn z(&self, diff: Diff) -> f64 {
         let new_copy_num_total = diff.apply(self.kmer_info.copy_num_total);
-        self.kmer_info.freq_init * clamped_log(new_copy_num_total)
+        self.kmer_info.freq_init * clamped_log_with(new_copy_num_total, self.zero_penalty)
     }
     ///
     /// regularization term `R`
