@@ -12,7 +12,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::residue::{
     improve_flow_convex_with_update_info, ResidueDirection, UpdateInfo,
 };
-use crate::min_flow::utils::clamped_log;
+use crate::min_flow::utils::clamped_log_with;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
@@ -26,7 +26,10 @@ use crate::min_flow::flow::FlowEdge;
 pub use crate::em::compression::v2::e_step;
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]
-pub struct CompressionV3KmerInfo(KmerInfo);
+pub struct CompressionV3KmerInfo {
+    kmer_info: KmerInfo,
+    zero_penalty: f64,
+}
 
 pub type V3KmerInfos = NodeVec<DenseStorage<CompressionV3KmerInfo>>;
 pub type SimpleEDbgEdgeWithV3KmerInfos<K> = SimpleEDbgEdgeWithAttr<K, CompressionV3KmerInfo>;
@@ -59,7 +62,7 @@ impl CompressionV3KmerInfo {
     /// Current copy number of the kmer
     ///
     pub fn copy_num(&self) -> CopyNum {
-        self.0.copy_num
+        self.kmer_info.copy_num
     }
     ///
     /// Exact Q function score
@@ -84,38 +87,42 @@ impl CompressionV3KmerInfo {
     /// `X_l log (copy_num)` term
     ///
     pub fn x(&self, diff: Diff) -> f64 {
-        let new_copy_num = diff.apply(self.0.copy_num);
-        -self.0.freq * clamped_log(new_copy_num)
+        let new_copy_num = diff.apply(self.kmer_info.copy_num);
+        -self.kmer_info.freq * clamped_log_with(new_copy_num, self.zero_penalty)
     }
     ///
     /// `Y_i log (copy_num_intersection)` term
     ///
     pub fn y(&self, diff: Diff) -> f64 {
-        let new_copy_num_intersection = diff.apply(self.0.copy_num_intersection);
-        self.0.freq_intersection * clamped_log(new_copy_num_intersection)
+        let new_copy_num_intersection = diff.apply(self.kmer_info.copy_num_intersection);
+        self.kmer_info.freq_intersection
+            * clamped_log_with(new_copy_num_intersection, self.zero_penalty)
     }
     ///
     /// `Z log (copy_num_total)` term
     ///
     pub fn z(&self, diff: Diff) -> f64 {
-        let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        self.0.freq_init * clamped_log(new_copy_num_total)
+        let new_copy_num_total = diff.apply(self.kmer_info.copy_num_total);
+        self.kmer_info.freq_init * clamped_log_with(new_copy_num_total, self.zero_penalty)
     }
     ///
     /// regularization term `R`
     ///
     pub fn r(&self, diff: Diff) -> f64 {
-        let new_copy_num_total = diff.apply(self.0.copy_num_total);
-        self.0.penalty_weight
+        let new_copy_num_total = diff.apply(self.kmer_info.copy_num_total);
+        self.kmer_info.penalty_weight
             * new_copy_num_total
-                .abs_diff(self.0.copy_num_total_expected)
+                .abs_diff(self.kmer_info.copy_num_total_expected)
                 .pow(2) as f64
     }
 }
 
-impl std::convert::From<KmerInfo> for CompressionV3KmerInfo {
-    fn from(kmer_info: KmerInfo) -> Self {
-        CompressionV3KmerInfo(kmer_info)
+impl CompressionV3KmerInfo {
+    fn new(kmer_info: KmerInfo, zero_penalty: f64) -> Self {
+        CompressionV3KmerInfo {
+            kmer_info,
+            zero_penalty,
+        }
     }
 }
 
@@ -136,7 +143,7 @@ impl std::fmt::Display for CompressionV3KmerInfo {
             self.y(Diff::Dec) - self.y(Diff::Nop),
             self.z(Diff::Dec) - self.z(Diff::Nop),
             self.r(Diff::Dec) - self.r(Diff::Nop),
-            self.0,
+            self.kmer_info,
         )
     }
 }
@@ -182,11 +189,12 @@ fn create_kmer_infos<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
 ) -> V3KmerInfos {
     let mut ki = V3KmerInfos::new(dbg.n_nodes(), CompressionV3KmerInfo::default());
     let ki0 = create_plain_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
     for (node, _) in dbg.nodes() {
-        ki[node] = CompressionV3KmerInfo::from(ki0[node]);
+        ki[node] = CompressionV3KmerInfo::new(ki0[node], zero_penalty);
     }
     ki
 }
@@ -252,12 +260,27 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
 ) -> MStepResult<N, E> {
     // (0) calculate original q_score
-    let q_score = q_score_clamped(&dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+    let q_score = q_score_clamped(
+        &dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
 
     // (1) construct edbg with KmerInfo
-    let infos = create_kmer_infos(dbg, edge_freqs, init_freqs, genome_size, penalty_weight);
+    let infos = create_kmer_infos(
+        dbg,
+        edge_freqs,
+        init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
     let edbg = dbg.to_edbg_with_attr(Some(&infos));
     // dbg.draw_with_vecs(&[&infos], &[]);
     // dbg.draw_plain_with_vecs(&[&infos], &[]);
@@ -282,6 +305,7 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
                 &init_freqs,
                 genome_size,
                 penalty_weight,
+                zero_penalty,
             );
 
             // if new q_score is bigger, accept the change.
@@ -320,6 +344,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
 ) -> Vec<(Dbg<N, E>, QScore, Cost)> {
     let mut dbg_current = dbg.clone();
@@ -333,6 +358,7 @@ fn m_step<N: DbgNode, E: DbgEdge>(
             init_freqs,
             genome_size,
             penalty_weight,
+            zero_penalty,
         ) {
             MStepResult::Update(dbg_new, q_score, cost, updates) => {
                 // found better dbg!
@@ -363,13 +389,21 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
 ) -> (Dbg<N, E>, bool, CompressionV3Log<N, E>) {
     // [1] e-step
     let (edge_freqs, init_freqs, p) = e_step(dbg, reads, params);
 
     // calculate current q-score
-    let q_score = q_score_clamped(dbg, &edge_freqs, &init_freqs, genome_size, penalty_weight);
+    let q_score = q_score_clamped(
+        dbg,
+        &edge_freqs,
+        &init_freqs,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+    );
 
     // [2] m-step
     let mut steps = m_step(
@@ -378,6 +412,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
         &init_freqs,
         genome_size,
         penalty_weight,
+        zero_penalty,
         n_max_update,
     );
 
@@ -413,6 +448,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     params: &PHMMParams,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
     n_max_update: usize,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<CompressionV3Log<N, E>>) {
@@ -427,6 +463,7 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
             params,
             genome_size,
             penalty_weight,
+            zero_penalty,
             n_max_update,
         );
         logs.push(log);
@@ -500,6 +537,7 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::dbg::mocks::*;
+    use crate::min_flow::utils::DEFAULT_CLAMP_VALUE;
 
     #[test]
     fn em_compression_v3_m() {
@@ -521,14 +559,14 @@ mod tests {
         let lambda = 0.0;
         let genome_size = 9;
 
-        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda);
+        let infos = create_kmer_infos(&dbg, &ef, &nf, genome_size, lambda, DEFAULT_CLAMP_VALUE);
         // dbg.draw_with_vecs(&[&nf], &[&ef]);
         dbg.draw_with_vecs(&[&infos], &[]);
         // println!("{}", infos);
         // let qs = q_score(&dbg, &ef, &nf, genome_size, lambda);
         // println!("{:?}", qs);
 
-        let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda);
+        let r = m_step_once(&dbg, &ef, &nf, genome_size, lambda, DEFAULT_CLAMP_VALUE);
         assert!(r.is_update());
         let (dbg, q_score, cost, _) = r.unwrap();
         let copy_nums = dbg.to_node_copy_nums();
@@ -553,7 +591,8 @@ mod tests {
         let params = PHMMParams::default();
         println!("dbg0={}", dbg);
 
-        let (new_dbg, is_updated, log) = compression_step(&dbg, &reads, &params, 9, 0.0, 1);
+        let (new_dbg, is_updated, log) =
+            compression_step(&dbg, &reads, &params, 9, 0.0, DEFAULT_CLAMP_VALUE, 1);
         println!("dbg1={}", new_dbg);
     }
 }

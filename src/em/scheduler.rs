@@ -18,9 +18,9 @@ pub enum Task {
     ///
     Compression(Freq),
     ///
-    /// V3 compression with lambda (f64)
+    /// V3 compression with lambda (1st f64) and zero_penalty (2nd f64)
     ///
-    CompressionV3(f64),
+    CompressionV3(f64, f64),
     ///
     /// Run extension to specified k-mer length
     ///

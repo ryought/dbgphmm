@@ -46,6 +46,7 @@ mod tests {
     use crate::common::Seq;
     use crate::genome;
     use crate::hmmv2::params::PHMMParams;
+    use crate::min_flow::utils::DEFAULT_CLAMP_VALUE;
 
     #[test]
     fn e2e_compression_simple() {
@@ -74,6 +75,7 @@ mod tests {
             &dataset.phmm_params,
             genome_size,
             0.1,
+            DEFAULT_CLAMP_VALUE,
             10,
             10,
         );
@@ -116,6 +118,7 @@ mod tests {
             &dataset.phmm_params,
             genome_size,
             0.1,
+            DEFAULT_CLAMP_VALUE,
             50,
             50,
         );

@@ -6,7 +6,7 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::hmmv2::common::{PHMMEdge, PHMMNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
-use crate::min_flow::utils::clamped_log;
+use crate::min_flow::utils::clamped_log_with;
 
 #[derive(Clone, Debug, Copy, Default)]
 pub struct QScore {
@@ -46,6 +46,7 @@ pub fn q_score_clamped<N: DbgNode, E: DbgEdge>(
     init_freqs: &NodeFreqs,
     genome_size: CopyNum,
     penalty_weight: f64,
+    zero_penalty: f64,
 ) -> QScore {
     let mut qs = QScore::default();
 
@@ -67,10 +68,13 @@ pub fn q_score_clamped<N: DbgNode, E: DbgEdge>(
                 // calculate scores for the node
                 // (1) trans
                 qs.trans += edge_freq_parents
-                    * (clamped_log(copy_num) - clamped_log(copy_num_intersection));
+                    * (clamped_log_with(copy_num, zero_penalty)
+                        - clamped_log_with(copy_num_intersection, zero_penalty));
 
                 // (2) init
-                qs.init += init_freq * (clamped_log(copy_num) - clamped_log(copy_num_total));
+                qs.init += init_freq
+                    * (clamped_log_with(copy_num, zero_penalty)
+                        - clamped_log_with(copy_num_total, zero_penalty));
             }
         }
     }
