@@ -28,22 +28,24 @@ pub fn write_task_logs_with_dataset<N: DbgNode, E: DbgEdge, F: Write>(
     for (iteration, task_log) in task_logs.iter().enumerate() {
         match task_log {
             TaskLog::CompressionV3(logs) => {
-                write_compression_logs(f, &logs, &dataset, &format!("{}\t", iteration))
+                for (step, log) in logs.iter().enumerate() {
+                    writeln!(
+                        f,
+                        "{}\tCV3\t{}\t{}",
+                        iteration,
+                        step,
+                        log.to_benchmark_string(dataset)
+                    );
+                }
             }
             TaskLog::Extension(logs) => {
                 for (step, log) in logs.iter().enumerate() {
-                    println!(
-                        "{}\tE\t{}\t{}\t{}\t{}\t{}\t{}",
+                    writeln!(
+                        f,
+                        "{}\tE\t{}\t{}",
                         iteration,
                         step,
-                        match log.full_prob {
-                            Some(p) => p.to_log_value().to_string(),
-                            None => "-".to_string(),
-                        },
-                        log.min_flow_cost,
-                        log.dbg.genome_size(),
-                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
-                        log.dbg
+                        log.to_benchmark_string(dataset),
                     );
                 }
             }

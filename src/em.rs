@@ -1,3 +1,18 @@
+//!
+//! EM algorithms
+//!
+//! * Compression (deprecated, v1)
+//! * CompressionV3
+//! * Extension
+//!
+//! ## Displaying
+//!
+//! * to_string (std::fmt::Display)
+//!     for showing without dataset
+//!
+//! * to_benchmark_string
+//!     for showing with dataset and true genome information
+//!
 pub mod compression;
 pub mod e2e;
 pub mod extension;
