@@ -6,13 +6,53 @@ use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
 use crate::dbg::dbg::{DbgEdge, DbgNode};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::e2e::{Dataset, ReadType};
+use crate::em::e2e::compression::write_compression_logs;
 use crate::em::infer;
 use crate::em::scheduler::{SchedulerType1, TaskLog};
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+use std::io::Write;
 
+///
+/// show a TaskLog list with true genome
+///
+pub fn write_task_logs_with_dataset<N: DbgNode, E: DbgEdge, F: Write>(
+    f: &mut F,
+    task_logs: &[TaskLog<N, E>],
+    dataset: &Dataset,
+) {
+    // body
+    for (iteration, task_log) in task_logs.iter().enumerate() {
+        match task_log {
+            TaskLog::CompressionV3(logs) => write_compression_logs(f, &logs, &dataset.genome),
+            TaskLog::Extension(logs) => {
+                for (step, log) in logs.iter().enumerate() {
+                    println!(
+                        "{}\tE\t{}\t{}\t{}\t{}\t{}\t{}",
+                        iteration,
+                        step,
+                        match log.full_prob {
+                            Some(p) => p.to_log_value().to_string(),
+                            None => "-".to_string(),
+                        },
+                        log.min_flow_cost,
+                        log.dbg.genome_size(),
+                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
+                        log.dbg
+                    );
+                }
+            }
+            _ => panic!(),
+        }
+    }
+}
+
+///
+/// show a TaskLog list with true genome
+///
 pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &Genome) {
     // header
     println!("iter\ttype\tstep\tprob\tmin_flow\tgenome_size\tcompare\tdbg\t");

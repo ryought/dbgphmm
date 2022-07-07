@@ -104,7 +104,7 @@ mod tests {
             10, // coverage
             2000,
             ReadType::FullLength,
-            8,
+            16,
             32,
         );
         println!("genome: {}", genome[0].to_str());
@@ -118,8 +118,8 @@ mod tests {
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.001, // lambda
-            -10.0, // clamp
+            0.0001, // lambda
+            -10.0,  // clamp
             50,
             50,
         );
