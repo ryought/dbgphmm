@@ -1,5 +1,5 @@
 use dbgphmm::e2e::{generate_dataset, ReadType};
-use dbgphmm::em::compression::compression_with_depths;
+use dbgphmm::em::compression::v1::compression_with_depths;
 use dbgphmm::em::compression::v3;
 use dbgphmm::em::e2e::compression::write_compression_logs;
 use dbgphmm::genome;

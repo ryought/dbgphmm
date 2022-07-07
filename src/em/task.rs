@@ -1,8 +1,8 @@
 //!
 //! EM Task and TaskLog definitions
 //!
+use super::compression::v1::CompressionLog;
 use super::compression::v3::CompressionV3Log;
-use super::compression::CompressionLog;
 use super::extension::ExtensionLog;
 use crate::common::Freq;
 use crate::dbg::dbg::{DbgEdge, DbgNode};

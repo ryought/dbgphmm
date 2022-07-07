@@ -76,7 +76,8 @@ pub fn infer_with_on_iteration<
         // run task
         let (dbg_new, log) = match task {
             Task::Compression(depth) => {
-                let (dbg_new, log) = compression::compression(&dbg, reads, params, depth, max_iter);
+                let (dbg_new, log) =
+                    compression::v1::compression(&dbg, reads, params, depth, max_iter);
                 (dbg_new, TaskLog::Compression(task, log))
             }
             Task::CompressionV3(lambda, zero_penalty) => {

@@ -11,7 +11,7 @@ mod tests {
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
     use crate::e2e::{generate_dataset, Dataset, ReadType};
-    use crate::em::compression::{compression, compression_step, compression_with_depths};
+    use crate::em::compression::v1::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::runner::{benchmark, show_logs};
     use crate::em::{Task, TaskLog};
     use crate::genome::simple;
