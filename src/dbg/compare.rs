@@ -70,16 +70,17 @@ impl<K: KmerLike> KmerExistenceResult<K> {
             kmers_not_exists: Vec::new(),
         }
     }
+    pub fn to_kmers_not_exists(&self) -> String {
+        format!("{}", self.kmers_not_exists.iter().format(","))
+    }
 }
 
 impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "n_exists={};n_not_exists={}({});",
-            self.n_exists,
-            self.n_not_exists,
-            self.kmers_not_exists.iter().format(","),
+            "n_exists={};n_not_exists={};",
+            self.n_exists, self.n_not_exists,
         )
     }
 }

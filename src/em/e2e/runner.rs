@@ -28,7 +28,7 @@ pub fn write_task_logs_with_dataset<N: DbgNode, E: DbgEdge, F: Write>(
     for (iteration, task_log) in task_logs.iter().enumerate() {
         match task_log {
             TaskLog::CompressionV3(logs) => {
-                write_compression_logs(f, &logs, &dataset.genome, &format!("{}\t", iteration))
+                write_compression_logs(f, &logs, &dataset, &format!("{}\t", iteration))
             }
             TaskLog::Extension(logs) => {
                 for (step, log) in logs.iter().enumerate() {

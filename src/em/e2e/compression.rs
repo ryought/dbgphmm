@@ -7,38 +7,35 @@ use crate::e2e::{generate_dataset, Dataset, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
 use std::io::Write;
 
+///
+/// utility function for debugging compressionv3 algorithm
+///
+/// ## TODO
+///
+/// this should be converted into callback of compression_v3
+///
 pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
     logs: &[CompressionV3Log<N, E>],
-    genome: &Genome,
+    dataset: &Dataset,
 ) {
-    write_compression_logs(&mut std::io::stdout(), logs, genome, &"inspect\t");
+    for (iteration, log) in logs.iter().enumerate() {
+        println!("{}\t{}", iteration, log.to_benchmark_string(dataset));
+    }
 }
 
 pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
     f: &mut F,
     logs: &[CompressionV3Log<N, E>],
-    genome: &Genome,
+    dataset: &Dataset,
     header: &str,
 ) {
     for (iteration, log) in logs.iter().enumerate() {
-        // println!("log={}", log);
-        let kh = log.dbg.kmer_hists_from_seqs(genome);
-        let ke = log.dbg.check_kmer_existence_with_seqs(genome);
         writeln!(
             f,
-            "{}{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}{}\t{}",
             header,
             iteration,
-            log.p.to_log_value(),
-            log.q0,
-            log.q1,
-            log.cost_diff,
-            log.dbg.genome_size(),
-            kh.n_missed_kmers(),
-            kh.n_under_estimated_kmers(),
-            ke,
-            kh,
-            log.dbg,
+            log.to_benchmark_string(dataset)
         );
     }
 }
@@ -82,7 +79,7 @@ mod tests {
             10,
             10,
         );
-        inspect_compression_logs(&logs, &genome);
+        inspect_compression_logs(&logs, &dataset);
         println!("dbg_opt={}", new_dbg);
         println!("dbg_tur={}", dataset.dbg_true_init);
 
@@ -125,7 +122,7 @@ mod tests {
             50,
             50,
         );
-        inspect_compression_logs(&logs, &genome);
+        inspect_compression_logs(&logs, &dataset);
         println!("dbg_opt={}", new_dbg);
         println!("dbg_tur={}", dataset.dbg_true_init);
 
