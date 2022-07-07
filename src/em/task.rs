@@ -28,6 +28,18 @@ pub enum Task {
     Extension(usize),
 }
 
+impl std::fmt::Display for Task {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Task::Compression(depth) => write!(f, "C(d={})", depth),
+            Task::CompressionV3(lambda, zero_penalty) => {
+                write!(f, "CV3(l={},L0={})", lambda, zero_penalty)
+            }
+            Task::Extension(k) => write!(f, "E(k={})", k),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum TaskLog<N: DbgNode, E: DbgEdge> {
     Compression(Vec<CompressionLog<N, E>>),

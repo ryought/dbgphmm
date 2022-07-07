@@ -23,7 +23,7 @@ mod tests {
             coverage,
             2000,
             ReadType::FullLength,
-            16,
+            8,
             32,
         );
         println!("genome: {}", genome[0].to_str());
@@ -52,7 +52,7 @@ mod tests {
                     "{}",
                     task_log.to_benchmark_string_with_header(
                         &dataset,
-                        &format!("task{}={:?}\t", iteration, task)
+                        &format!("task{}={}\t", iteration, task)
                     )
                 );
             },
