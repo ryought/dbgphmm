@@ -80,8 +80,10 @@ impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "n_exists={};n_not_exists={};",
-            self.n_exists, self.n_not_exists,
+            "n_exists={};n_not_exists={}({});",
+            self.n_exists,
+            self.n_not_exists,
+            self.to_kmers_not_exists(),
         )
     }
 }
