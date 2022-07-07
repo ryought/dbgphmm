@@ -10,6 +10,7 @@ use scheduler::{Scheduler, Task, TaskLog};
 
 ///
 /// Do EM inference of Dbg.
+/// without iteration end callback
 ///
 pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
     dbg: &Dbg<N, E>,
@@ -18,6 +19,34 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
     scheduler: &S,
     genome_size: CopyNum,
     max_iter: usize,
+) -> (Dbg<N, E>, Vec<TaskLog<N, E>>) {
+    infer_with_on_iteration(
+        dbg,
+        reads,
+        params,
+        scheduler,
+        genome_size,
+        max_iter,
+        |_, _, _| {},
+    )
+}
+
+///
+/// Do EM inference of Dbg.
+///
+pub fn infer_with_on_iteration<
+    N: DbgNode,
+    E: DbgEdge,
+    S: Scheduler,
+    F: Fn(Task, &[TaskLog<N, E>], &Dbg<N, E>),
+>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    scheduler: &S,
+    genome_size: CopyNum,
+    max_iter: usize,
+    on_iteration: F,
 ) -> (Dbg<N, E>, Vec<TaskLog<N, E>>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
@@ -50,6 +79,8 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
                 dbg = dbg_new;
             }
         }
+
+        on_iteration(task, &logs, &dbg);
     }
 
     (dbg, logs)
