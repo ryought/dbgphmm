@@ -82,8 +82,8 @@ impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
                 Some(p) => p.to_log_value().to_string(),
                 None => "-".to_string(),
             },
-            self.min_flow_cost,
             self.dbg.genome_size(),
+            self.min_flow_cost,
             self.dbg.kmer_hists_from_seqs(&dataset.genome),
             self.dbg
         )

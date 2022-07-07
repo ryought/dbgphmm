@@ -578,19 +578,14 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
     /// data is available.
     ///
     pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
-        let kh = self.dbg.kmer_hists_from_seqs(&dataset.genome);
-        let ke = self.dbg.check_kmer_existence_with_seqs(&dataset.genome);
         format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
             self.p.to_log_value(),
+            self.dbg.genome_size(),
             self.q0,
             self.q1,
             self.cost_diff,
-            self.dbg.genome_size(),
-            kh.n_missed_kmers(),
-            kh.n_under_estimated_kmers(),
-            ke,
-            kh,
+            self.dbg.benchmark_compression(&dataset),
             self.dbg,
         )
     }
