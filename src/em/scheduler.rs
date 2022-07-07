@@ -7,6 +7,8 @@ use super::compression::CompressionLog;
 use super::extension::ExtensionLog;
 use crate::common::Freq;
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
+use crate::e2e::Dataset;
+use itertools::Itertools; // for .join("\n")
 
 ///
 /// EM two task
@@ -34,21 +36,67 @@ pub enum TaskLog<N: DbgNode, E: DbgEdge> {
     Extension(Vec<ExtensionLog<N, E>>),
 }
 
+//
+// string conversion
+//
+
 impl<N: DbgNode, E: DbgEdge> std::fmt::Display for TaskLog<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_string_with_header(&""))
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> TaskLog<N, E> {
+    pub fn to_string_with_header(&self, header: &str) -> String {
         match self {
             TaskLog::Compression(logs) => logs
                 .iter()
                 .enumerate()
-                .try_for_each(|(i, log)| writeln!(f, "Compression\t{}\t{}", i, log)),
+                .map(|(step, log)| format!("{}C\t{}\t{}", header, step, log))
+                .join("\n"),
             TaskLog::CompressionV3(logs) => logs
                 .iter()
                 .enumerate()
-                .try_for_each(|(i, log)| writeln!(f, "CompressionV3\t{}\t{}", i, log)),
+                .map(|(step, log)| format!("{}CV3\t{}\t{}", header, step, log))
+                .join("\n"),
             TaskLog::Extension(logs) => logs
                 .iter()
                 .enumerate()
-                .try_for_each(|(i, log)| writeln!(f, "Extension\t{}\t{}", i, log)),
+                .map(|(step, log)| format!("{}E\t{}\t{}", header, step, log))
+                .join("\n"),
+        }
+    }
+    pub fn to_benchmark_string_with_header(&self, dataset: &Dataset, header: &str) -> String {
+        match self {
+            TaskLog::Compression(logs) => logs
+                .iter()
+                .enumerate()
+                .map(|(step, log)| format!("{}C\t{}\t{}", header, step, log))
+                .join("\n"),
+            TaskLog::CompressionV3(logs) => logs
+                .iter()
+                .enumerate()
+                .map(|(step, log)| {
+                    format!(
+                        "{}CV3\t{}\t{}",
+                        header,
+                        step,
+                        log.to_benchmark_string(dataset)
+                    )
+                })
+                .join("\n"),
+            TaskLog::Extension(logs) => logs
+                .iter()
+                .enumerate()
+                .map(|(step, log)| {
+                    format!(
+                        "{}E\t{}\t{}",
+                        header,
+                        step,
+                        log.to_benchmark_string(dataset)
+                    )
+                })
+                .join("\n"),
         }
     }
 }
@@ -60,6 +108,27 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for TaskLog<N, E> {
 pub trait Scheduler {
     fn n_tasks(&self) -> usize;
     fn task(&self, iteration: usize) -> Option<Task>;
+}
+
+//
+// common utility functions
+//
+
+///
+/// n items [x0, ...., x1]
+/// 0-th item is x0
+/// n-1-th item is x1
+///
+/// then return i-th item
+///
+fn interpolate_linear(x0: f64, x1: f64, n: usize, i: usize) -> f64 {
+    assert!(n >= 1);
+    assert!(i < n);
+    if n == 1 {
+        x0
+    } else {
+        x0 + (x1 - x0) * i as f64 / (n - 1) as f64
+    }
 }
 
 //
@@ -75,8 +144,19 @@ pub struct SchedulerType1 {
     k_init: usize,
     /// final target k-mer size
     k_target: usize,
+    //
+    // for v1 compression
+    //
     /// true depth
     true_depth: Freq,
+    //
+    // for v3 compression
+    //
+    use_v3: bool,
+    lambda_init: f64,
+    lambda_target: f64,
+    zero_penalty_init: f64,
+    zero_penalty_target: f64,
     //
     // internal variables
     //
@@ -110,6 +190,50 @@ impl SchedulerType1 {
             n_compression,
             n_iteration,
             compression_interval,
+            // v3 parameters
+            use_v3: false,
+            lambda_init: 0.0,
+            lambda_target: 0.0,
+            zero_penalty_init: 0.0,
+            zero_penalty_target: 0.0,
+        }
+    }
+    pub fn new_v3(
+        k_init: usize,
+        k_target: usize,
+        n_compression: usize,
+        lambda_init: f64,
+        lambda_target: f64,
+        zero_penalty_init: f64,
+        zero_penalty_target: f64,
+    ) -> Self {
+        assert!(k_target >= k_init);
+
+        // (1) compute n_extension and n_compression.
+        // how many times extension and compression should be executed?
+        let n_extension = k_target - k_init;
+        let n_iteration = n_extension + n_compression;
+        let compression_interval = if n_compression > 0 {
+            n_extension / n_compression
+        } else {
+            0
+        } + 1;
+
+        SchedulerType1 {
+            k_init,
+            k_target,
+            n_extension,
+            n_compression,
+            n_iteration,
+            compression_interval,
+            // v3 parameter
+            use_v3: true,
+            lambda_init,
+            lambda_target,
+            zero_penalty_init,
+            zero_penalty_target,
+            // v1 parameter
+            true_depth: 1.0, // temp
         }
     }
 }
@@ -127,8 +251,24 @@ impl Scheduler for SchedulerType1 {
             if !is_final_stage {
                 if step_in_stage == 0 {
                     // do compression
-                    let depth = (2.0 + stage as Freq).min(self.true_depth);
-                    Some(Task::Compression(depth))
+                    if self.use_v3 {
+                        let lambda = interpolate_linear(
+                            self.lambda_init,
+                            self.lambda_target,
+                            self.n_compression,
+                            stage,
+                        );
+                        let zero_penalty = interpolate_linear(
+                            self.zero_penalty_init,
+                            self.zero_penalty_target,
+                            self.n_compression,
+                            stage,
+                        );
+                        Some(Task::CompressionV3(lambda, zero_penalty))
+                    } else {
+                        let depth = (2.0 + stage as Freq).min(self.true_depth);
+                        Some(Task::Compression(depth))
+                    }
                 } else {
                     // do extension
                     let k = self.k_init + (iteration - stage);
@@ -152,7 +292,15 @@ impl Scheduler for SchedulerType1 {
 mod tests {
     use super::*;
     #[test]
-    fn scheduler_type1() {
+    fn scheduler_interpolate() {
+        println!("{}", interpolate_linear(0.0, 10.0, 11, 5));
+        assert_eq!(interpolate_linear(0.0, 10.0, 11, 5), 5.0);
+        assert_eq!(interpolate_linear(0.0, 10.0, 11, 0), 0.0);
+        assert_eq!(interpolate_linear(0.0, 10.0, 11, 10), 10.0);
+        assert_eq!(interpolate_linear(0.0, 10.0, 1, 0), 0.0);
+    }
+    #[test]
+    fn scheduler_type1_v1() {
         let s = SchedulerType1::new(16, 19, 2.2);
         let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
         println!("{:?}", tasks);
@@ -267,6 +415,41 @@ mod tests {
                 Task::Extension(48),
                 Task::Extension(49),
                 Task::Extension(50)
+            ]
+        );
+    }
+    #[test]
+    fn scheduler_type1_v3() {
+        let s = SchedulerType1::new_v3(16, 16, 10, -10., -100., -1., -10.);
+        let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
+        println!("{:?}", tasks);
+        assert_eq!(
+            tasks,
+            vec![
+                Task::CompressionV3(-10.0, -1.0),
+                Task::CompressionV3(-20.0, -2.0),
+                Task::CompressionV3(-30.0, -3.0),
+                Task::CompressionV3(-40.0, -4.0),
+                Task::CompressionV3(-50.0, -5.0),
+                Task::CompressionV3(-60.0, -6.0),
+                Task::CompressionV3(-70.0, -7.0),
+                Task::CompressionV3(-80.0, -8.0),
+                Task::CompressionV3(-90.0, -9.0),
+                Task::CompressionV3(-100.0, -10.0),
+            ]
+        );
+
+        let s = SchedulerType1::new_v3(16, 20, 1, -10., -10., -1., -1.);
+        let tasks: Vec<Task> = (0..s.n_tasks()).map(|i| s.task(i).unwrap()).collect();
+        println!("{:?}", tasks);
+        assert_eq!(
+            tasks,
+            vec![
+                Task::CompressionV3(-10.0, -1.0),
+                Task::Extension(17),
+                Task::Extension(18),
+                Task::Extension(19),
+                Task::Extension(20),
             ]
         );
     }

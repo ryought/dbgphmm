@@ -19,3 +19,4 @@ mod fragments;
 mod full_length;
 mod runner;
 mod tandem_repeat;
+mod tandem_repeat_v3;

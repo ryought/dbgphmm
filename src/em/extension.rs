@@ -12,6 +12,7 @@
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
+use crate::e2e::Dataset;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
@@ -42,6 +43,10 @@ impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
     }
 }
 
+//
+// to_string of ExtensionLog
+//
+
 impl<N: DbgNode, E: DbgEdge> std::fmt::Display for ExtensionLog<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.full_prob {
@@ -58,6 +63,30 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for ExtensionLog<N, E> {
                 write!(f, "-\t{}\t{}", self.min_flow_cost, self.dbg)
             }
         }
+    }
+}
+
+//
+// to_benchmark_string of ExtensionLog
+//
+
+impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
+    ///
+    /// Detailed output when the origin datset (especially the true genome)
+    /// data is available.
+    ///
+    pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
+        format!(
+            "{}\t{}\t{}\t{}\t{}",
+            match self.full_prob {
+                Some(p) => p.to_log_value().to_string(),
+                None => "-".to_string(),
+            },
+            self.dbg.genome_size(),
+            self.min_flow_cost,
+            self.dbg.kmer_hists_from_seqs(&dataset.genome),
+            self.dbg
+        )
     }
 }
 

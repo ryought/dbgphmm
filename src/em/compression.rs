@@ -11,6 +11,7 @@
 //!
 use crate::common::{Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
+use crate::e2e::Dataset;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::Cost;
 use crate::prob::Prob;
@@ -52,6 +53,23 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionLog<N, E> {
             self.full_prob.to_log_value(),
             self.min_flow_score,
             self.dbg
+        )
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
+    ///
+    /// Detailed output when the origin datset (especially the true genome)
+    /// data is available.
+    ///
+    pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
+        format!(
+            "{}\t{}\t{}\t{}\t{}",
+            self.full_prob.to_log_value(),
+            self.min_flow_score,
+            self.dbg.genome_size(),
+            self.dbg.kmer_hists_from_seqs(&dataset.genome),
+            self.dbg,
         )
     }
 }

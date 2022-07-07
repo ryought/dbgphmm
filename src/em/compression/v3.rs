@@ -6,6 +6,7 @@ use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInfo};
 use super::q::{q_score_clamped, QScore};
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
+use crate::e2e::Dataset;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::kmer::kmer::KmerLike;
@@ -441,6 +442,7 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
 /// Compression full algorithm by running `compression_step` iteratively.
 ///
 /// * max_iter: max iteration loop count of EM.
+/// * on_iter: callback of each end of iteration
 ///
 pub fn compression<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
@@ -452,11 +454,45 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
     n_max_update: usize,
     max_iter: usize,
 ) -> (Dbg<N, E>, Vec<CompressionV3Log<N, E>>) {
+    compression_with_callback(
+        dbg,
+        reads,
+        params,
+        genome_size,
+        penalty_weight,
+        zero_penalty,
+        n_max_update,
+        max_iter,
+        |_, _, _| {},
+    )
+}
+
+///
+/// Compression full algorithm by running `compression_step` iteratively.
+///
+/// * max_iter: max iteration loop count of EM.
+/// * on_iter: callback of each end of iteration
+///
+pub fn compression_with_callback<
+    N: DbgNode,
+    E: DbgEdge,
+    F: Fn(usize, &Dbg<N, E>, &CompressionV3Log<N, E>),
+>(
+    dbg: &Dbg<N, E>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyNum,
+    penalty_weight: f64,
+    zero_penalty: f64,
+    n_max_update: usize,
+    max_iter: usize,
+    on_iter: F,
+) -> (Dbg<N, E>, Vec<CompressionV3Log<N, E>>) {
     let mut dbg = dbg.clone();
     let mut logs = Vec::new();
 
     // iterate EM steps
-    for _i in 0..max_iter {
+    for i in 0..max_iter {
         let (dbg_new, is_updated, log) = compression_step(
             &dbg,
             reads,
@@ -466,6 +502,10 @@ pub fn compression<N: DbgNode, E: DbgEdge>(
             zero_penalty,
             n_max_update,
         );
+        // run callback
+        on_iter(i, &dbg_new, &log);
+
+        // save the log
         logs.push(log);
 
         // if the single EM step does not change the DBG model, stop iteration.
@@ -518,12 +558,35 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
     }
 }
 
+//
+// to_string of CompressionV3Log
+//
+
 impl<N: DbgNode, E: DbgEdge> std::fmt::Display for CompressionV3Log<N, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}\t{}\t{}\t{}\tis_updated={}\t{}",
             self.p, self.q0, self.q1, self.cost_diff, self.is_updated, self.dbg
+        )
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
+    ///
+    /// Detailed output when the origin datset (especially the true genome)
+    /// data is available.
+    ///
+    pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
+        format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            self.p.to_log_value(),
+            self.dbg.genome_size(),
+            self.q0,
+            self.q1,
+            self.cost_diff,
+            self.dbg.benchmark_compression(&dataset),
+            self.dbg,
         )
     }
 }

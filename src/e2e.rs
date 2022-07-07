@@ -134,20 +134,17 @@ pub fn generate_dataset(
     }
 }
 
-pub fn generate_full_length_reads_and_dbgs(
-    genome: &Genome,
+///
+/// will deprecate
+///
+pub fn generate_full_length_dataset(
+    genome: Genome,
     genome_size: usize,
     read_seed: u64,
     phmm_params: PHMMParams,
     coverage: usize,
-) -> (
-    Reads,
-    PHMMParams,
-    SimpleDbg<VecKmer>,
-    SimpleDbg<VecKmer>,
-    SimpleDbg<VecKmer>,
-) {
-    let g = GenomeGraph::from_seqs(genome);
+) -> Dataset {
+    let g = GenomeGraph::from_seqs(&genome);
     let profile = ReadProfile {
         has_revcomp: true,
         sample_profile: SampleProfile {
@@ -170,10 +167,18 @@ pub fn generate_full_length_reads_and_dbgs(
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &reads);
 
     // (4) compare with true dbg
-    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, genome);
+    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, &genome);
 
     // (5) true k=50 (read length)
-    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(100, genome);
+    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(100, &genome);
 
-    (reads, phmm_params, dbg_raw, dbg_true_init, dbg_true)
+    Dataset {
+        genome,
+        genome_size,
+        reads,
+        phmm_params,
+        dbg_raw,
+        dbg_true_init,
+        dbg_true,
+    }
 }

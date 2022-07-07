@@ -66,7 +66,7 @@ fn run(output_dir: &Path) {
                 50,
             );
             let mut task_file = File::create(output_dir.join(format!("{}.txt", header))).unwrap();
-            write_compression_logs(&mut task_file, &logs, &dataset.genome);
+            write_compression_logs(&mut task_file, &logs, &dataset, &"");
 
             // v1
             // let (new_dbg, logs) = compression_with_depths(
