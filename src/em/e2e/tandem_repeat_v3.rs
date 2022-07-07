@@ -6,6 +6,7 @@
 mod tests {
     use crate::common::Seq;
     use crate::e2e::{generate_dataset, Dataset, ReadType};
+    use crate::em::e2e::runner::write_task_logs_with_dataset;
     use crate::em::infer;
     use crate::em::scheduler::SchedulerType1;
     use crate::genome;
@@ -35,7 +36,7 @@ mod tests {
             dataset.dbg_raw.k(),
             dataset.dbg_true.k(),
             10,
-            -0.001,
+            0.001,
             0.1,
             -100.0,
             -100.0,
@@ -48,5 +49,6 @@ mod tests {
             genome_size,
             50,
         );
+        write_task_logs_with_dataset(&mut std::io::stdout(), &logs, &dataset);
     }
 }

@@ -11,13 +11,14 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
     logs: &[CompressionV3Log<N, E>],
     genome: &Genome,
 ) {
-    write_compression_logs(&mut std::io::stdout(), logs, genome);
+    write_compression_logs(&mut std::io::stdout(), logs, genome, &"inspect\t");
 }
 
 pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
     f: &mut F,
     logs: &[CompressionV3Log<N, E>],
     genome: &Genome,
+    header: &str,
 ) {
     for (iteration, log) in logs.iter().enumerate() {
         // println!("log={}", log);
@@ -25,7 +26,8 @@ pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
         let ke = log.dbg.check_kmer_existence_with_seqs(genome);
         writeln!(
             f,
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            header,
             iteration,
             log.p.to_log_value(),
             log.q0,
