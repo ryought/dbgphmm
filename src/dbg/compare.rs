@@ -9,6 +9,7 @@ use crate::hist::Hist;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::prob::Prob;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 
 ///
@@ -320,12 +321,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
     ///
-    pub fn kmer_classification_result<G, R>(&self, genome: G, reads: R) -> KmerClassificationResult
+    pub fn kmer_classification_result<G, NB, EB>(
+        &self,
+        genome: G,
+        dbg_before: &Dbg<NB, EB>,
+    ) -> KmerClassificationResult
     where
         G: IntoIterator,
         G::Item: Seq,
-        R: IntoIterator,
-        R::Item: Seq,
+        NB: DbgNode,
+        EB: DbgEdge,
     {
         let mut r = KmerClassificationResult::default();
 
@@ -337,11 +342,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let copy_nums = hd_g.to_kmer_profile();
 
         // read_counts: reads
-        let hd_r: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), reads);
-        let read_counts = hd_r.to_kmer_profile();
+        let counts_before: HashMap<N::Kmer, CopyNum> = dbg_before
+            .to_kmer_profile()
+            .into_iter()
+            .map(|(kmer, count_before)| (N::Kmer::from_bases(&kmer.to_bases()), count_before))
+            .collect();
 
-        // [1] for all kmers in read
-        for (kmer, &read_count) in read_counts.iter() {
+        // [1] for all kmers in dbg_before
+        for (kmer, &count_before) in counts_before.iter() {
             let count = counts.get(&kmer).copied().unwrap_or(0);
             let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
 
@@ -364,8 +372,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         // [2] for all kmers in genome but not in read
         for (kmer, &copy_num) in copy_nums.iter() {
-            let read_count = read_counts.get(&kmer).copied().unwrap_or(0);
-            if read_count == 0 {
+            let count_before = counts_before.get(&kmer).copied().unwrap_or(0);
+            if count_before == 0 {
                 r.n_true_kmer_not_in_reads.add(kmer);
             }
         }
@@ -452,7 +460,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let p = self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads);
         let kh = self.kmer_hists_from_seqs(&dataset.genome);
         let ke = self.check_kmer_existence_with_seqs(&dataset.genome);
-        let kc = self.kmer_classification_result(&dataset.genome, &dataset.reads);
+        let kc = self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw);
 
         CompressionBenchResult {
             full_prob: p,
