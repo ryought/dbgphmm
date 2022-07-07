@@ -19,7 +19,7 @@ mod tests {
             genome.clone(),
             genome_size,
             0,
-            PHMMParams::default(),
+            PHMMParams::uniform(0.003),
             coverage,
             2000,
             ReadType::FullLength,
@@ -31,6 +31,7 @@ mod tests {
         println!("dbg_raw:{}", dataset.dbg_raw);
         println!("dbg_true_init:{}", dataset.dbg_true_init);
 
+        /*
         let scheduler = SchedulerType1::new_v3(
             dataset.dbg_raw.k(),
             dataset.dbg_true.k(),
@@ -40,6 +41,10 @@ mod tests {
             -100.0,
             -100.0,
         );
+        */
+        let scheduler =
+            SchedulerType1::new(dataset.dbg_raw.k(), dataset.dbg_true.k(), coverage as f64);
+
         let (dbg_infer, logs) = infer_with_on_iteration(
             &dataset.dbg_raw,
             &dataset.reads,
