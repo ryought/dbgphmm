@@ -21,7 +21,7 @@ use std::io::Write;
 ///
 /// show a TaskLog list with true genome
 ///
-pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &Genome) {
+pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], dataset: &Dataset) {
     // header
     println!("iter\ttype\tstep\tprob\tmin_flow\tgenome_size\tcompare\tdbg\t");
 
@@ -37,7 +37,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
                         log.full_prob.to_log_value(),
                         log.min_flow_score,
                         log.dbg.genome_size(),
-                        log.dbg.kmer_hists_from_seqs(genome),
+                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
                         log.dbg,
                     );
                 }
@@ -54,7 +54,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
                         },
                         log.min_flow_cost,
                         log.dbg.genome_size(),
-                        log.dbg.kmer_hists_from_seqs(genome),
+                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
                         log.dbg
                     );
                 }
@@ -62,20 +62,6 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], genome: &G
             _ => panic!(),
         }
     }
-}
-
-pub fn benchmark_em_steps(
-    dbg_raw: &SimpleDbg<VecKmer>,
-    dbg_true: &SimpleDbg<VecKmer>,
-    reads: &Reads,
-    genome: &Genome,
-    phmm_params: &PHMMParams,
-    coverage: f64,
-) {
-    let scheduler = SchedulerType1::new(dbg_raw.k(), dbg_true.k(), coverage);
-    let genome_size = genome_size(genome);
-    let (dbg_infer, logs) = infer(dbg_raw, reads, phmm_params, &scheduler, genome_size, 5);
-    show_logs(&logs, genome);
 }
 
 pub fn benchmark(
@@ -128,7 +114,7 @@ pub fn benchmark(
         v.push(rs);
     }
 
-    show_logs(&logs, &dataset.genome);
+    show_logs(&logs, &dataset);
 
     (dbg_infer, r, v)
 }
