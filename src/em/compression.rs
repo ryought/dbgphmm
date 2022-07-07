@@ -66,9 +66,9 @@ impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
         format!(
             "{}\t{}\t{}\t{}\t{}",
             self.full_prob.to_log_value(),
-            self.min_flow_score,
             self.dbg.genome_size(),
-            self.dbg.kmer_hists_from_seqs(&dataset.genome),
+            self.min_flow_score,
+            self.dbg.benchmark(&dataset),
             self.dbg,
         )
     }

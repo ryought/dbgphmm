@@ -84,7 +84,7 @@ impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
             },
             self.dbg.genome_size(),
             self.min_flow_cost,
-            self.dbg.kmer_hists_from_seqs(&dataset.genome),
+            self.dbg.benchmark(&dataset),
             self.dbg
         )
     }
