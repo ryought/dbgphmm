@@ -82,7 +82,15 @@ impl<N: DbgNode, E: DbgEdge> TaskLog<N, E> {
             TaskLog::Compression(task, logs) => logs
                 .iter()
                 .enumerate()
-                .map(|(step, log)| format!("{}{}\t{}\t{}", header, task, step, log))
+                .map(|(step, log)| {
+                    format!(
+                        "{}{}\t{}\t{}",
+                        header,
+                        task,
+                        step,
+                        log.to_benchmark_string(dataset)
+                    )
+                })
                 .join("\n"),
             TaskLog::CompressionV3(task, logs) => logs
                 .iter()
