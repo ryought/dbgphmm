@@ -13,7 +13,7 @@ mod tests {
     use crate::e2e::{generate_dataset, Dataset, ReadType};
     use crate::em::compression::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::runner::{benchmark, show_logs};
-    use crate::em::TaskLog;
+    use crate::em::{Task, TaskLog};
     use crate::genome::simple;
     use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
     use crate::graph::seq_graph::SeqGraph;
@@ -62,7 +62,10 @@ mod tests {
             1.0,
             10,
         );
-        show_logs(&[TaskLog::Compression(logs)], &dataset);
+        show_logs(
+            &[TaskLog::Compression(Task::Compression(1.0), logs)],
+            &dataset,
+        );
     }
 
     #[test]

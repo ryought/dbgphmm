@@ -12,7 +12,7 @@ use itertools::Itertools; // for .join("\n")
 ///
 /// EM two task
 ///
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum Task {
     ///
     /// Compression to the specified depth
@@ -42,9 +42,9 @@ impl std::fmt::Display for Task {
 
 #[derive(Clone)]
 pub enum TaskLog<N: DbgNode, E: DbgEdge> {
-    Compression(Vec<CompressionLog<N, E>>),
-    CompressionV3(Vec<CompressionV3Log<N, E>>),
-    Extension(Vec<ExtensionLog<N, E>>),
+    Compression(Task, Vec<CompressionLog<N, E>>),
+    CompressionV3(Task, Vec<CompressionV3Log<N, E>>),
+    Extension(Task, Vec<ExtensionLog<N, E>>),
 }
 
 //
@@ -60,49 +60,51 @@ impl<N: DbgNode, E: DbgEdge> std::fmt::Display for TaskLog<N, E> {
 impl<N: DbgNode, E: DbgEdge> TaskLog<N, E> {
     pub fn to_string_with_header(&self, header: &str) -> String {
         match self {
-            TaskLog::Compression(logs) => logs
+            TaskLog::Compression(task, logs) => logs
                 .iter()
                 .enumerate()
-                .map(|(step, log)| format!("{}C\t{}\t{}", header, step, log))
+                .map(|(step, log)| format!("{}{}\t{}\t{}", header, task, step, log))
                 .join("\n"),
-            TaskLog::CompressionV3(logs) => logs
+            TaskLog::CompressionV3(task, logs) => logs
                 .iter()
                 .enumerate()
-                .map(|(step, log)| format!("{}CV3\t{}\t{}", header, step, log))
+                .map(|(step, log)| format!("{}{}\t{}\t{}", header, task, step, log))
                 .join("\n"),
-            TaskLog::Extension(logs) => logs
+            TaskLog::Extension(task, logs) => logs
                 .iter()
                 .enumerate()
-                .map(|(step, log)| format!("{}E\t{}\t{}", header, step, log))
+                .map(|(step, log)| format!("{}{}\t{}\t{}", header, task, step, log))
                 .join("\n"),
         }
     }
     pub fn to_benchmark_string_with_header(&self, dataset: &Dataset, header: &str) -> String {
         match self {
-            TaskLog::Compression(logs) => logs
+            TaskLog::Compression(task, logs) => logs
                 .iter()
                 .enumerate()
-                .map(|(step, log)| format!("{}C\t{}\t{}", header, step, log))
+                .map(|(step, log)| format!("{}{}\t{}\t{}", header, task, step, log))
                 .join("\n"),
-            TaskLog::CompressionV3(logs) => logs
+            TaskLog::CompressionV3(task, logs) => logs
                 .iter()
                 .enumerate()
                 .map(|(step, log)| {
                     format!(
-                        "{}CV3\t{}\t{}",
+                        "{}{}\t{}\t{}",
                         header,
+                        task,
                         step,
                         log.to_benchmark_string(dataset)
                     )
                 })
                 .join("\n"),
-            TaskLog::Extension(logs) => logs
+            TaskLog::Extension(task, logs) => logs
                 .iter()
                 .enumerate()
                 .map(|(step, log)| {
                     format!(
-                        "{}E\t{}\t{}",
+                        "{}{}\t{}\t{}",
                         header,
+                        task,
                         step,
                         log.to_benchmark_string(dataset)
                     )

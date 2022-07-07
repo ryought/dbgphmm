@@ -50,10 +50,7 @@ mod tests {
             |iteration, task, task_log, dbg| {
                 println!(
                     "{}",
-                    task_log.to_benchmark_string_with_header(
-                        &dataset,
-                        &format!("task{}={}\t", iteration, task)
-                    )
+                    task_log.to_benchmark_string_with_header(&dataset, &format!("{}\t", iteration))
                 );
             },
         );

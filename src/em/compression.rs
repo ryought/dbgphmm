@@ -65,10 +65,10 @@ impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
     pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
         format!(
             "{}\t{}\t{}\t{}\t{}",
+            self.dbg.benchmark(&dataset),
             self.full_prob.to_log_value(),
             self.dbg.genome_size(),
             self.min_flow_score,
-            self.dbg.benchmark(&dataset),
             self.dbg,
         )
     }

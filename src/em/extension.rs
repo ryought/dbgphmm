@@ -77,14 +77,13 @@ impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
     ///
     pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
         format!(
-            "{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}",
+            self.dbg.benchmark(&dataset),
             match self.full_prob {
                 Some(p) => p.to_log_value().to_string(),
                 None => "-".to_string(),
             },
-            self.dbg.genome_size(),
             self.min_flow_cost,
-            self.dbg.benchmark(&dataset),
             self.dbg
         )
     }

@@ -579,13 +579,12 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
     ///
     pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
         format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            self.dbg.benchmark_compression(&dataset),
             self.p.to_log_value(),
-            self.dbg.genome_size(),
             self.q0,
             self.q1,
             self.cost_diff,
-            self.dbg.benchmark_compression(&dataset),
             self.dbg,
         )
     }
