@@ -3,7 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_dataset, ReadType};
+    use crate::e2e::{generate_dataset, Dataset, ReadType};
     use crate::em::compression::{compression, compression_step};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
@@ -17,32 +17,17 @@ mod tests {
     use crate::kmer::VecKmer;
     use crate::random_seq::generate;
 
-    fn e2e_mock() -> (
-        Genome,
-        Reads,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-    ) {
+    fn e2e_mock() -> Dataset {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple(100, 0);
         println!("genome: {}", sequence_to_string(&genome[0]));
 
         // (2) generate reads
-        let (reads, dbg_raw, dbg_true_init, dbg_true) =
-            e2e_mock_from_genome(&genome, genome_size, 10, 40);
-
-        (genome, reads, dbg_raw, dbg_true_init, dbg_true)
+        e2e_mock_from_genome(&genome, genome_size, 10, 40)
     }
 
-    fn e2e_mock_diploid() -> (
-        Genome,
-        Reads,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-    ) {
+    fn e2e_mock_diploid() -> Dataset {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple_diploid();
@@ -50,10 +35,7 @@ mod tests {
         println!("hap2: {}", sequence_to_string(&genome[1]));
 
         // (2) generate reads
-        let (reads, dbg_raw, dbg_true_init, dbg_true) =
-            e2e_mock_from_genome(&genome, genome_size, 20, 60);
-
-        (genome, reads, dbg_raw, dbg_true_init, dbg_true)
+        e2e_mock_from_genome(&genome, genome_size, 20, 60)
     }
 
     fn e2e_mock_from_genome(
@@ -61,14 +43,9 @@ mod tests {
         genome_size: usize,
         count: usize,
         k_target: usize,
-    ) -> (
-        Reads,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-        SimpleDbg<VecKmer>,
-    ) {
+    ) -> Dataset {
         println!("generating reads");
-        let dataset = generate_dataset(
+        generate_dataset(
             genome.clone(),
             genome_size,
             0,
@@ -78,26 +55,26 @@ mod tests {
             ReadType::FullLength,
             8,
             k_target,
-        );
-        (
-            dataset.reads,
-            dataset.dbg_raw,
-            dataset.dbg_true_init,
-            dataset.dbg_true,
         )
     }
 
     #[test]
     fn e2e_compression() {
-        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock();
+        let dataset = e2e_mock();
 
-        let (dbg, logs) = compression(&dbg_raw, &reads, &PHMMParams::default(), 10.0, 5);
+        let (dbg, logs) = compression(
+            &dataset.dbg_raw,
+            &dataset.reads,
+            &PHMMParams::default(),
+            10.0,
+            5,
+        );
         println!("{}", dbg);
         for log in logs.iter() {
             println!("{}", log);
         }
 
-        let r = dbg.compare(&dbg_true_init);
+        let r = dbg.compare(&dataset.dbg_true_init);
         println!("{:?}", r);
         assert_eq!(r.n_true, 107);
         assert_eq!(r.n_error, 0);
@@ -105,52 +82,43 @@ mod tests {
 
     #[test]
     fn e2e_extension() {
-        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock();
+        let dataset = e2e_mock();
 
-        let (dbg, _) = extension(&dbg_true_init, &reads, &PHMMParams::default(), 5);
+        let (dbg, _) = extension(
+            &dataset.dbg_true_init,
+            &dataset.reads,
+            &PHMMParams::default(),
+            5,
+        );
         println!("{}", dbg);
-        println!("{}", dbg_true_init);
-        println!("{}", dbg_true_init.n_ambiguous_intersections());
+        println!("{}", dataset.dbg_true_init);
+        println!("{}", dataset.dbg_true_init.n_ambiguous_intersections());
         assert_eq!(dbg.to_string(), "9,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 
     #[test]
     fn e2e_full_haploid() {
-        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock();
-        println!("{}", dbg_raw.n_ambiguous_intersections());
+        let dataset = e2e_mock();
+        println!("{}", dataset.dbg_raw.n_ambiguous_intersections());
 
-        let (dbg_infer, r, _) = benchmark(
-            &dbg_raw,
-            &dbg_true,
-            &reads,
-            &genome,
-            &PHMMParams::default(),
-            10.0,
-        );
+        let (dbg_infer, r, _) = benchmark(&dataset, 10.0);
 
         println!("{}", dbg_infer);
-        println!("{}", dbg_true);
+        println!("{}", dataset.dbg_true);
         assert_eq!(dbg_infer.to_string(), "40,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
 
     #[test]
     fn e2e_full_diploid() {
-        let (genome, reads, dbg_raw, dbg_true_init, dbg_true) = e2e_mock_diploid();
+        let dataset = e2e_mock_diploid();
 
-        for read in reads.iter() {
+        for read in dataset.reads.iter() {
             println!("read={}", sequence_to_string(read));
         }
 
-        let (dbg_infer, r, _) = benchmark(
-            &dbg_raw,
-            &dbg_true,
-            &reads,
-            &genome,
-            &PHMMParams::default(),
-            10.0,
-        );
+        let (dbg_infer, r, _) = benchmark(&dataset, 10.0);
 
-        println!("dbg_true={}", dbg_true);
+        println!("dbg_true={}", dataset.dbg_true);
         println!("dbg_infer={}", dbg_infer);
         assert_eq!(dbg_infer.to_string(), "60,L:CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT,L:CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT");
     }
