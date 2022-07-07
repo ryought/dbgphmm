@@ -6,9 +6,8 @@
 mod tests {
     use crate::common::Seq;
     use crate::e2e::{generate_dataset, Dataset, ReadType};
-    use crate::em::e2e::runner::write_task_logs_with_dataset;
-    use crate::em::infer;
-    use crate::em::scheduler::SchedulerType1;
+    use crate::em::infer_with_on_iteration;
+    use crate::em::scheduler::{SchedulerType1, TaskLog};
     use crate::genome;
     use crate::hmmv2::params::PHMMParams;
     #[test]
@@ -41,14 +40,20 @@ mod tests {
             -100.0,
             -100.0,
         );
-        let (dbg_infer, logs) = infer(
+        let (dbg_infer, logs) = infer_with_on_iteration(
             &dataset.dbg_raw,
             &dataset.reads,
             &dataset.phmm_params,
             &scheduler,
             genome_size,
             50,
+            |iteration, task, task_log, dbg| {
+                println!(
+                    "{}",
+                    task_log
+                        .to_benchmark_string_with_header(&dataset, &format!("it={}\t", iteration))
+                );
+            },
         );
-        write_task_logs_with_dataset(&mut std::io::stdout(), &logs, &dataset);
     }
 }

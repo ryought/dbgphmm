@@ -17,43 +17,7 @@ use crate::kmer::VecKmer;
 use std::io::Write;
 
 ///
-/// show a TaskLog list with true genome
-///
-pub fn write_task_logs_with_dataset<N: DbgNode, E: DbgEdge, F: Write>(
-    f: &mut F,
-    task_logs: &[TaskLog<N, E>],
-    dataset: &Dataset,
-) {
-    // body
-    for (iteration, task_log) in task_logs.iter().enumerate() {
-        match task_log {
-            TaskLog::CompressionV3(logs) => {
-                for (step, log) in logs.iter().enumerate() {
-                    writeln!(
-                        f,
-                        "{}\tCV3\t{}\t{}",
-                        iteration,
-                        step,
-                        log.to_benchmark_string(dataset)
-                    );
-                }
-            }
-            TaskLog::Extension(logs) => {
-                for (step, log) in logs.iter().enumerate() {
-                    writeln!(
-                        f,
-                        "{}\tE\t{}\t{}",
-                        iteration,
-                        step,
-                        log.to_benchmark_string(dataset),
-                    );
-                }
-            }
-            _ => panic!(),
-        }
-    }
-}
-
+/// WillDeprecate
 ///
 /// show a TaskLog list with true genome
 ///

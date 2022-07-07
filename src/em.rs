@@ -42,18 +42,21 @@ pub fn infer<N: DbgNode, E: DbgEdge, S: Scheduler>(
         scheduler,
         genome_size,
         max_iter,
-        |_, _, _| {},
+        |_, _, _, _| {},
     )
 }
 
 ///
 /// Do EM inference of Dbg.
 ///
+/// with a callback on each end of iteration
+/// callback function should take (iteration: usize, Task, &TaskLog, &Dbg).
+///
 pub fn infer_with_on_iteration<
     N: DbgNode,
     E: DbgEdge,
     S: Scheduler,
-    F: Fn(Task, &[TaskLog<N, E>], &Dbg<N, E>),
+    F: Fn(usize, Task, &TaskLog<N, E>, &Dbg<N, E>),
 >(
     dbg: &Dbg<N, E>,
     reads: &Reads,
@@ -68,11 +71,11 @@ pub fn infer_with_on_iteration<
 
     for iteration in 0..scheduler.n_tasks() {
         let task = scheduler.task(iteration).unwrap();
-        match task {
+        // run task
+        let (dbg_new, log) = match task {
             Task::Compression(depth) => {
                 let (dbg_new, log) = compression::compression(&dbg, reads, params, depth, max_iter);
-                logs.push(TaskLog::Compression(log));
-                dbg = dbg_new;
+                (dbg_new, TaskLog::Compression(log))
             }
             Task::CompressionV3(lambda, zero_penalty) => {
                 let (dbg_new, log) = compression::v3::compression(
@@ -85,17 +88,18 @@ pub fn infer_with_on_iteration<
                     max_iter,
                     max_iter,
                 );
-                logs.push(TaskLog::CompressionV3(log));
-                dbg = dbg_new;
+                (dbg_new, TaskLog::CompressionV3(log))
             }
             Task::Extension(k) => {
                 let (dbg_new, log) = extension::extension(&dbg, reads, params, max_iter);
-                logs.push(TaskLog::Extension(log));
-                dbg = dbg_new;
+                (dbg_new, TaskLog::Extension(log))
             }
-        }
+        };
+        // callback
+        on_iteration(iteration, task, &log, &dbg_new);
 
-        on_iteration(task, &logs, &dbg);
+        logs.push(log);
+        dbg = dbg_new;
     }
 
     (dbg, logs)
