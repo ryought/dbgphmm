@@ -17,11 +17,13 @@ pub mod compression;
 pub mod e2e;
 pub mod extension;
 pub mod scheduler;
+pub mod task;
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::hmmv2::params::PHMMParams;
+use scheduler::Scheduler;
 pub use scheduler::SchedulerType1;
-use scheduler::{Scheduler, Task, TaskLog};
+pub use task::{Task, TaskLog};
 
 ///
 /// Do EM inference of Dbg.

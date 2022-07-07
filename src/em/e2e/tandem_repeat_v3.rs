@@ -7,7 +7,7 @@ mod tests {
     use crate::common::Seq;
     use crate::e2e::{generate_dataset, Dataset, ReadType};
     use crate::em::infer_with_on_iteration;
-    use crate::em::scheduler::{SchedulerType1, TaskLog};
+    use crate::em::scheduler::SchedulerType1;
     use crate::genome;
     use crate::hmmv2::params::PHMMParams;
     #[test]
