@@ -18,10 +18,12 @@ class ExperimentParams:
     dh: float
     c: int
     l: float
+    z: float
     e: float
     seed: int
+    ki: int
     def from_str(s):
-        parsed = parse('u{u}n{n}di{di}dh{dh}c{c}l{l}e{e}seed{seed}', s)
+        parsed = parse('u{u}n{n}di{di}dh{dh}c{c}l{l}z{z}e{e}seed{seed}ki{ki}', s)
         return ExperimentParams(
             u=int(parsed['u']),
             n=int(parsed['n']),
@@ -29,8 +31,10 @@ class ExperimentParams:
             dh=float(parsed['dh']),
             c=int(parsed['c']),
             l=float(parsed['l']),
+            z=int(parsed['z']),
             e=float(parsed['e']),
             seed=int(parsed['seed']),
+            ki=int(parsed['ki']),
         )
 
 @dataclass(frozen=True)
@@ -77,19 +81,34 @@ class Algorithm(Enum):
         else:
             raise Exception
 
+def calc_prior(g, g0, l):
+    """
+    calculate prior probability P(G)
+    """
+    return -l * (g - g0) ** 2
+
 @dataclass(frozen=True)
 class ExpResult:
     params: ExperimentParams
     algorithm: str
+    likelihood: float
+    prior: float
+    genome_size: int
     classification: ClassificationResult
     def from_str(s):
         rows = s.split('\t')
         params = ExperimentParams.from_str(rows[0])
         classification = ClassificationResult.from_str(rows[5])
+        likelihood = float(rows[2])
+        genome_size = int(rows[3])
+        prior = calc_prior(genome_size, 800, params.l)
         algorithm = Algorithm.from_str(rows[1])
         return ExpResult(
             params=params,
             algorithm=algorithm,
+            likelihood=likelihood,
+            prior=prior,
+            genome_size=genome_size,
             classification=classification,
         )
 
@@ -108,13 +127,15 @@ def param_to_color_by_error(param):
 
 def param_to_color_by_lambda(param):
     if param.l == 0.1:
-        return 'red'
+        return -1
     elif param.l == 0.01:
-        return 'blue'
+        return -2
     elif param.l == 0.001:
-        return 'green'
+        return -3
+    elif param.l == 0.0001:
+        return -4
     elif param.l == 0.0:
-        return 'black'
+        return -5
     else:
         raise Exception
 
@@ -156,6 +177,30 @@ def plot_fn_tn_by_lambda(rs):
     plt.legend()
     plt.show()
 
+
+def plot_fn_tn_by_params(rs):
+    for (i, (z, marker)) in enumerate([(-1000, '+'), (-100, '.'), (-10, 'x'), (-5, 's'), (-1, 'o')]):
+        rs_v3 = [r for r in rs if r.algorithm != Algorithm.RAW and r.algorithm != Algorithm.TRUE and r.params.z == z]
+        tn = [r.classification.tn for r in rs_v3]
+        fn = [r.classification.fn for r in rs_v3]
+        c = [param_to_color_by_lambda(r.params) for r in rs_v3]
+        plt.subplot(3, 2, i+1)
+        plt.scatter(
+            x=np.array(tn),
+            y=np.array(fn),
+            c=c,
+            # marker=marker,
+            marker='+',
+            label='L0={}'.format(z),
+        )
+        plt.xlim(0, 1500)
+        plt.ylim(0, 150)
+        plt.xlabel('TN')
+        plt.ylabel('FN')
+        plt.legend()
+        plt.colorbar()
+    plt.show()
+
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('summary_filename', type=str)
@@ -167,13 +212,14 @@ def main():
             er = ExpResult.from_str(line)
             rs.append(er)
 
-    plot_fn_tn_by_lambda(rs)
+    plot_fn_tn_by_params(rs)
 
 def test():
-    ep = ExperimentParams.from_str('u20n20di0.01dh0.01c10l0.001e0.01seed4')
+    ep = ExperimentParams.from_str('u20n20di0.1dh0.01c10l0z-1000e0.01seed4ki8')
     print(ep)
     cr = ClassificationResult.from_str('TP=74/14;FP=0/0;TN=745/21;FN=0/0;XX=0/0;')
     print(cr)
 
 if __name__ == '__main__':
     main()
+    # test()
