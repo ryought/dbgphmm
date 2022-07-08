@@ -222,9 +222,9 @@ impl std::fmt::Display for KmerHists {
 ///
 pub struct BenchResult<K: KmerLike> {
     ///
-    /// P(R|G)
+    /// Likelihood (probability) `P(R|G)`
     ///
-    full_prob: Prob,
+    likelihood: Prob,
     ///
     /// genome size of dbg
     ///
@@ -244,7 +244,7 @@ impl<K: KmerLike> std::fmt::Display for BenchResult<K> {
         write!(
             f,
             "{}\t{}\t{}\t{}\t{}\t{}",
-            self.full_prob.to_log_value(),
+            self.likelihood.to_log_value(),
             self.genome_size,
             self.kmer_existence,
             self.kmer_hists.n_missed_kmers(),
@@ -263,6 +263,10 @@ pub struct CompressionBenchResult<K: KmerLike> {
     ///
     common_bench: BenchResult<K>,
     ///
+    /// Prior score `log P(G)`
+    ///
+    prior: f64,
+    ///
     /// kmer classification result (TP/TN/FP/FN)
     ///
     kmer_classification: KmerClassificationResult,
@@ -270,7 +274,11 @@ pub struct CompressionBenchResult<K: KmerLike> {
 
 impl<K: KmerLike> std::fmt::Display for CompressionBenchResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\t{}", self.common_bench, self.kmer_classification)
+        write!(
+            f,
+            "{}\t{}\t{}",
+            self.common_bench, self.prior, self.kmer_classification
+        )
     }
 }
 
@@ -474,7 +482,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn benchmark(&self, dataset: &Dataset) -> BenchResult<N::Kmer> {
         BenchResult {
-            full_prob: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
+            likelihood: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
             genome_size: self.genome_size(),
             kmer_existence: self.check_kmer_existence_with_seqs(&dataset.genome),
             kmer_hists: self.kmer_hists_from_seqs(&dataset.genome),
@@ -484,9 +492,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// benchmark the dbg infered by compression algorithm
     /// using the dataset
     ///
-    pub fn benchmark_compression(&self, dataset: &Dataset) -> CompressionBenchResult<N::Kmer> {
+    pub fn benchmark_compression(
+        &self,
+        dataset: &Dataset,
+        lambda: f64,
+    ) -> CompressionBenchResult<N::Kmer> {
         CompressionBenchResult {
             common_bench: self.benchmark(dataset),
+            prior: self.to_prior_score(lambda, dataset.genome_size),
             kmer_classification: self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw),
         }
     }

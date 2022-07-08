@@ -76,11 +76,13 @@ fn run(output_dir: &Path) {
             //     &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
             // );
 
-            let b0 = dataset.dbg_true_init.benchmark_compression(&dataset);
+            let b0 = dataset
+                .dbg_true_init
+                .benchmark_compression(&dataset, lambda);
             writeln!(summary_file, "{}\tTRUE\t{}", header, b0);
-            let br = dataset.dbg_raw.benchmark_compression(&dataset);
+            let br = dataset.dbg_raw.benchmark_compression(&dataset, lambda);
             writeln!(summary_file, "{}\tRAW\t{}", header, br);
-            let b = new_dbg.benchmark_compression(&dataset);
+            let b = new_dbg.benchmark_compression(&dataset, lambda);
             writeln!(summary_file, "{}\tV1\t{}", header, b);
         }
     }

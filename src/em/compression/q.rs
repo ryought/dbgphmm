@@ -81,8 +81,7 @@ pub fn q_score_clamped<N: DbgNode, E: DbgEdge>(
 
     // (3) prior
     // -lambda (genome_size - genome_size_expected)^2
-    let size_diff = genome_size as f64 - dbg.genome_size() as f64;
-    qs.prior = -penalty_weight * size_diff.powi(2);
+    qs.prior = dbg.to_prior_score(penalty_weight, genome_size);
 
     qs
 }
@@ -120,8 +119,7 @@ pub fn q_score<N: DbgNode, E: DbgEdge>(
 
     // (3) prior score
     // -lambda (genome_size - genome_size_expected)^2
-    let size_diff = genome_size as f64 - dbg.genome_size() as f64;
-    qs.prior = -penalty_weight * size_diff.powi(2);
+    qs.prior = dbg.to_prior_score(penalty_weight, genome_size);
 
     qs
 }

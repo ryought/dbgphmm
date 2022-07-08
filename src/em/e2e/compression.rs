@@ -69,25 +69,28 @@ mod tests {
         println!("dbg_true_init:{}", dataset.dbg_true_init);
 
         // optimize
+        let lambda = 0.01;
         let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.1,
-            DEFAULT_CLAMP_VALUE,
-            10,
-            10,
+            lambda,
+            -10.0,
+            100,
+            100,
         );
         inspect_compression_logs(&logs, &dataset);
         println!("dbg_opt={}", new_dbg);
         println!("dbg_tur={}", dataset.dbg_true_init);
 
-        let b0 = dataset.dbg_true_init.benchmark_compression(&dataset);
+        let b0 = dataset
+            .dbg_true_init
+            .benchmark_compression(&dataset, lambda);
         println!("bench_result={}", b0);
-        let br = dataset.dbg_raw.benchmark_compression(&dataset);
+        let br = dataset.dbg_raw.benchmark_compression(&dataset, lambda);
         println!("bench_result={}", br);
-        let b = new_dbg.benchmark_compression(&dataset);
+        let b = new_dbg.benchmark_compression(&dataset, lambda);
         println!("bench_result={}", b);
     }
 
@@ -112,13 +115,14 @@ mod tests {
         println!("dbg_true_init:{}", dataset.dbg_true_init);
 
         // optimize
+        let lambda = 0.0001;
         let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
             &dataset.reads,
             &dataset.phmm_params,
             genome_size,
-            0.0001, // lambda
-            -10.0,  // clamp
+            lambda,
+            -10.0, // clamp
             50,
             50,
         );
@@ -126,11 +130,13 @@ mod tests {
         println!("dbg_opt={}", new_dbg);
         println!("dbg_tur={}", dataset.dbg_true_init);
 
-        let b0 = dataset.dbg_true_init.benchmark_compression(&dataset);
+        let b0 = dataset
+            .dbg_true_init
+            .benchmark_compression(&dataset, lambda);
         println!("bench_result={}", b0);
-        let br = dataset.dbg_raw.benchmark_compression(&dataset);
+        let br = dataset.dbg_raw.benchmark_compression(&dataset, lambda);
         println!("bench_result={}", br);
-        let b = new_dbg.benchmark_compression(&dataset);
+        let b = new_dbg.benchmark_compression(&dataset, lambda);
         println!("bench_result={}", b);
     }
 }
