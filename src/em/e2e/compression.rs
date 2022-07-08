@@ -106,7 +106,7 @@ mod tests {
             10, // coverage
             2000,
             ReadType::FullLength,
-            16,
+            8,
             32,
         );
         println!("genome: {}", genome[0].to_str());
@@ -115,7 +115,7 @@ mod tests {
         println!("dbg_true_init:{}", dataset.dbg_true_init);
 
         // optimize
-        let lambda = 0.0001;
+        let lambda = 0.0005;
         let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
             &dataset.reads,
@@ -123,8 +123,8 @@ mod tests {
             genome_size,
             lambda,
             -10.0, // clamp
-            50,
-            50,
+            100,
+            100,
         );
         inspect_compression_logs(&logs, &dataset);
         println!("dbg_opt={}", new_dbg);
