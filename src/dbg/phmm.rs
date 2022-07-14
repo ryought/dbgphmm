@@ -29,7 +29,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
     }
+    ///
     /// Convert dbg into phmm and calculate full probability
+    /// (Likelihood)
+    ///
     pub fn to_full_prob<T>(&self, param: PHMMParams, seqs: T) -> Prob
     where
         T: IntoParallelIterator,
@@ -37,6 +40,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let phmm = self.to_phmm(param);
         phmm.to_full_prob_parallel(seqs)
+    }
+    ///
+    /// calculate the prior score
+    ///
+    /// log P(G) = - lambda |G - G0|^2
+    ///
+    /// Parameters
+    /// * lambda: penalty weight
+    /// * G0: expected genome size
+    ///
+    pub fn to_prior_score(&self, lambda: f64, genome_size_expected: CopyNum) -> f64 {
+        let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
+        -lambda * size_diff.powi(2)
     }
 }
 

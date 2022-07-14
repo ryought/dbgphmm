@@ -9,7 +9,8 @@ use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::e2e::{Dataset, ReadType};
 use crate::em::e2e::compression::write_compression_logs;
 use crate::em::infer;
-use crate::em::scheduler::{SchedulerType1, TaskLog};
+use crate::em::scheduler::SchedulerType1;
+use crate::em::TaskLog;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
@@ -24,43 +25,12 @@ use std::io::Write;
 pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], dataset: &Dataset) {
     // header
     println!("iter\ttype\tstep\tprob\tmin_flow\tgenome_size\tcompare\tdbg\t");
-
     // body
     for (iteration, task_log) in task_logs.iter().enumerate() {
-        match task_log {
-            TaskLog::Compression(logs) => {
-                for (step, log) in logs.iter().enumerate() {
-                    println!(
-                        "{}\tC\t{}\t{}\t{}\t{}\t{}\t{}",
-                        iteration,
-                        step,
-                        log.full_prob.to_log_value(),
-                        log.min_flow_score,
-                        log.dbg.genome_size(),
-                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
-                        log.dbg,
-                    );
-                }
-            }
-            TaskLog::Extension(logs) => {
-                for (step, log) in logs.iter().enumerate() {
-                    println!(
-                        "{}\tE\t{}\t{}\t{}\t{}\t{}\t{}",
-                        iteration,
-                        step,
-                        match log.full_prob {
-                            Some(p) => p.to_log_value().to_string(),
-                            None => "-".to_string(),
-                        },
-                        log.min_flow_cost,
-                        log.dbg.genome_size(),
-                        log.dbg.kmer_hists_from_seqs(&dataset.genome),
-                        log.dbg
-                    );
-                }
-            }
-            _ => panic!(),
-        }
+        println!(
+            "{}",
+            task_log.to_benchmark_string_with_header(&dataset, &format!("{}\t", iteration))
+        );
     }
 }
 

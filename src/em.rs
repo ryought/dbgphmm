@@ -17,11 +17,13 @@ pub mod compression;
 pub mod e2e;
 pub mod extension;
 pub mod scheduler;
+pub mod task;
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::hmmv2::params::PHMMParams;
+use scheduler::Scheduler;
 pub use scheduler::SchedulerType1;
-use scheduler::{Scheduler, Task, TaskLog};
+pub use task::{Task, TaskLog};
 
 ///
 /// Do EM inference of Dbg.
@@ -74,8 +76,9 @@ pub fn infer_with_on_iteration<
         // run task
         let (dbg_new, log) = match task {
             Task::Compression(depth) => {
-                let (dbg_new, log) = compression::compression(&dbg, reads, params, depth, max_iter);
-                (dbg_new, TaskLog::Compression(log))
+                let (dbg_new, log) =
+                    compression::v1::compression(&dbg, reads, params, depth, max_iter);
+                (dbg_new, TaskLog::Compression(task, log))
             }
             Task::CompressionV3(lambda, zero_penalty) => {
                 let (dbg_new, log) = compression::v3::compression(
@@ -88,11 +91,11 @@ pub fn infer_with_on_iteration<
                     max_iter,
                     max_iter,
                 );
-                (dbg_new, TaskLog::CompressionV3(log))
+                (dbg_new, TaskLog::CompressionV3(task, log))
             }
             Task::Extension(k) => {
                 let (dbg_new, log) = extension::extension(&dbg, reads, params, max_iter);
-                (dbg_new, TaskLog::Extension(log))
+                (dbg_new, TaskLog::Extension(task, log))
             }
         };
         // callback

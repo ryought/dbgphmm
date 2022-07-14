@@ -1,5 +1,5 @@
 use dbgphmm::e2e::{generate_dataset, ReadType};
-use dbgphmm::em::compression::compression_with_depths;
+use dbgphmm::em::compression::v1::compression_with_depths;
 use dbgphmm::em::compression::v3;
 use dbgphmm::em::e2e::compression::write_compression_logs;
 use dbgphmm::genome;
@@ -29,12 +29,12 @@ fn run(output_dir: &Path) {
         [0.1],
         [0.01],
         [10],
-        [0.0, 0.0001, 0.001, 0.01, 0.1],
-        [-1000.0, -100.0, -10.0, -5.0, -1.0],
+        [0.001], // [0.0, 0.0001, 0.001, 0.01, 0.1],
+        [-10.0], // [-100.0, -10.0, -5.0, -1.0],
         [0.01],
-        [8]
+        [8, 12, 16]
     ) {
-        for seed in 0..5 {
+        for seed in 0..3 {
             let header = format!(
                 "u{unit_size}n{n_unit}di{div_init}dh{div_hap}c{coverage}l{lambda}z{zero_penalty}e{error_rate}seed{seed}ki{k_init}"
             );
@@ -55,7 +55,7 @@ fn run(output_dir: &Path) {
             );
 
             // v3
-            let (new_dbg, logs) = v3::compression(
+            let (new_dbg_v3, logs_v3) = v3::compression(
                 &dataset.dbg_raw,
                 &dataset.reads,
                 &dataset.phmm_params,
@@ -65,23 +65,39 @@ fn run(output_dir: &Path) {
                 50,
                 50,
             );
-            let mut task_file = File::create(output_dir.join(format!("{}.txt", header))).unwrap();
-            write_compression_logs(&mut task_file, &logs, &dataset, &"");
+            let mut task_file =
+                File::create(output_dir.join(format!("{}_v3.txt", header))).unwrap();
+            write_compression_logs(&mut task_file, &logs_v3, &dataset, &"");
 
             // v1
-            // let (new_dbg, logs) = compression_with_depths(
-            //     &dataset.dbg_raw,
-            //     &dataset.reads,
-            //     &dataset.phmm_params,
-            //     &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
-            // );
+            let (new_dbg_v1, logs_v1) = compression_with_depths(
+                &dataset.dbg_raw,
+                &dataset.reads,
+                &dataset.phmm_params,
+                &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
+            );
+            let mut task_file =
+                File::create(output_dir.join(format!("{}_v1.txt", header))).unwrap();
+            for (iteration, log) in logs_v1.iter().enumerate() {
+                writeln!(
+                    task_file,
+                    "{}{}\t{}",
+                    header,
+                    iteration,
+                    log.to_benchmark_string(&dataset)
+                );
+            }
 
-            let b0 = dataset.dbg_true_init.benchmark_compression(&dataset);
+            let b0 = dataset
+                .dbg_true_init
+                .benchmark_compression(&dataset, lambda);
             writeln!(summary_file, "{}\tTRUE\t{}", header, b0);
-            let br = dataset.dbg_raw.benchmark_compression(&dataset);
+            let br = dataset.dbg_raw.benchmark_compression(&dataset, lambda);
             writeln!(summary_file, "{}\tRAW\t{}", header, br);
-            let b = new_dbg.benchmark_compression(&dataset);
-            writeln!(summary_file, "{}\tV1\t{}", header, b);
+            let b3 = new_dbg_v3.benchmark_compression(&dataset, lambda);
+            writeln!(summary_file, "{}\tV3\t{}", header, b3);
+            let b1 = new_dbg_v1.benchmark_compression(&dataset, lambda);
+            writeln!(summary_file, "{}\tV1\t{}", header, b1);
         }
     }
 }

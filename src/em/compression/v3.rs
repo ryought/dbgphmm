@@ -421,8 +421,16 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
     if steps.len() > 0 {
         let (mut dbg_updated, q_score_updated, cost) = steps.pop().unwrap();
         dbg_updated.remove_zero_copy_node();
-        let log =
-            CompressionV3Log::new(p, q_score, q_score_updated, cost, true, dbg_updated.clone());
+        let log = CompressionV3Log::new(
+            p,
+            q_score,
+            q_score_updated,
+            cost,
+            true,
+            dbg_updated.clone(),
+            penalty_weight,
+            zero_penalty,
+        );
         (dbg_updated, true, log)
     } else {
         // dbg is not updated
@@ -433,6 +441,8 @@ pub fn compression_step<N: DbgNode, E: DbgEdge>(
             0.0, //TODO
             false,
             dbg.clone(),
+            penalty_weight,
+            zero_penalty,
         );
         (dbg.clone(), false, log)
     }
@@ -536,6 +546,12 @@ pub struct CompressionV3Log<N: DbgNode, E: DbgEdge> {
     pub is_updated: bool,
     /// resulting dbg
     pub dbg: Dbg<N, E>,
+    /// parameter backup of compressionv3
+    /// penalty weight (lambda)
+    pub penalty_weight: f64,
+    /// parameter backup of compressionv3
+    /// zero penalty (L0)
+    pub zero_penalty: f64,
 }
 
 impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
@@ -546,6 +562,8 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
         cost_diff: Cost,
         is_updated: bool,
         dbg: Dbg<N, E>,
+        penalty_weight: f64,
+        zero_penalty: f64,
     ) -> Self {
         CompressionV3Log {
             p,
@@ -554,6 +572,8 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
             cost_diff,
             is_updated,
             dbg,
+            penalty_weight,
+            zero_penalty,
         }
     }
 }
@@ -579,13 +599,13 @@ impl<N: DbgNode, E: DbgEdge> CompressionV3Log<N, E> {
     ///
     pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
         format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            self.dbg
+                .benchmark_compression(&dataset, self.penalty_weight),
             self.p.to_log_value(),
-            self.dbg.genome_size(),
             self.q0,
             self.q1,
             self.cost_diff,
-            self.dbg.benchmark_compression(&dataset),
             self.dbg,
         )
     }

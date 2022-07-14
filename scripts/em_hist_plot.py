@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 @dataclass(frozen=True)
 class ExperimentParams:
+    id: int
     u: int
     n: int
     di: float
@@ -25,6 +26,7 @@ class ExperimentParams:
     def from_str(s):
         parsed = parse('u{u}n{n}di{di}dh{dh}c{c}l{l}z{z}e{e}seed{seed}ki{ki}', s)
         return ExperimentParams(
+            id=s,
             u=int(parsed['u']),
             n=int(parsed['n']),
             di=float(parsed['di']),
@@ -112,6 +114,18 @@ class ExpResult:
             classification=classification,
         )
 
+
+@dataclass(frozen=True)
+class EMHist:
+    iteration: int
+    likelihood: float
+    prior: float
+    genome_size: int
+    classification: ClassificationResult
+    def from_str(s):
+        pass
+
+
 def param_to_color_by_error(param):
     if param.e == 0.01:
         # 1%~3% error
@@ -139,80 +153,25 @@ def param_to_color_by_lambda(param):
     else:
         raise Exception
 
-def plot_fn_tn_by_unit_size(rs):
-    for (u, marker) in [(20, '+'), (10, '.'), (100, 'x')]:
-        rs_v3 = [r for r in rs if r.algorithm == Algorithm.V3 and r.params.u == u]
-        tn = [r.classification.tn for r in rs_v3]
-        fn = [r.classification.fn for r in rs_v3]
-        c = [param_to_color_by_error(r.params) for r in rs_v3]
-        plt.scatter(
-            x=np.array(tn),
-            y=np.array(fn),
-            c=c,
-            marker=marker,
-        )
-    plt.xlabel('TN')
-    plt.ylabel('FN')
-    plt.show()
 
-def plot_fn_tn_by_lambda(rs):
-    # for (e, marker) in [(0.02, 'x')]:
-    # for (e, marker) in [(0.01, '+')]:
-    for (e, marker) in [(0.01, '+'), (0.001, '.'), (0.02, 'x')]:
-        rs_v3 = [r for r in rs if r.algorithm != Algorithm.RAW and r.algorithm != Algorithm.TRUE and r.params.e == e]
-        tn = [r.classification.tn for r in rs_v3]
-        fn = [r.classification.fn for r in rs_v3]
-        c = [param_to_color_by_lambda(r.params) for r in rs_v3]
-        plt.scatter(
-            x=np.array(tn),
-            y=np.array(fn),
-            c=c,
-            marker=marker,
-            label='e={}'.format(e),
-        )
-    plt.xlim(0, 1500)
-    plt.ylim(0, 150)
-    plt.xlabel('TN')
-    plt.ylabel('FN')
-    plt.legend()
-    plt.show()
+def inspect(output_directory, er: ExpResult):
+    with open(output_directory + '/{}.txt'.format(er.params.id)) as f:
+        for line in f:
+            print(line)
 
-
-def plot_fn_tn_by_params(rs):
-    for (i, (z, marker)) in enumerate([(-1000, '+'), (-100, '.'), (-10, 'x'), (-5, 's'), (-1, 'o')]):
-        rs_v3 = [r for r in rs if r.algorithm != Algorithm.RAW and r.algorithm != Algorithm.TRUE and r.params.z == z]
-        tn = [r.classification.tn for r in rs_v3]
-        fn = [r.classification.fn for r in rs_v3]
-        c = [param_to_color_by_lambda(r.params) for r in rs_v3]
-        plt.subplot(3, 2, i+1)
-        plt.scatter(
-            x=np.array(tn),
-            y=np.array(fn),
-            c=c,
-            # marker=marker,
-            marker='+',
-            label='L0={}'.format(z),
-        )
-        plt.xlim(0, 1500)
-        plt.ylim(0, 150)
-        plt.xlabel('TN')
-        plt.ylabel('FN')
-        plt.legend()
-        plt.colorbar()
-    plt.show()
 
 def main():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('summary_filename', type=str)
+    parser.add_argument('output_directory', type=str)
+    parser.add_argument('exp_id', type=str)
     args = parser.parse_args()
 
-    rs = []
-    with open(args.summary_filename) as f:
+    with open(args.output_directory + '/summary.txt') as f:
         for line in f:
             er = ExpResult.from_str(line)
-            rs.append(er)
+            if er.params.id == args.exp_id:
+                inspect(args.output_directory, er)
 
-    plot_fn_tn_by_params(rs)
 
 def test():
     ep = ExperimentParams.from_str('u20n20di0.1dh0.01c10l0z-1000e0.01seed4ki8')

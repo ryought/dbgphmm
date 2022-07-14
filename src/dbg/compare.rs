@@ -9,6 +9,7 @@ use crate::hist::Hist;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::prob::Prob;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 
 ///
@@ -79,8 +80,10 @@ impl<K: KmerLike> std::fmt::Display for KmerExistenceResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "n_exists={};n_not_exists={};",
-            self.n_exists, self.n_not_exists,
+            "n_exists={};n_not_exists={}({});",
+            self.n_exists,
+            self.n_not_exists,
+            self.to_kmers_not_exists(),
         )
     }
 }
@@ -212,17 +215,16 @@ impl std::fmt::Display for KmerHists {
 }
 
 //
-// CompressionBenchResult
+// BenchResult
 //
-
 ///
-/// result of compression benchmark
+/// result of dbg benchmark with dataset
 ///
-pub struct CompressionBenchResult<K: KmerLike> {
+pub struct BenchResult<K: KmerLike> {
     ///
-    /// P(R|G)
+    /// Likelihood (probability) `P(R|G)`
     ///
-    full_prob: Prob,
+    likelihood: Prob,
     ///
     /// genome size of dbg
     ///
@@ -235,6 +237,35 @@ pub struct CompressionBenchResult<K: KmerLike> {
     /// histogram of kmer
     ///
     kmer_hists: KmerHists,
+}
+
+impl<K: KmerLike> std::fmt::Display for BenchResult<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            self.likelihood.to_log_value(),
+            self.genome_size,
+            self.kmer_existence,
+            self.kmer_hists.n_missed_kmers(),
+            self.kmer_hists.n_under_estimated_kmers(),
+            self.kmer_hists,
+        )
+    }
+}
+
+///
+/// result of compression benchmark
+///
+pub struct CompressionBenchResult<K: KmerLike> {
+    ///
+    /// common benchmark result
+    ///
+    common_bench: BenchResult<K>,
+    ///
+    /// Prior score `log P(G)`
+    ///
+    prior: f64,
     ///
     /// kmer classification result (TP/TN/FP/FN)
     ///
@@ -245,14 +276,8 @@ impl<K: KmerLike> std::fmt::Display for CompressionBenchResult<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
-            self.full_prob.to_log_value(),
-            self.genome_size,
-            self.kmer_existence,
-            self.kmer_classification,
-            self.kmer_hists.n_missed_kmers(),
-            self.kmer_hists.n_under_estimated_kmers(),
-            self.kmer_hists,
+            "{}\t{}\t{}",
+            self.common_bench, self.prior, self.kmer_classification
         )
     }
 }
@@ -320,12 +345,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
     ///
-    pub fn kmer_classification_result<G, R>(&self, genome: G, reads: R) -> KmerClassificationResult
+    pub fn kmer_classification_result<G, NB, EB>(
+        &self,
+        genome: G,
+        dbg_before: &Dbg<NB, EB>,
+    ) -> KmerClassificationResult
     where
         G: IntoIterator,
         G::Item: Seq,
-        R: IntoIterator,
-        R::Item: Seq,
+        NB: DbgNode,
+        EB: DbgEdge,
     {
         let mut r = KmerClassificationResult::default();
 
@@ -337,11 +366,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let copy_nums = hd_g.to_kmer_profile();
 
         // read_counts: reads
-        let hd_r: HashDbg<N::Kmer> = HashDbg::from_seqs(self.k(), reads);
-        let read_counts = hd_r.to_kmer_profile();
+        let counts_before: HashMap<N::Kmer, CopyNum> = dbg_before
+            .to_kmer_profile()
+            .into_iter()
+            .map(|(kmer, count_before)| (N::Kmer::from_bases(&kmer.to_bases()), count_before))
+            .collect();
 
-        // [1] for all kmers in read
-        for (kmer, &read_count) in read_counts.iter() {
+        // [1] for all kmers in dbg_before
+        for (kmer, &count_before) in counts_before.iter() {
             let count = counts.get(&kmer).copied().unwrap_or(0);
             let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
 
@@ -364,8 +396,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         // [2] for all kmers in genome but not in read
         for (kmer, &copy_num) in copy_nums.iter() {
-            let read_count = read_counts.get(&kmer).copied().unwrap_or(0);
-            if read_count == 0 {
+            let count_before = counts_before.get(&kmer).copied().unwrap_or(0);
+            if count_before == 0 {
                 r.n_true_kmer_not_in_reads.add(kmer);
             }
         }
@@ -440,26 +472,35 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         hists
     }
     ///
-    /// benchmark the dbg infered by compression algorithm
-    /// using the dataset
+    /// Benchmark dbg using dataset and true genome info
+    /// Can be use for evaluating compression/extension results.
     ///
-    /// * score
+    /// * score P(R|G)
     /// * genome_size
     /// * kmer_existence
     /// * kmer_hists
     ///
-    pub fn benchmark_compression(&self, dataset: &Dataset) -> CompressionBenchResult<N::Kmer> {
-        let p = self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads);
-        let kh = self.kmer_hists_from_seqs(&dataset.genome);
-        let ke = self.check_kmer_existence_with_seqs(&dataset.genome);
-        let kc = self.kmer_classification_result(&dataset.genome, &dataset.reads);
-
-        CompressionBenchResult {
-            full_prob: p,
+    pub fn benchmark(&self, dataset: &Dataset) -> BenchResult<N::Kmer> {
+        BenchResult {
+            likelihood: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
             genome_size: self.genome_size(),
-            kmer_existence: ke,
-            kmer_hists: kh,
-            kmer_classification: kc,
+            kmer_existence: self.check_kmer_existence_with_seqs(&dataset.genome),
+            kmer_hists: self.kmer_hists_from_seqs(&dataset.genome),
+        }
+    }
+    ///
+    /// benchmark the dbg infered by compression algorithm
+    /// using the dataset
+    ///
+    pub fn benchmark_compression(
+        &self,
+        dataset: &Dataset,
+        lambda: f64,
+    ) -> CompressionBenchResult<N::Kmer> {
+        CompressionBenchResult {
+            common_bench: self.benchmark(dataset),
+            prior: self.to_prior_score(lambda, dataset.genome_size),
+            kmer_classification: self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw),
         }
     }
 }
