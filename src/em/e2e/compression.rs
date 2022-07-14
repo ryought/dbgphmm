@@ -139,4 +139,44 @@ mod tests {
         let b = new_dbg.benchmark_compression(&dataset, lambda);
         println!("bench_result={}", b);
     }
+
+    #[test]
+    fn e2e_compression_tandem_repeat_diploid_start_from_true() {
+        // data generation
+        let (genome, genome_size) = genome::tandem_repeat_diploid(20, 20, 0.1, 0, 0, 0.01, 0);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,
+            PHMMParams::default(),
+            10, // coverage
+            2000,
+            ReadType::FullLength,
+            8,
+            32,
+        );
+
+        // optimize
+        let lambda = 0.0005;
+        let (new_dbg, logs) = compression(
+            &dataset.dbg_true_init,
+            &dataset.reads,
+            &dataset.phmm_params,
+            genome_size,
+            lambda,
+            -10.0, // clamp
+            100,
+            100,
+        );
+        inspect_compression_logs(&logs, &dataset);
+        println!("dbg_opt={}", new_dbg);
+        println!("dbg_tur={}", dataset.dbg_true_init);
+
+        let b0 = dataset
+            .dbg_true_init
+            .benchmark_compression(&dataset, lambda);
+        println!("bench_result={}", b0);
+        let b = new_dbg.benchmark_compression(&dataset, lambda);
+        println!("bench_result={}", b);
+    }
 }
