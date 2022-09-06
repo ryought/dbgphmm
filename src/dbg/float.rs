@@ -3,9 +3,14 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::CopyNum;
+use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqNode};
 use crate::kmer::kmer::{Kmer, KmerLike};
 
+/// `CopyDensity` = f64
+/// Float valued copy number
 pub type CopyDensity = f64;
+
+/// de bruijn graph with float (real-valued) copy numbers
 pub type FloatDbg<K> = Dbg<FloatDbgNode<K>, FloatDbgEdge>;
 
 /// node struct of FloatDbg
@@ -63,17 +68,36 @@ impl DbgEdge for FloatDbgEdge {
     }
 }
 
+//
+// std::fmt::Display
+//
 impl<K: KmerLike> std::fmt::Display for FloatDbgNode<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} (x{})", self.kmer(), self.copy_density)
     }
 }
-
 impl std::fmt::Display for FloatDbgEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.copy_density {
             Some(copy_density) => write!(f, "x{}", copy_density),
             None => write!(f, "x?"),
         }
+    }
+}
+
+//
+// FloatSeqGraph
+//
+impl<K: KmerLike> FloatSeqNode for FloatDbgNode<K> {
+    fn copy_density(&self) -> CopyDensity {
+        self.copy_density
+    }
+    fn base(&self) -> u8 {
+        self.emission()
+    }
+}
+impl FloatSeqEdge for FloatDbgEdge {
+    fn copy_density(&self) -> Option<CopyDensity> {
+        self.copy_density
     }
 }
