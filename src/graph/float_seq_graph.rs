@@ -184,5 +184,6 @@ mod tests {
         println!("{:?}", Dot::with_config(&g, &[]));
         let phmm = g.to_phmm(PHMMParams::zero_error());
         println!("{}", phmm);
+        // TODO assert the converted phmm has correct init_prob and trans_prob
     }
 }

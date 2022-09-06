@@ -16,6 +16,7 @@
 pub mod compression;
 pub mod e2e;
 pub mod extension;
+pub mod float;
 pub mod scheduler;
 pub mod task;
 use crate::common::{CopyNum, Freq, Reads};
