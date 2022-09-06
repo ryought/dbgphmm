@@ -6,6 +6,7 @@ pub mod bipartite;
 pub use bipartite::Bipartite;
 pub mod backless_bellman_ford;
 pub mod bellman_ford;
+pub mod cycle;
 pub mod float_weight;
 pub mod floyd;
 pub mod genome_graph;
