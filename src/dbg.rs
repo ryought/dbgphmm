@@ -10,6 +10,7 @@ pub mod impls;
 pub use impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 pub mod compare;
 pub mod debug;
+pub mod float;
 pub mod flow_intersection;
 pub mod intersections;
 pub mod mocks;
