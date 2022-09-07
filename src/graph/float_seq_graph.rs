@@ -190,6 +190,10 @@ pub fn mock_simple() -> DiGraph<SimpleFloatSeqNode, SimpleFloatSeqEdge> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::{ei, ni};
+    use crate::hmmv2::common::{PHMMEdge, PHMMNode};
+    use crate::hmmv2::q::q_score_exact;
+    use crate::prob::p;
     use petgraph::dot::Dot;
 
     #[test]
@@ -198,6 +202,28 @@ mod tests {
         println!("{:?}", Dot::with_config(&g, &[]));
         let phmm = g.to_phmm(PHMMParams::zero_error());
         println!("{}", phmm);
-        // TODO assert the converted phmm has correct init_prob and trans_prob
+
+        // assert the converted phmm has correct init_prob and trans_prob
+        let ip = 1.0 / 6.0;
+        assert_eq!(phmm.node(ni(0)).init_prob(), p(ip));
+        assert_eq!(phmm.node(ni(1)).init_prob(), p(ip));
+        assert_eq!(phmm.node(ni(2)).init_prob(), p(ip));
+        assert_eq!(phmm.node(ni(3)).init_prob(), p(ip));
+        assert_eq!(phmm.node(ni(4)).init_prob(), p(ip));
+        assert_eq!(phmm.node(ni(5)).init_prob(), p(ip));
+        assert_eq!(phmm.edge(ei(0)).trans_prob(), p(1.0));
+        assert_eq!(phmm.edge(ei(1)).trans_prob(), p(0.5));
+        assert_eq!(phmm.edge(ei(2)).trans_prob(), p(0.5));
+        assert_eq!(phmm.edge(ei(3)).trans_prob(), p(1.0));
+        assert_eq!(phmm.edge(ei(4)).trans_prob(), p(1.0));
+
+        // forward test
+        let (edge_freqs, init_freqs, full_prob) = phmm.to_edge_and_init_freqs_parallel(&[b"ACTG"]);
+        println!("{}", edge_freqs);
+        println!("{}", init_freqs);
+        println!("{}", full_prob);
+
+        let q = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+        println!("{}", q);
     }
 }

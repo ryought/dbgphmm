@@ -4,7 +4,7 @@
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, NodeCopyNums};
 use crate::dbg::float::FloatDbg;
 use crate::graph::float_seq_graph::FloatSeqGraph;
-use crate::hmmv2::common::{PHMMEdge, PHMMNode};
+use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::min_flow::utils::clamped_log_with;
@@ -103,12 +103,10 @@ pub fn q_score<N: DbgNode, E: DbgEdge>(
 ///
 /// Calculate (exact) Q function score.
 ///
-pub fn q_score_float<K: KmerLike>(
+pub fn q_score_float_dbg<K: KmerLike>(
     dbg: &FloatDbg<K>,
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
-    genome_size: CopyNum,
-    penalty_weight: f64,
 ) -> QScore {
     let mut init = 0.0;
     let mut trans = 0.0;
@@ -117,13 +115,17 @@ pub fn q_score_float<K: KmerLike>(
         if node_weight.is_emittable() {
             // (1) init score
             // A(Begin, v) log p_init(v)
-            init += init_freqs[node] * dbg.graph.init_prob(node).to_log_value();
+            let init_prob = dbg.graph.init_prob(node).to_log_value();
+            assert!(init_prob.is_finite());
+            init += init_freqs[node] * init_prob;
 
+            // (2) trans score
+            // A(v,w) log p_trans(v, w)
             for (edge, child, edge_weight) in dbg.childs(node) {
                 if dbg.is_emittable(child) {
-                    // (2) trans score
-                    // A(v,w) log p_trans(v, w)
-                    trans += edge_freqs[edge] * dbg.graph.trans_prob(edge).to_log_value();
+                    let trans_prob = dbg.graph.trans_prob(edge).to_log_value();
+                    assert!(trans_prob.is_finite());
+                    trans += edge_freqs[edge] * trans_prob;
                 }
             }
         }
