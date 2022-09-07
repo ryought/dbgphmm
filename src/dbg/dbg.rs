@@ -171,6 +171,10 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
     pub fn emission(&self, node: NodeIndex) -> u8 {
         self.graph.node_weight(node).unwrap().emission()
     }
+    /// determine if the node is emittable or not
+    pub fn is_emittable(&self, node: NodeIndex) -> bool {
+        self.graph.node_weight(node).unwrap().is_emittable()
+    }
     /// check if two nodes `a, b: NodeIndex` is connected or not
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)

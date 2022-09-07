@@ -67,16 +67,15 @@ pub trait FloatSeqGraph {
     fn total_emittable_copy_density(&self) -> CopyDensity;
     /// calculate the sum of copy_density of all emittable child nodes of the given node
     fn total_emittable_child_copy_density(&self, node: NodeIndex) -> CopyDensity;
+    fn init_prob(&self, node: NodeIndex) -> Prob;
+    fn init_prob_with_total(&self, node: NodeIndex, total_copy_density: CopyDensity) -> Prob;
+    fn trans_prob(&self, edge: EdgeIndex) -> Prob;
 }
 
 impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
     fn to_phmm_node(&self, node: NodeIndex, total_copy_density: CopyDensity) -> PNode {
         let node_weight = self.node_weight(node).unwrap();
-        let init_prob = if node_weight.is_emittable() {
-            Prob::from_prob(node_weight.copy_density()) / Prob::from_prob(total_copy_density)
-        } else {
-            Prob::from_prob(0.0)
-        };
+        let init_prob = self.init_prob_with_total(node, total_copy_density);
         PNode::new(
             0, // fill the copy_num field a dummy value zero
             init_prob,
@@ -85,25 +84,8 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
         )
     }
     fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
-        let (parent, child) = self.edge_endpoints(edge).unwrap();
-        let edge_weight = self.edge_weight(edge).unwrap();
-        let child_weight = self.node_weight(child).unwrap();
-        match edge_weight.copy_density() {
-            Some(copy_num) => {
-                panic!("FloatSeqEdge with copy density is not supported yet")
-            }
-            None => {
-                // there is no copy num assigned to the edge
-                let total_child_copy_density = self.total_emittable_child_copy_density(parent);
-                let trans_prob = if child_weight.is_emittable() && total_child_copy_density > 0.0 {
-                    Prob::from_prob(child_weight.copy_density())
-                        / Prob::from_prob(total_child_copy_density)
-                } else {
-                    Prob::from_prob(0.0)
-                };
-                PEdge::new(trans_prob)
-            }
-        }
+        let trans_prob = self.trans_prob(edge);
+        PEdge::new(trans_prob)
     }
     fn to_phmm(&self, param: PHMMParams) -> PModel {
         let total_copy_density = self.total_emittable_copy_density();
@@ -125,6 +107,38 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
         self.neighbors_directed(node, Direction::Outgoing)
             .map(|child| self.node_weight(child).unwrap().emittable_copy_density())
             .sum()
+    }
+    fn init_prob_with_total(&self, node: NodeIndex, total_copy_density: CopyDensity) -> Prob {
+        let node_weight = self.node_weight(node).unwrap();
+        if node_weight.is_emittable() {
+            Prob::from_prob(node_weight.copy_density()) / Prob::from_prob(total_copy_density)
+        } else {
+            Prob::from_prob(0.0)
+        }
+    }
+    fn init_prob(&self, node: NodeIndex) -> Prob {
+        let total_copy_density = self.total_emittable_copy_density();
+        self.init_prob_with_total(node, total_copy_density)
+    }
+    fn trans_prob(&self, edge: EdgeIndex) -> Prob {
+        let (parent, child) = self.edge_endpoints(edge).unwrap();
+        let edge_weight = self.edge_weight(edge).unwrap();
+        let child_weight = self.node_weight(child).unwrap();
+        match edge_weight.copy_density() {
+            Some(copy_num) => {
+                panic!("FloatSeqEdge with copy density is not supported yet")
+            }
+            None => {
+                // there is no copy num assigned to the edge
+                let total_child_copy_density = self.total_emittable_child_copy_density(parent);
+                if child_weight.is_emittable() && total_child_copy_density > 0.0 {
+                    Prob::from_prob(child_weight.copy_density())
+                        / Prob::from_prob(total_child_copy_density)
+                } else {
+                    Prob::from_prob(0.0)
+                }
+            }
+        }
     }
 }
 

@@ -2,9 +2,8 @@
 //! de bruijn graph with float (real-valued) copy numbers
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
-use crate::common::CopyNum;
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqNode};
-use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::prelude::*;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
