@@ -572,7 +572,10 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[")?;
         for i in 0..self.len() {
-            write!(f, "{}, ", self[Ix::new(i)])?;
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", self[Ix::new(i)])?;
         }
         write!(f, "]")?;
         Ok(())
