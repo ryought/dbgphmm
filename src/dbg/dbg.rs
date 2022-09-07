@@ -27,7 +27,7 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// k
 ///
 #[derive(Clone)]
-pub struct Dbg<N: DbgNode, E: DbgEdge> {
+pub struct Dbg<N: DbgNodeBase, E> {
     ///
     /// k-mer size
     ///
@@ -109,8 +109,9 @@ pub trait DbgEdge: Clone + std::fmt::Display {
 
 ///
 /// Basic graph operations for Dbg
+/// without requirement of copy numbers
 ///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+impl<N: DbgNodeBase, E> Dbg<N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -145,28 +146,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * `EdgeWeight` is of the edge transition
     pub fn parents(&self, node: NodeIndex) -> ParentEdges<E> {
         ParentEdges::new(&self.graph, node)
-    }
-    ///
-    /// NodeIndex(s) of heads/tails
-    ///
-    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
-        // construct IntersectionBase directly from node-centric dbg
-        let mut in_nodes = Vec::new();
-        let mut out_nodes = Vec::new();
-        for (node, weight) in self.nodes() {
-            // ANNN
-            if weight.kmer().is_tail() {
-                in_nodes.push(node);
-            }
-            // NNNA
-            if weight.kmer().is_head() {
-                out_nodes.push(node);
-            }
-        }
-        let ib = IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes);
-
-        // convert to flow intersection
-        self.to_flow_intersection(&ib, None)
     }
     /// Return the number of nodes in the graph
     pub fn n_nodes(&self) -> usize {
@@ -224,10 +203,86 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .find(|(_, v, w, _)| self.kmer(*v) == &prefix && self.kmer(*w) == &suffix)
             .map(|(e, _, _, _)| e)
     }
+    /// Check if there is no node duplicates.
+    pub fn has_no_duplicated_node(&self) -> bool {
+        let mut s = HashSet::default();
+        for (_, weight) in self.nodes() {
+            let kmer = weight.kmer().clone();
+            if s.contains(&kmer) {
+                return false;
+            } else {
+                s.insert(kmer);
+            }
+        }
+        true
+    }
+    ///
+    /// Check if there is no parallel edges.
+    ///
+    pub fn has_no_parallel_edge(&self) -> bool {
+        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
+    }
+}
+
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// NodeIndex(s) of heads/tails
+    ///
+    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+        // construct IntersectionBase directly from node-centric dbg
+        let mut in_nodes = Vec::new();
+        let mut out_nodes = Vec::new();
+        for (node, weight) in self.nodes() {
+            // ANNN
+            if weight.kmer().is_tail() {
+                in_nodes.push(node);
+            }
+            // NNNA
+            if weight.kmer().is_head() {
+                out_nodes.push(node);
+            }
+        }
+        let ib = IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes);
+
+        // convert to flow intersection
+        self.to_flow_intersection(&ib, None)
+    }
+    ///
+    /// Check if backend-graph is valid.
+    ///
+    /// Complexity: O(|V|^2)
+    ///
+    pub fn is_graph_valid(&self) -> bool {
+        let m = self.to_kmer_map();
+        for (v, weight) in self.nodes() {
+            // if graph has child kmer, the graph should have an edge
+            // from the node to the child.
+            for child in weight.kmer().childs() {
+                if let Some(&w) = m.get(&child) {
+                    if !self.contains_edge(v, w) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", weight.kmer(), child, v.index(), w.index());
+                        return false;
+                    }
+                }
+            }
+
+            // if graph has parent kmer, the graph should have an edge
+            // from the parent to the node.
+            for parent in weight.kmer().parents() {
+                if let Some(&w) = m.get(&parent) {
+                    if !self.contains_edge(w, v) {
+                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", parent, weight.kmer(), w.index(), v.index());
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
 }
 
 ///
-/// Basic properties
+/// Basic properties related to copy numbers
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
@@ -277,57 +332,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn is_edge_copy_nums_assigned(&self) -> bool {
         self.edges()
             .all(|(e, _, _, ew)| self.is_warp_edge(e) || ew.copy_num().is_some())
-    }
-    /// Check if there is no node duplicates.
-    pub fn has_no_duplicated_node(&self) -> bool {
-        let mut s = HashSet::default();
-        for (_, weight) in self.nodes() {
-            let kmer = weight.kmer().clone();
-            if s.contains(&kmer) {
-                return false;
-            } else {
-                s.insert(kmer);
-            }
-        }
-        true
-    }
-    ///
-    /// Check if there is no parallel edges.
-    ///
-    pub fn has_no_parallel_edge(&self) -> bool {
-        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
-    }
-    ///
-    /// Check if backend-graph is valid.
-    ///
-    /// Complexity: O(|V|^2)
-    ///
-    pub fn is_graph_valid(&self) -> bool {
-        let m = self.to_kmer_map();
-        for (v, weight) in self.nodes() {
-            // if graph has child kmer, the graph should have an edge
-            // from the node to the child.
-            for child in weight.kmer().childs() {
-                if let Some(&w) = m.get(&child) {
-                    if !self.contains_edge(v, w) {
-                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", weight.kmer(), child, v.index(), w.index());
-                        return false;
-                    }
-                }
-            }
-
-            // if graph has parent kmer, the graph should have an edge
-            // from the parent to the node.
-            for parent in weight.kmer().parents() {
-                if let Some(&w) = m.get(&parent) {
-                    if !self.contains_edge(w, v) {
-                        println!("is_graph_valid: two kmers {}/{} (node index {}/{}) do not have an edge!", parent, weight.kmer(), w.index(), v.index());
-                        return false;
-                    }
-                }
-            }
-        }
-        true
     }
     ///
     /// Check the Dbg struct is valid.
@@ -588,11 +592,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
-///
-/// Seq addition
-/// TODO
-///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+impl<N: DbgNodeBase, E> Dbg<N, E> {
     ///
     /// find the kmer in the de bruijn graph
     ///
@@ -611,6 +611,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         hm
     }
+}
+
+///
+/// Seq addition
+/// TODO
+///
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// WIP
     ///
@@ -636,21 +643,33 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 }
 
 ///
-/// Basic constructors
+/// Basic constructors (of basic Dbg)
 ///
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+impl<N: DbgNodeBase, E> Dbg<N, E> {
+    ///
     /// plain constructor of dbg
+    ///
     pub fn from_digraph(k: usize, graph: DiGraph<N, E>) -> Self {
         Dbg { k, graph }
     }
+    ///
     /// Create an empty de bruijn graph with no nodes and edges.
+    ///
     pub fn empty(k: usize) -> Self {
         Dbg {
             k,
             graph: DiGraph::new(),
         }
     }
-    /// Convert HashDbg<K> into Dbg
+}
+
+///
+/// Constructors of integer copy number assigned Dbg
+///
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// Convert HashDbg<K> (HashMap from Kmer to CopyNum) into Dbg
+    ///
     pub fn from_hashdbg(d: &HashDbg<N::Kmer>) -> Self {
         let mut graph = DiGraph::new();
         // a temporary map from Kmer to NodeIndex
@@ -673,7 +692,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         Self::from_digraph(d.k(), graph)
     }
+    ///
     /// Construct Dbg from a Sequence via converting HashDbg into Dbg.
+    ///
     pub fn from_seq<S: Seq>(k: usize, seq: &S) -> Self {
         let hd = HashDbg::from_seq(k, seq);
         Self::from_hashdbg(&hd)
