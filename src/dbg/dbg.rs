@@ -38,21 +38,11 @@ pub struct Dbg<N: DbgNode, E: DbgEdge> {
     pub graph: DiGraph<N, E>,
 }
 
-///
-/// Trait for nodes in Dbg
-///
-pub trait DbgNode: Clone + std::fmt::Display {
+pub trait DbgNodeBase: Clone + std::fmt::Display {
     type Kmer: KmerLike + NullableKmer;
-    fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
     ///
     /// Kmer of this node of the Dbg
     fn kmer(&self) -> &Self::Kmer;
-    ///
-    /// Copy number count of this node in Dbg
-    fn copy_num(&self) -> CopyNum;
-    ///
-    /// Modify copy number count of this node
-    fn set_copy_num(&mut self, copy_num: CopyNum);
     ///
     /// Single base assigned to this node in Dbg
     /// Last base of kmer will be used as an emission
@@ -78,6 +68,19 @@ pub trait DbgNode: Clone + std::fmt::Display {
     fn is_tail(&self) -> bool {
         self.kmer().is_tail()
     }
+}
+
+///
+/// Trait for nodes in Dbg (with integer copy numbers)
+///
+pub trait DbgNode: DbgNodeBase {
+    fn new(kmer: Self::Kmer, copy_num: CopyNum) -> Self;
+    ///
+    /// Copy number count of this node in Dbg
+    fn copy_num(&self) -> CopyNum;
+    ///
+    /// Modify copy number count of this node
+    fn set_copy_num(&mut self, copy_num: CopyNum);
     ///
     /// calculate the genome size of this node
     ///
@@ -91,7 +94,7 @@ pub trait DbgNode: Clone + std::fmt::Display {
 }
 
 ///
-/// Trait for edges in Dbg
+/// Trait for edges in Dbg (with integer copy numbers)
 ///
 pub trait DbgEdge: Clone + std::fmt::Display {
     fn new(copy_num: Option<CopyNum>) -> Self;
