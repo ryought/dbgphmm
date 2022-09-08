@@ -8,6 +8,7 @@
 //! FloatSeqGraph is petgraph DiGraph whose nodes have a float-valued copy numbers and a base.
 //!
 use crate::common::NULL_BASE;
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::dbg::float::CopyDensity;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
@@ -15,6 +16,22 @@ use crate::prob::Prob;
 use derive_new::new;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
+
+/*
+impl PHMMLikeNode for SimpleFloatSeqNode {
+    fn base(&self) -> u8 {
+        self.base
+    }
+    fn init_prob(&self) -> Prob {
+        // TODO total density should have
+        // self.copy_density / total_density
+        unimplemented!();
+    }
+}
+*/
+// // impl for dbg (call to_phmm for dbg.graph)
+// impl<N: PHMMLikeNode, E: PHMMLikeEdge> PHMMLikeGraph for DiGraph<N, E> {
+// }
 
 pub trait FloatSeqNode {
     /// the (float/real-valued) copy number of this node

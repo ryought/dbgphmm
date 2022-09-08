@@ -41,8 +41,6 @@ pub trait PHMMNode: std::marker::Sync {
     ///
     /// Initial transition probability from Begin state to the node.
     fn init_prob(&self) -> Prob;
-    // TODO
-    // fn copy_num(&self) -> CopyNum;
 }
 
 ///
@@ -56,8 +54,6 @@ pub trait PHMMEdge: std::marker::Sync {
     /// Transition probability from the source node to the target node
     /// of this edge.
     fn trans_prob(&self) -> Prob;
-    // TODO
-    // fn copy_num(&self) -> CopyNum;
 }
 
 /// Profile HMM model
