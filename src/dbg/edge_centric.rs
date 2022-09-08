@@ -43,20 +43,27 @@ pub trait EDbgNode {
 }
 
 ///
-/// Trait for edges in edge-centric dbg `EDbg`
+/// Fundamental trait for edges in edge-centric dbg `EDbg`
+/// If you need copy numbers, use EDbgEdge
 ///
-pub trait EDbgEdge {
+pub trait EDbgEdgeBase {
     type Kmer: KmerLike;
     ///
     /// k-mer of this edge of the EDbg
     fn kmer(&self) -> &Self::Kmer;
     ///
-    /// Copy number count of this edge in EDbg
-    fn copy_num(&self) -> CopyNum;
-    ///
     /// Index of the node in (node-centric) dbg which this edge is
     /// originated from.
     fn origin_node(&self) -> NodeIndex;
+}
+
+///
+/// Trait for edges in edge-centric dbg `EDbg`
+///
+pub trait EDbgEdge: EDbgEdgeBase {
+    ///
+    /// Copy number count of this edge in EDbg
+    fn copy_num(&self) -> CopyNum;
 }
 
 ///

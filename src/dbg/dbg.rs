@@ -713,6 +713,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let hd = HashDbg::from_seqs(k, seqs);
         Self::from_hashdbg(&hd)
     }
+}
+
+//
+// Edge-centric Dbg conversion
+//
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Convert into edge-centric de bruijn graph
     ///

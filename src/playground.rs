@@ -33,13 +33,27 @@ where
 }
 // (2)
 trait PG {
+    type N;
+    type E;
+    fn graph(&self) -> &DiGraph<Self::N, Self::E>;
     fn init_prob(&self, node: NodeIndex) -> f64;
     fn trans_prob(&self, edge: EdgeIndex) -> f64;
 }
-fn to_frozen_type2<N, E>(graph: &DiGraph<N, E>)
-where
-    DiGraph<N, E>: PG,
-{
+impl<N: A, E: A> PG for DiGraph<N, E> {
+    type N = N;
+    type E = E;
+    fn graph(&self) -> &DiGraph<N, E> {
+        self
+    }
+    fn init_prob(&self, node: NodeIndex) -> f64 {
+        1.0
+    }
+    fn trans_prob(&self, edge: EdgeIndex) -> f64 {
+        0.0
+    }
+}
+fn to_frozen_type2<G: PG>(model: G) {
+    // let g2 = model.graph().map();
 }
 
 /*

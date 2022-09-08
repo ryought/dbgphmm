@@ -12,26 +12,11 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::dbg::float::CopyDensity;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
+use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::prob::Prob;
 use derive_new::new;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
-
-/*
-impl PHMMLikeNode for SimpleFloatSeqNode {
-    fn base(&self) -> u8 {
-        self.base
-    }
-    fn init_prob(&self) -> Prob {
-        // TODO total density should have
-        // self.copy_density / total_density
-        unimplemented!();
-    }
-}
-*/
-// // impl for dbg (call to_phmm for dbg.graph)
-// impl<N: PHMMLikeNode, E: PHMMLikeEdge> PHMMLikeGraph for DiGraph<N, E> {
-// }
 
 pub trait FloatSeqNode {
     /// the (float/real-valued) copy number of this node
@@ -58,6 +43,59 @@ pub trait FloatSeqEdge {
     /// the (float/real-valued) copy number of this edge if assigned
     fn copy_density(&self) -> Option<CopyDensity>;
 }
+
+pub trait PHMMLikeNode {
+    /// emission base
+    fn emission(&self) -> u8;
+    /// This node has a valid emission or not.
+    fn is_emittable(&self) -> bool {
+        self.emission() != NULL_BASE
+    }
+}
+
+///
+/// trait that can be converted into PHMMModel
+///
+/// * SeqGraph
+/// * Dbg
+///
+pub trait PHMMLikeGraph {
+    type Node: PHMMLikeNode;
+    type Edge;
+    // methods that can be implemented manually for each instance
+    /// reference to graph whose node is assigned a base
+    fn graph(&self) -> &DiGraph<Self::Node, Self::Edge>;
+    /// init prob of node
+    fn init_prob(&self, node: NodeIndex) -> Prob;
+    /// trans prob of edge
+    fn trans_prob(&self, edge: EdgeIndex) -> Prob;
+    // method that can be created automatically
+    /// create PHMM node (PNode) using init_prob and bases
+    fn to_phmm_node(&self, node: NodeIndex) -> PNode {
+        let node_weight = self.graph().node_weight(node).unwrap();
+        PNode::new(
+            0, // fill the copy_num field a dummy value zero
+            self.init_prob(node),
+            node_weight.is_emittable(),
+            node_weight.emission(),
+        )
+    }
+    /// create PHMM edge (PEdge) using trans_prob
+    fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
+        PEdge::new(self.trans_prob(edge))
+    }
+    /// convert PHMMLikeGraph -> PHMM model (PModel)
+    fn to_phmm(&self, param: PHMMParams) -> PModel {
+        let graph = self
+            .graph()
+            .map(|v, _| self.to_phmm_node(v), |e, _| self.to_phmm_edge(e));
+        PModel { param, graph }
+    }
+}
+
+// impl<N: FloatSeqNode, E: FloatSeqEdge> PHMMLikeGraph for DiGraph<N, E> {
+// fn graph()
+// }
 
 pub trait FloatSeqGraph {
     /// FloatSeqNode -> PHMM node (PNode)
@@ -158,6 +196,10 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
         }
     }
 }
+
+//
+// Q score
+//
 
 //
 // minimal FloatSeqGraph implementations

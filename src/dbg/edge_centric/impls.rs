@@ -1,4 +1,4 @@
-use super::{EDbg, EDbgEdge, EDbgNode};
+use super::{EDbg, EDbgEdge, EDbgEdgeBase, EDbgNode};
 use crate::common::{CopyNum, Freq, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
@@ -45,16 +45,19 @@ pub struct SimpleEDbgEdgeWithAttr<K: KmerLike, A> {
     pub attribute: A,
 }
 
-impl<K: KmerLike, A> EDbgEdge for SimpleEDbgEdgeWithAttr<K, A> {
+impl<K: KmerLike, A> EDbgEdgeBase for SimpleEDbgEdgeWithAttr<K, A> {
     type Kmer = K;
     fn kmer(&self) -> &K {
         &self.kmer
     }
-    fn copy_num(&self) -> CopyNum {
-        self.copy_num
-    }
     fn origin_node(&self) -> NodeIndex {
         self.origin_node
+    }
+}
+
+impl<K: KmerLike, A> EDbgEdge for SimpleEDbgEdgeWithAttr<K, A> {
+    fn copy_num(&self) -> CopyNum {
+        self.copy_num
     }
 }
 
