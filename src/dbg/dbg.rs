@@ -3,8 +3,8 @@
 //!
 //!
 use super::edge_centric::{
-    IntersectionBase, SimpleEDbg, SimpleEDbgEdge, SimpleEDbgEdgeWithAttr, SimpleEDbgNode,
-    SimpleEDbgWithAttr,
+    EDbg, EDbgEdge, EDbgEdgeBase, EDbgNode, IntersectionBase, SimpleEDbg, SimpleEDbgEdge,
+    SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::{CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE};
@@ -725,30 +725,32 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
         self.to_edbg_with_attr(None)
     }
+    /// Construct edge-centric dbg from node-centric dbg
     ///
-    /// Convert into edge-centric de bruijn graph with attributes
+    /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
+    ///     by using a function `node`
+    ///     `node()` will be called with `km1mer: KmerLike`
+    /// - a node (k-mer) in Dbg -> an edge in EDbg
+    ///     by using a function `edge`
+    ///     `edge()` will be called with node index and its weight
     ///
-    /// if no attributes vector is given, the default value of the type
-    /// will be assigned to `edge.attribute`.
-    ///
-    /// EdgeIndex of edges in edbg corresponds to NodeIndex of nodes in dbg.
-    ///
-    pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
-        &self,
-        attrs: Option<&NodeVec<DenseStorage<A>>>,
-    ) -> SimpleEDbgWithAttr<N::Kmer, A> {
+    pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
+    where
+        EE: EDbgEdgeBase,
+        FN: Fn(&N::Kmer) -> EN,
+        FE: Fn(NodeIndex, &N) -> EE,
+    {
         let mut graph = DiGraph::new();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
         for (node, weight) in self.nodes() {
             let kmer = weight.kmer().clone();
-            let copy_num = weight.copy_num();
 
             // add prefix node if not exists
             let prefix = kmer.prefix();
             let v = match nodes.get(&prefix) {
                 None => {
-                    let node = graph.add_node(SimpleEDbgNode::new(prefix.clone()));
+                    let node = graph.add_node(to_node(&prefix));
                     nodes.insert(prefix, node);
                     node
                 }
@@ -759,7 +761,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let suffix = kmer.suffix();
             let w = match nodes.get(&suffix) {
                 None => {
-                    let node = graph.add_node(SimpleEDbgNode::new(suffix.clone()));
+                    let node = graph.add_node(to_node(&suffix));
                     nodes.insert(suffix, node);
                     node
                 }
@@ -767,17 +769,36 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             };
 
             // add an edge for this kmer
-            let attr = match attrs {
-                Some(attrs) => attrs[node],
-                None => A::default(),
-            };
-            graph.add_edge(
-                v,
-                w,
-                SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr),
-            );
+            graph.add_edge(v, w, to_edge(node, weight));
         }
-        SimpleEDbgWithAttr::new(self.k(), graph)
+        EDbg::new(self.k(), graph)
+    }
+    ///
+    /// Convert into edge-centric de bruijn graph with attributes
+    ///
+    /// if no attributes vector is given, the default value of the type
+    /// will be assigned to `edge.attribute`.
+    ///
+    /// EdgeIndex of edges in edbg corresponds to NodeIndex of nodes in dbg.
+    ///
+    /// Will be deprecated. use `to_edbg_generic`.
+    ///
+    pub fn to_edbg_with_attr<A: Copy + PartialEq + Default>(
+        &self,
+        attrs: Option<&NodeVec<DenseStorage<A>>>,
+    ) -> SimpleEDbgWithAttr<N::Kmer, A> {
+        self.to_edbg_generic(
+            |km1mer| SimpleEDbgNode::new(km1mer.clone()),
+            |node, weight| {
+                let attr = match attrs {
+                    Some(attrs) => attrs[node],
+                    None => A::default(),
+                };
+                let kmer = weight.kmer().clone();
+                let copy_num = weight.copy_num();
+                SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr)
+            },
+        )
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
