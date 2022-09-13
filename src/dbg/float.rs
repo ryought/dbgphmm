@@ -109,6 +109,14 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     pub fn total_density(&self) -> CopyDensity {
         self.nodes().map(|(v, vw)| vw.copy_density()).sum()
     }
+    ///
+    /// calculate the density of nodes in the intersection (with the given node)
+    ///
+    pub fn intersection_density(&self, node: NodeIndex) -> CopyDensity {
+        self.parents(node)
+            .map(|(_, parent, _)| self.node(parent).copy_density)
+            .sum()
+    }
 }
 
 //
@@ -160,8 +168,9 @@ impl FloatSeqEdge for FloatDbgEdge {
 ///
 /// ```text
 /// q_score_diff_exact = A + B
-/// A = (sum(A[0,l]) + sum(A[k,l])) * (log(c[l]+diff) - log(c[l]))
+/// A = (A[0,l] + sum(A[k,l])) * (log(c[l]+diff) - log(c[l]))
 /// B = - sum(A[i]) * (log(G[i]+diff) - log(G[i]))
+/// C = - sum(A[0,l]) * (log(G+diff) - log(G))
 /// ```
 ///
 pub fn q_score_diff_exact<K: KmerLike>(
@@ -170,15 +179,38 @@ pub fn q_score_diff_exact<K: KmerLike>(
     init_freqs: &NodeFreqs,
     node: NodeIndex,
     diff: CopyDensity,
-) -> QScore {
-    // A
-    let a0 = init_freqs[node];
-    let a1 = edge_freqs;
-    unimplemented!();
+) -> f64 {
+    // A ci
+    let a0: CopyDensity = init_freqs[node];
+    let a1: CopyDensity = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
+    let copy_density = dbg.node(node).copy_density;
+    let a = (a0 + a1) * ln_diff(copy_density, diff);
+
+    // B Gi
+    let copy_density_intersection: CopyDensity = dbg.intersection_density(node);
+    let b0: CopyDensity = dbg
+        .parents(node)
+        .map(|(_, parent, _)| {
+            dbg.childs(parent)
+                .map(|(e, child, _)| edge_freqs[e])
+                .sum::<CopyDensity>()
+        })
+        .sum();
+    let b = -b0 * ln_diff(copy_density_intersection, diff);
+
+    // C sum(A[0,l])
+    let copy_density_total: CopyDensity = dbg.total_density();
+    let c0: CopyDensity = dbg.nodes().map(|(v, _)| init_freqs[v]).sum();
+    let c = -c0 * ln_diff(copy_density_total, diff);
+
+    // ret is A+B+C
+    a + b + c
 }
 
 ///
 /// log_e(x + dx) - log_e(x)
+///
+/// TODO is there any better/precise/stable way to calculate the value?
 ///
 pub fn ln_diff(x: f64, dx: f64) -> f64 {
     (x + dx).ln() - x.ln()
@@ -201,5 +233,10 @@ mod tests {
         fdbg.scale_density(0.2);
         println!("{}", fdbg);
         println!("td={}", fdbg.total_density());
+    }
+
+    #[test]
+    fn compare_q_score_and_q_score_diff() {
+        //
     }
 }
