@@ -3,6 +3,8 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqNode};
+use crate::hmmv2::q::QScore;
+use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::prelude::*;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -147,6 +149,39 @@ impl FloatSeqEdge for FloatDbgEdge {
     fn copy_density(&self) -> Option<CopyDensity> {
         self.copy_density()
     }
+}
+
+//
+// Q scores
+//
+///
+/// Calculate difference of QScore
+/// when `node`'s copy density was changed by `diff`.
+///
+/// ```text
+/// q_score_diff_exact = A + B
+/// A = (sum(A[0,l]) + sum(A[k,l])) * (log(c[l]+diff) - log(c[l]))
+/// B = - sum(A[i]) * (log(G[i]+diff) - log(G[i]))
+/// ```
+///
+pub fn q_score_diff_exact<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    node: NodeIndex,
+    diff: CopyDensity,
+) -> QScore {
+    // A
+    let a0 = init_freqs[node];
+    let a1 = edge_freqs;
+    unimplemented!();
+}
+
+///
+/// log_e(x + dx) - log_e(x)
+///
+pub fn ln_diff(x: f64, dx: f64) -> f64 {
+    (x + dx).ln() - x.ln()
 }
 
 //

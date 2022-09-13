@@ -198,10 +198,6 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
 }
 
 //
-// Q score
-//
-
-//
 // minimal FloatSeqGraph implementations
 // for debugging
 //

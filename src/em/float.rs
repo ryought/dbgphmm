@@ -32,5 +32,35 @@ pub fn m_step<K: KmerLike>(
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
 ) {
-    // convert to edge-centric dbg with each edge has a cost
+    // (1) convert to edge-centric dbg with each edge has a cost
+
+    // (2) search for negative cycle
+
+    // search again for
+}
+
+///
+/// FloatDbg
+/// -> construct residue graph of QScore difference when +1/-1
+/// -> change density if negative meaningful cycle was found
+/// -> new updated FloatDbg
+///
+pub fn m_step_once<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+    genome_size: CopyDensity,
+) -> FloatDbg<K> {
+    unimplemented!();
+}
+
+fn to_residue_graph() {}
+
+struct ScoreDiffs {
+    /// difference amount
+    diff: f64,
+    /// difference of score when flow is increased by diff
+    diff_inc: f64,
+    /// difference of score when flow is decreased by diff
+    diff_dec: f64,
 }
