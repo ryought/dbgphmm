@@ -2,7 +2,8 @@
 //! de bruijn graph with float (real-valued) copy numbers
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
-use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqNode};
+use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
+use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::prelude::*;
@@ -86,7 +87,7 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
 }
 
 //
-// Copy density related
+// Copy density and PHMM related
 //
 impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     ///
@@ -116,6 +117,12 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         self.parents(node)
             .map(|(_, parent, _)| self.node(parent).copy_density)
             .sum()
+    }
+    ///
+    /// convert to PHMM `PModel` by running `FloatSeqGraph::to_phmm` for `self.graph`.
+    ///
+    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
+        self.graph.to_phmm(param)
     }
 }
 
@@ -167,10 +174,13 @@ impl FloatSeqEdge for FloatDbgEdge {
 /// when `node`'s copy density was changed by `diff`.
 ///
 /// ```text
-/// q_score_diff_exact = A + B
-/// A = (A[0,l] + sum(A[k,l])) * (log(c[l]+diff) - log(c[l]))
-/// B = - sum(A[i]) * (log(G[i]+diff) - log(G[i]))
-/// C = - sum(A[0,l]) * (log(G+diff) - log(G))
+/// q_score_diff_exact = init + trans
+/// init = A + B
+/// trans = C + D
+/// A = A[0,l] * (log(c[l]+diff) - log(c[l]))
+/// B = - sum(A[0,l]) * (log(G+diff) - log(G))
+/// C = sum(A[k,l]) * (log(c[l]+diff) - log(c[l]))
+/// D = - sum(A[i]) * (log(G[i]+diff) - log(G[i]))
 /// ```
 ///
 pub fn q_score_diff_exact<K: KmerLike>(
@@ -179,16 +189,26 @@ pub fn q_score_diff_exact<K: KmerLike>(
     init_freqs: &NodeFreqs,
     node: NodeIndex,
     diff: CopyDensity,
-) -> f64 {
-    // A ci
-    let a0: CopyDensity = init_freqs[node];
-    let a1: CopyDensity = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
+) -> QScore {
     let copy_density = dbg.node(node).copy_density;
-    let a = (a0 + a1) * ln_diff(copy_density, diff);
-
-    // B Gi
+    let copy_density_total: CopyDensity = dbg.total_density();
     let copy_density_intersection: CopyDensity = dbg.intersection_density(node);
-    let b0: CopyDensity = dbg
+
+    // init
+    // A: A[0,l]
+    let a0: CopyDensity = init_freqs[node];
+    let a = a0 * ln_diff(copy_density, diff);
+    // B: G
+    let b0: CopyDensity = dbg.nodes().map(|(v, _)| init_freqs[v]).sum();
+    let b = -b0 * ln_diff(copy_density_total, diff);
+    let init = a + b;
+
+    // trans
+    // C: sum(A[k,l])
+    let c0: CopyDensity = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
+    let c = c0 * ln_diff(copy_density, diff);
+    // D: Gi
+    let d0: CopyDensity = dbg
         .parents(node)
         .map(|(_, parent, _)| {
             dbg.childs(parent)
@@ -196,15 +216,10 @@ pub fn q_score_diff_exact<K: KmerLike>(
                 .sum::<CopyDensity>()
         })
         .sum();
-    let b = -b0 * ln_diff(copy_density_intersection, diff);
+    let d = -d0 * ln_diff(copy_density_intersection, diff);
+    let trans = c + d;
 
-    // C sum(A[0,l])
-    let copy_density_total: CopyDensity = dbg.total_density();
-    let c0: CopyDensity = dbg.nodes().map(|(v, _)| init_freqs[v]).sum();
-    let c = -c0 * ln_diff(copy_density_total, diff);
-
-    // ret is A+B+C
-    a + b + c
+    QScore::new(init, trans, 0.0)
 }
 
 ///
@@ -224,6 +239,8 @@ pub fn ln_diff(x: f64, dx: f64) -> f64 {
 mod tests {
     use super::super::mocks::*;
     use super::*;
+    use crate::hmmv2::params::PHMMParams;
+    use crate::hmmv2::q::q_score_exact;
 
     #[test]
     fn convert_to_float_dbg() {
@@ -238,5 +255,28 @@ mod tests {
     #[test]
     fn compare_q_score_and_q_score_diff() {
         //
+        let mut dbg = mock_intersection_small();
+        let mut fdbg = FloatDbg::from_dbg(&dbg);
+        println!("{}", fdbg);
+        let reads = [b"ATAGC"];
+
+        // normal score
+        let phmm = fdbg.to_phmm(PHMMParams::zero_error());
+        let (edge_freqs, init_freqs, full_prob) = phmm.to_edge_and_init_freqs_parallel(&reads);
+        let q = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+        println!("{}", q);
+
+        // density with multiplying constant should result in the same score
+        fdbg.scale_density(100.0);
+        let phmm = fdbg.to_phmm(PHMMParams::zero_error());
+        let (edge_freqs, init_freqs, full_prob) = phmm.to_edge_and_init_freqs_parallel(&reads);
+        let q = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+        println!("{}", q);
+
+        // density with multiplying constant should result in the same score
+        for (node, _) in dbg.nodes() {
+            let q = q_score_diff_exact(&fdbg, &edge_freqs, &init_freqs, node, 10.0);
+            println!("{:?} {}", node, q);
+        }
     }
 }
