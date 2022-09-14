@@ -105,17 +105,35 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         }
     }
     ///
+    /// modify node's copy_density by calling `FloatDbgNode::set_copy_density` without checking
+    /// flow consistency.
+    ///
+    pub fn set_node_copy_density(&mut self, node: NodeIndex, copy_density: CopyDensity) {
+        self.graph
+            .node_weight_mut(node)
+            .unwrap()
+            .set_copy_density(copy_density)
+    }
+    ///
     /// calculate the total density of all nodes
     ///
     pub fn total_density(&self) -> CopyDensity {
         self.nodes().map(|(v, vw)| vw.copy_density()).sum()
     }
     ///
+    /// calculate the total density of all emittable nodes
+    ///
+    pub fn total_emittable_copy_density(&self) -> CopyDensity {
+        self.graph.total_emittable_copy_density()
+    }
+    ///
     /// calculate the density of nodes in the intersection (with the given node)
     ///
-    pub fn intersection_density(&self, node: NodeIndex) -> CopyDensity {
-        self.parents(node)
-            .map(|(_, parent, _)| self.node(parent).copy_density)
+    pub fn intersection_emittable_copy_density(&self, node: NodeIndex) -> CopyDensity {
+        let (_, parent, _) = self.parents(node).next().unwrap();
+        self.childs(parent)
+            .filter(|(_, sibling, _)| self.node(*sibling).is_emittable())
+            .map(|(_, sibling, _)| self.node(sibling).copy_density)
             .sum()
     }
     ///
@@ -191,33 +209,52 @@ pub fn q_score_diff_exact<K: KmerLike>(
     diff: CopyDensity,
 ) -> QScore {
     let copy_density = dbg.node(node).copy_density;
-    let copy_density_total: CopyDensity = dbg.total_density();
-    let copy_density_intersection: CopyDensity = dbg.intersection_density(node);
+    let copy_density_total: CopyDensity = dbg.total_emittable_copy_density();
+    let copy_density_intersection: CopyDensity = dbg.intersection_emittable_copy_density(node);
+    let is_emittable = dbg.node(node).is_emittable();
 
     // init
     // A: A[0,l]
-    let a0: CopyDensity = init_freqs[node];
-    let a = a0 * ln_diff(copy_density, diff);
-    // B: G
-    let b0: CopyDensity = dbg.nodes().map(|(v, _)| init_freqs[v]).sum();
-    let b = -b0 * ln_diff(copy_density_total, diff);
-    let init = a + b;
+    let init = if is_emittable {
+        let a0: CopyDensity = init_freqs[node];
+        let a = a0 * ln_diff(copy_density, diff);
+        // B: G
+        let b0: CopyDensity = dbg
+            .nodes()
+            .filter(|(_, vw)| vw.is_emittable())
+            .map(|(v, _)| init_freqs[v])
+            .sum();
+        let b = -b0 * ln_diff(copy_density_total, diff);
+        a + b
+    } else {
+        0.0
+    };
 
     // trans
     // C: sum(A[k,l])
-    let c0: CopyDensity = dbg.parents(node).map(|(e, _, _)| edge_freqs[e]).sum();
-    let c = c0 * ln_diff(copy_density, diff);
-    // D: Gi
-    let d0: CopyDensity = dbg
-        .parents(node)
-        .map(|(_, parent, _)| {
-            dbg.childs(parent)
-                .map(|(e, child, _)| edge_freqs[e])
-                .sum::<CopyDensity>()
-        })
-        .sum();
-    let d = -d0 * ln_diff(copy_density_intersection, diff);
-    let trans = c + d;
+    let trans = if is_emittable {
+        let c0: CopyDensity = dbg
+            .parents(node)
+            .filter(|(_, parent, _)| dbg.is_emittable(*parent))
+            .map(|(e, _, _)| edge_freqs[e])
+            .sum();
+        let c = c0 * ln_diff(copy_density, diff);
+        // D: Gi
+        let d0: CopyDensity = dbg
+            .parents(node)
+            .filter(|(_, parent, _)| dbg.is_emittable(*parent))
+            .map(|(_, parent, _)| {
+                dbg.childs(parent)
+                    .filter(|(_, child, _)| dbg.is_emittable(*child))
+                    .map(|(e, child, _)| edge_freqs[e])
+                    .sum::<CopyDensity>()
+            })
+            .sum();
+        let d = -d0 * ln_diff(copy_density_intersection, diff);
+        c + d
+    } else {
+        0.0
+    };
 
     QScore::new(init, trans, 0.0)
 }
@@ -258,25 +295,38 @@ mod tests {
         let mut dbg = mock_intersection_small();
         let mut fdbg = FloatDbg::from_dbg(&dbg);
         println!("{}", fdbg);
-        let reads = [b"ATAGC"];
+        let reads = [b"ATAGCT"];
 
         // normal score
         let phmm = fdbg.to_phmm(PHMMParams::zero_error());
         let (edge_freqs, init_freqs, full_prob) = phmm.to_edge_and_init_freqs_parallel(&reads);
-        let q = q_score_exact(&phmm, &edge_freqs, &init_freqs);
-        println!("{}", q);
+        let q0 = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+        println!("{}", q0);
 
         // density with multiplying constant should result in the same score
         fdbg.scale_density(100.0);
         let phmm = fdbg.to_phmm(PHMMParams::zero_error());
         let (edge_freqs, init_freqs, full_prob) = phmm.to_edge_and_init_freqs_parallel(&reads);
         let q = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+        assert_abs_diff_eq!(q0.total(), q.total(), epsilon = 0.00001);
         println!("{}", q);
 
         // density with multiplying constant should result in the same score
+        let diff = 10.0;
         for (node, _) in dbg.nodes() {
-            let q = q_score_diff_exact(&fdbg, &edge_freqs, &init_freqs, node, 10.0);
-            println!("{:?} {}", node, q);
+            println!("{:?}", node);
+            // (1) modify phmm
+            let mut fdbg_mod = fdbg.clone();
+            fdbg_mod.set_node_copy_density(node, fdbg.node(node).copy_density + diff);
+            let phmm = fdbg_mod.to_phmm(PHMMParams::zero_error());
+            let q1 = q_score_exact(&phmm, &edge_freqs, &init_freqs);
+            let q1d = q1.sub(q);
+            // println!("{} {}", fdbg_mod, phmm);
+
+            // (2) calculate only diff
+            let q2d = q_score_diff_exact(&fdbg, &edge_freqs, &init_freqs, node, diff);
+            println!("{} {}", q1d, q2d);
+            assert_abs_diff_eq!(q1d.total(), q2d.total());
         }
     }
 }

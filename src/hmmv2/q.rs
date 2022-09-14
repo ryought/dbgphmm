@@ -31,6 +31,16 @@ impl QScore {
     pub fn total(&self) -> f64 {
         self.init + self.trans + self.prior
     }
+    ///
+    /// subtract other from self `self - other`
+    ///
+    pub fn sub(&self, other: QScore) -> QScore {
+        QScore {
+            init: self.init - other.init,
+            trans: self.trans - other.trans,
+            prior: self.prior - other.prior,
+        }
+    }
 }
 
 impl std::fmt::Display for QScore {

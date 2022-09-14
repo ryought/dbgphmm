@@ -25,13 +25,13 @@ pub trait FloatSeqNode {
     fn base(&self) -> u8;
     /// This node is emittable or not?
     /// i.e. self.base != 'X'?
-    fn is_emittable(&self) -> bool {
+    fn is_emittable_node(&self) -> bool {
         self.base() != NULL_BASE
     }
     /// (effective) copy_density
     /// (if emittable and otherwise 0.0)
     fn emittable_copy_density(&self) -> CopyDensity {
-        if self.is_emittable() {
+        if self.is_emittable_node() {
             self.copy_density()
         } else {
             0.0
@@ -48,7 +48,7 @@ pub trait PHMMLikeNode {
     /// emission base
     fn emission(&self) -> u8;
     /// This node has a valid emission or not.
-    fn is_emittable(&self) -> bool {
+    fn is_emittable_node(&self) -> bool {
         self.emission() != NULL_BASE
     }
 }
@@ -76,7 +76,7 @@ pub trait PHMMLikeGraph {
         PNode::new(
             0, // fill the copy_num field a dummy value zero
             self.init_prob(node),
-            node_weight.is_emittable(),
+            node_weight.is_emittable_node(),
             node_weight.emission(),
         )
     }
@@ -134,7 +134,7 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
         PNode::new(
             0, // fill the copy_num field a dummy value zero
             init_prob,
-            node_weight.is_emittable(),
+            node_weight.is_emittable_node(),
             node_weight.base(),
         )
     }
@@ -165,7 +165,7 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
     }
     fn init_prob_with_total(&self, node: NodeIndex, total_copy_density: CopyDensity) -> Prob {
         let node_weight = self.node_weight(node).unwrap();
-        if node_weight.is_emittable() {
+        if node_weight.is_emittable_node() {
             Prob::from_prob(node_weight.copy_density()) / Prob::from_prob(total_copy_density)
         } else {
             Prob::from_prob(0.0)
@@ -186,7 +186,7 @@ impl<N: FloatSeqNode, E: FloatSeqEdge> FloatSeqGraph for DiGraph<N, E> {
             None => {
                 // there is no copy num assigned to the edge
                 let total_child_copy_density = self.total_emittable_child_copy_density(parent);
-                if child_weight.is_emittable() && total_child_copy_density > 0.0 {
+                if child_weight.is_emittable_node() && total_child_copy_density > 0.0 {
                     Prob::from_prob(child_weight.copy_density())
                         / Prob::from_prob(total_child_copy_density)
                 } else {
