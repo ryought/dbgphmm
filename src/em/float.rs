@@ -165,6 +165,7 @@ fn apply_to_dbg<K: KmerLike>(
 mod tests {
     use super::*;
     use crate::dbg::mocks::*;
+    use crate::kmer::veckmer::kmer;
     use petgraph::dot::Dot;
 
     #[test]
@@ -180,5 +181,26 @@ mod tests {
         let edges = improve_residue_graph(&rg).unwrap();
         apply_to_dbg(&mut fdbg, diff, &rg, &edges);
         println!("{}", fdbg);
+
+        assert_abs_diff_eq!(
+            fdbg.node(fdbg.find_node_from_kmer(&kmer(b"AGCT")).unwrap())
+                .copy_density(),
+            1.1,
+        );
+        assert_abs_diff_eq!(
+            fdbg.node(fdbg.find_node_from_kmer(&kmer(b"AGCC")).unwrap())
+                .copy_density(),
+            0.9,
+        );
+        assert_abs_diff_eq!(
+            fdbg.node(fdbg.find_node_from_kmer(&kmer(b"nnnA")).unwrap())
+                .copy_density(),
+            1.0,
+        );
+        assert_abs_diff_eq!(
+            fdbg.node(fdbg.find_node_from_kmer(&kmer(b"nnnT")).unwrap())
+                .copy_density(),
+            1.0,
+        );
     }
 }
