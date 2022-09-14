@@ -330,7 +330,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
 ///
 /// Update residue graph by finding negative cycle
 ///
-fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
+pub fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     // draw(&rg);

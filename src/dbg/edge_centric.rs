@@ -72,7 +72,7 @@ pub trait EDbgEdge: EDbgEdgeBase {
 ///
 /// Basic graph operations for Dbg
 ///
-impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
+impl<N, E: EDbgEdgeBase> EDbg<N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -120,6 +120,8 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
     }
+}
+impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// convert a node into an intersection information
     pub fn intersection(&self, node: NodeIndex) -> IntersectionBase<N::Kmer> {
         let node_weight = self

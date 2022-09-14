@@ -718,13 +718,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 //
 // Edge-centric Dbg conversion
 //
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    ///
-    /// Convert into edge-centric de bruijn graph
-    ///
-    pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
-        self.to_edbg_with_attr(None)
-    }
+impl<N: DbgNodeBase, E> Dbg<N, E> {
     /// Construct edge-centric dbg from node-centric dbg
     ///
     /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
@@ -772,6 +766,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             graph.add_edge(v, w, to_edge(node, weight));
         }
         EDbg::new(self.k(), graph)
+    }
+}
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// Convert into edge-centric de bruijn graph
+    ///
+    pub fn to_edbg(&self) -> SimpleEDbg<N::Kmer> {
+        self.to_edbg_with_attr(None)
     }
     ///
     /// Convert into edge-centric de bruijn graph with attributes

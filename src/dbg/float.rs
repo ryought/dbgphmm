@@ -32,16 +32,16 @@ impl<K: KmerLike> DbgNodeBase for FloatDbgNode<K> {
 }
 
 impl<K: KmerLike> FloatDbgNode<K> {
-    fn new(kmer: K, copy_density: CopyDensity) -> Self {
+    pub fn new(kmer: K, copy_density: CopyDensity) -> Self {
         FloatDbgNode { kmer, copy_density }
     }
-    fn copy_density(&self) -> CopyDensity {
+    pub fn copy_density(&self) -> CopyDensity {
         self.copy_density
     }
-    fn round_copy_num(&self) -> CopyNum {
+    pub fn round_copy_num(&self) -> CopyNum {
         self.copy_density.round() as CopyNum
     }
-    fn set_copy_density(&mut self, copy_density: CopyDensity) {
+    pub fn set_copy_density(&mut self, copy_density: CopyDensity) {
         self.copy_density = copy_density
     }
 }
