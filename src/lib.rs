@@ -18,6 +18,8 @@ pub mod io;
 pub mod kmer;
 pub mod min_flow;
 pub mod optimizer;
+pub mod playground;
+pub mod prelude;
 pub mod prob;
 pub mod random_seq;
 pub mod reads;

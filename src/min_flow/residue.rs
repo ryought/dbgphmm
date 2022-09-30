@@ -61,43 +61,6 @@ impl ResidueEdge {
     }
 }
 
-// Implement FloatMeasure for ResidueEdge
-// to use ResidueEdge.weight as a weight in bellman ford
-impl PartialOrd for ResidueEdge {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.weight.partial_cmp(&other.weight)
-    }
-}
-
-impl PartialEq for ResidueEdge {
-    fn eq(&self, other: &Self) -> bool {
-        self.weight == other.weight
-    }
-}
-
-impl std::ops::Add for ResidueEdge {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        ResidueEdge::only_weight(self.weight + other.weight)
-    }
-}
-
-impl petgraph::algo::FloatMeasure for ResidueEdge {
-    fn zero() -> Self {
-        ResidueEdge::only_weight(0.)
-    }
-    fn infinite() -> Self {
-        ResidueEdge::only_weight(1. / 0.)
-    }
-}
-
-impl HasEpsilon for ResidueEdge {
-    fn epsilon() -> Self {
-        // TODO should be changed to f64::EPSILON?
-        ResidueEdge::only_weight(0.00001)
-    }
-}
-
 impl FloatWeight for ResidueEdge {
     fn float_weight(&self) -> f64 {
         self.weight
@@ -330,7 +293,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
 ///
 /// Update residue graph by finding negative cycle
 ///
-fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
+pub fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     // draw(&rg);

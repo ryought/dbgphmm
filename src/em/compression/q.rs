@@ -1,41 +1,17 @@
 //!
 //! Exact Q-function score
 //!
-use crate::common::CopyNum;
-use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::hmmv2::common::{PHMMEdge, PHMMNode};
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, NodeCopyNums};
+use crate::dbg::float::FloatDbg;
+use crate::graph::float_seq_graph::FloatSeqGraph;
+use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::min_flow::utils::clamped_log_with;
+use crate::prelude::*;
 
-#[derive(Clone, Debug, Copy, Default)]
-pub struct QScore {
-    init: f64,
-    trans: f64,
-    prior: f64,
-}
-
-impl QScore {
-    ///
-    /// total score
-    ///
-    pub fn total(&self) -> f64 {
-        self.init + self.trans + self.prior
-    }
-}
-
-impl std::fmt::Display for QScore {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}(init={} trans={} prior={})",
-            self.total(),
-            self.init,
-            self.trans,
-            self.prior
-        )
-    }
-}
+// QScore definition was moved to hmmv2
+pub use crate::hmmv2::q::QScore;
 
 ///
 /// calculate exact Q-function score with clamped log
@@ -122,4 +98,39 @@ pub fn q_score<N: DbgNode, E: DbgEdge>(
     qs.prior = dbg.to_prior_score(penalty_weight, genome_size);
 
     qs
+}
+
+///
+/// Calculate (exact) Q function score.
+///
+pub fn q_score_float_dbg<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    edge_freqs: &EdgeFreqs,
+    init_freqs: &NodeFreqs,
+) -> QScore {
+    let mut init = 0.0;
+    let mut trans = 0.0;
+
+    for (node, node_weight) in dbg.nodes() {
+        if node_weight.is_emittable() {
+            // (1) init score
+            // A(Begin, v) log p_init(v)
+            let init_prob = dbg.graph.init_prob(node).to_log_value();
+            assert!(init_prob.is_finite());
+            init += init_freqs[node] * init_prob;
+
+            // (2) trans score
+            // A(v,w) log p_trans(v, w)
+            for (edge, child, edge_weight) in dbg.childs(node) {
+                if dbg.is_emittable(child) {
+                    let trans_prob = dbg.graph.trans_prob(edge).to_log_value();
+                    assert!(trans_prob.is_finite());
+                    trans += edge_freqs[edge] * trans_prob;
+                }
+            }
+        }
+    }
+
+    // prior is always zero
+    QScore::new(init, trans, 0.0)
 }

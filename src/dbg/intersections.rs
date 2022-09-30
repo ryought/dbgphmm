@@ -1,4 +1,4 @@
-use super::dbg::{Dbg, DbgEdge, DbgNode};
+use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use super::edge_centric::{IntersectionBase, SimpleEDbg};
 use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
 use crate::graph::Bipartite;

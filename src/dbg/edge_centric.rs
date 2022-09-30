@@ -27,7 +27,7 @@ use itertools::iproduct;
 ///
 /// (Edge-centric) De bruijn graph struct
 ///
-pub struct EDbg<N: EDbgNode, E: EDbgEdge> {
+pub struct EDbg<N, E: EDbgEdgeBase> {
     k: usize,
     pub graph: DiGraph<N, E>,
 }
@@ -43,16 +43,14 @@ pub trait EDbgNode {
 }
 
 ///
-/// Trait for edges in edge-centric dbg `EDbg`
+/// Fundamental trait for edges in edge-centric dbg `EDbg`
+/// If you need copy numbers, use EDbgEdge
 ///
-pub trait EDbgEdge {
+pub trait EDbgEdgeBase {
     type Kmer: KmerLike;
     ///
     /// k-mer of this edge of the EDbg
     fn kmer(&self) -> &Self::Kmer;
-    ///
-    /// Copy number count of this edge in EDbg
-    fn copy_num(&self) -> CopyNum;
     ///
     /// Index of the node in (node-centric) dbg which this edge is
     /// originated from.
@@ -60,9 +58,21 @@ pub trait EDbgEdge {
 }
 
 ///
+/// Trait for edges in edge-centric dbg `EDbg`
+///
+/// EDbgEdgeBase: kmer() and origin_node()
+/// EDbgEdge: copy_num()
+///
+pub trait EDbgEdge: EDbgEdgeBase {
+    ///
+    /// Copy number count of this edge in EDbg
+    fn copy_num(&self) -> CopyNum;
+}
+
+///
 /// Basic graph operations for Dbg
 ///
-impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
+impl<N, E: EDbgEdgeBase> EDbg<N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -110,6 +120,8 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
     }
+}
+impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     /// convert a node into an intersection information
     pub fn intersection(&self, node: NodeIndex) -> IntersectionBase<N::Kmer> {
         let node_weight = self
@@ -196,7 +208,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     }
 }
 
-impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
+impl<N, E: EDbgEdgeBase> EDbg<N, E> {
     /// plain constructor of edbg
     pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
         EDbg { k, graph }

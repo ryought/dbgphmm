@@ -332,6 +332,7 @@ dependencies = [
  "arrayvec",
  "bio",
  "clap",
+ "derive-new",
  "env_logger",
  "fnv",
  "forceatlas2",
