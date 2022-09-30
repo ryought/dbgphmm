@@ -36,10 +36,9 @@ pub fn m_step<K: KmerLike>(
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
+    diff: CopyDensity,
+    max_iteration: usize,
 ) {
-    // (1) convert to edge-centric dbg with each edge has a cost
-
-    // (2) search for negative cycle
 
     // search again for
 }
@@ -55,8 +54,20 @@ pub fn m_step_once<K: KmerLike>(
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
-) -> FloatDbg<K> {
-    unimplemented!();
+    diff: CopyDensity,
+) -> Option<FloatDbg<K>> {
+    let mut fdbg = dbg.clone();
+    // (1) convert to edge-centric dbg with each edge has a cost
+    let rg = to_residue_graph(&fdbg, &edge_freqs, &init_freqs, diff);
+    // (2) search for negative cycle
+    match improve_residue_graph(&rg) {
+        Some(edges) => {
+            apply_to_dbg(&mut fdbg, diff, &rg, &edges);
+            // (3) check if the copy density changes actually improves q-score.
+            Some(fdbg)
+        }
+        None => None,
+    }
 }
 
 #[derive(Clone, Debug)]
