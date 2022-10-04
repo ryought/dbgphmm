@@ -15,6 +15,7 @@ pub mod iterators;
 pub mod min_mean_weight_cycle;
 pub mod mocks;
 pub mod seq_graph;
+pub mod shortest_cycle;
 pub use float_weight::FloatWeight;
 
 //
