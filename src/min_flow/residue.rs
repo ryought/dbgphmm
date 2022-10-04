@@ -211,11 +211,36 @@ fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), Cost> {
 //
 
 ///
+/// Change EdgeVec by `amount` along the edges of a cycle in residue graph
+///
+pub fn change_flow_along_edges(
+    flow: &Flow,
+    rg: &ResidueGraph,
+    edges: &[EdgeIndex],
+    amount: FlowRate,
+) -> Flow {
+    let mut new_flow = flow.clone();
+    for edge in edges {
+        let ew = rg.edge_weight(*edge).unwrap();
+        // convert back to the original edgeindex
+        let original_edge = ew.target;
+
+        // use `wrapping_{add,sub}` because
+        // in the some ordering of residue edges, applying -1 on a zero-flow edge can happen.
+        // As long as the residue edges is valid (i.e. it makes cycle in the residue graph)
+        // the final flow should satisfy the flow condition.
+        new_flow[original_edge] = match ew.direction {
+            ResidueDirection::Up => new_flow[original_edge].wrapping_add(amount),
+            ResidueDirection::Down => new_flow[original_edge].wrapping_sub(amount),
+        };
+    }
+    new_flow
+}
+
+///
 /// Update the flow by a negative cycle on a residue graph.
 ///
 fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeIndex]) -> Flow {
-    let mut new_flow = flow.clone();
-
     // (1) determine flow_change_amount
     // that is the minimum of ResidueEdge.count
     let flow_change_amount = edges
@@ -228,22 +253,7 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
         .unwrap();
 
     // (2) apply these changes to the flow along the cycle
-    for edge in edges {
-        let ew = rg.edge_weight(*edge).unwrap();
-        // convert back to the original edgeindex
-        let original_edge = ew.target;
-
-        // use `wrapping_{add,sub}` because
-        // in the some ordering of residue edges, applying -1 on a zero-flow edge can happen.
-        // As long as the residue edges is valid (i.e. it makes cycle in the residue graph)
-        // the final flow should satisfy the flow condition.
-        new_flow[original_edge] = match ew.direction {
-            ResidueDirection::Up => new_flow[original_edge].wrapping_add(flow_change_amount),
-            ResidueDirection::Down => new_flow[original_edge].wrapping_sub(flow_change_amount),
-        };
-    }
-
-    new_flow
+    change_flow_along_edges(flow, rg, edges, flow_change_amount)
 }
 
 fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIndex>> {

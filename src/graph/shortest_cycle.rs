@@ -11,22 +11,24 @@ use petgraph::visit::EdgeRef;
 ///
 /// current implementation uses astar algorithm
 ///
-fn shortest_cycle<N, E>(
+pub fn shortest_cycle<N, E>(
     graph: &DiGraph<N, E>,
     edge_with: EdgeIndex,
-    edge_without: EdgeIndex,
+    edge_without: Option<EdgeIndex>,
 ) -> Option<Vec<NodeIndex>> {
     let (v, w) = graph.edge_endpoints(edge_with).unwrap();
-    let (w2, v2) = graph.edge_endpoints(edge_without).unwrap();
-    assert_eq!(v, v2);
-    assert_eq!(w, w2);
+    if let Some(edge_without) = edge_without {
+        let (w2, v2) = graph.edge_endpoints(edge_without).unwrap();
+        assert_eq!(v, v2);
+        assert_eq!(w, w2);
+    }
     // search for shortest path w -> v
     match astar(
         graph,
         w,
         |n| n == v,
         |e| {
-            if e.id() == edge_without {
+            if edge_without.is_some() && e.id() == edge_without.unwrap() {
                 // edge_without is not usable
                 usize::MAX
             } else {
@@ -55,7 +57,7 @@ mod tests {
     fn starting() {
         let graph =
             DiGraph::<(), ()>::from_edges(&[(0, 1), (1, 0), (1, 2), (2, 1), (2, 0), (0, 2)]);
-        let cycle = shortest_cycle(&graph, EdgeIndex::new(0), EdgeIndex::new(1));
+        let cycle = shortest_cycle(&graph, EdgeIndex::new(0), Some(EdgeIndex::new(1)));
         println!("{:?}", cycle);
         assert_eq!(
             cycle,
