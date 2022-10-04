@@ -16,6 +16,7 @@ pub mod hmm;
 pub mod hmmv2;
 pub mod io;
 pub mod kmer;
+pub mod mcmc;
 pub mod min_flow;
 pub mod optimizer;
 pub mod playground;
