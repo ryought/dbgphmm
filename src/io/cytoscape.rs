@@ -90,6 +90,7 @@ pub enum ElementV2<K: KmerLike> {
         label: Option<K>,
         attrs: Vec<NodeAttr>,
         history: Vec<f64>,
+        copy_num: CopyNum,
     },
     #[serde(rename = "edges")]
     /// Edge element of cytoscape
@@ -170,6 +171,7 @@ mod tests {
             label: Some(Kmer::from_bases(b"ATCGA")),
             attrs: vec![NodeAttr::CopyNum(10)],
             history: vec![],
+            copy_num: 10,
         });
         elements.push(ElementV2::Edge {
             id: EdgeIndex::new(0),
@@ -192,7 +194,8 @@ mod tests {
           "value": 10
         }
       ],
-      "history": []
+      "history": [],
+      "copy_num": 10
     }
   },
   {
