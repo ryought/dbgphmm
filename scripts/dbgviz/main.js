@@ -135,6 +135,7 @@ function unselect_node() {
  * init functions
  */
 function init_cytoscape(elements) {
+  console.log('init_cytoscape', elements)
   cy = cytoscape({
     container: document.getElementById('cy'),
     style: [
@@ -159,6 +160,7 @@ function init_cytoscape(elements) {
           },
           'background-color': (e) => {
             const attrs = e.data('attrs')
+            const history = e.data('history')
             const time = e.scratch('time')
             const key = e.scratch('color_attr_key')
             const x_max = e.scratch('color_max')
@@ -211,7 +213,7 @@ function init_cytoscape(elements) {
         }
       }
     ],
-    elements: elements,
+    elements: elements.filter((e) => e.group == 'nodes' || e.group == 'edges'),
     layout: {
       name: 'random',
       maxSimulationTime: 1000,
