@@ -1,11 +1,13 @@
 use dbgphmm::common::{ni, Reads};
 use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use dbgphmm::dbg::mocks::mock_intersection_small;
+use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{em, em_result_to_node_historys};
+use dbgphmm::genome;
 use dbgphmm::prelude::*;
 use dbgphmm::vector::{DenseStorage, NodeVec};
 
-fn main() {
+fn run_small() {
     let dbg = mock_intersection_small();
     let genome_size = dbg.genome_size() as CopyDensity;
     let reads = Reads::from(vec![b"ATAGCT".to_vec()]);
@@ -18,4 +20,37 @@ fn main() {
     let json = dbg.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
     // let (edge_freqs, init_freqs, p) = e_step(&fdbg, &reads, &params);
     println!("{}", json);
+}
+
+fn run_simple() {
+    let (genome, genome_size) = genome::simple(100, 5);
+    let coverage = 10;
+    let param = PHMMParams::uniform(0.01);
+    let dataset = generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,
+        param.clone(),
+        coverage,
+        2000,
+        ReadType::FullLength,
+        12,
+        64,
+    );
+    // dataset.show_reads();
+    //
+    // let dbg_raw = dataset.dbg_raw;
+    // let phmm = dbg_raw.to_phmm(param.clone());
+    // let (nf, p) = phmm.to_node_freqs_parallel(&dataset.reads);
+
+    let mut dbg_true = dataset.dbg_raw.clone();
+    let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+    dbg_true.set_node_copy_nums(&copy_nums_true);
+
+    let json = dbg_true.to_cytoscape();
+    println!("{}", json);
+}
+
+fn main() {
+    run_simple();
 }

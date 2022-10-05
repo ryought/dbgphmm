@@ -6,7 +6,7 @@
 //! * `tandem_repeat`
 //! * `tandem_repeat_diploid`
 //!
-use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
+use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
 use crate::random_seq::{generate, random_mutation, tandem_repeat, MutationProfile};
 
 ///
@@ -18,7 +18,7 @@ use crate::random_seq::{generate, random_mutation, tandem_repeat, MutationProfil
 /// * seed: seed of the sequence generation
 ///
 pub fn simple(genome_size: usize, seed: u64) -> (Genome, usize) {
-    let genome = vec![generate(genome_size, seed)];
+    let genome = vec![StyledSequence::linear(generate(genome_size, seed))];
     (genome, genome_size)
 }
 
@@ -33,7 +33,10 @@ pub fn simple_diploid() -> (Genome, usize) {
     let mut haplotype2 = haplotype1.clone();
     haplotype2[30] = b'C';
     haplotype2[80] = b'T';
-    let genome = vec![haplotype1, haplotype2];
+    let genome = vec![
+        StyledSequence::linear(haplotype1),
+        StyledSequence::linear(haplotype2),
+    ];
     let genome_size = genome_size_hap * 2;
     (genome, genome_size)
 }
@@ -53,7 +56,10 @@ pub fn diploid(hap_size: usize, hap_seed: u64, div_rate: f64, div_seed: u64) -> 
     let (hap_b, ops) = random_mutation(&hap_a, MutationProfile::uniform(div_rate), div_seed);
     // println!("ops={:?}", ops);
     let genome_size = hap_size * 2;
-    (vec![hap_a, hap_b], genome_size)
+    (
+        vec![StyledSequence::linear(hap_a), StyledSequence::linear(hap_b)],
+        genome_size,
+    )
 }
 
 /// tandem repeat haploid genome
@@ -81,7 +87,7 @@ pub fn tandem_repeat_haploid(
         MutationProfile::uniform(divergence_init),
         hap_seed,
     );
-    (vec![hap_a], genome_size)
+    (vec![StyledSequence::linear(hap_a)], genome_size)
 }
 
 pub fn tandem_repeat_diploid(
@@ -96,11 +102,12 @@ pub fn tandem_repeat_diploid(
     let (mut hap, hap_genome_size) =
         tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
     let hap_a = hap.remove(0);
-    let (hap_b, ops) = random_mutation(
-        &hap_a,
+    let (hap_b_seq, ops) = random_mutation(
+        &hap_a.seq(),
         MutationProfile::uniform(divergence_between_haplotypes),
         div_seed,
     );
+    let hap_b = StyledSequence::linear(hap_b_seq);
     let genome_size = hap_genome_size * 2;
     (vec![hap_a, hap_b], genome_size)
 }
@@ -126,7 +133,7 @@ mod tests {
         show_genome(&g, gs);
         assert_eq!(gs, 100);
         assert_eq!(g.len(), 1);
-        assert_eq!(g, vec![b"CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT"]);
+        assert_eq!(g, vec![StyledSequence::linear(b"CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT".to_vec())]);
 
         let (g, gs) = simple(50, 5);
         show_genome(&g, gs);
@@ -134,7 +141,9 @@ mod tests {
         assert_eq!(g.len(), 1);
         assert_eq!(
             g,
-            vec![b"CGAAGATGAGAAACCCGGGAGTCGATATATTCAAACAAACGGGCGCTCCT"]
+            vec![StyledSequence::linear(
+                b"CGAAGATGAGAAACCCGGGAGTCGATATATTCAAACAAACGGGCGCTCCT".to_vec()
+            )]
         );
 
         let (g, gs) = simple_diploid();
@@ -144,8 +153,8 @@ mod tests {
         assert_eq!(
             g,
             vec![
-                b"CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT",
-                b"CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT",
+                StyledSequence::linear(b"CCAATTCACAAAAACCACACCTTGGCCAAGGTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCACCATGGCTAGGGTCAAATCT".to_vec()),
+                StyledSequence::linear(b"CCAATTCACAAAAACCACACCTTGGCCAAGCTATCGTATCTTGTTGTTGTATGTGAAAGGGGCCCTAAGATCTGTAGCCATCATGGCTAGGGTCAAATCT".to_vec()),
             ]
         );
 
@@ -156,8 +165,12 @@ mod tests {
         assert_eq!(
             g,
             vec![
-                b"CGAAGATGAGAAACCCGGGAGTCGATATATTCAAACAAACGGGCGCTCCT".to_vec(),
-                b"CGAAGAATGAGAAACACCGGAGTCGTATATTCCAAACAAACGGGCGCTCCT".to_vec()
+                StyledSequence::linear(
+                    b"CGAAGATGAGAAACCCGGGAGTCGATATATTCAAACAAACGGGCGCTCCT".to_vec()
+                ),
+                StyledSequence::linear(
+                    b"CGAAGAATGAGAAACACCGGAGTCGTATATTCCAAACAAACGGGCGCTCCT".to_vec()
+                )
             ]
         );
 
@@ -167,7 +180,9 @@ mod tests {
         assert_eq!(g.len(), 1);
         assert_eq!(
             g,
-            vec![b"CCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACA"]
+            vec![StyledSequence::linear(
+                b"CCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACA".to_vec()
+            ),]
         );
 
         let (g, gs) = tandem_repeat_haploid(10, 5, 0.1, 55, 33);
@@ -176,7 +191,9 @@ mod tests {
         assert_eq!(g.len(), 1);
         assert_eq!(
             g,
-            vec![b"GTAAATGCGGGTAAATTGCGGGTAAATGCGGCGTAAATGCGGGGAAATCGGG"]
+            vec![StyledSequence::linear(
+                b"GTAAATGCGGGTAAATTGCGGGTAAATGCGGCGTAAATGCGGGGAAATCGGG".to_vec()
+            )]
         );
 
         let (g, gs) = tandem_repeat_diploid(10, 5, 0.1, 55, 33, 0.05, 22);
@@ -186,8 +203,12 @@ mod tests {
         assert_eq!(
             g,
             vec![
-                b"GTAAATGCGGGTAAATTGCGGGTAAATGCGGCGTAAATGCGGGGAAATCGGG".to_vec(),
-                b"GTAAATGCGGGTAACTCTGCGGGTAAATGCGGCGTAAATGCGGGGACAATCGGG".to_vec(),
+                StyledSequence::linear(
+                    b"GTAAATGCGGGTAAATTGCGGGTAAATGCGGCGTAAATGCGGGGAAATCGGG".to_vec()
+                ),
+                StyledSequence::linear(
+                    b"GTAAATGCGGGTAACTCTGCGGGTAAATGCGGCGTAAATGCGGGGACAATCGGG".to_vec()
+                ),
             ]
         );
     }
