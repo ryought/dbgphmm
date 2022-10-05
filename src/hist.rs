@@ -4,6 +4,18 @@
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 
+/// calculate the avarage and std dev of the list of f64
+pub fn stat(xs: &[f64]) -> (f64, f64) {
+    let s: f64 = xs.iter().sum();
+    let n: f64 = xs.len() as f64;
+    let ave = s / n;
+
+    let d: f64 = xs.iter().map(|x| (x - ave).powi(2)).sum();
+    let sd = (d / n).sqrt();
+
+    (ave, sd)
+}
+
 ///
 /// Histogram counter struct
 ///
@@ -101,5 +113,16 @@ mod tests {
         assert_eq!(c, vec![(2, 2), (3, 1), (10, 3)]);
         println!("{}", h);
         assert_eq!(h.to_string(), "2:2,3:1,10:3");
+    }
+    #[test]
+    fn stat_ave_sd() {
+        let (ave, sd) = stat(&vec![1., 1., 1., 1., 1., 1., 1.]);
+        assert_eq!(ave, 1.0);
+        assert_eq!(sd, 0.0);
+
+        let (ave, sd) = stat(&vec![0., 10.]);
+        assert_eq!(ave, 5.0);
+        assert_eq!(sd, 5.0);
+        println!("{} {}", ave, sd);
     }
 }
