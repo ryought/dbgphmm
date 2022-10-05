@@ -4,7 +4,7 @@ const MAX_TIME = 10
 var global_state = {
   // independent states
   selected_node: '',
-  max_depth: 10,
+  max_depth: 20,
   // synced states
   show_node_label: true,
   show_edge_label: true,
@@ -169,7 +169,8 @@ function init_cytoscape(elements) {
           label: (e) => {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
-              const label = e.data('label') || ''
+              const copy_num = e.data('copy_num')
+              const label = `${e.data('label')} (x${copy_num})` || ''
               const use_history = e.scratch('use_history')
               const time = e.scratch('time')
               const history = use_history ? e.data('history')[time] : ''
@@ -183,6 +184,15 @@ function init_cytoscape(elements) {
             } else {
               return ''
             }
+          },
+          'border-width': (e) => {
+            const copy_num = e.data('copy_num')
+            return Math.min(12, copy_num * 2)
+          },
+          'border-color': (e) => {
+            // const copy_num = e.data('copy_num')
+            // return color(copy_num + 1, 0, 5)
+            return 'red'
           },
           'background-color': (e) => {
             const attrs = e.data('attrs')
@@ -326,7 +336,11 @@ function init_controls(history_labels) {
     .onChange((value) => cy.nodes().scratch('use_history', value))
   const n_history = history_labels.length
   const updateLabel = () => {
-    global_state.label = history_labels[global_state.time]
+    if (history_labels > 0) {
+      global_state.label = history_labels[global_state.time]
+    } else {
+      global_state.label = ''
+    }
   }
   updateLabel()
   animation.add(global_state, 'time', 0, n_history - 1, 1)

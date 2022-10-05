@@ -128,13 +128,16 @@ pub fn m_step<K: KmerLike>(
 
         match r {
             MStepResult::Update(dbg_new, q_score) => {
+                eprintln!("update");
                 dbg_current = dbg_new;
                 is_updated = true;
             }
             MStepResult::NoImprove(dbg_new, q_score) => {
+                eprintln!("no improve");
                 break;
             }
             MStepResult::NoNegCycle => {
+                eprintln!("no neg cycle");
                 break;
             }
         };

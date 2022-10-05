@@ -38,16 +38,31 @@ fn run_simple() {
         64,
     );
     // dataset.show_reads();
-    //
-    // let dbg_raw = dataset.dbg_raw;
+
+    let dbg_raw = dataset.dbg_raw;
     // let phmm = dbg_raw.to_phmm(param.clone());
     // let (nf, p) = phmm.to_node_freqs_parallel(&dataset.reads);
+    let fdbg = FloatDbg::from_dbg(&dbg_raw);
+    let result = em(
+        &fdbg,
+        &dataset.reads,
+        &param,
+        genome_size as CopyDensity,
+        0.05,
+        10,
+        10,
+    );
+    let historys = em_result_to_node_historys(&result);
+    eprintln!("h={}", historys.len());
+    eprintln!("h={}", historys.len());
 
-    let mut dbg_true = dataset.dbg_raw.clone();
+    let mut dbg_true = dbg_raw.clone();
     let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
-    let json = dbg_true.to_cytoscape();
+    // let json =
+    //     dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &[("node_freqs".to_string(), nf)]);
+    let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
     println!("{}", json);
 }
 
