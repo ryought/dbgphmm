@@ -80,15 +80,6 @@ where
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert de bruijn graph into
     /// collection of elements for cytoscape parsing
-    fn to_cytoscape_elements_with_attrs(
-        &self,
-        node_attrs: &[NodeAttrVec],
-        edge_attrs: &[EdgeAttrVec],
-    ) -> Vec<ElementV2<N::Kmer>> {
-        self.to_cytoscape_elements_with_attrs_and_historys(node_attrs, edge_attrs, &[])
-    }
-    /// Convert de bruijn graph into
-    /// collection of elements for cytoscape parsing
     fn to_cytoscape_elements_with_attrs_and_historys(
         &self,
         node_attrs: &[NodeAttrVec],
@@ -96,6 +87,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         node_historys: &[(String, NodeVec<DenseStorage<f64>>)],
     ) -> Vec<ElementV2<N::Kmer>> {
         let mut elements = Vec::new();
+
+        // add history labels if node historys exists
+        if node_historys.len() > 0 {
+            let labels = node_historys
+                .iter()
+                .map(|(label, _)| label.clone())
+                .collect();
+            elements.push(ElementV2::HistoryLabels { labels })
+        }
 
         // add nodes
         for (node, weight) in self.nodes() {
@@ -107,11 +107,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     NodeAttrVec::Freq(v) => attrs.push(NodeAttr::Freq(v[node])),
                 }
             }
+            // historys of the node
+            let history = node_historys.iter().map(|(_, vec)| vec[node]).collect();
             elements.push(ElementV2::Node {
                 id: node,
                 label: Some(weight.kmer().clone()),
                 attrs,
-                history: vec![],
+                history,
             });
         }
 
@@ -141,6 +143,34 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         elements
     }
     /// Convert de bruijn graph into
+    /// collection of elements for cytoscape parsing
+    pub fn to_cytoscape_with_attrs_and_historys(
+        &self,
+        node_attrs: &[NodeAttrVec],
+        edge_attrs: &[EdgeAttrVec],
+        node_historys: &[(String, NodeVec<DenseStorage<f64>>)],
+    ) -> String {
+        let elements = self.to_cytoscape_elements_with_attrs_and_historys(
+            node_attrs,
+            edge_attrs,
+            node_historys,
+        );
+        serde_json::to_string(&elements).unwrap()
+    }
+    //
+    // wrappers of to_cytoscape_elements_with_attrs_and_historys and
+    // to_cytoscape_with_attrs_and_historys.
+    //
+    /// Convert de bruijn graph into
+    /// collection of elements for cytoscape parsing
+    fn to_cytoscape_elements_with_attrs(
+        &self,
+        node_attrs: &[NodeAttrVec],
+        edge_attrs: &[EdgeAttrVec],
+    ) -> Vec<ElementV2<N::Kmer>> {
+        self.to_cytoscape_elements_with_attrs_and_historys(node_attrs, edge_attrs, &[])
+    }
+    /// Convert de bruijn graph into
     /// cytoscape-parsable JSON string
     /// with node/edge attributes
     pub fn to_cytoscape_with_attrs(
@@ -148,8 +178,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         node_attrs: &[NodeAttrVec],
         edge_attrs: &[EdgeAttrVec],
     ) -> String {
-        let elements = self.to_cytoscape_elements_with_attrs(node_attrs, edge_attrs);
-        serde_json::to_string(&elements).unwrap()
+        self.to_cytoscape_with_attrs_and_historys(node_attrs, edge_attrs, &[])
     }
     /// Convert de bruijn graph into
     /// collection of elements for cytoscape parsing
