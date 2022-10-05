@@ -7,6 +7,7 @@ use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::prelude::*;
+use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -141,6 +142,15 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     ///
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
+    }
+    ///
+    ///
+    pub fn to_node_copy_densities(&self) -> NodeVec<DenseStorage<CopyDensity>> {
+        let mut v = NodeVec::new(self.n_nodes(), 0.0);
+        for (node, weight) in self.nodes() {
+            v[node] = weight.copy_density();
+        }
+        v
     }
 }
 
