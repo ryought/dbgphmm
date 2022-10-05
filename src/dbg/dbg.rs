@@ -594,6 +594,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         hm
     }
+    ///
+    /// generate the list of copy numbers in the dbg.
+    ///
+    pub fn to_copy_nums_list(&self) -> HashMap<CopyNum, Vec<NodeIndex>> {
+        let mut hm = HashMap::default();
+        for (node, weight) in self.nodes() {
+            let copy_num = weight.copy_num();
+            hm.entry(copy_num).or_insert_with(|| Vec::new()).push(node);
+        }
+        hm
+    }
 }
 
 impl<N: DbgNodeBase, E> Dbg<N, E> {
@@ -1311,5 +1322,23 @@ mod tests {
         let seq2 = dbg.to_styled_seq_of_nodes(&nodes).unwrap();
         println!("seq2={}", seq2);
         assert_eq!(seq, seq2);
+    }
+    #[test]
+    fn dbg_to_copy_nums_list() {
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(4, &vec![b"ATTCGATCGAT".to_vec()]);
+        let copy_nums = dbg.to_copy_nums_list();
+        println!("{:?}", copy_nums);
+        let v: Vec<_> = copy_nums
+            .into_iter()
+            .map(|(copy_num, nodes)| {
+                let ids: Vec<_> = nodes.iter().map(|node| node.index()).collect();
+                (copy_num, ids)
+            })
+            .collect();
+        println!("{:?}", v);
+        assert_eq!(
+            v,
+            vec![(1, vec![0, 1, 2, 3, 6, 7, 8, 9, 10, 11]), (2, vec![4, 5])]
+        )
     }
 }
