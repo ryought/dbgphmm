@@ -211,7 +211,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 mod tests {
     use super::*;
     use crate::dbg::impls::SimpleDbg;
-    use crate::dbg::mocks::{mock_rep, mock_simple};
+    use crate::dbg::mocks::{mock_intersection_small, mock_rep, mock_simple};
     use crate::kmer::veckmer::VecKmer;
     use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 
@@ -234,9 +234,23 @@ mod tests {
     }
 
     #[test]
-    fn dbg_mock_simple_cytoscape_2() {
-        let dbg = mock_simple();
-        let json = dbg.to_cytoscape();
+    fn dbg_mock_simple_cytoscape_with_history() {
+        let mut dbg = mock_intersection_small();
+        let mut v1: NodeVec<DenseStorage<_>> = NodeVec::new(dbg.n_nodes(), 0.0);
+        v1[ni(1)] = 10.0;
+        let mut v2: NodeVec<DenseStorage<_>> = NodeVec::new(dbg.n_nodes(), 20.0);
+        v2[ni(2)] = 10.0;
+        // println!("n={}", dbg.n_nodes());
+        // println!("v1={}", v1);
+        // println!("v2={}", v2);
+        let json = dbg.to_cytoscape_with_attrs_and_historys(
+            &[],
+            &[],
+            &[("v1".to_string(), v1), ("v2".to_string(), v2)],
+        );
+        println!("{}", json);
+        let json_true = r#"[{"group":"history_labels","data":{"labels":["v1","v2"]}},{"group":"nodes","data":{"id":"n0","label":"ATAG","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n1","label":"GCTn","attrs":[{"type":"copy_num","value":1}],"history":[10.0,20.0]}},{"group":"nodes","data":{"id":"n2","label":"TAAG","attrs":[{"type":"copy_num","value":1}],"history":[0.0,10.0]}},{"group":"nodes","data":{"id":"n3","label":"nnnT","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n4","label":"nnAT","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n5","label":"AGCC","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n6","label":"Cnnn","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n7","label":"GCCn","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n8","label":"Tnnn","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n9","label":"nnnA","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n10","label":"nTAA","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n11","label":"AAGC","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n12","label":"AGCT","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n13","label":"nATA","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n14","label":"CTnn","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n15","label":"nnTA","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n16","label":"CCnn","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"nodes","data":{"id":"n17","label":"TAGC","attrs":[{"type":"copy_num","value":1}],"history":[0.0,20.0]}},{"group":"edges","data":{"id":"e0","source":"n0","target":"n17","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e1","source":"n1","target":"n14","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e2","source":"n2","target":"n11","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e3","source":"n3","target":"n15","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e4","source":"n4","target":"n13","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e5","source":"n5","target":"n7","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e6","source":"n6","target":"n9","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e7","source":"n6","target":"n3","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e8","source":"n7","target":"n16","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e9","source":"n8","target":"n9","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e10","source":"n8","target":"n3","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e11","source":"n9","target":"n4","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e12","source":"n10","target":"n2","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e13","source":"n11","target":"n5","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e14","source":"n11","target":"n12","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e15","source":"n12","target":"n1","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e16","source":"n13","target":"n0","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e17","source":"n14","target":"n8","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e18","source":"n15","target":"n10","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e19","source":"n16","target":"n6","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e20","source":"n17","target":"n5","label":null,"attrs":[]}},{"group":"edges","data":{"id":"e21","source":"n17","target":"n12","label":null,"attrs":[]}}]"#;
+        assert_eq!(json, json_true);
     }
 
     #[test]

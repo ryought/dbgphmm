@@ -17,6 +17,7 @@ var global_state = {
   node_color_max: 1,
   use_history: true,
   time: 0,
+  label: '',
 }
 var node_attrs = {}
 var edge_attrs = {}
@@ -324,10 +325,17 @@ function init_controls(history_labels) {
   animation.add(global_state, 'use_history')
     .onChange((value) => cy.nodes().scratch('use_history', value))
   const n_history = history_labels.length
+  const updateLabel = () => {
+    global_state.label = history_labels[global_state.time]
+  }
+  updateLabel()
   animation.add(global_state, 'time', 0, n_history - 1, 1)
     .onChange((time) => {
       cy.elements().scratch('time', time)
+      updateLabel()
     })
+  animation.add(global_state, 'label')
+    .listen()
   // animation.add({ animate }, 'animate')
 }
 
