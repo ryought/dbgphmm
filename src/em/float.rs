@@ -6,10 +6,11 @@
 //! * M-step: improve Q score by GradDescent and MinCostFlow
 //! * iterate E/M-steps and returns the improved FloatDbg
 //!
-use crate::dbg::dbg::DbgNodeBase;
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::dbg::edge_centric::EDbgEdgeBase;
 use crate::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use crate::graph::float_seq_graph::FloatSeqGraph;
+use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::min_flow::residue::{
     improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
@@ -38,9 +39,19 @@ pub fn m_step<K: KmerLike>(
     genome_size: CopyDensity,
     diff: CopyDensity,
     max_iteration: usize,
+    params: &PHMMParams,
 ) {
 
     // search again for
+}
+
+pub enum MStepResult<K: KmerLike> {
+    /// The found negative cycle improved q-score
+    Update(FloatDbg<K>, QScore),
+    /// A negative cycle was found, but it did not improve q-score
+    NoImprove(FloatDbg<K>, QScore),
+    /// Any negative cycle was not found.
+    NoNegCycle,
 }
 
 ///
@@ -55,7 +66,11 @@ pub fn m_step_once<K: KmerLike>(
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
     diff: CopyDensity,
-) -> Option<FloatDbg<K>> {
+    params: &PHMMParams,
+) -> MStepResult<K> {
+    //(0) calculate the original qscore
+    let q_score = q_score_exact(&dbg.to_phmm(params.clone()), edge_freqs, init_freqs);
+
     let mut fdbg = dbg.clone();
     // (1) convert to edge-centric dbg with each edge has a cost
     let rg = to_residue_graph(&fdbg, &edge_freqs, &init_freqs, diff);
@@ -63,10 +78,16 @@ pub fn m_step_once<K: KmerLike>(
     match improve_residue_graph(&rg) {
         Some(edges) => {
             apply_to_dbg(&mut fdbg, diff, &rg, &edges);
+            let q_score_new = q_score_exact(&fdbg.to_phmm(params.clone()), edge_freqs, init_freqs);
+
             // (3) check if the copy density changes actually improves q-score.
-            Some(fdbg)
+            if q_score_new.total() >= q_score.total() {
+                MStepResult::Update(fdbg, q_score_new)
+            } else {
+                MStepResult::NoImprove(fdbg, q_score_new)
+            }
         }
-        None => None,
+        None => MStepResult::NoNegCycle,
     }
 }
 
