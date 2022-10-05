@@ -4,8 +4,8 @@
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 
-/// calculate the avarage and std dev of the list of f64
-pub fn stat(xs: &[f64]) -> (f64, f64) {
+/// calculate (avarage, std dev, min, max) of the list of f64
+pub fn stat(xs: &[f64]) -> (f64, f64, f64, f64) {
     let s: f64 = xs.iter().sum();
     let n: f64 = xs.len() as f64;
     let ave = s / n;
@@ -13,7 +13,18 @@ pub fn stat(xs: &[f64]) -> (f64, f64) {
     let d: f64 = xs.iter().map(|x| (x - ave).powi(2)).sum();
     let sd = (d / n).sqrt();
 
-    (ave, sd)
+    let min = xs
+        .iter()
+        .copied()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap_or(0.0);
+    let max = xs
+        .iter()
+        .copied()
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap_or(0.0);
+
+    (ave, sd, min, max)
 }
 
 ///
@@ -116,13 +127,18 @@ mod tests {
     }
     #[test]
     fn stat_ave_sd() {
-        let (ave, sd) = stat(&vec![1., 1., 1., 1., 1., 1., 1.]);
+        let (ave, sd, min, max) = stat(&vec![1., 1., 1., 1., 1., 1., 1.]);
         assert_eq!(ave, 1.0);
         assert_eq!(sd, 0.0);
+        assert_eq!(min, 1.0);
+        assert_eq!(max, 1.0);
+        println!("{} {} {} {}", ave, sd, min, max);
 
-        let (ave, sd) = stat(&vec![0., 10.]);
+        let (ave, sd, min, max) = stat(&vec![0., 10.]);
         assert_eq!(ave, 5.0);
         assert_eq!(sd, 5.0);
-        println!("{} {}", ave, sd);
+        assert_eq!(min, 0.0);
+        assert_eq!(max, 10.0);
+        println!("{} {} {} {}", ave, sd, min, max);
     }
 }

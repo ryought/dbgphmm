@@ -10,6 +10,7 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::dbg::edge_centric::EDbgEdgeBase;
 use crate::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use crate::graph::float_seq_graph::FloatSeqGraph;
+use crate::hist::stat;
 use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
@@ -62,6 +63,22 @@ pub fn em<K: KmerLike>(
 pub type EMResult<K> = Vec<Vec<MStepResult<K>>>;
 
 ///
+///
+pub fn em_result_to_final_dbg<K: KmerLike>(result: &EMResult<K>) -> Option<FloatDbg<K>> {
+    for (em_id, m_step_result) in result.iter().rev().enumerate() {
+        for (m_id, m_step_once_result) in m_step_result.iter().rev().enumerate() {
+            match m_step_once_result {
+                MStepResult::Update(dbg, _) => {
+                    return Some(dbg.clone());
+                }
+                _ => {}
+            };
+        }
+    }
+    return None;
+}
+
+///
 /// create Vec<NodeAttrVec> (that represents the time series of copy densities of nodes of EM
 /// steps) by using true dbg (Dbg<N, E>, not floated) and result (EMResult<K>).
 ///
@@ -84,6 +101,30 @@ pub fn em_result_to_node_historys<K: KmerLike>(
     }
 
     ret
+}
+
+///
+/// inspect the relationship between density and copy number
+///
+/// for each copy number c, draw the histogram of density of nodes whose copy number is c.
+///
+pub fn inspect_density_histgram<N: DbgNode, E: DbgEdge, K: KmerLike>(
+    dbg_true: &Dbg<N, E>,
+    fdbg: &FloatDbg<K>,
+) {
+    let copy_nums_list = dbg_true.to_copy_nums_list();
+    for (copy_num, nodes) in copy_nums_list {
+        let densitys: Vec<_> = nodes
+            .iter()
+            .map(|&node| fdbg.node(node).copy_density())
+            .collect();
+        let (ave, std, min, max) = stat(&densitys);
+        eprintln!(
+            "[{}x] ave={} std={} min={} max={}",
+            copy_num, ave, std, min, max
+        );
+        eprintln!("{:?}", densitys);
+    }
 }
 
 ///
