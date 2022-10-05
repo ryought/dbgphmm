@@ -80,6 +80,15 @@ pub enum ResidueDirection {
     Down,
 }
 
+impl std::fmt::Display for ResidueDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ResidueDirection::Up => write!(f, "+"),
+            ResidueDirection::Down => write!(f, "-"),
+        }
+    }
+}
+
 impl Default for ResidueDirection {
     fn default() -> Self {
         ResidueDirection::Up

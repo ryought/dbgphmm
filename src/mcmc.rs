@@ -18,7 +18,7 @@ use petgraph::prelude::*;
 ///
 fn get_neighbor_copy_nums<N: DbgNode, E: DbgEdge>(
     dbg: &Dbg<N, E>,
-) -> Vec<(NodeIndex, bool, NodeCopyNums)> {
+) -> Vec<(NodeIndex, ResidueDirection, NodeCopyNums)> {
     // a list of copy_nums
     let mut ret = Vec::new();
 
@@ -41,8 +41,8 @@ fn get_neighbor_copy_nums<N: DbgNode, E: DbgEdge>(
                 let new_copy_nums = apply_residual_cycles_to_copy_nums(&copy_nums, &rg, &cycle);
 
                 ret.push((
-                    NodeIndex::new(target.index()), // XXX edge in edbg == node in dbg
-                    direction == ResidueDirection::Down,
+                    NodeIndex::new(target.index()), // assuming edge in edbg == node in dbg
+                    direction,
                     new_copy_nums,
                 ))
             }
@@ -119,10 +119,32 @@ mod tests {
     #[test]
     fn dbg_neighbor_copy_nums() {
         let dbg = mock_intersection_small();
-        println!("{}", dbg.to_dot());
         let copy_nums_list = get_neighbor_copy_nums(&dbg);
-        for (v, is_down, copy_nums) in copy_nums_list {
-            println!("v={:?} is_down={} copy_nums={}", v, is_down, copy_nums);
+
+        // (0) the number of candidate copy_nums is correct?
+        assert_eq!(copy_nums_list.len(), dbg.n_nodes() * 2);
+
+        for (v, dir, copy_nums) in copy_nums_list {
+            println!("v={:?} direction={} copy_nums={}", v, dir, copy_nums);
+
+            // (1) copy_nums have actually increased/decreased the copy_num of the targeted node?
+            match dir {
+                ResidueDirection::Up => {
+                    assert_eq!(copy_nums[v], 2);
+                }
+                ResidueDirection::Down => {
+                    assert_eq!(copy_nums[v], 0);
+                }
+            };
+
+            // TODO to debug
+            dbg.draw_with_vecs(&[&copy_nums], &[]);
+
+            // (2) the resulting copy_nums is valid?
+            let mut new_dbg = dbg.clone();
+            new_dbg.set_node_copy_nums(&copy_nums);
+            let is_valid = new_dbg.has_consistent_node_copy_nums();
+            assert!(is_valid);
         }
     }
 }
