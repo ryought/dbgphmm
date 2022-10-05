@@ -122,6 +122,23 @@ pub fn node_list_to_edge_list<N, E: FloatWeight>(
     graph: &DiGraph<N, E>,
     nodes: &[NodeIndex],
 ) -> Vec<EdgeIndex> {
+    nodes_to_edges(graph, nodes, |graph, v, w| {
+        pick_minimum_weight_edge(graph, v, w)
+    })
+}
+
+///
+/// convert a list of nodes into a list of edges
+/// by using `edge_picker` (that chooses an edge from (v, w))
+///
+pub fn nodes_to_edges<N, E, F>(
+    graph: &DiGraph<N, E>,
+    nodes: &[NodeIndex],
+    edge_picker: F,
+) -> Vec<EdgeIndex>
+where
+    F: Fn(&DiGraph<N, E>, NodeIndex, NodeIndex) -> EdgeIndex,
+{
     let mut edges = Vec::new();
     let n = nodes.len();
 
@@ -129,7 +146,7 @@ pub fn node_list_to_edge_list<N, E: FloatWeight>(
     for i in 0..n {
         let v = nodes[i];
         let w = nodes[(i + 1) % n];
-        let edge = pick_minimum_weight_edge(graph, v, w);
+        let edge = edge_picker(graph, v, w);
         edges.push(edge);
     }
 
