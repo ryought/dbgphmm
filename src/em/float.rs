@@ -282,6 +282,8 @@ fn apply_to_dbg<K: KmerLike>(
     rg: &ResidueGraph,
     edges: &[EdgeIndex],
 ) {
+    let genome_size_orig = dbg.total_density();
+
     for e in edges {
         let ew = rg.edge_weight(*e).unwrap();
         let node = NodeIndex::new(ew.target.index());
@@ -292,6 +294,12 @@ fn apply_to_dbg<K: KmerLike>(
         };
         dbg.set_node_copy_density(node, new_copy_density);
     }
+
+    // scale copy densities of all nodes
+    // so that this function does not change the genome size
+    let genome_size_new = dbg.total_density();
+    let scale = genome_size_orig / genome_size_new;
+    dbg.scale_density(scale);
 }
 
 //
