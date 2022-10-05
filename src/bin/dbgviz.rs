@@ -8,9 +8,9 @@ fn main() {
     v1[ni(1)] = 10.0;
     let mut v2: NodeVec<DenseStorage<_>> = NodeVec::new(dbg.n_nodes(), 20.0);
     v2[ni(2)] = 10.0;
-    println!("n={}", dbg.n_nodes());
-    println!("v1={}", v1);
-    println!("v2={}", v2);
+    // println!("n={}", dbg.n_nodes());
+    // println!("v1={}", v1);
+    // println!("v2={}", v2);
     let json = dbg.to_cytoscape_with_attrs_and_historys(
         &[],
         &[],

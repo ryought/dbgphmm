@@ -6,7 +6,6 @@ var global_state = {
   selected_node: '',
   max_depth: 10,
   // synced states
-  time: 0,
   show_node_label: true,
   show_edge_label: true,
   edge_label_key: -1,
@@ -16,6 +15,8 @@ var global_state = {
   node_color_key: -1,
   node_size_key: -1,
   node_color_max: 1,
+  use_history: true,
+  time: 0,
 }
 var node_attrs = {}
 var edge_attrs = {}
@@ -24,10 +25,11 @@ function main() {
   fetch('/hoge.json')
     .then((res) => res.json())
     .then((elements) => {
+      let labels = parse_history_labels(elements)
       parse_attrs(elements)
       init_cytoscape(elements)
       sync_states()
-      init_controls()
+      init_controls(labels)
     })
 }
 
@@ -59,6 +61,22 @@ function parse_attrs(elements) {
   }
 }
 
+/**
+ * parse labels of history
+ */
+function parse_history_labels(elements) {
+  const labels = elements
+    .find((element) => element.group == 'history_labels')
+  if (labels) {
+    return labels.data.labels
+  } else {
+    return []
+  }
+}
+
+/**
+ *
+ */
 function get_attr(attrs, key, time) {
   if (key != null && key != -1) {
     const attr = attrs[key]
@@ -72,9 +90,13 @@ function get_attr(attrs, key, time) {
   }
 }
 
+/**
+ * definition of color mapping x \in [x_min, x_max].
+ */
 function color(x, x_min, x_max) {
-  const b = Math.floor(((x - x_min) / (x_max - x_min)) * 255)
-  return `rgb(0, 0, ${b})`
+  const y = ((x - x_min) / (x_max - x_min)) * 255
+  const z = Math.max(0, Math.min(y, 255))
+  return `rgb(0, ${z}, ${z})`
 }
 
 
@@ -147,12 +169,15 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const label = e.data('label') || ''
+              const use_history = e.scratch('use_history')
+              const time = e.scratch('time')
+              const history = use_history ? e.data('history')[time] : ''
               if (key != -1) {
                 const attrs = e.data('attrs')
                 const time = e.scratch('time')
-                return `${label} (${get_attr(attrs, key, time)})`
+                return `${label} (${get_attr(attrs, key, time)}) ${history}`
               } else {
-                return label
+                return `${label} ${history}`
               }
             } else {
               return ''
@@ -160,15 +185,20 @@ function init_cytoscape(elements) {
           },
           'background-color': (e) => {
             const attrs = e.data('attrs')
-            const history = e.data('history')
-            const time = e.scratch('time')
-            const key = e.scratch('color_attr_key')
+            const use_history = e.scratch('use_history')
             const x_max = e.scratch('color_max')
-            const x = get_attr(attrs, key, time)
-            if (x != null)  {
-              return color(x, 0, x_max)
+            const time = e.scratch('time')
+            if (use_history) {
+              const history = e.data('history')
+              return color(history[time], 0, x_max)
             } else {
-              return '#000'
+              const key = e.scratch('color_attr_key')
+              const x = get_attr(attrs, key, time)
+              if (x != null)  {
+                return color(x, 0, x_max)
+              } else {
+                return '#000'
+              }
             }
           }
         }
@@ -238,10 +268,11 @@ function sync_states() {
   cy.nodes().scratch('color_attr_key', global_state.node_color_key)
   cy.nodes().scratch('size_attr_key', global_state.node_size_key)
   cy.nodes().scratch('color_max', global_state.node_color_max)
+  cy.nodes().scratch('use_history', global_state.use_history)
   cy.elements().scratch('time', global_state.time)
 }
 
-function init_controls() {
+function init_controls(history_labels) {
   gui = new dat.GUI({name: 'My GUI'})
 
   // [1] selection related
@@ -290,7 +321,10 @@ function init_controls() {
   // [4] animation related
   const animation = gui.addFolder('animation')
   animation.closed = false
-  animation.add(global_state, 'time', 0, MAX_TIME, 1)
+  animation.add(global_state, 'use_history')
+    .onChange((value) => cy.nodes().scratch('use_history', value))
+  const n_history = history_labels.length
+  animation.add(global_state, 'time', 0, n_history - 1, 1)
     .onChange((time) => {
       cy.elements().scratch('time', time)
     })
