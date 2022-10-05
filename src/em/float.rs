@@ -17,6 +17,7 @@ use crate::min_flow::residue::{
     improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
 };
 use crate::prelude::*;
+use crate::vector::{DenseStorage, NodeVec};
 
 ///
 /// run e-step and m-step iteratively
@@ -64,22 +65,19 @@ pub type EMResult<K> = Vec<Vec<MStepResult<K>>>;
 /// create Vec<NodeAttrVec> (that represents the time series of copy densities of nodes of EM
 /// steps) by using true dbg (Dbg<N, E>, not floated) and result (EMResult<K>).
 ///
-/// assuming true_dbg and float_dbgs in result have the same topology as de bruijn graph.
-///
-pub fn em_result_to_node_attrs<N: DbgNode, E: DbgEdge, K: KmerLike>(
-    true_dbg: &Dbg<N, E>,
+pub fn em_result_to_node_historys<K: KmerLike>(
     result: &EMResult<K>,
-) -> Vec<NodeAttrVec> {
+) -> Vec<(String, NodeVec<DenseStorage<CopyDensity>>)> {
     let mut ret = Vec::new();
 
-    for m_step_result in result {
-        for m_step_once_result in m_step_result {
+    for (em_id, m_step_result) in result.iter().enumerate() {
+        for (m_id, m_step_once_result) in m_step_result.iter().enumerate() {
             match m_step_once_result {
                 MStepResult::Update(dbg, _) => {
                     let copy_densities = dbg.to_node_copy_densities();
-                    ret.push(NodeAttrVec::Freq(copy_densities));
+                    let label = format!("{}#{}", em_id, m_id);
+                    ret.push((label, copy_densities));
                 }
-                // MStepResult::NoImprove(_, _, _) => {}
                 _ => {}
             }
         }
