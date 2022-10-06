@@ -6,8 +6,8 @@ use petgraph::graph::{EdgeIndex, Graph};
 /// very small flow network
 /// with triangle circular topology
 ///
-pub fn mock_flow_network1() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = Graph::new();
+pub fn mock_flow_network1() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = Graph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
@@ -29,8 +29,8 @@ pub fn mock_flow_network1() -> (FlowGraph, Flow) {
 ///
 /// mock network cited from Genome-scale algorithm design p48
 ///
-pub fn mock_flow_network2() -> (FlowGraph, Flow) {
-    let mut g: FlowGraph = Graph::new();
+pub fn mock_flow_network2() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut g = Graph::new();
     let s = g.add_node(());
     let a = g.add_node(());
     let b = g.add_node(());
@@ -73,8 +73,8 @@ pub fn mock_flow_network2() -> (FlowGraph, Flow) {
     (g, f)
 }
 
-pub fn mock_flow_network3() -> (FlowGraph, Flow) {
-    let mut g: FlowGraph = Graph::new();
+pub fn mock_flow_network3() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut g = Graph::new();
     let a = g.add_node(());
     let b = g.add_node(());
     let c = g.add_node(());
@@ -89,8 +89,8 @@ pub fn mock_flow_network3() -> (FlowGraph, Flow) {
     (g, f)
 }
 
-pub fn mock_flow_network_parallel_edge1() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = Graph::new();
+pub fn mock_flow_network_parallel_edge1() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = Graph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
@@ -103,8 +103,8 @@ pub fn mock_flow_network_parallel_edge1() -> (FlowGraph, Flow) {
     (graph, f)
 }
 
-pub fn mock_flow_network_parallel_edge2() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = FlowGraph::new();
+pub fn mock_flow_network_parallel_edge2() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = FlowGraph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());

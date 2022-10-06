@@ -4,7 +4,7 @@
 use super::flow::Flow;
 use super::mocks;
 use super::{find_initial_flow, min_cost_flow};
-use super::{Cost, FlowRate};
+use super::{Cost, FlowRate, FlowRateLike};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, Graph};
 use petgraph::EdgeType;
@@ -78,13 +78,14 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-struct EdgeWithFlow<T> {
-    flow: FlowRate,
+struct EdgeWithFlow<T, F: FlowRateLike> {
+    flow: F,
     info: T,
 }
 
-pub fn draw_with_flow<N, E>(graph: &DiGraph<N, E>, flow: &Flow)
+pub fn draw_with_flow<N, E, F>(graph: &DiGraph<N, E>, flow: &Flow<F>)
 where
+    F: FlowRateLike + std::fmt::Debug,
     N: std::fmt::Debug,
     E: std::fmt::Debug,
 {

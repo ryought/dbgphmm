@@ -149,7 +149,7 @@ impl std::fmt::Display for CompressionV3KmerInfo {
     }
 }
 
-impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV3KmerInfos<K> {
+impl<K: KmerLike> FlowEdge<usize> for SimpleEDbgEdgeWithV3KmerInfos<K> {
     ///
     /// demand is set to be current copy_num - 1
     ///
@@ -172,7 +172,7 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV3KmerInfos<K> {
     }
 }
 
-impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithV3KmerInfos<K> {
+impl<K: KmerLike> ConvexCost<usize> for SimpleEDbgEdgeWithV3KmerInfos<K> {
     ///
     ///
     ///

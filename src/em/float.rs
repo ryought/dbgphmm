@@ -295,7 +295,7 @@ fn to_residue_graph<K: KmerLike>(
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
     diff: CopyDensity,
-) -> ResidueGraph {
+) -> ResidueGraph<usize> {
     let edbg = dbg.to_edbg_generic(
         |_kmer| (),
         |node, node_weight| {
@@ -303,7 +303,7 @@ fn to_residue_graph<K: KmerLike>(
         },
     );
     let max_copy_density = 10000.0;
-    let mut rg: ResidueGraph = ResidueGraph::new();
+    let mut rg = ResidueGraph::new();
     for (e, v, w, ew) in edbg.edges() {
         let node = ew.origin_node();
         let mut edges = Vec::new();
@@ -341,7 +341,7 @@ fn to_residue_graph<K: KmerLike>(
 fn apply_to_dbg<K: KmerLike>(
     dbg: &mut FloatDbg<K>,
     diff: CopyDensity,
-    rg: &ResidueGraph,
+    rg: &ResidueGraph<usize>,
     edges: &[EdgeIndex],
 ) {
     let genome_size_orig = dbg.total_density();
