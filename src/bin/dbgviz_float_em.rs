@@ -4,6 +4,7 @@ use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
     em, em_result_to_final_dbg, em_result_to_node_historys, inspect_density_histgram,
+    inspect_freqs_histgram,
 };
 use dbgphmm::genome;
 use dbgphmm::prelude::*;
@@ -43,36 +44,49 @@ fn run_simple() {
     );
     // dataset.show_reads();
 
+    // dbg_raw
     let dbg_raw = dataset.dbg_raw;
-    // let phmm = dbg_raw.to_phmm(param.clone());
-    // let (nf, p) = phmm.to_node_freqs_parallel(&dataset.reads);
-    let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
-    fdbg.scale_density(genome_size as CopyDensity / dbg_raw.genome_size() as CopyDensity);
 
-    let result = em(
-        &fdbg,
-        &dataset.reads,
-        &param,
-        genome_size as CopyDensity,
-        0.05,
-        10,
-        10,
-    );
-    let historys = em_result_to_node_historys(&result);
-    let final_fdbg = em_result_to_final_dbg(&result);
-
+    // dbg_true
     let mut dbg_true = dbg_raw.clone();
     let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
-    if let Some(final_fdbg) = final_fdbg {
-        inspect_density_histgram(&dbg_true, &final_fdbg);
-    }
+    let run_em = true;
 
-    // let json =
-    //     dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &[("node_freqs".to_string(), nf)]);
-    let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
-    println!("{}", json);
+    if run_em {
+        let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
+        fdbg.scale_density(genome_size as CopyDensity / dbg_raw.genome_size() as CopyDensity);
+
+        let result = em(
+            &fdbg,
+            &dataset.reads,
+            &param,
+            genome_size as CopyDensity,
+            0.05,
+            10,
+            10,
+        );
+        let historys = em_result_to_node_historys(&result);
+        let final_fdbg = em_result_to_final_dbg(&result);
+
+        if let Some(final_fdbg) = final_fdbg {
+            inspect_density_histgram(&dbg_true, &final_fdbg);
+        }
+
+        let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
+        println!("{}", json);
+    } else {
+        let phmm = dbg_raw.to_phmm(param.clone());
+        let (nf, p) = phmm.to_node_freqs_parallel(&dataset.reads);
+        inspect_freqs_histgram(&dbg_true, &nf);
+        let json = dbg_true.to_cytoscape_with_attrs_and_historys(
+            &[],
+            &[],
+            &[("node_freqs".to_string(), nf)],
+        );
+        println!("{}", json);
+    }
 }
 
 fn main() {

@@ -110,20 +110,30 @@ pub fn em_result_to_node_historys<K: KmerLike>(
 ///
 pub fn inspect_density_histgram<N: DbgNode, E: DbgEdge, K: KmerLike>(
     dbg_true: &Dbg<N, E>,
-    fdbg: &FloatDbg<K>,
+    final_fdbg: &FloatDbg<K>,
+) {
+    let densitys = final_fdbg.to_node_copy_densities();
+    inspect_freqs_histgram(dbg_true, &densitys)
+}
+
+///
+/// inspect the relationship between density and copy number
+///
+/// for each copy number c, draw the histogram of density of nodes whose copy number is c.
+///
+pub fn inspect_freqs_histgram<N: DbgNode, E: DbgEdge>(
+    dbg_true: &Dbg<N, E>,
+    densitys: &NodeVec<DenseStorage<CopyDensity>>,
 ) {
     let copy_nums_list = dbg_true.to_copy_nums_list();
     for (copy_num, nodes) in copy_nums_list {
-        let densitys: Vec<_> = nodes
-            .iter()
-            .map(|&node| fdbg.node(node).copy_density())
-            .collect();
-        let (ave, std, min, max) = stat(&densitys);
+        let densitys_of_copy_num: Vec<_> = nodes.iter().map(|&node| densitys[node]).collect();
+        let (ave, std, min, max) = stat(&densitys_of_copy_num);
         eprintln!(
             "[{}x] ave={} std={} min={} max={}",
             copy_num, ave, std, min, max
         );
-        eprintln!("{:?}", densitys);
+        // eprintln!("{:?}", densitys);
     }
 }
 
@@ -169,12 +179,12 @@ pub fn m_step<K: KmerLike>(
 
         match r {
             MStepResult::Update(dbg_new, q_score) => {
-                eprintln!("update");
+                eprintln!("update {}", q_score);
                 dbg_current = dbg_new;
                 is_updated = true;
             }
             MStepResult::NoImprove(dbg_new, q_score) => {
-                eprintln!("no improve");
+                eprintln!("no improve {}", q_score);
                 break;
             }
             MStepResult::NoNegCycle => {
