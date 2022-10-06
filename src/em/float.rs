@@ -138,6 +138,14 @@ pub fn inspect_freqs_histgram<N: DbgNode, E: DbgEdge>(
 }
 
 ///
+/// shrink nodes whose `copy_density` is less than `min_density` with satisfying flow constaint.
+///
+pub fn shrink_nodes<K: KmerLike>(fdbg: &FloatDbg<K>, min_density: CopyDensity) {
+    // convert to flow network
+    // let network = fdbg.to_edbg_generic();
+}
+
+///
 /// E-step: calculate edge_freqs (freq between v->w) and init_freqs (freq between Begin->w)
 ///
 pub fn e_step<K: KmerLike>(
