@@ -269,7 +269,7 @@ fn apply_residual_edges_to_flow<F: FlowRateLike>(
             let ew = rg.edge_weight(e).unwrap();
             ew.count
         })
-        .min()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
         .unwrap();
 
     // (2) apply these changes to the flow along the cycle

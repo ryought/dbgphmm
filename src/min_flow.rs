@@ -25,7 +25,7 @@ use std::ops::{Add, AddAssign, Div, Mul, Sub};
 pub trait FlowRateLike:
     Copy
     + PartialEq
-    + Ord
+    + PartialOrd
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -42,7 +42,7 @@ pub trait FlowRateLike:
     fn unit() -> Self;
     /// cast to f64
     fn to_f64(self) -> f64;
-    /// cast to usize
+    /// cast to usize (by flooring)
     fn to_usize(self) -> usize;
     fn wrapping_add(self, rhs: Self) -> Self;
     fn wrapping_sub(self, rhs: Self) -> Self;
@@ -69,6 +69,32 @@ impl FlowRateLike for usize {
     }
     fn large_const() -> Self {
         100
+    }
+}
+impl FlowRateLike for f64 {
+    fn zero() -> Self {
+        0.0
+    }
+    fn unit() -> Self {
+        1.0
+    }
+    fn to_f64(self) -> f64 {
+        self
+    }
+    fn to_usize(self) -> usize {
+        // flooring
+        self as usize
+    }
+    fn wrapping_add(self, rhs: Self) -> Self {
+        // no overflow
+        self + rhs
+    }
+    fn wrapping_sub(self, rhs: Self) -> Self {
+        // no overflow
+        self - rhs
+    }
+    fn large_const() -> Self {
+        100.0
     }
 }
 
@@ -216,4 +242,19 @@ where
     }
 
     flow
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flow_rate_like_float() {
+        assert_eq!(10.1_f64.to_usize(), 10);
+        assert_eq!(10.9_f64.to_usize(), 10);
+    }
 }
