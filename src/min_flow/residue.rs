@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn negative_cycle_in_whole() {
-        let mut g: ResidueGraph = ResidueGraph::new();
+        let mut g = ResidueGraph::new();
         let a = g.add_node(());
         let b = g.add_node(());
         let c = g.add_node(());

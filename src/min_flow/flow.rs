@@ -2,6 +2,7 @@
 //! - FlowEdge, FlowEdgeRaw<T>
 //! - FlowGraph, FlowGraphRaw<T>
 //! - Flow
+use super::convex::ConvexCost;
 use super::{Cost, FlowRate, FlowRateLike};
 use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DiGraph, EdgeIndex};
@@ -164,9 +165,15 @@ pub trait EdgeCost<F: FlowRateLike> {
     fn cost(&self, flow: F) -> Cost;
 }
 
-impl<F: FlowRateLike, E: ConstCost> EdgeCost<F> for E {
-    fn cost(&self, flow: F) -> Cost {
+impl<F: FlowRateLike, E: ConstCost + FlowEdge<F>> ConvexCost<F> for E {
+    fn convex_cost(&self, flow: F) -> Cost {
         self.cost() * flow.to_f64()
+    }
+}
+
+impl<F: FlowRateLike, E: ConvexCost<F>> EdgeCost<F> for E {
+    fn cost(&self, flow: F) -> Cost {
+        self.convex_cost(flow)
     }
 }
 

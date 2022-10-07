@@ -3,7 +3,7 @@
 //!
 pub mod fast;
 use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
-use super::utils::{clamped_log, is_increasing};
+use super::utils::{clamped_log, is_increasing, range};
 use super::{Cost, FlowRate, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -38,16 +38,10 @@ pub trait ConvexCost<F: FlowRateLike>: FlowEdge<F> {
         // assert cost_diff is increasing function.
         // (<=> cost function is convex function)
         is_increasing(
-            |flow| self.cost_diff(flow),
-            self.demand().to_usize(),
-            self.capacity().to_usize(),
+            |flow: F| self.cost_diff(flow),
+            self.demand(),
+            self.capacity(),
         )
-    }
-}
-
-impl<F: FlowRateLike, E: ConvexCost<F>> EdgeCost<F> for E {
-    fn cost(&self, flow: F) -> Cost {
-        self.convex_cost(flow)
     }
 }
 
@@ -209,14 +203,16 @@ where
             )]);
         }
         // (2) add aux edges of [demand,capacity]=[0,1]
-        let edges: Vec<(NodeIndex, NodeIndex, FixedCostFlowEdge<F>)> = (ew.demand()..ew.capacity())
-            .map(|f| {
-                // set a (constant) cost to cost(f+1)-cost(f)
-                let cost = ew.cost_diff(f);
-                let fe = FixedCostFlowEdge::new(F::zero(), F::unit(), cost, e, f);
-                (v, w, fe)
-            })
-            .collect();
+        let edges: Vec<(NodeIndex, NodeIndex, FixedCostFlowEdge<F>)> =
+            range(ew.demand(), ew.capacity())
+                .into_iter()
+                .map(|f| {
+                    // set a (constant) cost to cost(f+1)-cost(f)
+                    let cost = ew.cost_diff(f);
+                    let fe = FixedCostFlowEdge::new(F::zero(), F::unit(), cost, e, f);
+                    (v, w, fe)
+                })
+                .collect();
         g.extend_with_edges(&edges);
     }
 

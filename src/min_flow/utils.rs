@@ -16,22 +16,38 @@ use petgraph::EdgeType;
 /// it will check `f(x + 1) - f(x)` is monotonically increasing
 /// for increasing `x`s
 ///
-pub fn is_convex<F: Fn(usize) -> f64>(f: F, x_min: usize, x_max: usize) -> bool {
-    is_increasing(|x| f(x + 1) - f(x), x_min, x_max)
+pub fn is_convex<X: FlowRateLike, F: Fn(X) -> f64>(f: F, x_min: X, x_max: X) -> bool {
+    is_increasing(|x| f(x + X::unit()) - f(x), x_min, x_max)
 }
 
 ///
 /// check if the function `f` is monotonically increasing in the domain `[x_min, x_max]`.
 ///
-pub fn is_increasing<F: Fn(usize) -> f64>(f: F, x_min: usize, x_max: usize) -> bool {
+pub fn is_increasing<X: FlowRateLike, F: Fn(X) -> f64>(f: F, x_min: X, x_max: X) -> bool {
     let mut y_prev = f64::MIN;
 
-    (x_min..x_max).map(|x| f(x)).all(|y| {
+    range(x_min, x_max).into_iter().map(|x| f(x)).all(|y| {
         // check if ys are increasing
         let is_increasing = y >= y_prev;
         y_prev = y;
         is_increasing
     })
+}
+
+///
+/// return a (collected) vector of `x_min..x_max`.
+///
+pub fn range<X: FlowRateLike>(x_min: X, x_max: X) -> Vec<X> {
+    assert!(x_min <= x_max);
+    let mut ret = Vec::new();
+    let mut x = x_min;
+
+    while x < x_max {
+        ret.push(x);
+        x = x + X::unit();
+    }
+
+    ret
 }
 
 ///
@@ -127,5 +143,21 @@ mod tests {
         // assert!(is_convex(|x| 0.0001 * x as f64, 0, 20));
         // but by analytically solving f(x+1)-f(x) it passes the test.
         assert!(is_increasing(|_| 0.0001, 0, 20));
+    }
+    #[test]
+    fn range_of_flowratelike() {
+        let xs = range(0_usize, 10_usize);
+        assert_eq!(xs, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        let xs = range(0_usize, 1_usize);
+        assert_eq!(xs, vec![0]);
+        let xs = range(0_usize, 0_usize);
+        assert_eq!(xs.len(), 0);
+
+        let ys: Vec<usize> = (0..10).collect();
+        println!("{:?}", ys);
+        let ys: Vec<usize> = (0..0).collect();
+        println!("{:?}", ys);
+
+        // TODO assert for f64
     }
 }

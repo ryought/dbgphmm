@@ -32,9 +32,9 @@ pub trait FlowRateLike:
     + Div<Output = Self>
     + AddAssign
     + Sum
-    + Step
     + Default
     + std::fmt::Debug
+    + std::fmt::Display
 {
     /// zero value = 0
     fn zero() -> Self;
