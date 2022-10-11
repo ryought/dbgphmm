@@ -31,6 +31,8 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
                 id: node,
                 label: None,
                 attrs: vec![NodeAttr::CopyNum(10), NodeAttr::Freq(9.9)],
+                history: vec![],
+                copy_num: 1, // TODO
             });
         }
 

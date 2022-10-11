@@ -6,7 +6,7 @@
 use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
-use super::{Cost, FlowRate};
+use super::{Cost, FlowRate, FlowRateLike};
 use crate::graph::bellman_ford::HasEpsilon;
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
@@ -25,9 +25,9 @@ use std::cmp::Ordering;
 
 /// Edge attributes used in ResidueGraph
 #[derive(Debug, Default, Copy, Clone)]
-pub struct ResidueEdge {
+pub struct ResidueEdge<F: FlowRateLike> {
     /// The movable amount of the flow
-    pub count: FlowRate,
+    pub count: F,
     /// Cost of the unit change of this flow
     pub weight: Cost,
     /// Original edge index of the source graph
@@ -36,13 +36,13 @@ pub struct ResidueEdge {
     pub direction: ResidueDirection,
 }
 
-impl ResidueEdge {
+impl<F: FlowRateLike> ResidueEdge<F> {
     pub fn new(
-        count: FlowRate,
+        count: F,
         weight: Cost,
         target: EdgeIndex,
         direction: ResidueDirection,
-    ) -> ResidueEdge {
+    ) -> ResidueEdge<F> {
         ResidueEdge {
             count,
             weight,
@@ -50,18 +50,19 @@ impl ResidueEdge {
             direction,
         }
     }
-    pub fn only_weight(weight: Cost) -> ResidueEdge {
+    /// create a new ResidueEdge with default values except the weight
+    pub fn only_weight(weight: Cost) -> ResidueEdge<F> {
         ResidueEdge {
             weight,
             // filled by default values
             target: EdgeIndex::new(0),
-            count: 0,
+            count: F::default(),
             direction: ResidueDirection::Up,
         }
     }
 }
 
-impl FloatWeight for ResidueEdge {
+impl<F: FlowRateLike> FloatWeight for ResidueEdge<F> {
     fn float_weight(&self) -> f64 {
         self.weight
     }
@@ -96,7 +97,7 @@ impl Default for ResidueDirection {
 }
 
 /// ResidueGraph definition
-pub type ResidueGraph = DiGraph<(), ResidueEdge>;
+pub type ResidueGraph<F> = DiGraph<(), ResidueEdge<F>>;
 
 //
 // conversion functions
@@ -115,11 +116,11 @@ pub type ResidueGraph = DiGraph<(), ResidueEdge>;
 ///  e1 = (u-f, +c) if u-f>0
 /// w -> v
 ///  e2 = (f-l, -c) if f-l>0
-pub fn flow_to_residue<N, E: FlowEdge + ConstCost>(
+pub fn flow_to_residue<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
-    flow: &Flow,
-) -> ResidueGraph {
-    let mut rg: ResidueGraph = ResidueGraph::new();
+    flow: &Flow<F>,
+) -> ResidueGraph<F> {
+    let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
     for e in graph.edge_indices() {
@@ -162,11 +163,12 @@ pub fn flow_to_residue<N, E: FlowEdge + ConstCost>(
 ///
 /// e2(w -> v) = (1, c(f-1) - c(f)) if f - l > 0
 /// ```
-pub fn flow_to_residue_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> ResidueGraph
+pub fn flow_to_residue_convex<F, N, E>(graph: &DiGraph<N, E>, flow: &Flow<F>) -> ResidueGraph<F>
 where
-    E: FlowEdge + ConvexCost,
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConvexCost<F>,
 {
-    let mut rg: ResidueGraph = ResidueGraph::new();
+    let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
     for e in graph.edge_indices() {
@@ -181,7 +183,7 @@ where
             edges.push((
                 v,
                 w,
-                ResidueEdge::new(1, ew.cost_diff(f), e, ResidueDirection::Up),
+                ResidueEdge::new(F::unit(), ew.cost_diff(f), e, ResidueDirection::Up),
             ));
         }
         if f > ew.demand() {
@@ -190,7 +192,12 @@ where
             edges.push((
                 w,
                 v,
-                ResidueEdge::new(1, -ew.cost_diff(f - 1), e, ResidueDirection::Down),
+                ResidueEdge::new(
+                    F::unit(),
+                    -ew.cost_diff(f - F::unit()),
+                    e,
+                    ResidueDirection::Down,
+                ),
             ));
         }
 
@@ -198,7 +205,7 @@ where
         // self round loop (v->w and w->v) should not have negative weight.
         if f < ew.capacity() && f > ew.demand() {
             let cost_up = ew.cost_diff(f);
-            let cost_down = -ew.cost_diff(f - 1);
+            let cost_down = -ew.cost_diff(f - F::unit());
 
             // TODO this assertion is valid only if the cost function is convex.
             // assert!(cost_up + cost_down >= 0.0);
@@ -210,7 +217,7 @@ where
 }
 
 #[allow(dead_code)]
-fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), Cost> {
+fn residue_to_float_weighted_graph<F: FlowRateLike>(graph: &ResidueGraph<F>) -> DiGraph<(), Cost> {
     graph.map(|_, _| (), |_, ew| ew.weight)
 }
 
@@ -222,12 +229,12 @@ fn residue_to_float_weighted_graph(graph: &ResidueGraph) -> DiGraph<(), Cost> {
 ///
 /// Change EdgeVec by `amount` along the edges of a cycle in residue graph
 ///
-pub fn change_flow_along_edges(
-    flow: &Flow,
-    rg: &ResidueGraph,
+pub fn change_flow_along_edges<F: FlowRateLike>(
+    flow: &Flow<F>,
+    rg: &ResidueGraph<F>,
     edges: &[EdgeIndex],
-    amount: FlowRate,
-) -> Flow {
+    amount: F,
+) -> Flow<F> {
     let mut new_flow = flow.clone();
     for edge in edges {
         let ew = rg.edge_weight(*edge).unwrap();
@@ -249,7 +256,11 @@ pub fn change_flow_along_edges(
 ///
 /// Update the flow by a negative cycle on a residue graph.
 ///
-fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeIndex]) -> Flow {
+fn apply_residual_edges_to_flow<F: FlowRateLike>(
+    flow: &Flow<F>,
+    rg: &ResidueGraph<F>,
+    edges: &[EdgeIndex],
+) -> Flow<F> {
     // (1) determine flow_change_amount
     // that is the minimum of ResidueEdge.count
     let flow_change_amount = edges
@@ -258,14 +269,16 @@ fn apply_residual_edges_to_flow(flow: &Flow, rg: &ResidueGraph, edges: &[EdgeInd
             let ew = rg.edge_weight(e).unwrap();
             ew.count
         })
-        .min()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
         .unwrap();
 
     // (2) apply these changes to the flow along the cycle
     change_flow_along_edges(flow, rg, edges, flow_change_amount)
 }
 
-fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
+fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
+    graph: &ResidueGraph<F>,
+) -> Option<Vec<EdgeIndex>> {
     let mut node = NodeIndex::new(0);
     let mut dfs = Dfs::new(&graph, node);
 
@@ -312,7 +325,7 @@ fn find_negative_cycle_in_whole_graph(graph: &ResidueGraph) -> Option<Vec<EdgeIn
 ///
 /// Update residue graph by finding negative cycle
 ///
-pub fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
+pub fn improve_residue_graph<F: FlowRateLike>(rg: &ResidueGraph<F>) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
     let path = find_negative_cycle_in_whole_graph(&rg);
     // draw(&rg);
@@ -348,13 +361,16 @@ pub fn improve_residue_graph(rg: &ResidueGraph) -> Option<Vec<EdgeIndex>> {
 ///
 /// WIP
 ///
-fn is_meaningful_cycle(rg: &ResidueGraph, cycle: &[EdgeIndex]) -> bool {
+fn is_meaningful_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> bool {
     unimplemented!();
 }
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<(Flow, Vec<EdgeIndex>)> {
+fn update_flow_in_residue_graph<F: FlowRateLike>(
+    flow: &Flow<F>,
+    rg: &ResidueGraph<F>,
+) -> Option<(Flow<F>, Vec<EdgeIndex>)> {
     match improve_residue_graph(rg) {
         Some(cycle) => {
             // apply these changes along the cycle to current flow
@@ -373,7 +389,10 @@ fn update_flow_in_residue_graph(flow: &Flow, rg: &ResidueGraph) -> Option<(Flow,
     }
 }
 
-fn cycle_in_residue_graph_into_update_info(rg: &ResidueGraph, cycle: &[EdgeIndex]) -> UpdateInfo {
+fn cycle_in_residue_graph_into_update_info<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    cycle: &[EdgeIndex],
+) -> UpdateInfo {
     cycle
         .iter()
         .map(|&e| {
@@ -389,10 +408,10 @@ fn cycle_in_residue_graph_into_update_info(rg: &ResidueGraph, cycle: &[EdgeIndex
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow<N, E: FlowEdge + ConstCost>(
+pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
-    flow: &Flow,
-) -> Option<Flow> {
+    flow: &Flow<F>,
+) -> Option<Flow<F>> {
     let rg = flow_to_residue(graph, flow);
     match update_flow_in_residue_graph(flow, &rg) {
         Some((new_flow, _)) => Some(new_flow),
@@ -425,12 +444,13 @@ fn to_contiguous_direction_list(
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow_convex_with_update_info<N, E>(
+pub fn improve_flow_convex_with_update_info<F, N, E>(
     graph: &DiGraph<N, E>,
-    flow: &Flow,
-) -> Option<(Flow, UpdateInfo)>
+    flow: &Flow<F>,
+) -> Option<(Flow<F>, UpdateInfo)>
 where
-    E: FlowEdge + ConvexCost,
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
     match update_flow_in_residue_graph(flow, &rg) {
@@ -444,9 +464,10 @@ where
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow_convex<N, E>(graph: &DiGraph<N, E>, flow: &Flow) -> Option<Flow>
+pub fn improve_flow_convex<F, N, E>(graph: &DiGraph<N, E>, flow: &Flow<F>) -> Option<Flow<F>>
 where
-    E: FlowEdge + ConvexCost,
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
     match update_flow_in_residue_graph(flow, &rg) {
@@ -489,7 +510,7 @@ mod tests {
 
     #[test]
     fn negative_cycle_in_whole() {
-        let mut g: ResidueGraph = ResidueGraph::new();
+        let mut g = ResidueGraph::new();
         let a = g.add_node(());
         let b = g.add_node(());
         let c = g.add_node(());

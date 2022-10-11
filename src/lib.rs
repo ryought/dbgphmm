@@ -1,6 +1,7 @@
 #![feature(test)]
 #![feature(vec_retain_mut)]
 #![feature(int_abs_diff)]
+#![feature(step_trait)]
 pub mod cli;
 pub mod common;
 pub mod compressed_dbg;

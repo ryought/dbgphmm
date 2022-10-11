@@ -56,7 +56,7 @@ fn get_neighbor_copy_nums<N: DbgNode, E: DbgEdge>(
 ///
 /// get a reverse edge, which has the same `target` and the opposite `direction`.
 ///
-fn get_reverse_edge(graph: &ResidueGraph, edge: EdgeIndex) -> Option<EdgeIndex> {
+fn get_reverse_edge(graph: &ResidueGraph<usize>, edge: EdgeIndex) -> Option<EdgeIndex> {
     let weight = graph.edge_weight(edge).unwrap();
     let target = weight.target;
     let direction = weight.direction;
@@ -67,8 +67,8 @@ fn get_reverse_edge(graph: &ResidueGraph, edge: EdgeIndex) -> Option<EdgeIndex> 
     })
 }
 
-fn edbg_to_residue<N: EDbgNode, E: EDbgEdge>(edbg: &EDbg<N, E>) -> ResidueGraph {
-    let mut rg: ResidueGraph = ResidueGraph::new();
+fn edbg_to_residue<N: EDbgNode, E: EDbgEdge>(edbg: &EDbg<N, E>) -> ResidueGraph<usize> {
+    let mut rg = ResidueGraph::new();
     // create two edges (Up and Down) for each edge
     for (e, v, w, ew) in edbg.edges() {
         let mut edges = Vec::new();
@@ -91,7 +91,7 @@ fn edbg_to_residue<N: EDbgNode, E: EDbgEdge>(edbg: &EDbg<N, E>) -> ResidueGraph 
 ///
 fn apply_residual_cycles_to_copy_nums(
     copy_nums: &NodeCopyNums,
-    rg: &ResidueGraph,
+    rg: &ResidueGraph<usize>,
     cycle: &[EdgeIndex],
 ) -> NodeCopyNums {
     let flow = copy_nums.clone().switch_index();

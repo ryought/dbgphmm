@@ -126,10 +126,14 @@ impl GenomeGraph {
     ///
     /// Create `GenomeGraph` from the sequences
     ///
-    pub fn from_seqs(seqs: &[Sequence]) -> Self {
+    pub fn from_seqs<T>(seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
         let mut g = DiGraph::new();
         for seq in seqs {
-            g.add_node(GenomeNode::new(seq, 1));
+            g.add_node(GenomeNode::new(seq.as_ref(), 1));
         }
         GenomeGraph(g)
     }

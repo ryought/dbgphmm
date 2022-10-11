@@ -130,7 +130,7 @@ pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
 ///
 pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
-impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
+impl<K: KmerLike> FlowEdge<usize> for SimpleEDbgEdgeWithFreq<K> {
     fn demand(&self) -> usize {
         0
     }
@@ -145,7 +145,7 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithFreq<K> {
 /// if the kmer corresponding to the edge is not emittable, the cost
 /// should be ignored.
 ///
-impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithFreq<K> {
+impl<K: KmerLike> ConvexCost<usize> for SimpleEDbgEdgeWithFreq<K> {
     fn convex_cost(&self, flow: usize) -> f64 {
         if self.kmer().is_emitable() {
             (flow as f64 - self.attribute).powi(2)

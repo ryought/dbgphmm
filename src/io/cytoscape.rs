@@ -73,6 +73,12 @@ pub enum EdgeAttrVec {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "group", content = "data")]
 pub enum ElementV2<K: KmerLike> {
+    #[serde(rename = "history_labels")]
+    /// Custom group name `history_labels`
+    HistoryLabels {
+        /// a list of labels corresponds to the history of Node
+        labels: Vec<String>,
+    },
     #[serde(rename = "nodes")]
     /// Node element of cytoscape
     Node {
@@ -83,6 +89,8 @@ pub enum ElementV2<K: KmerLike> {
         #[serde_as(as = "Option<DisplayFromStr>")]
         label: Option<K>,
         attrs: Vec<NodeAttr>,
+        history: Vec<f64>,
+        copy_num: CopyNum,
     },
     #[serde(rename = "edges")]
     /// Edge element of cytoscape
@@ -162,6 +170,8 @@ mod tests {
             id: NodeIndex::new(0),
             label: Some(Kmer::from_bases(b"ATCGA")),
             attrs: vec![NodeAttr::CopyNum(10)],
+            history: vec![],
+            copy_num: 10,
         });
         elements.push(ElementV2::Edge {
             id: EdgeIndex::new(0),
@@ -183,7 +193,9 @@ mod tests {
           "type": "copy_num",
           "value": 10
         }
-      ]
+      ],
+      "history": [],
+      "copy_num": 10
     }
   },
   {

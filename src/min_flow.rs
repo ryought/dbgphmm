@@ -17,6 +17,87 @@ use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 /// type of a flow (on edges) in min-flow.
 pub type FlowRate = usize;
 
+use std::iter::{Step, Sum};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
+///
+/// generic FlowRate
+///
+pub trait FlowRateLike:
+    Copy
+    + PartialEq
+    + PartialOrd
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + AddAssign
+    + Sum
+    + Default
+    + std::fmt::Debug
+    + std::fmt::Display
+{
+    /// zero value = 0
+    fn zero() -> Self;
+    /// unit value = 1
+    fn unit() -> Self;
+    /// cast to f64
+    fn to_f64(self) -> f64;
+    /// cast to usize (by flooring)
+    fn to_usize(self) -> usize;
+    fn wrapping_add(self, rhs: Self) -> Self;
+    fn wrapping_sub(self, rhs: Self) -> Self;
+    fn large_const() -> Self;
+}
+impl FlowRateLike for usize {
+    fn zero() -> usize {
+        0
+    }
+    fn unit() -> usize {
+        1
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+    fn to_usize(self) -> usize {
+        self
+    }
+    fn wrapping_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+    fn wrapping_sub(self, rhs: Self) -> Self {
+        self.wrapping_sub(rhs)
+    }
+    fn large_const() -> Self {
+        100
+    }
+}
+impl FlowRateLike for f64 {
+    fn zero() -> Self {
+        0.0
+    }
+    fn unit() -> Self {
+        1.0
+    }
+    fn to_f64(self) -> f64 {
+        self
+    }
+    fn to_usize(self) -> usize {
+        // flooring
+        self as usize
+    }
+    fn wrapping_add(self, rhs: Self) -> Self {
+        // no overflow
+        self + rhs
+    }
+    fn wrapping_sub(self, rhs: Self) -> Self {
+        // no overflow
+        self - rhs
+    }
+    fn large_const() -> Self {
+        100.0
+    }
+}
+
 /// type of a cost (of edges per unit flow) in min-flow.
 pub type Cost = f64;
 
@@ -27,10 +108,11 @@ pub type Cost = f64;
 ///
 /// Find minimum cost flow on the FlowGraph
 ///
-pub fn min_cost_flow<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+pub fn min_cost_flow<F, N, E>(graph: &DiGraph<N, E>) -> Option<Flow<F>>
 where
+    F: FlowRateLike,
     N: std::fmt::Debug,
-    E: FlowEdge + ConstCost + std::fmt::Debug,
+    E: FlowEdge<F> + ConstCost + std::fmt::Debug,
 {
     let init_flow = find_initial_flow(graph);
 
@@ -46,10 +128,11 @@ where
 ///
 /// Find minimum cost flow on the ConvexFlowGraph
 ///
-pub fn min_cost_flow_convex<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+pub fn min_cost_flow_convex<F, N, E>(graph: &DiGraph<N, E>) -> Option<Flow<F>>
 where
+    F: FlowRateLike,
     N: std::fmt::Debug,
-    E: FlowEdge + ConvexCost + std::fmt::Debug,
+    E: FlowEdge<F> + ConvexCost<F> + std::fmt::Debug,
 {
     // (1) convert to normal FlowGraph and find the min-cost-flow
     let fg = match to_fixed_flow_graph(graph) {
@@ -70,10 +153,11 @@ where
 /// Find minimum cost flow on the Graph whose edge is ConvexFlowEdge.
 /// This solver requires less memory.
 ///
-pub fn min_cost_flow_convex_fast<N, E>(graph: &DiGraph<N, E>) -> Option<Flow>
+pub fn min_cost_flow_convex_fast<F, N, E>(graph: &DiGraph<N, E>) -> Option<Flow<F>>
 where
+    F: FlowRateLike,
     N: std::fmt::Debug,
-    E: FlowEdge + ConvexCost + std::fmt::Debug,
+    E: FlowEdge<F> + ConvexCost<F> + std::fmt::Debug,
 {
     // (1) find the initial flow, by assigning constant cost to the flow.
     let init_flow = find_initial_flow(graph);
@@ -95,16 +179,24 @@ where
 ///
 /// Find minimum cost flow of the special FlowGraph, whose demand is always zero.
 ///
-fn min_cost_flow_from_zero<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>) -> Flow {
+fn min_cost_flow_from_zero<F, N, E>(graph: &DiGraph<N, E>) -> Flow<F>
+where
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConstCost,
+{
     assert!(is_zero_demand_flow_graph(&graph));
-    let flow = Flow::new(graph.edge_count(), 0);
+    let flow = Flow::new(graph.edge_count(), F::zero());
     min_cost_flow_from(graph, &flow)
 }
 
 ///
 /// Find minimum cost by starting from the specified flow values.
 ///
-fn min_cost_flow_from<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>, init_flow: &Flow) -> Flow {
+fn min_cost_flow_from<F, N, E>(graph: &DiGraph<N, E>, init_flow: &Flow<F>) -> Flow<F>
+where
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConstCost,
+{
     let mut flow = init_flow.clone();
 
     loop {
@@ -126,10 +218,11 @@ fn min_cost_flow_from<N, E: FlowEdge + ConstCost>(graph: &DiGraph<N, E>, init_fl
 ///
 /// Find minimum cost by starting from the specified flow values in ConvexCost Flowgraph.
 ///
-pub fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
-    graph: &DiGraph<N, E>,
-    init_flow: &Flow,
-) -> Flow {
+pub fn min_cost_flow_from_convex<F, N, E>(graph: &DiGraph<N, E>, init_flow: &Flow<F>) -> Flow<F>
+where
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConvexCost<F>,
+{
     let mut flow = init_flow.clone();
 
     // TODO assert graph edge has convex function?
@@ -149,4 +242,19 @@ pub fn min_cost_flow_from_convex<N, E: FlowEdge + ConvexCost>(
     }
 
     flow
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flow_rate_like_float() {
+        assert_eq!(10.1_f64.to_usize(), 10);
+        assert_eq!(10.9_f64.to_usize(), 10);
+    }
 }

@@ -79,7 +79,7 @@ pub fn sequence_to_string<T: AsRef<Bases>>(seq: &T) -> &str {
 }
 
 /// Type of Genome, the collection of sequences.
-pub type Genome = Vec<Sequence>;
+pub type Genome = Vec<StyledSequence>;
 
 ///
 /// calculate genome size of the given genome.
@@ -265,6 +265,10 @@ impl StyledSequence {
     }
     pub fn style(&self) -> SeqStyle {
         self.style
+    }
+    /// length of the sequence
+    pub fn len(&self) -> usize {
+        self.seq.len()
     }
 }
 

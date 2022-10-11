@@ -37,7 +37,7 @@ pub enum IntersectionGraphEdge {
     },
 }
 
-impl FlowEdge for IntersectionGraphEdge {
+impl FlowEdge<usize> for IntersectionGraphEdge {
     fn demand(&self) -> usize {
         match self {
             IntersectionGraphEdge::Node { copy_num } => *copy_num,
@@ -52,7 +52,7 @@ impl FlowEdge for IntersectionGraphEdge {
     }
 }
 
-impl ConvexCost for IntersectionGraphEdge {
+impl ConvexCost<usize> for IntersectionGraphEdge {
     fn convex_cost(&self, flow: usize) -> f64 {
         match self {
             IntersectionGraphEdge::Spanning { freq, .. } => -(*freq) * clamped_log(flow),

@@ -93,7 +93,7 @@ impl CompressionV2KmerInfo {
     }
 }
 
-impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV2KmerInfos<K> {
+impl<K: KmerLike> FlowEdge<usize> for SimpleEDbgEdgeWithV2KmerInfos<K> {
     fn demand(&self) -> usize {
         0
     }
@@ -102,7 +102,7 @@ impl<K: KmerLike> FlowEdge for SimpleEDbgEdgeWithV2KmerInfos<K> {
     }
 }
 
-impl<K: KmerLike> ConvexCost for SimpleEDbgEdgeWithV2KmerInfos<K> {
+impl<K: KmerLike> ConvexCost<usize> for SimpleEDbgEdgeWithV2KmerInfos<K> {
     ///
     /// convex cost for exact compression EM algorithm
     ///

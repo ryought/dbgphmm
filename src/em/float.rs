@@ -6,15 +6,144 @@
 //! * M-step: improve Q score by GradDescent and MinCostFlow
 //! * iterate E/M-steps and returns the improved FloatDbg
 //!
-use crate::dbg::dbg::DbgNodeBase;
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::dbg::edge_centric::EDbgEdgeBase;
 use crate::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use crate::graph::float_seq_graph::FloatSeqGraph;
+use crate::hist::stat;
+use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
+use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
 use crate::min_flow::residue::{
     improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
 };
 use crate::prelude::*;
+use crate::vector::{DenseStorage, NodeVec};
+
+///
+/// run e-step and m-step iteratively
+///
+pub fn em<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    reads: &Reads,
+    // parameters
+    params: &PHMMParams,
+    genome_size: CopyDensity,
+    diff: CopyDensity,
+    n_max_em_iteration: usize,
+    n_max_iteration: usize,
+) -> EMResult<K> {
+    let mut dbg_current = dbg.clone();
+    let mut ret = Vec::new();
+
+    for i in 0..n_max_em_iteration {
+        let (edge_freqs, init_freqs, p) = e_step(&dbg_current, &reads, &params);
+        let (dbg_new, m_step_result) = m_step(
+            &dbg_current,
+            &edge_freqs,
+            &init_freqs,
+            genome_size,
+            diff,
+            n_max_iteration,
+            &params,
+        );
+        ret.push(m_step_result);
+
+        match dbg_new {
+            Some(dbg_new) => {
+                dbg_current = dbg_new;
+            }
+            None => break,
+        };
+    }
+
+    ret
+}
+
+pub type EMResult<K> = Vec<Vec<MStepResult<K>>>;
+
+///
+///
+pub fn em_result_to_final_dbg<K: KmerLike>(result: &EMResult<K>) -> Option<FloatDbg<K>> {
+    for (em_id, m_step_result) in result.iter().rev().enumerate() {
+        for (m_id, m_step_once_result) in m_step_result.iter().rev().enumerate() {
+            match m_step_once_result {
+                MStepResult::Update(dbg, _) => {
+                    return Some(dbg.clone());
+                }
+                _ => {}
+            };
+        }
+    }
+    return None;
+}
+
+///
+/// create Vec<NodeAttrVec> (that represents the time series of copy densities of nodes of EM
+/// steps) by using true dbg (Dbg<N, E>, not floated) and result (EMResult<K>).
+///
+pub fn em_result_to_node_historys<K: KmerLike>(
+    result: &EMResult<K>,
+) -> Vec<(String, NodeVec<DenseStorage<CopyDensity>>)> {
+    let mut ret = Vec::new();
+
+    for (em_id, m_step_result) in result.iter().enumerate() {
+        for (m_id, m_step_once_result) in m_step_result.iter().enumerate() {
+            match m_step_once_result {
+                MStepResult::Update(dbg, _) => {
+                    let copy_densities = dbg.to_node_copy_densities();
+                    let label = format!("{}#{}", em_id, m_id);
+                    ret.push((label, copy_densities));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    ret
+}
+
+///
+/// inspect the relationship between density and copy number
+///
+/// for each copy number c, draw the histogram of density of nodes whose copy number is c.
+///
+pub fn inspect_density_histgram<N: DbgNode, E: DbgEdge, K: KmerLike>(
+    dbg_true: &Dbg<N, E>,
+    final_fdbg: &FloatDbg<K>,
+) {
+    let densitys = final_fdbg.to_node_copy_densities();
+    inspect_freqs_histgram(dbg_true, &densitys)
+}
+
+///
+/// inspect the relationship between density and copy number
+///
+/// for each copy number c, draw the histogram of density of nodes whose copy number is c.
+///
+pub fn inspect_freqs_histgram<N: DbgNode, E: DbgEdge>(
+    dbg_true: &Dbg<N, E>,
+    densitys: &NodeVec<DenseStorage<CopyDensity>>,
+) {
+    let copy_nums_list = dbg_true.to_copy_nums_list();
+    for (copy_num, nodes) in copy_nums_list {
+        let densitys_of_copy_num: Vec<_> = nodes.iter().map(|&node| densitys[node]).collect();
+        let (ave, std, min, max) = stat(&densitys_of_copy_num);
+        eprintln!(
+            "[{}x] ave={} std={} min={} max={}",
+            copy_num, ave, std, min, max
+        );
+        // eprintln!("{:?}", densitys);
+    }
+}
+
+///
+/// shrink nodes whose `copy_density` is less than `min_density` with satisfying flow constaint.
+///
+pub fn shrink_nodes<K: KmerLike>(fdbg: &FloatDbg<K>, min_density: CopyDensity) {
+    // convert to flow network
+    // let network = fdbg.to_edbg_generic();
+}
 
 ///
 /// E-step: calculate edge_freqs (freq between v->w) and init_freqs (freq between Begin->w)
@@ -37,10 +166,59 @@ pub fn m_step<K: KmerLike>(
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
     diff: CopyDensity,
-    max_iteration: usize,
-) {
+    n_max_iteration: usize,
+    params: &PHMMParams,
+) -> (Option<FloatDbg<K>>, Vec<MStepResult<K>>) {
+    let mut dbg_current = dbg.clone();
+    let mut is_updated = false;
+    let mut ret = Vec::new();
 
-    // search again for
+    for i in 0..n_max_iteration {
+        let r = m_step_once(
+            &dbg_current,
+            edge_freqs,
+            init_freqs,
+            genome_size,
+            diff,
+            params,
+        );
+
+        ret.push(r.clone());
+
+        match r {
+            MStepResult::Update(dbg_new, q_score) => {
+                eprintln!("update {}", q_score);
+                dbg_current = dbg_new;
+                is_updated = true;
+            }
+            MStepResult::NoImprove(dbg_new, q_score) => {
+                eprintln!("no improve {}", q_score);
+                break;
+            }
+            MStepResult::NoNegCycle => {
+                eprintln!("no neg cycle");
+                break;
+            }
+        };
+    }
+
+    if is_updated {
+        // some new dbg was generated by this m_step
+        (Some(dbg_current), ret)
+    } else {
+        // this m_step did not change dbg
+        (None, ret)
+    }
+}
+
+#[derive(Clone)]
+pub enum MStepResult<K: KmerLike> {
+    /// The found negative cycle improved q-score
+    Update(FloatDbg<K>, QScore),
+    /// A negative cycle was found, but it did not improve q-score
+    NoImprove(FloatDbg<K>, QScore),
+    /// Any negative cycle was not found.
+    NoNegCycle,
 }
 
 ///
@@ -55,7 +233,11 @@ pub fn m_step_once<K: KmerLike>(
     init_freqs: &NodeFreqs,
     genome_size: CopyDensity,
     diff: CopyDensity,
-) -> Option<FloatDbg<K>> {
+    params: &PHMMParams,
+) -> MStepResult<K> {
+    //(0) calculate the original qscore
+    let q_score = q_score_exact(&dbg.to_phmm(params.clone()), edge_freqs, init_freqs);
+
     let mut fdbg = dbg.clone();
     // (1) convert to edge-centric dbg with each edge has a cost
     let rg = to_residue_graph(&fdbg, &edge_freqs, &init_freqs, diff);
@@ -63,10 +245,16 @@ pub fn m_step_once<K: KmerLike>(
     match improve_residue_graph(&rg) {
         Some(edges) => {
             apply_to_dbg(&mut fdbg, diff, &rg, &edges);
+            let q_score_new = q_score_exact(&fdbg.to_phmm(params.clone()), edge_freqs, init_freqs);
+
             // (3) check if the copy density changes actually improves q-score.
-            Some(fdbg)
+            if q_score_new.total() >= q_score.total() {
+                MStepResult::Update(fdbg, q_score_new)
+            } else {
+                MStepResult::NoImprove(fdbg, q_score_new)
+            }
         }
-        None => None,
+        None => MStepResult::NoNegCycle,
     }
 }
 
@@ -107,7 +295,7 @@ fn to_residue_graph<K: KmerLike>(
     edge_freqs: &EdgeFreqs,
     init_freqs: &NodeFreqs,
     diff: CopyDensity,
-) -> ResidueGraph {
+) -> ResidueGraph<usize> {
     let edbg = dbg.to_edbg_generic(
         |_kmer| (),
         |node, node_weight| {
@@ -115,7 +303,7 @@ fn to_residue_graph<K: KmerLike>(
         },
     );
     let max_copy_density = 10000.0;
-    let mut rg: ResidueGraph = ResidueGraph::new();
+    let mut rg = ResidueGraph::new();
     for (e, v, w, ew) in edbg.edges() {
         let node = ew.origin_node();
         let mut edges = Vec::new();
@@ -153,9 +341,11 @@ fn to_residue_graph<K: KmerLike>(
 fn apply_to_dbg<K: KmerLike>(
     dbg: &mut FloatDbg<K>,
     diff: CopyDensity,
-    rg: &ResidueGraph,
+    rg: &ResidueGraph<usize>,
     edges: &[EdgeIndex],
 ) {
+    let genome_size_orig = dbg.total_density();
+
     for e in edges {
         let ew = rg.edge_weight(*e).unwrap();
         let node = NodeIndex::new(ew.target.index());
@@ -166,6 +356,12 @@ fn apply_to_dbg<K: KmerLike>(
         };
         dbg.set_node_copy_density(node, new_copy_density);
     }
+
+    // scale copy densities of all nodes
+    // so that this function does not change the genome size
+    let genome_size_new = dbg.total_density();
+    let scale = genome_size_orig / genome_size_new;
+    dbg.scale_density(scale);
 }
 
 //
@@ -212,6 +408,24 @@ mod tests {
             fdbg.node(fdbg.find_node_from_kmer(&kmer(b"nnnT")).unwrap())
                 .copy_density(),
             1.0,
+        );
+    }
+    #[test]
+    fn em_float_intersection_small() {
+        let dbg = mock_intersection_small();
+        let genome_size = dbg.genome_size() as CopyDensity;
+        let reads = Reads::from(vec![b"ATAGCT".to_vec()]);
+        let fdbg = FloatDbg::from_dbg(&dbg);
+        let params = PHMMParams::zero_error();
+        let (edge_freqs, init_freqs, p) = e_step(&fdbg, &reads, &params);
+        m_step(
+            &fdbg,
+            &edge_freqs,
+            &init_freqs,
+            genome_size,
+            0.1,
+            10,
+            &params,
         );
     }
 }

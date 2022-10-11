@@ -6,8 +6,8 @@ use petgraph::graph::{EdgeIndex, Graph};
 /// very small flow network
 /// with triangle circular topology
 ///
-pub fn mock_flow_network1() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = Graph::new();
+pub fn mock_flow_network1() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = Graph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
@@ -27,10 +27,33 @@ pub fn mock_flow_network1() -> (FlowGraph, Flow) {
 }
 
 ///
+/// mock_flow_network1 version of f64
+///
+pub fn mock_flow_network1_float() -> (FlowGraph<f64>, Flow<f64>) {
+    let mut graph = Graph::new();
+    let a = graph.add_node(());
+    let b = graph.add_node(());
+    let c = graph.add_node(());
+    graph.add_edge(a, b, FlowEdgeBase::new(0.0, 10.0, -1.0));
+    graph.add_edge(b, c, FlowEdgeBase::new(0.0, 10.0, -2.0));
+    graph.add_edge(c, a, FlowEdgeBase::new(0.0, 10.0, -2.0));
+    let f = Flow::from_vec(
+        3,
+        0.0,
+        &[
+            (EdgeIndex::new(0), 10.0),
+            (EdgeIndex::new(1), 10.0),
+            (EdgeIndex::new(2), 10.0),
+        ],
+    );
+    (graph, f)
+}
+
+///
 /// mock network cited from Genome-scale algorithm design p48
 ///
-pub fn mock_flow_network2() -> (FlowGraph, Flow) {
-    let mut g: FlowGraph = Graph::new();
+pub fn mock_flow_network2() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut g = Graph::new();
     let s = g.add_node(());
     let a = g.add_node(());
     let b = g.add_node(());
@@ -73,8 +96,8 @@ pub fn mock_flow_network2() -> (FlowGraph, Flow) {
     (g, f)
 }
 
-pub fn mock_flow_network3() -> (FlowGraph, Flow) {
-    let mut g: FlowGraph = Graph::new();
+pub fn mock_flow_network3() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut g = Graph::new();
     let a = g.add_node(());
     let b = g.add_node(());
     let c = g.add_node(());
@@ -89,8 +112,8 @@ pub fn mock_flow_network3() -> (FlowGraph, Flow) {
     (g, f)
 }
 
-pub fn mock_flow_network_parallel_edge1() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = Graph::new();
+pub fn mock_flow_network_parallel_edge1() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = Graph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
@@ -103,8 +126,8 @@ pub fn mock_flow_network_parallel_edge1() -> (FlowGraph, Flow) {
     (graph, f)
 }
 
-pub fn mock_flow_network_parallel_edge2() -> (FlowGraph, Flow) {
-    let mut graph: FlowGraph = FlowGraph::new();
+pub fn mock_flow_network_parallel_edge2() -> (FlowGraph<usize>, Flow<usize>) {
+    let mut graph = FlowGraph::new();
     let a = graph.add_node(());
     let b = graph.add_node(());
     let c = graph.add_node(());
@@ -126,6 +149,14 @@ mod tests {
     #[test]
     fn test_mock_flow_network1() {
         let (g, f_true) = mock_flow_network1();
+        let f = min_cost_flow(&g).unwrap();
+        assert!(f_true == f);
+    }
+
+    #[test]
+    fn test_mock_flow_network1_float() {
+        let (g, f_true) = mock_flow_network1_float();
+        println!("graph");
         let f = min_cost_flow(&g).unwrap();
         assert!(f_true == f);
     }
