@@ -54,7 +54,7 @@ impl SimpleCycle {
 
         SimpleCycle(bitset)
     }
-    pub fn to_cycle<N, E>(graph: &UnGrap<N, E>) -> Cycle {
+    pub fn to_cycle<N, E>(graph: &UnGraph<N, E>) -> Cycle {
         unimplemented!();
     }
     pub fn is_disjoint(&self, other: &SimpleCycle) -> bool {

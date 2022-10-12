@@ -7,6 +7,7 @@ pub use bipartite::Bipartite;
 pub mod backless_bellman_ford;
 pub mod bellman_ford;
 pub mod cycle;
+pub mod cycle_space;
 pub mod float_seq_graph;
 pub mod float_weight;
 pub mod floyd;

@@ -56,6 +56,8 @@ fn run_simple() {
 
     if run_em {
         let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
+        eprintln!("n_nodes={}", fdbg.n_nodes());
+        eprintln!("n_edges={}", fdbg.n_edges());
         fdbg.scale_density(genome_size as CopyDensity / dbg_raw.genome_size() as CopyDensity);
 
         let result = em(
