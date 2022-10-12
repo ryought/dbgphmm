@@ -1,7 +1,7 @@
 //!
 //! Generate spanning tree by breadth first search from a specified node
 //!
-use super::cycle::Cycle;
+use super::cycle::{Cycle, SimpleCycle};
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use petgraph::algo::astar;
@@ -28,7 +28,7 @@ impl SpanningTree {
     ///
     /// get an `index`-th cycle basis (as an list of edges in the original graph)
     ///
-    fn cycle_basis<N, E>(&self, graph: &UnGraph<N, E>, index: usize) -> Cycle {
+    fn cycle_basis<N, E>(&self, graph: &UnGraph<N, E>, index: usize) -> SimpleCycle {
         let extra_edge = self.extra_edges[index];
         let (v, w) = graph.edge_endpoints(extra_edge).unwrap();
 
@@ -45,7 +45,8 @@ impl SpanningTree {
             .collect();
         edges_in_graph.push(extra_edge);
 
-        Cycle::new(edges_in_graph)
+        let cycle = Cycle::new(edges_in_graph);
+        SimpleCycle::from(graph, &cycle)
     }
 }
 
@@ -136,7 +137,7 @@ mod tests {
         let st = spanning_tree(&g2, NodeIndex::new(0));
         for i in 0..st.n_cycle_basis() {
             println!("#{}", i);
-            println!("{:?}", st.cycle_basis(&g2, i));
+            println!("{}", st.cycle_basis(&g2, i));
         }
     }
 
@@ -148,7 +149,7 @@ mod tests {
         let st = spanning_tree(&g, NodeIndex::new(0));
         for i in 0..st.n_cycle_basis() {
             println!("#{}", i);
-            println!("{:?}", st.cycle_basis(&g, i));
+            println!("{}", st.cycle_basis(&g, i));
         }
     }
 
@@ -168,7 +169,7 @@ mod tests {
         let st = spanning_tree(&g, NodeIndex::new(0));
         for i in 0..st.n_cycle_basis() {
             println!("#{}", i);
-            println!("{:?}", st.cycle_basis(&g, i));
+            println!("{}", st.cycle_basis(&g, i));
         }
     }
 }
