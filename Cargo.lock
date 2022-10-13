@@ -334,6 +334,7 @@ dependencies = [
  "clap",
  "derive-new",
  "env_logger",
+ "fixedbitset 0.2.0",
  "fnv",
  "forceatlas2",
  "histo",

@@ -7,6 +7,7 @@ pub use bipartite::Bipartite;
 pub mod backless_bellman_ford;
 pub mod bellman_ford;
 pub mod cycle;
+pub mod cycle_space;
 pub mod float_seq_graph;
 pub mod float_weight;
 pub mod floyd;
@@ -16,6 +17,7 @@ pub mod min_mean_weight_cycle;
 pub mod mocks;
 pub mod seq_graph;
 pub mod shortest_cycle;
+pub mod spanning_tree;
 pub use float_weight::FloatWeight;
 
 //
