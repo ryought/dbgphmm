@@ -336,7 +336,7 @@ function init_controls(history_labels) {
     .onChange((value) => cy.nodes().scratch('use_history', value))
   const n_history = history_labels.length
   const updateLabel = () => {
-    if (history_labels > 0) {
+    if (history_labels.length > 0) {
       global_state.label = history_labels[global_state.time]
     } else {
       global_state.label = ''
