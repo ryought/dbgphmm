@@ -27,7 +27,7 @@ use itertools::iproduct;
 ///
 /// (Edge-centric) De bruijn graph struct
 ///
-pub struct EDbg<N, E: EDbgEdgeBase> {
+pub struct EDbg<N, E> {
     k: usize,
     pub graph: DiGraph<N, E>,
 }
@@ -208,7 +208,7 @@ impl<N: EDbgNode, E: EDbgEdge> EDbg<N, E> {
     }
 }
 
-impl<N, E: EDbgEdgeBase> EDbg<N, E> {
+impl<N, E> EDbg<N, E> {
     /// plain constructor of edbg
     pub fn new(k: usize, graph: DiGraph<N, E>) -> Self {
         EDbg { k, graph }

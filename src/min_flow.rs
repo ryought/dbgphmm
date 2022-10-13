@@ -8,7 +8,7 @@ pub mod zero_demand;
 
 use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 pub use flow::total_cost;
-use flow::{is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
+use flow::{assert_valid_flow, is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
 use residue::{improve_flow, improve_flow_convex};
 use utils::draw_with_flow;
@@ -47,6 +47,8 @@ pub trait FlowRateLike:
     fn wrapping_add(self, rhs: Self) -> Self;
     fn wrapping_sub(self, rhs: Self) -> Self;
     fn large_const() -> Self;
+    /// similary equal
+    fn sim_eq(self, rhs: Self) -> bool;
 }
 impl FlowRateLike for usize {
     fn zero() -> usize {
@@ -69,6 +71,10 @@ impl FlowRateLike for usize {
     }
     fn large_const() -> Self {
         100
+    }
+    fn sim_eq(self, rhs: Self) -> bool {
+        // integer type does not need to consider the floating error
+        self == rhs
     }
 }
 impl FlowRateLike for f64 {
@@ -95,6 +101,9 @@ impl FlowRateLike for f64 {
     }
     fn large_const() -> Self {
         100.0
+    }
+    fn sim_eq(self, rhs: Self) -> bool {
+        (self - rhs).abs() < 0.00001
     }
 }
 
@@ -179,7 +188,7 @@ where
 ///
 /// Find minimum cost flow of the special FlowGraph, whose demand is always zero.
 ///
-fn min_cost_flow_from_zero<F, N, E>(graph: &DiGraph<N, E>) -> Flow<F>
+pub fn min_cost_flow_from_zero<F, N, E>(graph: &DiGraph<N, E>) -> Flow<F>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConstCost,
@@ -192,7 +201,7 @@ where
 ///
 /// Find minimum cost by starting from the specified flow values.
 ///
-fn min_cost_flow_from<F, N, E>(graph: &DiGraph<N, E>, init_flow: &Flow<F>) -> Flow<F>
+pub fn min_cost_flow_from<F, N, E>(graph: &DiGraph<N, E>, init_flow: &Flow<F>) -> Flow<F>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConstCost,
@@ -200,7 +209,7 @@ where
     let mut flow = init_flow.clone();
 
     loop {
-        assert!(is_valid_flow(&flow, &graph));
+        assert_valid_flow(&flow, &graph);
         match improve_flow(graph, &flow) {
             Some(new_flow) => {
                 flow = new_flow;

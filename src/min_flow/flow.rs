@@ -112,6 +112,24 @@ pub fn is_valid_flow<F: FlowRateLike, N, E: FlowEdge<F>>(
         && is_satisfying_flow_constraint(flow, graph)
 }
 
+pub fn assert_valid_flow<F: FlowRateLike, N, E: FlowEdge<F>>(
+    flow: &Flow<F>,
+    graph: &DiGraph<N, E>,
+) {
+    assert!(
+        is_defined_for_all_edges(flow, graph),
+        "flow does not match the graph size"
+    );
+    assert!(
+        is_in_demand_and_capacity(flow, graph),
+        "flow not in [demand,capacity]"
+    );
+    assert!(
+        is_satisfying_flow_constraint(flow, graph),
+        "flow does not satisfy flow constraint"
+    );
+}
+
 ///
 /// Check if the flow contains all edges
 ///
@@ -154,7 +172,7 @@ pub fn is_satisfying_flow_constraint<F: FlowRateLike, N, E: FlowEdge<F>>(
             .edges_directed(v, Direction::Outgoing)
             .map(|er| flow[er.id()])
             .sum();
-        in_flow == out_flow
+        in_flow.sim_eq(out_flow)
     })
 }
 

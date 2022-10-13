@@ -741,7 +741,6 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
     ///
     pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
     where
-        EE: EDbgEdgeBase,
         FN: Fn(&N::Kmer) -> EN,
         FE: Fn(NodeIndex, &N) -> EE,
     {

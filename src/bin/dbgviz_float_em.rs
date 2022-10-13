@@ -4,7 +4,7 @@ use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
     em, em_result_to_final_dbg, em_result_to_node_historys, inspect_density_histgram,
-    inspect_freqs_histgram,
+    inspect_freqs_histgram, shrink_nodes,
 };
 use dbgphmm::genome;
 use dbgphmm::prelude::*;
@@ -69,11 +69,17 @@ fn run_simple() {
             10,
             10,
         );
-        let historys = em_result_to_node_historys(&result);
+        let mut historys = em_result_to_node_historys(&result);
         let final_fdbg = em_result_to_final_dbg(&result);
 
         if let Some(final_fdbg) = final_fdbg {
+            // inspect histogram
+            eprintln!("inspecting");
             inspect_density_histgram(&dbg_true, &final_fdbg);
+
+            // shrink
+            let shrinked_densities = shrink_nodes(&final_fdbg, 0.1);
+            historys.push((format!("shrinked"), shrinked_densities))
         }
 
         let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);

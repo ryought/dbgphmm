@@ -14,6 +14,8 @@ use crate::hist::stat;
 use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
+use crate::min_flow::flow::{ConstCost, Flow, FlowEdge};
+use crate::min_flow::min_cost_flow_from;
 use crate::min_flow::residue::{
     improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
 };
@@ -137,12 +139,68 @@ pub fn inspect_freqs_histgram<N: DbgNode, E: DbgEdge>(
     }
 }
 
+enum ShrinkEdgeType {
+    Redundant,
+    NotRedundant,
+}
+
+struct ShrinkEdge {
+    current_density: CopyDensity,
+    edge_type: ShrinkEdgeType,
+}
+
+impl FlowEdge<f64> for ShrinkEdge {
+    fn demand(&self) -> f64 {
+        match self.edge_type {
+            ShrinkEdgeType::Redundant => 0.0,
+            ShrinkEdgeType::NotRedundant => self.current_density,
+        }
+    }
+    fn capacity(&self) -> f64 {
+        match self.edge_type {
+            ShrinkEdgeType::Redundant => self.current_density,
+            ShrinkEdgeType::NotRedundant => 1000.0, // TODO some large constant
+        }
+    }
+}
+
+impl ConstCost for ShrinkEdge {
+    fn cost(&self) -> f64 {
+        match self.edge_type {
+            ShrinkEdgeType::Redundant => 1.0,
+            ShrinkEdgeType::NotRedundant => 0.0,
+        }
+    }
+}
+
 ///
 /// shrink nodes whose `copy_density` is less than `min_density` with satisfying flow constaint.
 ///
-pub fn shrink_nodes<K: KmerLike>(fdbg: &FloatDbg<K>, min_density: CopyDensity) {
+pub fn shrink_nodes<K: KmerLike>(
+    fdbg: &FloatDbg<K>,
+    min_density: CopyDensity,
+) -> NodeVec<DenseStorage<CopyDensity>> {
     // convert to flow network
-    // let network = fdbg.to_edbg_generic();
+    let edbg = fdbg.to_edbg_generic(
+        // to_node:
+        |_| (),
+        // to_edge:
+        |node, weight| {
+            let density = weight.copy_density();
+            ShrinkEdge {
+                current_density: density,
+                edge_type: if density < min_density {
+                    ShrinkEdgeType::Redundant
+                } else {
+                    ShrinkEdgeType::NotRedundant
+                },
+            }
+        },
+    );
+    // solve as min_flow
+    let current_flow: Flow<f64> = fdbg.to_node_copy_densities().switch_index();
+    let flow = min_cost_flow_from(&edbg.graph, &current_flow);
+    flow.switch_index()
 }
 
 ///
