@@ -326,7 +326,7 @@ mod tests {
         assert_eq!(to_edge_endpoint_list(&g2), vec![(0, 1), (1, 2), (0, 2)]);
         let h = into_adj_graph(&g2, |_, _| ());
         println!("{:?}", Dot::with_config(&h, &[]));
-        assert_eq!(to_edge_endpoint_list(&g2), vec![(0, 1)]);
+        assert_eq!(to_edge_endpoint_list(&h), vec![(0, 1)]);
     }
 
     #[test]
