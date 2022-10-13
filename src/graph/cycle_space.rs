@@ -21,10 +21,55 @@ struct CycleSpace {
     /// a set of all cycle basis.
     ///
     basis: Vec<SimpleCycle>,
-    ///
-    /// graph representing adjacency relationship among basises.
-    ///
-    adj_graph: UnGraph<FixedBitSet, ()>,
+}
+
+struct AdjGraphNodeIterator<N: PartialEq + Clone, F: Fn(&N, &N) -> N> {
+    /// degree of adjacency (i.e. how many times the graph was upconverted)
+    k: usize,
+    /// node indices
+    i: usize,
+    /// adjacency graph
+    graph: UnGraph<N, ()>,
+    /// node mapping function
+    node_map: F,
+}
+
+impl<N: PartialEq + Clone, F: Fn(&N, &N) -> N> AdjGraphNodeIterator<N, F> {
+    /// constructor of `AdjGraphNodeIterator`
+    /// start from k=1 and i=0.
+    pub fn new(graph: UnGraph<N, ()>, node_map: F) -> Self {
+        AdjGraphNodeIterator {
+            k: 1,
+            i: 0,
+            graph,
+            node_map,
+        }
+    }
+    fn upconvert(&mut self) {
+        self.graph = into_adj_graph_no_node_dups(&self.graph, |x, y| (self.node_map)(x, y));
+        self.k += 1;
+        self.i = 0;
+    }
+}
+
+impl<N: PartialEq + Clone, F: Fn(&N, &N) -> N> Iterator for AdjGraphNodeIterator<N, F> {
+    type Item = N;
+    fn next(&mut self) -> Option<N> {
+        // upconvert
+        let n = self.graph.node_count();
+        if n > 0 && self.i == n {
+            self.upconvert()
+        }
+
+        // yield node[i]
+        if self.graph.node_count() > 0 {
+            let w = self.graph.node_weight(NodeIndex::new(self.i)).unwrap();
+            self.i += 1;
+            Some(w.clone())
+        } else {
+            None
+        }
+    }
 }
 
 ///
@@ -36,7 +81,7 @@ struct CycleSpace {
 ///
 fn into_adj_graph_no_node_dups<N, F>(graph: &UnGraph<N, ()>, node_map: F) -> UnGraph<N, ()>
 where
-    N: PartialEq + std::fmt::Debug,
+    N: PartialEq,
     F: Fn(&N, &N) -> N,
 {
     let mut g = UnGraph::new_undirected();
@@ -253,6 +298,23 @@ mod tests {
         let h3 = into_adj_graph_no_node_dups(&h2, |x, y| test_node_map(x, y));
         println!("{:?}", Dot::with_config(&h3, &[]));
         assert_eq!(to_node_weight_list(&h3).len(), 0);
+
+        // test iterator
+        let agiter = AdjGraphNodeIterator::new(g, |x, y| test_node_map(x, y));
+        let xs: Vec<Vec<u8>> = agiter.collect();
+        println!("{:?}", xs);
+        assert_eq!(
+            xs,
+            vec![
+                vec![0],
+                vec![1],
+                vec![2],
+                vec![0, 1],
+                vec![0, 2],
+                vec![1, 2],
+                vec![0, 1, 2]
+            ]
+        );
     }
 
     #[test]
@@ -310,6 +372,36 @@ mod tests {
         let h4 = into_adj_graph_no_node_dups(&h3, |x, y| test_node_map(x, y));
         println!("{:?}", Dot::with_config(&h4, &[]));
         assert_eq!(to_node_weight_list(&h4), vec![vec![1, 2, 3, 4, 5]]);
+
+        // test iterator
+        let agiter = AdjGraphNodeIterator::new(g, |x, y| test_node_map(x, y));
+        let xs: Vec<Vec<u8>> = agiter.collect();
+        assert_eq!(
+            xs,
+            vec![
+                vec![1],
+                vec![2],
+                vec![3],
+                vec![4],
+                vec![5],
+                vec![1, 2],
+                vec![1, 3],
+                vec![2, 5],
+                vec![3, 4],
+                vec![3, 5],
+                vec![1, 2, 3],
+                vec![1, 2, 5],
+                vec![3, 4, 5],
+                vec![1, 3, 5],
+                vec![1, 3, 4],
+                vec![2, 3, 5],
+                vec![1, 2, 3, 5],
+                vec![1, 2, 3, 4],
+                vec![1, 3, 4, 5],
+                vec![2, 3, 4, 5],
+                vec![1, 2, 3, 4, 5]
+            ]
+        );
     }
 
     #[test]
