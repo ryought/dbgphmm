@@ -122,6 +122,22 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         self.nodes().map(|(v, vw)| vw.copy_density()).sum()
     }
     ///
+    /// get the number of redundant nodes, that is the copy density is below the specified min_density.
+    ///
+    pub fn n_redundant_nodes(&self, min_density: CopyDensity) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.copy_density() < min_density)
+            .count()
+    }
+    ///
+    /// get the number of dead (= x0) nodes.
+    ///
+    pub fn n_dead_nodes(&self) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.copy_density() == 0.0)
+            .count()
+    }
+    ///
     /// calculate the total density of all emittable nodes
     ///
     pub fn total_emittable_copy_density(&self) -> CopyDensity {
@@ -151,6 +167,16 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             v[node] = weight.copy_density();
         }
         v
+    }
+    ///
+    ///
+    pub fn set_node_copy_densities(&mut self, copy_densities: &NodeVec<DenseStorage<CopyDensity>>) {
+        assert!(copy_densities.len() == self.n_nodes());
+        for (i, node_weight_mut) in self.graph.node_weights_mut().enumerate() {
+            let node = NodeIndex::new(i);
+            let copy_density = copy_densities[node];
+            node_weight_mut.set_copy_density(copy_density);
+        }
     }
 }
 

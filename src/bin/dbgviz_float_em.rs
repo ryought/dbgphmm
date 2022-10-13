@@ -74,11 +74,22 @@ fn run_simple() {
 
         if let Some(final_fdbg) = final_fdbg {
             // inspect histogram
-            eprintln!("inspecting");
             inspect_density_histgram(&dbg_true, &final_fdbg);
 
+            let shrink_min_density = 0.1;
+            eprintln!("n_red={}", fdbg.n_redundant_nodes(shrink_min_density));
+            eprintln!("n_dead={}", fdbg.n_dead_nodes());
+
             // shrink
-            let shrinked_densities = shrink_nodes(&final_fdbg, 0.1);
+            let shrinked_densities = shrink_nodes(&final_fdbg, shrink_min_density);
+            let mut fdbg_shrinked = fdbg.clone();
+            fdbg_shrinked.set_node_copy_densities(&shrinked_densities);
+            eprintln!(
+                "n_red={}",
+                fdbg_shrinked.n_redundant_nodes(shrink_min_density)
+            );
+            eprintln!("n_dead={}", fdbg_shrinked.n_dead_nodes());
+
             historys.push((format!("shrinked"), shrinked_densities))
         }
 
