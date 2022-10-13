@@ -4,6 +4,7 @@
 //! enumerate all cycles in the undirected graph
 //!
 use super::cycle::{Cycle, SimpleCycle};
+use fixedbitset::FixedBitSet;
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
@@ -20,6 +21,10 @@ struct CycleSpace {
     /// a set of all cycle basis.
     ///
     basis: Vec<SimpleCycle>,
+    ///
+    /// graph representing adjacency relationship among basises.
+    ///
+    adj_graph: UnGraph<FixedBitSet, ()>,
 }
 
 ///
