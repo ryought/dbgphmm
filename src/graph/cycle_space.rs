@@ -15,15 +15,78 @@ use petgraph::{Direction, EdgeType};
 // unused imports
 // use petgraph::unionfind::UnionFind;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct CycleSpace {
     ///
     /// a set of all cycle basis.
     ///
     basis: Vec<SimpleCycle>,
+    ///
+    ///
+    ///
+    iter: AdjGraphNodeIterator<FixedBitSet>,
 }
 
-struct AdjGraphNodeIterator<N: PartialEq + Clone, F: Fn(&N, &N) -> N> {
+impl CycleSpace {
+    ///
+    /// constructor from a set of basis
+    ///
+    fn new(basis: Vec<SimpleCycle>) -> Self {
+        let graph = to_coef_adj_graph(&basis);
+        let node_map = |x: &FixedBitSet, y: &FixedBitSet| {
+            let mut z = x.clone();
+            z.union_with(y);
+            z
+        };
+        CycleSpace {
+            basis,
+            iter: AdjGraphNodeIterator::new(graph, node_map),
+        }
+    }
+}
+
+fn to_coef_adj_graph(basis: &[SimpleCycle]) -> UnGraph<FixedBitSet, ()> {
+    let mut graph = UnGraph::new_undirected();
+    let n = basis.len();
+
+    // (1) add node for each basis
+    for i in 0..n {
+        let mut coef = FixedBitSet::with_capacity(n);
+        coef.set(i, true);
+        graph.add_node(coef);
+    }
+
+    // (2) add edge between every two overlapping basis
+    for (i, j) in (0..n).tuple_combinations() {
+        if !basis[i].is_disjoint(&basis[j]) {
+            graph.add_edge(NodeIndex::new(i), NodeIndex::new(j), ());
+        }
+    }
+
+    graph
+}
+
+fn coef_to_cycle(basis: &[SimpleCycle], coef: FixedBitSet) -> SimpleCycle {
+    let n = basis[0].len();
+    let mut bitset = FixedBitSet::with_capacity(n);
+    for i in coef.ones() {
+        bitset.symmetric_difference_with(basis[i].bitset());
+    }
+    SimpleCycle::new(bitset)
+}
+
+impl Iterator for CycleSpace {
+    type Item = SimpleCycle;
+    fn next(&mut self) -> Option<SimpleCycle> {
+        match self.iter.next() {
+            Some(coef) => Some(coef_to_cycle(&self.basis, coef)),
+            None => None,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct AdjGraphNodeIterator<N: PartialEq + Clone> {
     /// degree of adjacency (i.e. how many times the graph was upconverted)
     k: usize,
     /// node indices
@@ -31,13 +94,13 @@ struct AdjGraphNodeIterator<N: PartialEq + Clone, F: Fn(&N, &N) -> N> {
     /// adjacency graph
     graph: UnGraph<N, ()>,
     /// node mapping function
-    node_map: F,
+    node_map: fn(&N, &N) -> N,
 }
 
-impl<N: PartialEq + Clone, F: Fn(&N, &N) -> N> AdjGraphNodeIterator<N, F> {
+impl<N: PartialEq + Clone> AdjGraphNodeIterator<N> {
     /// constructor of `AdjGraphNodeIterator`
     /// start from k=1 and i=0.
-    pub fn new(graph: UnGraph<N, ()>, node_map: F) -> Self {
+    pub fn new(graph: UnGraph<N, ()>, node_map: fn(&N, &N) -> N) -> Self {
         AdjGraphNodeIterator {
             k: 1,
             i: 0,
@@ -52,7 +115,7 @@ impl<N: PartialEq + Clone, F: Fn(&N, &N) -> N> AdjGraphNodeIterator<N, F> {
     }
 }
 
-impl<N: PartialEq + Clone, F: Fn(&N, &N) -> N> Iterator for AdjGraphNodeIterator<N, F> {
+impl<N: PartialEq + Clone> Iterator for AdjGraphNodeIterator<N> {
     type Item = N;
     fn next(&mut self) -> Option<N> {
         // upconvert
@@ -411,5 +474,34 @@ mod tests {
         let g2 = to_directed(&g);
         println!("{:?}", Dot::with_config(&g2, &[]));
         assert_eq!(to_edge_endpoint_list(&g2), vec![(0, 1), (1, 2), (0, 2)]);
+    }
+
+    #[test]
+    fn cycle_space_from_basis() {
+        let basis = vec![
+            SimpleCycle::from_bits(10, &[0, 1, 2]),
+            SimpleCycle::from_bits(10, &[2, 3, 5]),
+            SimpleCycle::from_bits(10, &[8, 9]),
+        ];
+        let g = to_coef_adj_graph(&basis);
+        println!("{:?}", Dot::with_config(&g, &[]));
+        for b in basis.iter() {
+            println!("basis={}", b);
+        }
+
+        let mut cs = CycleSpace::new(basis);
+        let css: Vec<SimpleCycle> = cs.collect();
+        for c in css.iter() {
+            println!("cycle={}", c);
+        }
+        assert_eq!(
+            css,
+            vec![
+                SimpleCycle::from_bits(10, &[0, 1, 2]),    // c0
+                SimpleCycle::from_bits(10, &[2, 3, 5]),    // c1
+                SimpleCycle::from_bits(10, &[8, 9]),       // c2
+                SimpleCycle::from_bits(10, &[0, 1, 3, 5]), // c0+c1
+            ]
+        );
     }
 }

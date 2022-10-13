@@ -54,6 +54,20 @@ impl SimpleCycle {
 
         SimpleCycle(bitset)
     }
+    pub fn from_bits(n: usize, bits: &[usize]) -> SimpleCycle {
+        let mut bitset = FixedBitSet::with_capacity(n);
+        for &bit in bits.iter() {
+            bitset.set(bit, true);
+        }
+        SimpleCycle(bitset)
+    }
+    /// access to bitset (immutable reference)
+    pub fn bitset(&self) -> &FixedBitSet {
+        &self.0
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
     pub fn to_cycle<N, E>(graph: &UnGraph<N, E>) -> Cycle {
         unimplemented!();
     }
