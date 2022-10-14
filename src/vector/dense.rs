@@ -2,12 +2,18 @@
 //! Dense storage that uses `std::Vec`
 //!
 use super::{SparseStorage, Storage};
+use pyo3::prelude::*;
 
 /// Dense storage powered by `std::Vec`
 ///
 /// In `DenseStorage`, internal id equals to index.
 #[derive(PartialEq, Debug, Clone)]
 pub struct DenseStorage<T>(Vec<T>);
+
+#[pyclass]
+pub struct DenseIntStorage(DenseStorage<usize>);
+#[pyclass]
+pub struct DenseFloatStorage(DenseStorage<f64>);
 
 impl<T> Storage for DenseStorage<T>
 where

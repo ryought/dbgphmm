@@ -15,6 +15,7 @@ pub mod unit;
 pub use dense::DenseStorage;
 pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
+use pyo3::prelude::*;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
 use unit::{UnitAdd, UnitMul};
