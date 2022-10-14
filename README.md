@@ -11,6 +11,15 @@ package
     - hoge.rs -> src/hoge/my.rs
 `mod my {}`
 
+## python binding
+
+```
+source .env/bin/activate
+maturin build
+pip install --force-reinstall target/wheels/dbgphmm-0.1.0-cp310-cp310-macosx_11_0_arm64.whl
+python -c 'import dbgphmm; print(repr(dbgphmm.sum_as_string(1, 2)));'
+```
+
 ## log level
 - DEBUG only for small data
 - INFO dev

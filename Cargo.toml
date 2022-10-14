@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Ryo Nakabayashi <ryonakabayashi@gmail.com>"]
 edition = "2018"
 
+[lib]
+name = "dbgphmm"
+crate-type = ["cdylib", "rlib"]
+
 [dev-dependencies]
 test-case = "1.2.3"
 
@@ -29,3 +33,4 @@ jemallocator = "0.3.0"
 petgraph = "0.6.0"
 derive-new = "0.5"
 fixedbitset = "*"
+pyo3 = { version = "0.17.1" }
