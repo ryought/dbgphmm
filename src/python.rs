@@ -76,6 +76,48 @@ impl PyDbg {
     //
     // PHMM related
     //
+    /// get NodeFreqs of reads as PHMM
+    /// returned value: `(vec of expected usage of each node, log full prob)`
+    fn to_node_freqs(&self, param: PHMMParams, reads: Vec<StyledSequence>) -> (Vec<f64>, f64) {
+        let phmm = self.dbg().to_phmm(param);
+        let (node_freqs, p) = phmm.to_node_freqs_parallel(&reads);
+        (node_freqs.to_inner_vec(), p.to_log_value())
+    }
+    /// get EdgeFreqs and InitFreqs of reads as PHMM
+    /// returned value:
+    /// ```
+    /// (
+    ///     vec of expected usage of each edge/transition,
+    ///     vec of expected usage of each node as a first step,
+    ///     log full prob
+    /// )
+    /// ```
+    fn to_edge_and_init_freqs(
+        &self,
+        param: PHMMParams,
+        reads: Vec<StyledSequence>,
+    ) -> (Vec<f64>, Vec<f64>, f64) {
+        let phmm = self.dbg().to_phmm(param);
+        let (edge_freqs, init_freqs, p) = phmm.to_edge_and_init_freqs_parallel(&reads);
+        (
+            edge_freqs.to_inner_vec(),
+            init_freqs.to_inner_vec(),
+            p.to_log_value(),
+        )
+    }
+    ///
+    /// `prob_matrix[i, {0,1,2}, j]`
+    /// = (`i`-th base is emitted from `{0:Match, 1:Ins, 2:Del}` state of `j`-th node)
+    ///
+    fn to_prob_matrix(
+        &self,
+        param: PHMMParams,
+        read: StyledSequence,
+    ) -> Vec<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+        let phmm = self.dbg().to_phmm(param);
+        let o = phmm.run(read.as_ref());
+        o.to_naive_emit_probs()
+    }
 }
 
 /// Formats the sum of two numbers as string.

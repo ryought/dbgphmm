@@ -246,6 +246,11 @@ pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
 /// Frequency (f64) assigned to each nodes
 pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
 
+/// utility function to convert Vec<Prob> into Vec<f64> by calling Prob::to_log_value
+fn from_prob_to_f64_vec(ps: Vec<Prob>) -> Vec<f64> {
+    ps.into_iter().map(|p| p.to_log_value()).collect()
+}
+
 impl<R: PHMMResultLike> PHMMOutput<R> {
     /// Calculate the probability that the hidden states (that is (type, node))
     /// emits the i-th state.
@@ -276,6 +281,20 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             let b = self.backward.table_merged(i);
             (&f * &b) / p
         })
+    }
+    ///
+    /// convert (collected) naive emit probs
+    ///
+    pub fn to_naive_emit_probs(&self) -> Vec<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+        self.iter_emit_probs()
+            .map(|state_probs| {
+                (
+                    from_prob_to_f64_vec(state_probs.m.to_inner_vec()),
+                    from_prob_to_f64_vec(state_probs.i.to_inner_vec()),
+                    from_prob_to_f64_vec(state_probs.d.to_inner_vec()),
+                )
+            })
+            .collect()
     }
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.

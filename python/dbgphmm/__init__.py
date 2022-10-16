@@ -22,3 +22,21 @@ def test():
     print(dbg.nodes())
     G = to_networkx(dbg)
     print(G.edges)
+
+def test2():
+    dbg = PyDbg(4, [
+        StyledSequence("L:ATCGATTCGATTTAG"),
+    ])
+    param = PHMMParams(0.01)
+    reads = [
+        StyledSequence("L:ATCGATTC"),
+    ]
+    # nf = dbg.to_node_freqs(param, reads)
+    # print(nf)
+    pm = dbg.to_prob_matrix(param, reads[0])
+    for pmi in pm:
+        print(len(pmi))
+        print(pmi[0])
+        print(pmi[1])
+        print(pmi[2])
+

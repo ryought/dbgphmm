@@ -226,6 +226,20 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
     }
 }
 
+//
+// if the inner storage is DenseStorage<T>, purging (taking-up) the inner storage as a raw vector
+// should be easy task.
+//
+impl<T, Ix> Vector<DenseStorage<T>, Ix>
+where
+    T: Copy + PartialEq + Default,
+    Ix: Indexable,
+{
+    pub fn to_inner_vec(self) -> Vec<T> {
+        self.storage.to_inner_vec()
+    }
+}
+
 /// private associated functions
 /// to use math ops between two vector
 impl<S: Storage, Ix: Indexable> Vector<S, Ix> {}

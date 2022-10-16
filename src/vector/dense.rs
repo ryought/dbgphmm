@@ -92,6 +92,18 @@ where
     }
 }
 
+impl<T> DenseStorage<T>
+where
+    T: Copy + PartialEq + Default,
+{
+    ///
+    /// pick up the inner vec consuming the Vector struct
+    ///
+    pub fn to_inner_vec(self) -> Vec<T> {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::Vector;
