@@ -34,3 +34,7 @@ petgraph = "0.6.0"
 derive-new = "0.5"
 fixedbitset = "*"
 pyo3 = { version = "0.17.1" }
+
+[package.metadata.maturin]
+# /python/dbgphmm as root of python module
+python-source = "python"
