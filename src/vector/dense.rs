@@ -10,11 +10,6 @@ use pyo3::prelude::*;
 #[derive(PartialEq, Debug, Clone)]
 pub struct DenseStorage<T>(Vec<T>);
 
-#[pyclass]
-pub struct DenseIntStorage(DenseStorage<usize>);
-#[pyclass]
-pub struct DenseFloatStorage(DenseStorage<f64>);
-
 impl<T> Storage for DenseStorage<T>
 where
     T: Copy + PartialEq + Default,

@@ -14,6 +14,7 @@
 //!
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use itertools::Itertools;
+use pyo3::prelude::*;
 use rayon::prelude::*;
 use std::str::FromStr;
 
@@ -234,6 +235,7 @@ impl FromStr for SeqStyle {
 ///
 /// Sequence with style specified.
 ///
+#[pyclass]
 #[derive(Clone, Debug, PartialEq)]
 pub struct StyledSequence {
     seq: Sequence,
@@ -269,6 +271,17 @@ impl StyledSequence {
     /// length of the sequence
     pub fn len(&self) -> usize {
         self.seq.len()
+    }
+}
+
+#[pymethods]
+impl StyledSequence {
+    #[new]
+    fn __new__(s: &str) -> Self {
+        StyledSequence::from_str(s).unwrap()
+    }
+    fn __repr__(&self) -> String {
+        self.to_string()
     }
 }
 
