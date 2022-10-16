@@ -30,7 +30,7 @@ fn run_simple() {
     let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     eprintln!("{}", genome[0]);
     let coverage = 10;
-    let param = PHMMParams::uniform(0.01);
+    let param = PHMMParams::uniform(0.001);
     let dataset = generate_dataset(
         genome.clone(),
         genome_size,
@@ -53,6 +53,7 @@ fn run_simple() {
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
     let run_em = true;
+    let run_shrink = true;
 
     if run_em {
         let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
@@ -65,7 +66,7 @@ fn run_simple() {
             &dataset.reads,
             &param,
             genome_size as CopyDensity,
-            0.05,
+            0.01,
             10,
             10,
         );
@@ -81,16 +82,18 @@ fn run_simple() {
             eprintln!("n_dead={}", fdbg.n_dead_nodes());
 
             // shrink
-            let shrinked_densities = shrink_nodes(&final_fdbg, shrink_min_density);
-            let mut fdbg_shrinked = fdbg.clone();
-            fdbg_shrinked.set_node_copy_densities(&shrinked_densities);
-            eprintln!(
-                "n_red={}",
-                fdbg_shrinked.n_redundant_nodes(shrink_min_density)
-            );
-            eprintln!("n_dead={}", fdbg_shrinked.n_dead_nodes());
+            if run_shrink {
+                let shrinked_densities = shrink_nodes(&final_fdbg, shrink_min_density);
+                let mut fdbg_shrinked = fdbg.clone();
+                fdbg_shrinked.set_node_copy_densities(&shrinked_densities);
+                eprintln!(
+                    "n_red={}",
+                    fdbg_shrinked.n_redundant_nodes(shrink_min_density)
+                );
+                eprintln!("n_dead={}", fdbg_shrinked.n_dead_nodes());
 
-            historys.push((format!("shrinked"), shrinked_densities))
+                historys.push((format!("shrinked"), shrinked_densities))
+            }
         }
 
         let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
