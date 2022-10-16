@@ -85,7 +85,7 @@ impl PyDbg {
     }
     /// get EdgeFreqs and InitFreqs of reads as PHMM
     /// returned value:
-    /// ```
+    /// ```text
     /// (
     ///     vec of expected usage of each edge/transition,
     ///     vec of expected usage of each node as a first step,

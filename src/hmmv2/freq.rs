@@ -287,6 +287,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     ///
     pub fn to_naive_emit_probs(&self) -> Vec<(Vec<f64>, Vec<f64>, Vec<f64>)> {
         self.iter_emit_probs()
+            .skip(1) // first one has no information because always p(MB)=1.0
             .map(|state_probs| {
                 (
                     from_prob_to_f64_vec(state_probs.m.to_inner_vec()),

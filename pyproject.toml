@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "dbgphmm"
 requires-python = ">=3.7"
-dependencies = ["networkx>=2.8"]
+dependencies = ["networkx>=2.8", "numpy>=1.23"]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

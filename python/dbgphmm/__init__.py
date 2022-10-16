@@ -1,5 +1,6 @@
 from .dbgphmm import *
 import networkx as nx
+import numpy as np
 
 def hoge():
     print('hoge')
@@ -29,14 +30,15 @@ def test2():
     ])
     param = PHMMParams(0.01)
     reads = [
-        StyledSequence("L:ATCGATTC"),
+        StyledSequence("L:ATCGATT"),
     ]
     # nf = dbg.to_node_freqs(param, reads)
     # print(nf)
-    pm = dbg.to_prob_matrix(param, reads[0])
-    for pmi in pm:
-        print(len(pmi))
-        print(pmi[0])
-        print(pmi[1])
-        print(pmi[2])
+    np.set_printoptions(linewidth=1000, formatter={'float': '{: 0.3f}'.format})
+    pm = np.array(dbg.to_prob_matrix(param, reads[0]))
+    for pmi in np.exp(pm):
+        print('x')
+        print('M', pmi[0])
+        print('I', pmi[1])
+        print('D', pmi[2])
 
