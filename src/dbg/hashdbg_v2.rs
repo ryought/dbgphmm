@@ -175,6 +175,19 @@ impl<K: KmerLike> HashDbg<K> {
         }
         hm
     }
+    ///
+    /// generate the list of kmers in the dbg according to copy numbers.
+    ///
+    pub fn to_copy_nums_list(&self) -> HashMap<CopyNum, Vec<K>> {
+        let mut hm = HashMap::default();
+        for kmer in self.kmers() {
+            let copy_num = self.get(kmer);
+            hm.entry(copy_num)
+                .or_insert_with(|| Vec::new())
+                .push(kmer.clone());
+        }
+        hm
+    }
 }
 
 #[cfg(test)]

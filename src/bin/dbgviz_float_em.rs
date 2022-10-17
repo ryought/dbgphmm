@@ -3,7 +3,7 @@ use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdg
 use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
-    em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, shrink_nodes,
+    em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, run, shrink_nodes,
 };
 use dbgphmm::genome;
 use dbgphmm::prelude::*;
@@ -74,7 +74,7 @@ fn run_simple() {
 
         if let Some(final_fdbg) = final_fdbg {
             // inspect histogram
-            inspect_density_histgram(&dbg_true, &final_fdbg);
+            final_fdbg.inspect_freqs_histogram(&genome);
 
             let shrink_min_density = 0.1;
             eprintln!("n_red={}", fdbg.n_redundant_nodes(shrink_min_density));
@@ -142,7 +142,7 @@ fn run_upgrade() {
     eprintln!("n_edges={}", fdbg.n_edges());
     fdbg.scale_by_total_density(genome_size as CopyDensity);
 
-    let results = em_with_upgrade(
+    run(
         &fdbg,
         &dataset.reads,
         &param,
@@ -152,13 +152,10 @@ fn run_upgrade() {
         20,
         0.1,
         20,
-        |fdbg| {
-            eprintln!(
-                "upgraded {}, |V|={} |E|={}",
-                fdbg.k(),
-                fdbg.n_nodes(),
-                fdbg.n_edges()
-            );
+        |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
+            init.benchmark(&genome, *p_init);
+            opt.benchmark(&genome, *p_opt);
+            shrinked.benchmark(&genome, *p_shrinked);
         },
     );
 
@@ -168,4 +165,5 @@ fn run_upgrade() {
 
 fn main() {
     run_upgrade();
+    // run_simple();
 }

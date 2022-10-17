@@ -2,8 +2,10 @@
 //! de bruijn graph with float (real-valued) copy numbers
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
-use crate::common::Seq;
+use crate::common::{Genome, Seq};
+use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
+use crate::hist::stat;
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
@@ -175,6 +177,16 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         self.graph.to_phmm(param)
     }
     ///
+    /// to kmer density profile
+    ///
+    pub fn to_kmer_profile(&self) -> HashMap<K, CopyDensity> {
+        let mut hm = HashMap::default();
+        for (_node, weight) in self.nodes() {
+            hm.insert(weight.kmer().clone(), weight.copy_density());
+        }
+        hm
+    }
+    ///
     ///
     ///
     pub fn to_full_prob_parallel<T>(&self, param: PHMMParams, seqs: T) -> Prob
@@ -332,6 +344,98 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         // function removes these nodes.
         self.graph
             .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_density() >= f64::eps());
+    }
+}
+
+//
+// benchmarking with true Genome
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    pub fn benchmark(&self, genome: &Genome, p: Prob) {
+        println!(
+            "k={} n_nodes={} n_edges={} total_density={} p={}",
+            self.k(),
+            self.n_nodes(),
+            self.n_edges(),
+            self.total_density(),
+            p
+        );
+        self.inspect_freqs_histogram(genome);
+        self.inspect_kmers(genome);
+    }
+    pub fn inspect_freqs_histogram(&self, genome: &Genome) {
+        // calculate true copy_nums with Genome
+        let hd: HashDbg<K> = HashDbg::from_seqs(self.k(), genome);
+        let copy_nums_list = hd.to_copy_nums_list();
+        let copy_nums = hd.to_kmer_profile();
+
+        // true kmers
+        for (copy_num, kmers) in copy_nums_list {
+            let densitys_of_copy_num: Vec<_> = kmers
+                .iter()
+                .map(|kmer| match self.find_node_from_kmer(kmer) {
+                    Some(node) => self.node(node).copy_density(),
+                    None => 0.0,
+                })
+                .collect();
+            let (ave, std, min, max) = stat(&densitys_of_copy_num);
+            eprintln!(
+                "[{}x] ave={} std={} min={} max={}",
+                copy_num, ave, std, min, max
+            );
+        }
+
+        // false kmers
+        let densitys_of_0x: Vec<_> = self
+            .nodes()
+            .filter(|(_, weight)| {
+                let copy_num = copy_nums.get(weight.kmer()).copied().unwrap_or(0);
+                copy_num == 0
+            })
+            .map(|(_, weight)| weight.copy_density())
+            .collect();
+        let (ave, std, min, max) = stat(&densitys_of_0x);
+        eprintln!("[0x] ave={} std={} min={} max={}", ave, std, min, max);
+    }
+    ///
+    /// inspect kmer existence
+    ///
+    /// * Missing kmers: exists in genome but not exists in Dbg
+    /// * Error kmers: not exists in genome but exists in Dbg
+    ///
+    pub fn inspect_kmers(&self, genome: &Genome) -> (usize, usize) {
+        // density map of this FloatDbg
+        let densities = self.to_kmer_profile();
+        // calculate true copy_nums with Genome
+        let hd: HashDbg<K> = HashDbg::from_seqs(self.k(), genome);
+        let copy_nums = hd.to_kmer_profile();
+
+        // missing
+        let n_missing = copy_nums
+            .iter()
+            .filter(|(kmer, &copy_num)| {
+                let density = densities.get(&kmer).copied().unwrap_or(0.0);
+                copy_num > 0 && density == 0.0
+            })
+            .count();
+
+        // error
+        let n_error = densities
+            .iter()
+            .filter(|(kmer, &density)| {
+                let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
+                copy_num == 0 && density > 0.0
+            })
+            .count();
+
+        eprintln!(
+            "n_nodes={} n_missing={} n_error={}",
+            self.n_nodes(),
+            n_missing,
+            n_error
+        );
+
+        (n_missing, n_error)
     }
 }
 
