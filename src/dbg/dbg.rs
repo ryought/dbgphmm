@@ -724,6 +724,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let hd = HashDbg::from_seqs(k, seqs);
         Self::from_hashdbg(&hd)
     }
+    /// Construct Dbg from styled Reads
+    /// via converting HashDbg into Dbg.
+    pub fn from_styled_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let hd = HashDbg::from_styled_seqs(k, seqs);
+        Self::from_hashdbg(&hd)
+    }
 }
 
 //

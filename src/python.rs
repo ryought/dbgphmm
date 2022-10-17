@@ -31,7 +31,7 @@ impl PyDbg {
 impl PyDbg {
     #[new]
     fn __new__(k: usize, seqs: Vec<StyledSequence>) -> Self {
-        let dbg = Dbg::from_seqs(k, &seqs);
+        let dbg = Dbg::from_styled_seqs(k, &seqs);
         PyDbg(dbg)
     }
     fn __repr__(&self) -> String {
