@@ -187,8 +187,31 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
 //
 impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     ///
-    /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
-    /// consistently assigned.
+    /// get a naive copy density of an edge
+    ///
+    /// ```text
+    /// copy_density(v->w) = copy_density(v) * (copy_density(w) / copy_density(v's childs))
+    /// ```
+    ///
+    fn naive_edge_copy_density(&self, edge: EdgeIndex) -> CopyDensity {
+        let (v, w) = self.edge_endpoints(edge).expect("edge does not exist");
+
+        // sum of copy_density of childs of v
+        let dws: CopyDensity = self
+            .childs(v)
+            .map(|(_, w, _)| self.node(w).copy_density())
+            .sum();
+        let dv = self.node(v).copy_density();
+        let dw = self.node(w).copy_density();
+
+        if dws == 0.0 {
+            0.0
+        } else {
+            dv * (dw / dws)
+        }
+    }
+    ///
+    /// Create a `k+1` dbg from the `k` dbg using `naive_edge_copy_density`
     ///
     pub fn to_kp1_dbg(&self) -> Self {
         let mut graph = DiGraph::new();
@@ -198,10 +221,10 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
 
         // (1) nodes/edges outside tip area
         // a edge in k-dbg is corresponds to a node in k+1-dbg.
-        for (edge, s, t, weight) in self.edges() {
+        for (edge, s, t, _weight) in self.edges() {
             if !self.is_warp_edge(edge) {
                 let kmer = self.kmer(s).join(self.kmer(t));
-                let copy_density = weight.copy_density().unwrap();
+                let copy_density = self.naive_edge_copy_density(edge);
                 let node = graph.add_node(FloatDbgNode::new(kmer, copy_density));
                 ids.insert(edge, node);
             }

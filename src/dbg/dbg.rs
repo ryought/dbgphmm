@@ -193,6 +193,12 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
         let (v, w) = self.graph.edge_endpoints(edge).unwrap();
         self.kmer(v).is_tail() && self.kmer(w).is_head()
     }
+    ///
+    /// convert an edge e -> its source and target (v, w)
+    ///
+    pub fn edge_endpoints(&self, edge: EdgeIndex) -> Option<(NodeIndex, NodeIndex)> {
+        self.graph.edge_endpoints(edge)
+    }
     /// Lookup a node from k-mer. It takes O(V).
     pub fn find_node_from_kmer(&self, kmer: &N::Kmer) -> Option<NodeIndex> {
         assert_eq!(kmer.k(), self.k());
