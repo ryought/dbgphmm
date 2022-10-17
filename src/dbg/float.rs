@@ -413,32 +413,42 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         let copy_nums = hd.to_kmer_profile();
 
         // missing
-        let n_missing = copy_nums
+        let missings: Vec<_> = copy_nums
             .iter()
             .filter(|(kmer, &copy_num)| {
                 let density = densities.get(&kmer).copied().unwrap_or(0.0);
                 copy_num > 0 && density == 0.0
             })
-            .count();
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_missing = missings.len();
 
         // error
-        let n_error = densities
+        let errors: Vec<_> = densities
             .iter()
             .filter(|(kmer, &density)| {
                 let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
                 copy_num == 0 && density > 0.0
             })
-            .count();
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_error = errors.len();
 
         eprintln!(
-            "n_nodes={} n_missing={} n_error={}",
+            "n_nodes={} n_missing={} ({}) n_error={} ({})",
             self.n_nodes(),
             n_missing,
-            n_error
+            kmers_to_string(&missings),
+            n_error,
+            kmers_to_string(&errors),
         );
 
         (n_missing, n_error)
     }
+}
+
+fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
+    format!("{}", kmers.iter().format(","))
 }
 
 //

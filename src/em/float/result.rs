@@ -48,6 +48,35 @@ impl<K: KmerLike> EMResult<K> {
         }
         return None;
     }
+    pub fn inspect_stop_reason(&self) {
+        println!(
+            "[inspect_stop_reason] #e={} #m={}",
+            self.e.len(),
+            self.m.len()
+        );
+        for (em_id, m_step_result) in self.m.iter().enumerate().rev() {
+            for (m_id, m_step_once_result) in m_step_result.iter().enumerate().rev() {
+                match m_step_once_result {
+                    MStepResult::Init(dbg) => {
+                        println!("{}#{} init", em_id, m_id);
+                        return;
+                    }
+                    MStepResult::Update(dbg, _) => {
+                        println!("{}#{} update", em_id, m_id);
+                        return;
+                    }
+                    MStepResult::NoImprove(dbg, _) => {
+                        println!("{}#{} noimprove", em_id, m_id);
+                        return;
+                    }
+                    MStepResult::NoNegCycle => {
+                        println!("{}#{} nonegcycle", em_id, m_id);
+                        return;
+                    }
+                };
+            }
+        }
+    }
     ///
     /// create Vec<NodeAttrVec> (that represents the time series of copy densities of nodes of EM
     /// steps) by using true dbg (Dbg<N, E>, not floated) and result (EMResult<K>).

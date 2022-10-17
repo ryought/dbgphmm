@@ -179,7 +179,7 @@ pub fn em<K: KmerLike>(
 
     for i in 0..n_max_em_iteration {
         let (edge_freqs, init_freqs, p) = e_step(&dbg_current, &reads, &params);
-        eprintln!("#{} p={}", i, p);
+        // eprintln!("#{} p={}", i, p);
         ret.e.push(p);
 
         let (dbg_new, m_step_result) = m_step(
@@ -216,7 +216,7 @@ pub fn optimize<K: KmerLike>(
     n_max_em_iteration: usize,
     n_max_iteration: usize,
 ) -> (FloatDbg<K>, Prob) {
-    let optimized = em(
+    let r = em(
         &dbg,
         reads,
         params,
@@ -224,9 +224,12 @@ pub fn optimize<K: KmerLike>(
         diff,
         n_max_em_iteration,
         n_max_iteration,
-    )
-    .to_final_dbg()
-    .unwrap();
+    );
+
+    // TODO
+    r.inspect_stop_reason();
+
+    let optimized = r.to_final_dbg().unwrap();
 
     let p = optimized.to_full_prob_parallel(params.clone(), reads);
 

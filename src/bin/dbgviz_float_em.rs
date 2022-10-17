@@ -147,11 +147,11 @@ fn run_upgrade() {
         &dataset.reads,
         &param,
         genome_size as CopyDensity,
-        0.01,
-        20,
-        20,
-        0.1,
-        20,
+        0.001,
+        50,
+        50,
+        0.05,
+        24,
         |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
             init.benchmark(&genome, *p_init);
             opt.benchmark(&genome, *p_opt);
