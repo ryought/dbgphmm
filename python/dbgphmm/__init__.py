@@ -42,3 +42,11 @@ def test2():
         print('I', pmi[1])
         print('D', pmi[2])
 
+def test3():
+    dbg = PyDbg(4, [
+        StyledSequence("L:ATCGATTCGATTTAG"),
+    ])
+    fdbg = PyFloatDbg(dbg)
+    print(fdbg)
+    fdbg2 = fdbg.to_kp1_dbg()
+    print(fdbg2)

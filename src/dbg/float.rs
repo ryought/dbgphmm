@@ -446,6 +446,18 @@ mod tests {
     }
 
     #[test]
+    fn float_dbg_kp1_convert() {
+        let mut dbg = mock_intersection();
+        let mut fdbg = FloatDbg::from_dbg(&dbg);
+        println!("{}", fdbg);
+        let fdbg_kp1 = fdbg.to_kp1_dbg();
+        println!("{}", fdbg_kp1);
+        // for (k, c) in sorted_node_list(&fdbg_kp1) {
+        //     println!("{} {}", k, c);
+        // }
+    }
+
+    #[test]
     fn compare_q_score_and_q_score_diff() {
         //
         let mut dbg = mock_intersection_small();
