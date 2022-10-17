@@ -36,10 +36,13 @@ pub fn em<K: KmerLike>(
     n_max_iteration: usize,
 ) -> EMResult<K> {
     let mut dbg_current = dbg.clone();
-    let mut ret = Vec::new();
+    let mut ret = EMResult::new();
 
     for i in 0..n_max_em_iteration {
         let (edge_freqs, init_freqs, p) = e_step(&dbg_current, &reads, &params);
+        eprintln!("#{} p={}", i, p);
+        ret.e.push(p);
+
         let (dbg_new, m_step_result) = m_step(
             &dbg_current,
             &edge_freqs,
@@ -49,7 +52,7 @@ pub fn em<K: KmerLike>(
             n_max_iteration,
             &params,
         );
-        ret.push(m_step_result);
+        ret.m.push(m_step_result);
 
         match dbg_new {
             Some(dbg_new) => {
@@ -62,12 +65,24 @@ pub fn em<K: KmerLike>(
     ret
 }
 
-pub type EMResult<K> = Vec<Vec<MStepResult<K>>>;
+pub struct EMResult<K: KmerLike> {
+    pub e: Vec<Prob>,
+    pub m: Vec<Vec<MStepResult<K>>>,
+}
+
+impl<K: KmerLike> EMResult<K> {
+    pub fn new() -> Self {
+        EMResult {
+            e: Vec::new(),
+            m: Vec::new(),
+        }
+    }
+}
 
 ///
 ///
 pub fn em_result_to_final_dbg<K: KmerLike>(result: &EMResult<K>) -> Option<FloatDbg<K>> {
-    for (em_id, m_step_result) in result.iter().rev().enumerate() {
+    for (em_id, m_step_result) in result.m.iter().rev().enumerate() {
         for (m_id, m_step_once_result) in m_step_result.iter().rev().enumerate() {
             match m_step_once_result {
                 MStepResult::Update(dbg, _) => {
@@ -89,7 +104,7 @@ pub fn em_result_to_node_historys<K: KmerLike>(
 ) -> Vec<(String, NodeVec<DenseStorage<CopyDensity>>)> {
     let mut ret = Vec::new();
 
-    for (em_id, m_step_result) in result.iter().enumerate() {
+    for (em_id, m_step_result) in result.m.iter().enumerate() {
         for (m_id, m_step_once_result) in m_step_result.iter().enumerate() {
             match m_step_once_result {
                 MStepResult::Update(dbg, _) => {
