@@ -3,7 +3,7 @@ use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdg
 use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
-    em, em_result_to_final_dbg, em_result_to_node_historys, inspect_density_histgram,
+    em, em_result_to_node_historys, em_with_upgrade, inspect_density_histgram,
     inspect_freqs_histgram, shrink_nodes,
 };
 use dbgphmm::genome;
@@ -71,7 +71,7 @@ fn run_simple() {
             10,
         );
         let mut historys = em_result_to_node_historys(&result);
-        let final_fdbg = em_result_to_final_dbg(&result);
+        let final_fdbg = &result.to_final_dbg();
 
         if let Some(final_fdbg) = final_fdbg {
             // inspect histogram
@@ -111,6 +111,62 @@ fn run_simple() {
     }
 }
 
+fn run_upgrade() {
+    // let (genome, genome_size) = genome::simple(50, 5);
+    let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    eprintln!("{}", genome[0]);
+    let coverage = 10;
+    let param = PHMMParams::uniform(0.001);
+    let dataset = generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,
+        param.clone(),
+        coverage,
+        2000,
+        ReadType::FullLength,
+        12,
+        64,
+    );
+    // dataset.show_reads();
+
+    // dbg_raw
+    let dbg_raw = dataset.dbg_raw;
+
+    // dbg_true
+    let mut dbg_true = dbg_raw.clone();
+    let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+    dbg_true.set_node_copy_nums(&copy_nums_true);
+
+    let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
+    eprintln!("n_nodes={}", fdbg.n_nodes());
+    eprintln!("n_edges={}", fdbg.n_edges());
+    fdbg.scale_by_total_density(genome_size as CopyDensity);
+
+    let results = em_with_upgrade(
+        &fdbg,
+        &dataset.reads,
+        &param,
+        genome_size as CopyDensity,
+        0.01,
+        20,
+        20,
+        0.1,
+        20,
+        |fdbg| {
+            eprintln!(
+                "upgraded {}, |V|={} |E|={}",
+                fdbg.k(),
+                fdbg.n_nodes(),
+                fdbg.n_edges()
+            );
+        },
+    );
+
+    // let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
+    // println!("{}", json);
+}
+
 fn main() {
-    run_simple();
+    run_upgrade();
 }

@@ -14,13 +14,86 @@ use crate::hist::stat;
 use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
-use crate::min_flow::flow::{ConstCost, Flow, FlowEdge};
+use crate::min_flow::flow::{inspect_flow_constraint, ConstCost, Flow, FlowEdge};
 use crate::min_flow::min_cost_flow_from;
 use crate::min_flow::residue::{
     improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
 };
 use crate::prelude::*;
 use crate::vector::{DenseStorage, NodeVec};
+
+///
+/// Take F(k) as input
+///
+/// 1. run EM algorithm to get optimized F'(k)
+/// 2. shrink F'(k) and remove unnecessary nodes
+/// 3. upgrade k -> k+1
+/// 4. start again from 1 (if k < k_max)
+///
+pub fn em_with_upgrade<K: KmerLike, F: Fn(&FloatDbg<K>)>(
+    dbg: &FloatDbg<K>,
+    reads: &Reads,
+    // parameters
+    params: &PHMMParams,
+    genome_size: CopyDensity,
+    diff: CopyDensity,
+    n_max_em_iteration: usize,
+    n_max_iteration: usize,
+    shrink_min_density: CopyDensity,
+    k_max: usize,
+    on_upgrade: F,
+) -> Vec<(EMResult<K>, FloatDbg<K>)> {
+    let k_init = dbg.k();
+    let mut dbg_current = dbg.clone();
+    let mut ret = Vec::new();
+
+    for k in k_init..k_max {
+        assert_eq!(dbg_current.k(), k);
+        let result = em(
+            &dbg_current,
+            reads,
+            params,
+            genome_size,
+            diff,
+            n_max_em_iteration,
+            n_max_iteration,
+        );
+        match result.to_final_dbg() {
+            Some(dbg) => {
+                dbg_current = dbg;
+            }
+            None => unreachable!(),
+        }
+
+        let mut dbg_shrinked = shrink(&dbg_current, shrink_min_density);
+        eprintln!(
+            "n_red={} n_dead={}",
+            dbg_shrinked.n_redundant_nodes(shrink_min_density),
+            dbg_shrinked.n_dead_nodes()
+        );
+        dbg_shrinked
+            .nodes()
+            .filter(|(_, weight)| weight.copy_density() < shrink_min_density)
+            .for_each(|(node, weight)| {
+                eprintln!(
+                    "redundant node {:?} {} {}",
+                    node,
+                    weight.kmer(),
+                    weight.copy_density()
+                )
+            });
+        dbg_shrinked.remove_zero_copy_node();
+        assert!(dbg_shrinked.is_valid());
+
+        dbg_current = dbg_shrinked.to_kp1_dbg();
+        assert!(dbg_current.is_valid());
+
+        on_upgrade(&dbg_current);
+        ret.push((result, dbg_shrinked))
+    }
+
+    ret
+}
 
 ///
 /// run e-step and m-step iteratively
@@ -77,22 +150,22 @@ impl<K: KmerLike> EMResult<K> {
             m: Vec::new(),
         }
     }
-}
-
-///
-///
-pub fn em_result_to_final_dbg<K: KmerLike>(result: &EMResult<K>) -> Option<FloatDbg<K>> {
-    for (em_id, m_step_result) in result.m.iter().rev().enumerate() {
-        for (m_id, m_step_once_result) in m_step_result.iter().rev().enumerate() {
-            match m_step_once_result {
-                MStepResult::Update(dbg, _) => {
-                    return Some(dbg.clone());
-                }
-                _ => {}
-            };
+    pub fn to_final_dbg(&self) -> Option<FloatDbg<K>> {
+        for (em_id, m_step_result) in self.m.iter().rev().enumerate() {
+            for (m_id, m_step_once_result) in m_step_result.iter().rev().enumerate() {
+                match m_step_once_result {
+                    MStepResult::Init(dbg) => {
+                        return Some(dbg.clone());
+                    }
+                    MStepResult::Update(dbg, _) => {
+                        return Some(dbg.clone());
+                    }
+                    _ => {}
+                };
+            }
         }
+        return None;
     }
-    return None;
 }
 
 ///
@@ -188,6 +261,13 @@ impl ConstCost for ShrinkEdge {
     }
 }
 
+pub fn shrink<K: KmerLike>(fdbg: &FloatDbg<K>, min_density: CopyDensity) -> FloatDbg<K> {
+    let shrinked_densities = shrink_nodes(&fdbg, min_density);
+    let mut fdbg_shrinked = fdbg.clone();
+    fdbg_shrinked.set_node_copy_densities(&shrinked_densities);
+    fdbg_shrinked
+}
+
 ///
 /// shrink nodes whose `copy_density` is less than `min_density` with satisfying flow constaint.
 ///
@@ -215,6 +295,8 @@ pub fn shrink_nodes<K: KmerLike>(
     // solve as min_flow
     let current_flow: Flow<f64> = fdbg.to_node_copy_densities().switch_index();
     let flow = min_cost_flow_from(&edbg.graph, &current_flow);
+    // TODO
+    // inspect_flow_constraint(&flow, &edbg.graph);
     flow.switch_index()
 }
 
@@ -244,7 +326,7 @@ pub fn m_step<K: KmerLike>(
 ) -> (Option<FloatDbg<K>>, Vec<MStepResult<K>>) {
     let mut dbg_current = dbg.clone();
     let mut is_updated = false;
-    let mut ret = Vec::new();
+    let mut ret = vec![MStepResult::Init(dbg.clone())];
 
     for i in 0..n_max_iteration {
         let r = m_step_once(
@@ -260,18 +342,16 @@ pub fn m_step<K: KmerLike>(
 
         match r {
             MStepResult::Update(dbg_new, q_score) => {
-                eprintln!("update {}", q_score);
                 dbg_current = dbg_new;
                 is_updated = true;
             }
             MStepResult::NoImprove(dbg_new, q_score) => {
-                eprintln!("no improve {}", q_score);
                 break;
             }
             MStepResult::NoNegCycle => {
-                eprintln!("no neg cycle");
                 break;
             }
+            _ => unreachable!(),
         };
     }
 
@@ -286,6 +366,8 @@ pub fn m_step<K: KmerLike>(
 
 #[derive(Clone)]
 pub enum MStepResult<K: KmerLike> {
+    /// Initial dbg
+    Init(FloatDbg<K>),
     /// The found negative cycle improved q-score
     Update(FloatDbg<K>, QScore),
     /// A negative cycle was found, but it did not improve q-score

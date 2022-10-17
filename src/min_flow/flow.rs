@@ -177,6 +177,26 @@ pub fn is_satisfying_flow_constraint<F: FlowRateLike, N, E: FlowEdge<F>>(
 }
 
 ///
+/// inspect flows by each node for debugging
+///
+pub fn inspect_flow_constraint<F: FlowRateLike, N, E: FlowEdge<F>>(
+    flow: &Flow<F>,
+    graph: &DiGraph<N, E>,
+) {
+    println!("[flow_inspector] start");
+    for node in graph.node_indices() {
+        println!("node#{}", node.index());
+        for e in graph.edges_directed(node, Direction::Incoming) {
+            println!("edge+ #{} {}", e.id().index(), flow[e.id()]);
+        }
+        for e in graph.edges_directed(node, Direction::Outgoing) {
+            println!("edge- #{} {}", e.id().index(), flow[e.id()]);
+        }
+    }
+    println!("[flow_inspector] end");
+}
+
+///
 /// cost trait
 ///
 pub trait EdgeCost<F: FlowRateLike> {

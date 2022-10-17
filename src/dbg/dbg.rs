@@ -213,27 +213,7 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             .find(|(_, v, w, _)| self.kmer(*v) == &prefix && self.kmer(*w) == &suffix)
             .map(|(e, _, _, _)| e)
     }
-    /// Check if there is no node duplicates.
-    pub fn has_no_duplicated_node(&self) -> bool {
-        let mut s = HashSet::default();
-        for (_, weight) in self.nodes() {
-            let kmer = weight.kmer().clone();
-            if s.contains(&kmer) {
-                return false;
-            } else {
-                s.insert(kmer);
-            }
-        }
-        true
-    }
-    ///
-    /// Check if there is no parallel edges.
-    ///
-    pub fn has_no_parallel_edge(&self) -> bool {
-        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
-    }
 }
-
 impl<N: DbgNodeBase, E> Dbg<N, E> {
     ///
     /// NodeIndex(s) of heads/tails
@@ -254,14 +234,24 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
         }
         IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
     }
-}
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    /// Check if there is no node duplicates.
+    pub fn has_no_duplicated_node(&self) -> bool {
+        let mut s = HashSet::default();
+        for (_, weight) in self.nodes() {
+            let kmer = weight.kmer().clone();
+            if s.contains(&kmer) {
+                return false;
+            } else {
+                s.insert(kmer);
+            }
+        }
+        true
+    }
     ///
-    /// NodeIndex(s) of heads/tails
+    /// Check if there is no parallel edges.
     ///
-    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
-        let ib = self.tips_base();
-        self.to_flow_intersection(&ib, None)
+    pub fn has_no_parallel_edge(&self) -> bool {
+        self.edges().all(|(_, v, w, _)| self.count_edge(v, w) == 1)
     }
     ///
     /// Check if backend-graph is valid.
@@ -294,6 +284,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
         true
+    }
+}
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// NodeIndex(s) of heads/tails
+    ///
+    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+        let ib = self.tips_base();
+        self.to_flow_intersection(&ib, None)
     }
 }
 

@@ -6,6 +6,7 @@ use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
+use crate::min_flow::FlowRateLike;
 use crate::prelude::*;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::FnvHashMap as HashMap;
@@ -107,6 +108,9 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             ew.set_copy_density(new_copy_density);
         }
     }
+    pub fn scale_by_total_density(&mut self, total_density: CopyDensity) {
+        self.scale_density(total_density / self.total_density());
+    }
     ///
     /// modify node's copy_density by calling `FloatDbgNode::set_copy_density` without checking
     /// flow consistency.
@@ -149,7 +153,14 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     /// calculate the density of nodes in the intersection (with the given node)
     ///
     pub fn intersection_emittable_copy_density(&self, node: NodeIndex) -> CopyDensity {
-        let (_, parent, _) = self.parents(node).next().unwrap();
+        let (_, parent, _) = self.parents(node).next().unwrap_or_else(|| {
+            panic!(
+                "node {}(#{}) has no parent (copy_density={})",
+                self.node(node).kmer(),
+                node.index(),
+                self.node(node).copy_density(),
+            )
+        });
         self.childs(parent)
             .filter(|(_, sibling, _)| self.node(*sibling).is_emittable())
             .map(|(_, sibling, _)| self.node(sibling).copy_density)
@@ -179,6 +190,15 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             let copy_density = copy_densities[node];
             node_weight_mut.set_copy_density(copy_density);
         }
+    }
+}
+
+//
+// dbg consistency validations
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    pub fn is_valid(&self) -> bool {
+        self.is_graph_valid() && self.has_no_duplicated_node() && self.has_no_parallel_edge()
     }
 }
 
@@ -295,8 +315,11 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     /// remove nodes whose copy density is 0.0
     ///
     pub fn remove_zero_copy_node(&mut self) {
+        // println!("removing {} nodes", self.n_dead_nodes());
+        // TODO rounding error causes small nodes that have infinitesimal copy density. this
+        // function removes these nodes.
         self.graph
-            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_density() > 0.0);
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_density() >= f64::eps());
     }
 }
 
