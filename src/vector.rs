@@ -15,6 +15,7 @@ pub mod unit;
 pub use dense::DenseStorage;
 pub use graph::{EdgeVec, NodeVec};
 pub use index::Indexable;
+use pyo3::prelude::*;
 pub use sparse::SparseStorage;
 use std::marker::PhantomData;
 use unit::{UnitAdd, UnitMul};
@@ -222,6 +223,20 @@ impl<S: Storage, Ix: Indexable> Vector<S, Ix> {
             storage: self.storage,
             ty: PhantomData,
         }
+    }
+}
+
+//
+// if the inner storage is DenseStorage<T>, purging (taking-up) the inner storage as a raw vector
+// should be easy task.
+//
+impl<T, Ix> Vector<DenseStorage<T>, Ix>
+where
+    T: Copy + PartialEq + Default,
+    Ix: Indexable,
+{
+    pub fn to_inner_vec(self) -> Vec<T> {
+        self.storage.to_inner_vec()
     }
 }
 

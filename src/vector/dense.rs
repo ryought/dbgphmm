@@ -2,6 +2,7 @@
 //! Dense storage that uses `std::Vec`
 //!
 use super::{SparseStorage, Storage};
+use pyo3::prelude::*;
 
 /// Dense storage powered by `std::Vec`
 ///
@@ -88,6 +89,18 @@ where
     // TODO add try_to_sparse
     fn is_dense() -> bool {
         true
+    }
+}
+
+impl<T> DenseStorage<T>
+where
+    T: Copy + PartialEq + Default,
+{
+    ///
+    /// pick up the inner vec consuming the Vector struct
+    ///
+    pub fn to_inner_vec(self) -> Vec<T> {
+        self.0
     }
 }
 

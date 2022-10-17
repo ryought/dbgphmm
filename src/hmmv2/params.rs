@@ -3,10 +3,12 @@
 //!
 use crate::prob::Prob;
 use crate::vector::sparse::SIZE;
+use pyo3::prelude::*;
 
 ///
 /// PHMMParams for HMMv2
 ///
+#[pyclass]
 #[derive(Debug, Clone, PartialEq)]
 #[allow(non_snake_case)]
 pub struct PHMMParams {
@@ -111,6 +113,17 @@ impl PHMMParams {
     /// `p_mismatch = 0%`
     pub fn zero_error() -> PHMMParams {
         PHMMParams::uniform(0.0)
+    }
+}
+
+#[pymethods]
+impl PHMMParams {
+    #[new]
+    fn __new__(p: f64) -> Self {
+        PHMMParams::uniform(p)
+    }
+    fn __repr__(&self) -> String {
+        self.to_string()
     }
 }
 

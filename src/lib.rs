@@ -25,6 +25,7 @@ pub mod prelude;
 pub mod prob;
 pub mod random_seq;
 pub mod reads;
+pub mod python;
 pub mod stats;
 pub mod veclike;
 pub mod vector;
