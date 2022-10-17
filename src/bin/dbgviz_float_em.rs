@@ -3,8 +3,7 @@ use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdg
 use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
-    em, em_result_to_node_historys, em_with_upgrade, inspect_density_histgram,
-    inspect_freqs_histgram, shrink_nodes,
+    em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, shrink_nodes,
 };
 use dbgphmm::genome;
 use dbgphmm::prelude::*;
@@ -18,7 +17,7 @@ fn run_small() {
     let params = PHMMParams::zero_error();
 
     let result = em(&fdbg, &reads, &params, genome_size, 0.1, 10, 10);
-    let historys = em_result_to_node_historys(&result);
+    let historys = result.to_node_historys();
 
     let json = dbg.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
     // let (edge_freqs, init_freqs, p) = e_step(&fdbg, &reads, &params);
@@ -70,7 +69,7 @@ fn run_simple() {
             10,
             10,
         );
-        let mut historys = em_result_to_node_historys(&result);
+        let mut historys = result.to_node_historys();
         let final_fdbg = &result.to_final_dbg();
 
         if let Some(final_fdbg) = final_fdbg {
