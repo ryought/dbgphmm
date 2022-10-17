@@ -2,6 +2,7 @@
 //! de bruijn graph with float (real-valued) copy numbers
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
+use crate::common::Seq;
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
@@ -13,6 +14,7 @@ use fnv::FnvHashMap as HashMap;
 use itertools::{iproduct, izip, Itertools};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use rayon::prelude::IntoParallelIterator;
 
 /// `CopyDensity` = f64
 /// Float valued copy number
@@ -171,6 +173,16 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     ///
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
+    }
+    ///
+    ///
+    ///
+    pub fn to_full_prob_parallel<T>(&self, param: PHMMParams, seqs: T) -> Prob
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        self.to_phmm(param).to_full_prob_parallel(seqs)
     }
     ///
     ///

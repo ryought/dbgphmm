@@ -6,6 +6,11 @@
 //! * M-step: improve Q score by GradDescent and MinCostFlow
 //! * iterate E/M-steps and returns the improved FloatDbg
 //!
+//! ## main functions
+//!
+//! * optimize: dbg -> (dbg, prob)
+//! * shrink:   dbg -> (dbg, prob)
+//!
 pub mod result;
 use result::{EMResult, MStepResult};
 
@@ -24,6 +29,64 @@ use crate::min_flow::residue::{
 };
 use crate::prelude::*;
 use crate::vector::{DenseStorage, NodeVec};
+
+///
+/// run optimize (by em) and shrink (by redundant min-flow).
+///
+pub fn run<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyDensity,
+    diff: CopyDensity,
+    n_max_em_iteration: usize,
+    n_max_iteration: usize,
+    shrink_min_density: CopyDensity,
+    k_max: usize,
+) -> Vec<(
+    (FloatDbg<K>, Prob), // init
+    (FloatDbg<K>, Prob), // optimized
+    (FloatDbg<K>, Prob), // shrinked
+)> {
+    let k_init = dbg.k();
+    let mut dbg_current = dbg.clone();
+    let mut ret = Vec::new();
+
+    for k in k_init..k_max {
+        assert_eq!(dbg_current.k(), k);
+
+        // (0) calculate p
+        let p = dbg_current.to_full_prob_parallel(params.clone(), reads);
+
+        // (1) optimize
+        let (optimized, p_optimized) = optimize(
+            &dbg_current,
+            reads,
+            params,
+            genome_size,
+            diff,
+            n_max_em_iteration,
+            n_max_iteration,
+        );
+
+        // (2) shrink
+        let (shrinked, p_shrinked) =
+            shrink(&optimized, reads, params, genome_size, shrink_min_density);
+
+        // (3) upgrade
+        let upgraded = shrinked.to_kp1_dbg();
+
+        ret.push((
+            (dbg_current.clone(), p),
+            (optimized, p_optimized),
+            (shrinked, p_shrinked),
+        ));
+
+        dbg_current = upgraded;
+    }
+
+    ret
+}
 
 ///
 /// Take F(k) as input
@@ -68,24 +131,24 @@ pub fn em_with_upgrade<K: KmerLike, F: Fn(&FloatDbg<K>)>(
             None => unreachable!(),
         }
 
-        let mut dbg_shrinked = shrink(&dbg_current, shrink_min_density);
-        eprintln!(
-            "n_red={} n_dead={}",
-            dbg_shrinked.n_redundant_nodes(shrink_min_density),
-            dbg_shrinked.n_dead_nodes()
-        );
-        dbg_shrinked
-            .nodes()
-            .filter(|(_, weight)| weight.copy_density() < shrink_min_density)
-            .for_each(|(node, weight)| {
-                eprintln!(
-                    "redundant node {:?} {} {}",
-                    node,
-                    weight.kmer(),
-                    weight.copy_density()
-                )
-            });
-        dbg_shrinked.remove_zero_copy_node();
+        let (mut dbg_shrinked, _) =
+            shrink(&dbg_current, reads, params, genome_size, shrink_min_density);
+        // eprintln!(
+        //     "n_red={} n_dead={}",
+        //     dbg_shrinked.n_redundant_nodes(shrink_min_density),
+        //     dbg_shrinked.n_dead_nodes()
+        // );
+        // dbg_shrinked
+        //     .nodes()
+        //     .filter(|(_, weight)| weight.copy_density() < shrink_min_density)
+        //     .for_each(|(node, weight)| {
+        //         eprintln!(
+        //             "redundant node {:?} {} {}",
+        //             node,
+        //             weight.kmer(),
+        //             weight.copy_density()
+        //         )
+        //     });
         assert!(dbg_shrinked.is_valid());
 
         dbg_current = dbg_shrinked.to_kp1_dbg();
@@ -139,6 +202,35 @@ pub fn em<K: KmerLike>(
     }
 
     ret
+}
+
+///
+/// ## optimize
+///
+pub fn optimize<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyDensity,
+    diff: CopyDensity,
+    n_max_em_iteration: usize,
+    n_max_iteration: usize,
+) -> (FloatDbg<K>, Prob) {
+    let optimized = em(
+        &dbg,
+        reads,
+        params,
+        genome_size,
+        diff,
+        n_max_em_iteration,
+        n_max_iteration,
+    )
+    .to_final_dbg()
+    .unwrap();
+
+    let p = optimized.to_full_prob_parallel(params.clone(), reads);
+
+    (optimized, p)
 }
 
 ///
@@ -209,11 +301,25 @@ impl ConstCost for ShrinkEdge {
     }
 }
 
-pub fn shrink<K: KmerLike>(fdbg: &FloatDbg<K>, min_density: CopyDensity) -> FloatDbg<K> {
-    let shrinked_densities = shrink_nodes(&fdbg, min_density);
-    let mut fdbg_shrinked = fdbg.clone();
-    fdbg_shrinked.set_node_copy_densities(&shrinked_densities);
-    fdbg_shrinked
+///
+/// ## shrink
+///
+pub fn shrink<K: KmerLike>(
+    dbg: &FloatDbg<K>,
+    reads: &Reads,
+    params: &PHMMParams,
+    genome_size: CopyDensity,
+    min_density: CopyDensity,
+) -> (FloatDbg<K>, Prob) {
+    let shrinked_densities = shrink_nodes(&dbg, min_density);
+    let mut shrinked = dbg.clone();
+    shrinked.set_node_copy_densities(&shrinked_densities);
+    shrinked.scale_by_total_density(genome_size);
+    shrinked.remove_zero_copy_node();
+
+    let p = shrinked.to_full_prob_parallel(params.clone(), reads);
+
+    (shrinked, p)
 }
 
 ///
@@ -449,9 +555,7 @@ fn apply_to_dbg<K: KmerLike>(
 
     // scale copy densities of all nodes
     // so that this function does not change the genome size
-    let genome_size_new = dbg.total_density();
-    let scale = genome_size_orig / genome_size_new;
-    dbg.scale_density(scale);
+    dbg.scale_by_total_density(genome_size_orig);
 }
 
 //
