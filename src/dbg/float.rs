@@ -8,6 +8,8 @@ use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::prelude::*;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
+use fnv::FnvHashMap as HashMap;
+use itertools::{iproduct, izip, Itertools};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -177,6 +179,101 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             let copy_density = copy_densities[node];
             node_weight_mut.set_copy_density(copy_density);
         }
+    }
+}
+
+//
+// k->k+1 upgrade related
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    ///
+    /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
+    /// consistently assigned.
+    ///
+    pub fn to_kp1_dbg(&self) -> Self {
+        let mut graph = DiGraph::new();
+
+        // mapping from "edge in k-dbg" into "node in k+1-dbg".
+        let mut ids: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
+
+        // (1) nodes/edges outside tip area
+        // a edge in k-dbg is corresponds to a node in k+1-dbg.
+        for (edge, s, t, weight) in self.edges() {
+            if !self.is_warp_edge(edge) {
+                let kmer = self.kmer(s).join(self.kmer(t));
+                let copy_density = weight.copy_density().unwrap();
+                let node = graph.add_node(FloatDbgNode::new(kmer, copy_density));
+                ids.insert(edge, node);
+            }
+        }
+        for (node, weight) in self.nodes() {
+            if !weight.is_head() && !weight.is_tail() {
+                // add an edge between all in-edges and out-edges pair.
+                // --e1--> node --e2--> in k-dbg
+                for (e1, _, _) in self.parents(node) {
+                    let v1 = ids.get(&e1).unwrap();
+                    for (e2, _, _) in self.childs(node) {
+                        let v2 = ids.get(&e2).unwrap();
+                        // copy numbers of edges in k+1 is ambiguous.
+                        graph.add_edge(*v1, *v2, FloatDbgEdge::new(None));
+                    }
+                }
+            }
+        }
+
+        // (2) nodes/edges in tip area
+        // intersections
+        let tips = self.tips_base();
+        let in_nodes: Vec<NodeIndex> = tips
+            .iter_in_node_indexes()
+            .map(|v| {
+                // add a node of in_node
+                graph.add_node(FloatDbgNode::new(
+                    self.node(v).kmer().extend_tail(),
+                    self.node(v).copy_density(),
+                ))
+            })
+            .collect();
+        let out_nodes: Vec<NodeIndex> = tips
+            .iter_out_node_indexes()
+            .map(|v| {
+                // add a node of out_node
+                graph.add_node(FloatDbgNode::new(
+                    self.node(v).kmer().extend_head(),
+                    self.node(v).copy_density(),
+                ))
+            })
+            .collect();
+        for (&w1, &w2) in iproduct!(in_nodes.iter(), out_nodes.iter()) {
+            graph.add_edge(w1, w2, FloatDbgEdge::new(None));
+        }
+
+        // add an edge for a in_edges of tail nodes
+        for (v, &w) in izip!(tips.iter_in_node_indexes(), in_nodes.iter()) {
+            for (e, _, _) in self.parents(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w2: parent(YXNN) -> w: tail(XNNN)
+                graph.add_edge(*w2, w, FloatDbgEdge::new(None));
+            }
+        }
+
+        // add an edge for a out_edges of head nodes
+        for (v, &w) in izip!(tips.iter_out_node_indexes(), out_nodes.iter()) {
+            for (e, _, _) in self.childs(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w: head(NNNX) -> w2: child(NNXY)
+                graph.add_edge(w, *w2, FloatDbgEdge::new(None));
+            }
+        }
+
+        Self::from_digraph(self.k() + 1, graph)
+    }
+    ///
+    /// remove nodes whose copy density is 0.0
+    ///
+    pub fn remove_zero_copy_node(&mut self) {
+        self.graph
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_density() > 0.0);
     }
 }
 

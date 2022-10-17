@@ -228,11 +228,11 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
     }
 }
 
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+impl<N: DbgNodeBase, E> Dbg<N, E> {
     ///
     /// NodeIndex(s) of heads/tails
     ///
-    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+    pub fn tips_base(&self) -> IntersectionBase<N::Kmer> {
         // construct IntersectionBase directly from node-centric dbg
         let mut in_nodes = Vec::new();
         let mut out_nodes = Vec::new();
@@ -246,9 +246,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 out_nodes.push(node);
             }
         }
-        let ib = IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes);
-
-        // convert to flow intersection
+        IntersectionBase::new(N::Kmer::null_kmer(self.k()), in_nodes, out_nodes)
+    }
+}
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// NodeIndex(s) of heads/tails
+    ///
+    pub fn tips(&self) -> FlowIntersection<N::Kmer> {
+        let ib = self.tips_base();
         self.to_flow_intersection(&ib, None)
     }
     ///
@@ -834,7 +840,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// ## TODOs
     ///
-    /// * NNNN should be treated specially. (required)
     /// * zero-copy-number nodes should be purged. (not required)
     ///
     pub fn to_kp1_dbg(&self) -> Dbg<N, E> {
@@ -846,6 +851,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // mapping from "edge in k-dbg" into "node in k+1-dbg".
         let mut ids: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
 
+        // (1) nodes/edges outside tip area
         // a edge in k-dbg is corresponds to a node in k+1-dbg.
         for (edge, s, t, weight) in self.edges() {
             if !self.is_warp_edge(edge) {
@@ -860,27 +866,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 ids.insert(edge, node);
             }
         }
-
         for (node, weight) in self.nodes() {
-            match (weight.is_head(), weight.is_tail()) {
-                (false, false) => {
-                    // add an edge between all in-edges and out-edges pair.
-                    // --e1--> node --e2--> in k-dbg
-                    for (e1, _, _) in self.parents(node) {
-                        let v1 = ids.get(&e1).unwrap();
-                        for (e2, _, _) in self.childs(node) {
-                            let v2 = ids.get(&e2).unwrap();
-                            // copy numbers of edges in k+1 is ambiguous.
-                            graph.add_edge(*v1, *v2, E::new(None));
-                        }
+            if !weight.is_head() && !weight.is_tail() {
+                // add an edge between all in-edges and out-edges pair.
+                // --e1--> node --e2--> in k-dbg
+                for (e1, _, _) in self.parents(node) {
+                    let v1 = ids.get(&e1).unwrap();
+                    for (e2, _, _) in self.childs(node) {
+                        let v2 = ids.get(&e2).unwrap();
+                        // copy numbers of edges in k+1 is ambiguous.
+                        graph.add_edge(*v1, *v2, E::new(None));
                     }
                 }
-                _ => {}
             }
         }
 
+        // (2) nodes/edges in tip area
         // intersections
-        let tips = self.tips();
+        let tips = self.tips_base();
         let in_nodes: Vec<NodeIndex> = tips
             .iter_in_node_indexes()
             .map(|v| {
