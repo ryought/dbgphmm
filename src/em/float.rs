@@ -12,7 +12,8 @@
 //! * shrink:   dbg -> (dbg, prob)
 //!
 pub mod result;
-use result::{EMResult, MStepResult};
+use result::{EMResult, MStepResult, StepResult};
+pub mod benchmark;
 
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::dbg::edge_centric::EDbgEdgeBase;
@@ -33,7 +34,7 @@ use crate::vector::{DenseStorage, NodeVec};
 ///
 /// run optimize (by em) and shrink (by redundant min-flow).
 ///
-pub fn run<K: KmerLike>(
+pub fn run<K: KmerLike, F: Fn(&StepResult<K>)>(
     dbg: &FloatDbg<K>,
     reads: &Reads,
     params: &PHMMParams,
@@ -43,11 +44,8 @@ pub fn run<K: KmerLike>(
     n_max_iteration: usize,
     shrink_min_density: CopyDensity,
     k_max: usize,
-) -> Vec<(
-    (FloatDbg<K>, Prob), // init
-    (FloatDbg<K>, Prob), // optimized
-    (FloatDbg<K>, Prob), // shrinked
-)> {
+    on_step: F,
+) -> Vec<StepResult<K>> {
     let k_init = dbg.k();
     let mut dbg_current = dbg.clone();
     let mut ret = Vec::new();
@@ -76,11 +74,13 @@ pub fn run<K: KmerLike>(
         // (3) upgrade
         let upgraded = shrinked.to_kp1_dbg();
 
-        ret.push((
+        let step_result = (
             (dbg_current.clone(), p),
             (optimized, p_optimized),
             (shrinked, p_shrinked),
-        ));
+        );
+        on_step(&step_result);
+        ret.push(step_result);
 
         dbg_current = upgraded;
     }

@@ -7,6 +7,16 @@ use crate::prelude::*;
 use crate::vector::{DenseStorage, NodeVec};
 
 //
+// for whole
+//
+
+pub type StepResult<K> = (
+    (FloatDbg<K>, Prob), // init
+    (FloatDbg<K>, Prob), // optimized
+    (FloatDbg<K>, Prob), // shrinked
+);
+
+//
 // For EM
 //
 
