@@ -369,9 +369,23 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         let copy_nums_list = hd.to_copy_nums_list();
         let copy_nums = hd.to_kmer_profile();
 
-        // true kmers
-        for (copy_num, kmers) in copy_nums_list {
-            let densitys_of_copy_num: Vec<_> = kmers
+        // false kmers (0x)
+        let densitys_of_0x: Vec<_> = self
+            .nodes()
+            .filter(|(_, weight)| {
+                let copy_num = copy_nums.get(weight.kmer()).copied().unwrap_or(0);
+                copy_num == 0
+            })
+            .map(|(_, weight)| weight.copy_density())
+            .collect();
+        let (ave, std, min, max) = stat(&densitys_of_0x);
+        eprintln!("[0x] ave={} std={} min={} max={}", ave, std, min, max);
+
+        // true kmers (>0x)
+        for copy_num in copy_nums_list.keys().sorted() {
+            let densitys_of_copy_num: Vec<_> = copy_nums_list
+                .get(copy_num)
+                .unwrap()
                 .iter()
                 .map(|kmer| match self.find_node_from_kmer(kmer) {
                     Some(node) => self.node(node).copy_density(),
@@ -384,18 +398,6 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
                 copy_num, ave, std, min, max
             );
         }
-
-        // false kmers
-        let densitys_of_0x: Vec<_> = self
-            .nodes()
-            .filter(|(_, weight)| {
-                let copy_num = copy_nums.get(weight.kmer()).copied().unwrap_or(0);
-                copy_num == 0
-            })
-            .map(|(_, weight)| weight.copy_density())
-            .collect();
-        let (ave, std, min, max) = stat(&densitys_of_0x);
-        eprintln!("[0x] ave={} std={} min={} max={}", ave, std, min, max);
     }
     ///
     /// inspect kmer existence
