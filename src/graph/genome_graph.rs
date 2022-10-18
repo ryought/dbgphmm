@@ -7,7 +7,7 @@ use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSe
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Seq, Sequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -496,10 +496,9 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(10),
                 seed: 0,
-                length: 1000,
+                length: ReadLength::StateCount(1000),
                 // start_points: StartPoints::Random,
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         });
@@ -516,9 +515,8 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(100),
                 seed: 0,
-                length: 100,
+                length: ReadLength::StateCount(100),
                 start_points: StartPoints::Random,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         };
@@ -542,9 +540,8 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(15),
                 seed: 0,
-                length: 1000,
+                length: ReadLength::StateCount(1000),
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         });
