@@ -8,7 +8,7 @@ use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 
 ///
@@ -93,9 +93,8 @@ pub fn generate_dataset(
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(genome_size * coverage),
                 seed: read_seed,
-                length: read_length,
+                length: ReadLength::StateCount(read_length),
                 start_points: StartPoints::Random,
-                endable: false,
             },
             phmm_params: phmm_params.clone(),
         },
@@ -104,9 +103,8 @@ pub fn generate_dataset(
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(coverage),
                 seed: read_seed,
-                length: read_length,
+                length: ReadLength::StateCount(read_length),
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: phmm_params.clone(),
         },
@@ -150,9 +148,8 @@ pub fn generate_full_length_dataset(
         sample_profile: SampleProfile {
             read_amount: ReadAmount::TotalBases(genome_size * coverage),
             seed: read_seed,
-            length: 1000,
+            length: ReadLength::StateCount(1000),
             start_points: StartPoints::AllStartPoints,
-            endable: false,
         },
         phmm_params: phmm_params.clone(),
     };

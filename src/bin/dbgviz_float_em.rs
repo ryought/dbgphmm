@@ -114,8 +114,8 @@ fn run_simple() {
 }
 
 fn run_upgrade() {
-    // let (genome, genome_size) = genome::simple(200, 5);
-    let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    let (genome, genome_size) = genome::simple(200, 5);
+    // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     eprintln!("{}", genome[0]);
     let coverage = 10;
     let param = PHMMParams::uniform(0.001);
