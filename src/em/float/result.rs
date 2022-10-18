@@ -49,7 +49,7 @@ impl<K: KmerLike> EMResult<K> {
         return None;
     }
     pub fn inspect_stop_reason(&self) {
-        println!(
+        eprintln!(
             "[inspect_stop_reason] #e={} #m={}",
             self.e.len(),
             self.m.len()
@@ -58,19 +58,19 @@ impl<K: KmerLike> EMResult<K> {
             for (m_id, m_step_once_result) in m_step_result.iter().enumerate().rev() {
                 match m_step_once_result {
                     MStepResult::Init(dbg) => {
-                        println!("{}#{} init", em_id, m_id);
+                        eprintln!("{}#{} init", em_id, m_id);
                         return;
                     }
                     MStepResult::Update(dbg, _) => {
-                        println!("{}#{} update", em_id, m_id);
+                        eprintln!("{}#{} update", em_id, m_id);
                         return;
                     }
                     MStepResult::NoImprove(dbg, _) => {
-                        println!("{}#{} noimprove", em_id, m_id);
+                        eprintln!("{}#{} noimprove", em_id, m_id);
                         return;
                     }
                     MStepResult::NoNegCycle => {
-                        println!("{}#{} nonegcycle", em_id, m_id);
+                        eprintln!("{}#{} nonegcycle", em_id, m_id);
                         return;
                     }
                 };

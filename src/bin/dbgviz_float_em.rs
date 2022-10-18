@@ -55,28 +55,31 @@ fn run_simple() {
     let run_shrink = true;
 
     if run_em {
+        eprintln!("{}", dbg_raw.to_node_copy_nums());
         let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
         eprintln!("n_nodes={}", fdbg.n_nodes());
         eprintln!("n_edges={}", fdbg.n_edges());
         fdbg.scale_density(genome_size as CopyDensity / dbg_raw.genome_size() as CopyDensity);
+        eprintln!("{}", fdbg.to_node_copy_densities());
 
         let result = em(
             &fdbg,
             &dataset.reads,
             &param,
             genome_size as CopyDensity,
-            0.01,
-            10,
-            10,
+            0.001,
+            50,
+            50,
         );
         let mut historys = result.to_node_historys();
         let final_fdbg = &result.to_final_dbg();
+        result.inspect_stop_reason();
 
         if let Some(final_fdbg) = final_fdbg {
             // inspect histogram
             final_fdbg.inspect_freqs_histogram(&genome);
 
-            let shrink_min_density = 0.1;
+            let shrink_min_density = 0.05;
             eprintln!("n_red={}", fdbg.n_redundant_nodes(shrink_min_density));
             eprintln!("n_dead={}", fdbg.n_dead_nodes());
 
@@ -111,7 +114,7 @@ fn run_simple() {
 }
 
 fn run_upgrade() {
-    // let (genome, genome_size) = genome::simple(50, 5);
+    // let (genome, genome_size) = genome::simple(200, 5);
     let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     eprintln!("{}", genome[0]);
     let coverage = 10;
@@ -150,8 +153,8 @@ fn run_upgrade() {
         0.001,
         50,
         50,
-        0.05,
-        24,
+        0.08,
+        32,
         |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
             init.benchmark(&genome, *p_init);
             opt.benchmark(&genome, *p_opt);

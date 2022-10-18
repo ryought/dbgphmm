@@ -322,6 +322,23 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
     return None;
 }
 
+fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> String {
+    cycle
+        .iter()
+        .map(|&edge| {
+            let weight = rg.edge_weight(edge).unwrap();
+            format!(
+                "e{}({},{})w{}",
+                edge.index(),
+                weight.target.index(),
+                weight.direction,
+                weight.weight
+            )
+        })
+        .join(",")
+    // format!("{:?}", cycle)
+}
+
 ///
 /// Update residue graph by finding negative cycle
 ///
@@ -332,6 +349,7 @@ pub fn improve_residue_graph<F: FlowRateLike>(rg: &ResidueGraph<F>) -> Option<Ve
 
     match path {
         Some(edges) => {
+            // println!("improving.. {}", format_cycle(rg, &edges));
             // check if this is actually negative cycle
             assert!(
                 is_cycle(&rg, &edges),

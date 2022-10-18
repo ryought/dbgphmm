@@ -503,37 +503,82 @@ fn to_residue_graph<K: KmerLike>(
     );
     let max_copy_density = 10000.0;
     let mut rg = ResidueGraph::new();
+
+    let mut moves = Vec::new();
+
     for (e, v, w, ew) in edbg.edges() {
         let node = ew.origin_node();
         let mut edges = Vec::new();
+        let kmer = ew.kmer();
+        let mut weight_up = 0.0;
+        let mut weight_down = 0.0;
         if ew.copy_density < max_copy_density {
             // increasable
+            weight_up = -q_score_diff_exact(dbg, edge_freqs, init_freqs, node, diff).total();
             edges.push((
                 v,
                 w,
-                ResidueEdge::new(
-                    1,
-                    -q_score_diff_exact(dbg, edge_freqs, init_freqs, node, diff).total(),
-                    e,
-                    ResidueDirection::Up,
-                ),
+                ResidueEdge::new(1, weight_up, e, ResidueDirection::Up),
             ));
         }
         if ew.copy_density > diff {
             // decreasable
+            weight_down = -q_score_diff_exact(dbg, edge_freqs, init_freqs, node, -diff).total();
             edges.push((
                 w,
                 v,
-                ResidueEdge::new(
-                    1,
-                    -q_score_diff_exact(dbg, edge_freqs, init_freqs, node, -diff).total(),
-                    e,
-                    ResidueDirection::Down,
-                ),
+                ResidueEdge::new(1, weight_down, e, ResidueDirection::Down),
             ));
         }
+
+        moves.push((kmer, weight_up, weight_down, ew.copy_density));
+
         rg.extend_with_edges(&edges);
     }
+
+    let debug = false;
+    if debug {
+        println!("[residue+]");
+        moves.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        for (i, (kmer, u, d, density)) in moves.iter().take(10).enumerate() {
+            println!(
+                "residue+#{} {} {} +:{:?} -:{:?} {}",
+                i,
+                kmer,
+                if u < d {
+                    "-"
+                } else if u == d {
+                    "="
+                } else {
+                    "+"
+                },
+                u,
+                d,
+                density,
+            );
+        }
+        println!("[residue-]");
+        moves.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        for (i, (kmer, u, d, density)) in moves.iter().take(10).enumerate() {
+            println!(
+                "residue-#{} {} {} +:{:?} -:{:?} {}",
+                i,
+                kmer,
+                if u < d {
+                    "-"
+                } else if u == d {
+                    "="
+                } else {
+                    "+"
+                },
+                u,
+                d,
+                density,
+            );
+        }
+        println!("[residueend]");
+    }
+
     rg
 }
 
