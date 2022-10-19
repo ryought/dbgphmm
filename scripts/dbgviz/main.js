@@ -161,28 +161,30 @@ function setup_file_input() {
   });
 }
 setup_file_input();
-function load_file_from_local() {
-	return new Promise((resolve, reject) => {
-    const input = document.getElementById('input');
-    input.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      const reader = new FileReader();
-      reader.addEventListener('loadend', (event) => {
-        const text = event.target.result;
-        const json = JSON.parse(text);
-        resolve(json)
-      });
-      reader.readAsText(file);
-    });
-    input.click();
-  })
-}
-function load_file_from_remote() {
-  return fetch('/hoge.json')
-    .then((res) => res.json())
-}
+// function load_file_from_local() {
+// 	return new Promise((resolve, reject) => {
+//     const input = document.getElementById('input');
+//     input.addEventListener('change', (event) => {
+//       const file = event.target.files[0];
+//       const reader = new FileReader();
+//       reader.addEventListener('loadend', (event) => {
+//         const text = event.target.result;
+//         const json = JSON.parse(text);
+//         resolve(json)
+//       });
+//       reader.readAsText(file);
+//     });
+//     input.click();
+//   })
+// }
+// function load_file_from_remote() {
+//   return fetch('/hoge.json')
+//     .then((res) => res.json())
+// }
 function load_file() {
-  // TODO
+  gui.destroy()
+  const input = document.getElementById('input');
+  input.click()
 }
 
 /*
@@ -321,6 +323,7 @@ function init_controls(history_labels) {
   // [1] selection related
   const select = gui.addFolder('select')
   select.closed = false
+  select.add({ load_file: load_file }, 'load_file')
   select.add(global_state, 'selected_node')
     .listen()
     .onChange(() => select_node(global_state.selected_node, global_state.max_depth))
