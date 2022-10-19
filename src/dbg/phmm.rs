@@ -1,7 +1,7 @@
 //!
 //! dbg as a seqgraph and phmm
 //!
-use super::dbg::{Dbg, DbgEdge, DbgNode};
+use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::common::{CopyNum, Seq};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
@@ -57,6 +57,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
         -lambda * size_diff.powi(2)
     }
+}
+
+impl<N: DbgNodeBase, E> Dbg<N, E> {
     ///
     /// show mapping of a sequence of emissions in cli.
     /// list the nodes which emits emissons[i] with high probability.
@@ -91,7 +94,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 /// get strings with repeated n-times space (' ').
 ///
 fn spaces(n: usize) -> String {
-    std::iter::repeat(" ").take(n).collect::<String>()
+    // old rust
+    // std::iter::repeat(" ").take(n).collect::<String>()
+    // new rust 1.16
+    " ".repeat(n)
 }
 
 #[cfg(test)]
