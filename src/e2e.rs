@@ -16,6 +16,7 @@ use crate::kmer::VecKmer;
 ///
 pub enum ReadType {
     FullLength,
+    FixedSizeFragment,
     Fragment,
 }
 
@@ -98,6 +99,16 @@ pub fn generate_dataset(
             },
             phmm_params: phmm_params.clone(),
         },
+        ReadType::FixedSizeFragment => ReadProfile {
+            has_revcomp: false,
+            sample_profile: SampleProfile {
+                read_amount: ReadAmount::TotalBases(genome_size * coverage),
+                seed: read_seed,
+                length: ReadLength::EmitCount(read_length),
+                start_points: StartPoints::Random,
+            },
+            phmm_params: phmm_params.clone(),
+        },
         ReadType::FullLength => ReadProfile {
             has_revcomp: false,
             sample_profile: SampleProfile {
@@ -110,7 +121,10 @@ pub fn generate_dataset(
         },
     };
     let pos_reads = g.sample_positioned_reads(&profile);
-    // g.show_coverage(&pos_reads);
+    for read in pos_reads.iter() {
+        println!("{}", read);
+    }
+    g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
 
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);

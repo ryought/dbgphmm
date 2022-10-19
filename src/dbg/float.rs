@@ -365,7 +365,7 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     }
     pub fn inspect_freqs_histogram(&self, genome: &Genome) {
         // calculate true copy_nums with Genome
-        let hd: HashDbg<K> = HashDbg::from_seqs(self.k(), genome);
+        let hd: HashDbg<K> = HashDbg::from_styled_seqs(self.k(), genome);
         let copy_nums_list = hd.to_copy_nums_list();
         let copy_nums = hd.to_kmer_profile();
 
@@ -409,7 +409,7 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
         // density map of this FloatDbg
         let densities = self.to_kmer_profile();
         // calculate true copy_nums with Genome
-        let hd: HashDbg<K> = HashDbg::from_seqs(self.k(), genome);
+        let hd: HashDbg<K> = HashDbg::from_styled_seqs(self.k(), genome);
         let copy_nums = hd.to_kmer_profile();
 
         // missing
