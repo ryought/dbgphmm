@@ -22,20 +22,6 @@ var global_state = {
 var node_attrs = {}
 var edge_attrs = {}
 
-function main() {
-  fetch('/hoge.json')
-    .then((res) => res.json())
-    .then((elements) => {
-      let labels = parse_history_labels(elements)
-      parse_attrs(elements)
-      init_cytoscape(elements)
-      sync_states()
-      init_controls(labels)
-    })
-}
-
-main()
-
 /**
  * parse attribute set from elements
  */
@@ -152,15 +138,61 @@ function unselect_node() {
   cy.nodes().style('display', '');
 }
 
+/*
+ * Json load
+ */
+function setup_file_input() {
+  const input = document.getElementById('input');
+  input.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.addEventListener('loadend', (event) => {
+      const text = event.target.result;
+      const elements = JSON.parse(text);
 
+      // run
+      let labels = parse_history_labels(elements)
+      parse_attrs(elements)
+      init_cytoscape(elements)
+      sync_states()
+      init_controls(labels)
+    });
+    reader.readAsText(file);
+  });
+}
+setup_file_input();
+function load_file_from_local() {
+	return new Promise((resolve, reject) => {
+    const input = document.getElementById('input');
+    input.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener('loadend', (event) => {
+        const text = event.target.result;
+        const json = JSON.parse(text);
+        resolve(json)
+      });
+      reader.readAsText(file);
+    });
+    input.click();
+  })
+}
+function load_file_from_remote() {
+  return fetch('/hoge.json')
+    .then((res) => res.json())
+}
+function load_file() {
+  // TODO
+}
 
 /*
  * init functions
  */
 function init_cytoscape(elements) {
-  console.log('init_cytoscape', elements)
+  const container = document.getElementById('cy');
+  container.classList.remove('hidden');
   cy = cytoscape({
-    container: document.getElementById('cy'),
+    container: container,
     style: [
       {
         selector: 'node',
