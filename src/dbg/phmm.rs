@@ -87,6 +87,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
+///
+/// get strings with repeated n-times space (' ').
+///
 fn spaces(n: usize) -> String {
     std::iter::repeat(" ").take(n).collect::<String>()
 }
