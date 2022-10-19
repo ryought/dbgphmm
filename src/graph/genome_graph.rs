@@ -4,7 +4,9 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Seq, Sequence};
+use crate::common::{
+    CopyNum, PositionedReads, PositionedSequence, Reads, Seq, SeqStyle, Sequence, StyledSequence,
+};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
@@ -134,6 +136,30 @@ impl GenomeGraph {
         let mut g = DiGraph::new();
         for seq in seqs {
             g.add_node(GenomeNode::new(seq.as_ref(), 1));
+        }
+        GenomeGraph(g)
+    }
+    ///
+    /// Create `GenomeGraph` from the sequences
+    ///
+    pub fn from_styled_seqs<T>(seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let mut g = DiGraph::new();
+        for seq in seqs {
+            let styled_seq = seq.as_ref();
+            match styled_seq.style() {
+                SeqStyle::Circular => {
+                    let node = g.add_node(GenomeNode::new(styled_seq.seq(), 1));
+                    g.add_edge(node, node, GenomeEdge::new(Some(1)));
+                }
+                SeqStyle::Linear => {
+                    g.add_node(GenomeNode::new(styled_seq.seq(), 1));
+                }
+                _ => panic!("GenomeGraph from linear fragment is not possible"),
+            }
         }
         GenomeGraph(g)
     }

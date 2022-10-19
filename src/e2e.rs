@@ -86,7 +86,7 @@ pub fn generate_dataset(
     k_init: usize,
     k_target: usize,
 ) -> Dataset {
-    let g = GenomeGraph::from_seqs(&genome);
+    let g = GenomeGraph::from_styled_seqs(&genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
             has_revcomp: true,

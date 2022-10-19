@@ -23,6 +23,14 @@ pub fn simple(genome_size: usize, seed: u64) -> (Genome, usize) {
 }
 
 ///
+/// simple random haploid circular genome
+///
+pub fn simple_circular(genome_size: usize, seed: u64) -> (Genome, usize) {
+    let genome = vec![StyledSequence::circular(generate(genome_size, seed))];
+    (genome, genome_size)
+}
+
+///
 /// simple diploid genome, with two SNVs manually added.
 ///
 /// will be deprecated
