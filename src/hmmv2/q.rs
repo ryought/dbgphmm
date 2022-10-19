@@ -29,7 +29,9 @@ impl QScore {
     /// total score
     ///
     pub fn total(&self) -> f64 {
-        self.init + self.trans + self.prior
+        // TODO
+        // self.init + self.trans + self.prior
+        self.trans
     }
     ///
     /// subtract other from self `self - other`

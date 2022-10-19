@@ -2,14 +2,21 @@
 //! de bruijn graph with float (real-valued) copy numbers
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
+use crate::common::{Genome, Seq};
+use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
+use crate::hist::stat;
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
+use crate::min_flow::FlowRateLike;
 use crate::prelude::*;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
+use fnv::FnvHashMap as HashMap;
+use itertools::{iproduct, izip, Itertools};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use rayon::prelude::IntoParallelIterator;
 
 /// `CopyDensity` = f64
 /// Float valued copy number
@@ -105,6 +112,9 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             ew.set_copy_density(new_copy_density);
         }
     }
+    pub fn scale_by_total_density(&mut self, total_density: CopyDensity) {
+        self.scale_density(total_density / self.total_density());
+    }
     ///
     /// modify node's copy_density by calling `FloatDbgNode::set_copy_density` without checking
     /// flow consistency.
@@ -147,7 +157,14 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     /// calculate the density of nodes in the intersection (with the given node)
     ///
     pub fn intersection_emittable_copy_density(&self, node: NodeIndex) -> CopyDensity {
-        let (_, parent, _) = self.parents(node).next().unwrap();
+        let (_, parent, _) = self.parents(node).next().unwrap_or_else(|| {
+            panic!(
+                "node {}(#{}) has no parent (copy_density={})",
+                self.node(node).kmer(),
+                node.index(),
+                self.node(node).copy_density(),
+            )
+        });
         self.childs(parent)
             .filter(|(_, sibling, _)| self.node(*sibling).is_emittable())
             .map(|(_, sibling, _)| self.node(sibling).copy_density)
@@ -158,6 +175,26 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
     ///
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
+    }
+    ///
+    /// to kmer density profile
+    ///
+    pub fn to_kmer_profile(&self) -> HashMap<K, CopyDensity> {
+        let mut hm = HashMap::default();
+        for (_node, weight) in self.nodes() {
+            hm.insert(weight.kmer().clone(), weight.copy_density());
+        }
+        hm
+    }
+    ///
+    ///
+    ///
+    pub fn to_full_prob_parallel<T>(&self, param: PHMMParams, seqs: T) -> Prob
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        self.to_phmm(param).to_full_prob_parallel(seqs)
     }
     ///
     ///
@@ -178,6 +215,240 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
             node_weight_mut.set_copy_density(copy_density);
         }
     }
+}
+
+//
+// dbg consistency validations
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    pub fn is_valid(&self) -> bool {
+        self.is_graph_valid() && self.has_no_duplicated_node() && self.has_no_parallel_edge()
+    }
+}
+
+//
+// k->k+1 upgrade related
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    ///
+    /// get a naive copy density of an edge
+    ///
+    /// ```text
+    /// copy_density(v->w) = copy_density(v) * (copy_density(w) / copy_density(v's childs))
+    /// ```
+    ///
+    fn naive_edge_copy_density(&self, edge: EdgeIndex) -> CopyDensity {
+        let (v, w) = self.edge_endpoints(edge).expect("edge does not exist");
+
+        // sum of copy_density of childs of v
+        let dws: CopyDensity = self
+            .childs(v)
+            .map(|(_, w, _)| self.node(w).copy_density())
+            .sum();
+        let dv = self.node(v).copy_density();
+        let dw = self.node(w).copy_density();
+
+        if dws == 0.0 {
+            0.0
+        } else {
+            dv * (dw / dws)
+        }
+    }
+    ///
+    /// Create a `k+1` dbg from the `k` dbg using `naive_edge_copy_density`
+    ///
+    pub fn to_kp1_dbg(&self) -> Self {
+        let mut graph = DiGraph::new();
+
+        // mapping from "edge in k-dbg" into "node in k+1-dbg".
+        let mut ids: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
+
+        // (1) nodes/edges outside tip area
+        // a edge in k-dbg is corresponds to a node in k+1-dbg.
+        for (edge, s, t, _weight) in self.edges() {
+            if !self.is_warp_edge(edge) {
+                let kmer = self.kmer(s).join(self.kmer(t));
+                let copy_density = self.naive_edge_copy_density(edge);
+                let node = graph.add_node(FloatDbgNode::new(kmer, copy_density));
+                ids.insert(edge, node);
+            }
+        }
+        for (node, weight) in self.nodes() {
+            if !weight.is_head() && !weight.is_tail() {
+                // add an edge between all in-edges and out-edges pair.
+                // --e1--> node --e2--> in k-dbg
+                for (e1, _, _) in self.parents(node) {
+                    let v1 = ids.get(&e1).unwrap();
+                    for (e2, _, _) in self.childs(node) {
+                        let v2 = ids.get(&e2).unwrap();
+                        // copy numbers of edges in k+1 is ambiguous.
+                        graph.add_edge(*v1, *v2, FloatDbgEdge::new(None));
+                    }
+                }
+            }
+        }
+
+        // (2) nodes/edges in tip area
+        // intersections
+        let tips = self.tips_base();
+        let in_nodes: Vec<NodeIndex> = tips
+            .iter_in_node_indexes()
+            .map(|v| {
+                // add a node of in_node
+                graph.add_node(FloatDbgNode::new(
+                    self.node(v).kmer().extend_tail(),
+                    self.node(v).copy_density(),
+                ))
+            })
+            .collect();
+        let out_nodes: Vec<NodeIndex> = tips
+            .iter_out_node_indexes()
+            .map(|v| {
+                // add a node of out_node
+                graph.add_node(FloatDbgNode::new(
+                    self.node(v).kmer().extend_head(),
+                    self.node(v).copy_density(),
+                ))
+            })
+            .collect();
+        for (&w1, &w2) in iproduct!(in_nodes.iter(), out_nodes.iter()) {
+            graph.add_edge(w1, w2, FloatDbgEdge::new(None));
+        }
+
+        // add an edge for a in_edges of tail nodes
+        for (v, &w) in izip!(tips.iter_in_node_indexes(), in_nodes.iter()) {
+            for (e, _, _) in self.parents(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w2: parent(YXNN) -> w: tail(XNNN)
+                graph.add_edge(*w2, w, FloatDbgEdge::new(None));
+            }
+        }
+
+        // add an edge for a out_edges of head nodes
+        for (v, &w) in izip!(tips.iter_out_node_indexes(), out_nodes.iter()) {
+            for (e, _, _) in self.childs(v) {
+                let w2 = ids.get(&e).unwrap();
+                // w: head(NNNX) -> w2: child(NNXY)
+                graph.add_edge(w, *w2, FloatDbgEdge::new(None));
+            }
+        }
+
+        Self::from_digraph(self.k() + 1, graph)
+    }
+    ///
+    /// remove nodes whose copy density is 0.0
+    ///
+    pub fn remove_zero_copy_node(&mut self) {
+        // println!("removing {} nodes", self.n_dead_nodes());
+        // TODO rounding error causes small nodes that have infinitesimal copy density. this
+        // function removes these nodes.
+        self.graph
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_density() >= f64::eps());
+    }
+}
+
+//
+// benchmarking with true Genome
+//
+impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
+    pub fn benchmark(&self, genome: &Genome, p: Prob) {
+        println!(
+            "k={} n_nodes={} n_edges={} total_density={} p={}",
+            self.k(),
+            self.n_nodes(),
+            self.n_edges(),
+            self.total_density(),
+            p
+        );
+        self.inspect_freqs_histogram(genome);
+        self.inspect_kmers(genome);
+    }
+    pub fn inspect_freqs_histogram(&self, genome: &Genome) {
+        // calculate true copy_nums with Genome
+        let hd: HashDbg<K> = HashDbg::from_styled_seqs(self.k(), genome);
+        let copy_nums_list = hd.to_copy_nums_list();
+        let copy_nums = hd.to_kmer_profile();
+
+        // false kmers (0x)
+        let densitys_of_0x: Vec<_> = self
+            .nodes()
+            .filter(|(_, weight)| {
+                let copy_num = copy_nums.get(weight.kmer()).copied().unwrap_or(0);
+                copy_num == 0
+            })
+            .map(|(_, weight)| weight.copy_density())
+            .collect();
+        let (ave, std, min, max) = stat(&densitys_of_0x);
+        eprintln!("[0x] ave={} std={} min={} max={}", ave, std, min, max);
+
+        // true kmers (>0x)
+        for copy_num in copy_nums_list.keys().sorted() {
+            let densitys_of_copy_num: Vec<_> = copy_nums_list
+                .get(copy_num)
+                .unwrap()
+                .iter()
+                .map(|kmer| match self.find_node_from_kmer(kmer) {
+                    Some(node) => self.node(node).copy_density(),
+                    None => 0.0,
+                })
+                .collect();
+            let (ave, std, min, max) = stat(&densitys_of_copy_num);
+            eprintln!(
+                "[{}x] ave={} std={} min={} max={}",
+                copy_num, ave, std, min, max
+            );
+        }
+    }
+    ///
+    /// inspect kmer existence
+    ///
+    /// * Missing kmers: exists in genome but not exists in Dbg
+    /// * Error kmers: not exists in genome but exists in Dbg
+    ///
+    pub fn inspect_kmers(&self, genome: &Genome) -> (usize, usize) {
+        // density map of this FloatDbg
+        let densities = self.to_kmer_profile();
+        // calculate true copy_nums with Genome
+        let hd: HashDbg<K> = HashDbg::from_styled_seqs(self.k(), genome);
+        let copy_nums = hd.to_kmer_profile();
+
+        // missing
+        let missings: Vec<_> = copy_nums
+            .iter()
+            .filter(|(kmer, &copy_num)| {
+                let density = densities.get(&kmer).copied().unwrap_or(0.0);
+                copy_num > 0 && density == 0.0
+            })
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_missing = missings.len();
+
+        // error
+        let errors: Vec<_> = densities
+            .iter()
+            .filter(|(kmer, &density)| {
+                let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
+                copy_num == 0 && density > 0.0
+            })
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_error = errors.len();
+
+        eprintln!(
+            "n_nodes={} n_missing={} ({}) n_error={} ({})",
+            self.n_nodes(),
+            n_missing,
+            kmers_to_string(&missings),
+            n_error,
+            kmers_to_string(&errors),
+        );
+
+        (n_missing, n_error)
+    }
+}
+
+fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
+    format!("{}", kmers.iter().format(","))
 }
 
 //
@@ -323,6 +594,18 @@ mod tests {
         fdbg.scale_density(0.2);
         println!("{}", fdbg);
         println!("td={}", fdbg.total_density());
+    }
+
+    #[test]
+    fn float_dbg_kp1_convert() {
+        let mut dbg = mock_intersection();
+        let mut fdbg = FloatDbg::from_dbg(&dbg);
+        println!("{}", fdbg);
+        let fdbg_kp1 = fdbg.to_kp1_dbg();
+        println!("{}", fdbg_kp1);
+        // for (k, c) in sorted_node_list(&fdbg_kp1) {
+        //     println!("{} {}", k, c);
+        // }
     }
 
     #[test]

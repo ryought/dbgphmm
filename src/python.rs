@@ -21,6 +21,7 @@ use crate::dbg::{
     impls::SimpleDbg,
 };
 #[pyclass]
+#[derive(Clone)]
 struct PyDbg(SimpleDbg<VecKmer>);
 impl PyDbg {
     fn dbg(&self) -> &SimpleDbg<VecKmer> {
@@ -31,7 +32,7 @@ impl PyDbg {
 impl PyDbg {
     #[new]
     fn __new__(k: usize, seqs: Vec<StyledSequence>) -> Self {
-        let dbg = Dbg::from_seqs(k, &seqs);
+        let dbg = Dbg::from_styled_seqs(k, &seqs);
         PyDbg(dbg)
     }
     fn __repr__(&self) -> String {
@@ -120,6 +121,61 @@ impl PyDbg {
     }
 }
 
+//
+// FloatDbg
+//
+use crate::dbg::float::{FloatDbg, FloatDbgEdge, FloatDbgNode};
+#[pyclass]
+struct PyFloatDbg(FloatDbg<VecKmer>);
+impl PyFloatDbg {
+    fn fdbg(&self) -> &FloatDbg<VecKmer> {
+        &self.0
+    }
+}
+#[pymethods]
+impl PyFloatDbg {
+    #[new]
+    fn __new__(dbg: PyDbg) -> Self {
+        let fdbg = FloatDbg::from_dbg(&dbg.dbg());
+        PyFloatDbg(fdbg)
+    }
+    fn __repr__(&self) -> String {
+        self.fdbg().to_string()
+    }
+    //
+    // getters
+    //
+    #[getter]
+    fn k(&self) -> usize {
+        self.fdbg().k()
+    }
+    #[getter]
+    fn n_nodes(&self) -> usize {
+        self.fdbg().n_nodes()
+    }
+    #[getter]
+    fn n_edges(&self) -> usize {
+        self.fdbg().n_edges()
+    }
+    #[getter]
+    fn total_density(&self) -> f64 {
+        self.fdbg().total_density()
+    }
+    //
+    // kp1 conversion
+    //
+    fn to_kp1_dbg(&self) -> Self {
+        PyFloatDbg(self.fdbg().to_kp1_dbg())
+    }
+    fn remove_zero_copy_node(&mut self) {
+        self.0.remove_zero_copy_node()
+    }
+}
+
+//
+// example functions
+//
+
 /// Formats the sum of two numbers as string.
 #[pyfunction]
 fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
@@ -142,6 +198,7 @@ fn dbgphmm(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     m.add_function(wrap_pyfunction!(string_concat, m)?)?;
     m.add_class::<PyDbg>()?;
+    m.add_class::<PyFloatDbg>()?;
     m.add_class::<VecKmer>()?;
     m.add_class::<StyledSequence>()?;
     m.add_class::<PHMMParams>()?;

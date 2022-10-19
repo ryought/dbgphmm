@@ -22,10 +22,17 @@
       top: 0px;
       left: 0px;
     }
+    input {
+      z-index: 100;
+    }
+    .hidden {
+      visibility: hidden;
+    }
   </style>
 </head>
 <body>
-  <div id="cy"></div>
+  <div id="cy" class="hidden"></div>
+  <input id="input" type="file" accept="application/json"/>
   <script type="text/javascript" src="main.js"></script>
 </body>
 </html>

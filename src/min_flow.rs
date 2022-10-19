@@ -49,6 +49,8 @@ pub trait FlowRateLike:
     fn large_const() -> Self;
     /// similary equal
     fn sim_eq(self, rhs: Self) -> bool;
+    /// difference allowed to be regarded as a same value
+    fn eps() -> Self;
 }
 impl FlowRateLike for usize {
     fn zero() -> usize {
@@ -75,6 +77,9 @@ impl FlowRateLike for usize {
     fn sim_eq(self, rhs: Self) -> bool {
         // integer type does not need to consider the floating error
         self == rhs
+    }
+    fn eps() -> Self {
+        0
     }
 }
 impl FlowRateLike for f64 {
@@ -103,7 +108,10 @@ impl FlowRateLike for f64 {
         100.0
     }
     fn sim_eq(self, rhs: Self) -> bool {
-        (self - rhs).abs() < 0.00001
+        (self - rhs).abs() <= Self::eps()
+    }
+    fn eps() -> Self {
+        0.000000001
     }
 }
 

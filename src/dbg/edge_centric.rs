@@ -165,6 +165,12 @@ impl<K: KmerLike> IntersectionBase<K> {
     pub fn out_nodes(&self) -> &[NodeIndex] {
         &self.out_nodes
     }
+    pub fn iter_in_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.in_nodes.iter().copied()
+    }
+    pub fn iter_out_node_indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.out_nodes.iter().copied()
+    }
     pub fn km1mer(&self) -> &K {
         &self.km1mer
     }

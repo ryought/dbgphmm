@@ -8,23 +8,26 @@ use itertools::Itertools;
 pub fn stat(xs: &[f64]) -> (f64, f64, f64, f64) {
     let s: f64 = xs.iter().sum();
     let n: f64 = xs.len() as f64;
-    let ave = s / n;
+    if xs.len() == 0 {
+        (0.0, 0.0, 0.0, 0.0)
+    } else {
+        let ave = s / n;
+        let d: f64 = xs.iter().map(|x| (x - ave).powi(2)).sum();
+        let sd = (d / n).sqrt();
 
-    let d: f64 = xs.iter().map(|x| (x - ave).powi(2)).sum();
-    let sd = (d / n).sqrt();
+        let min = xs
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max = xs
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
 
-    let min = xs
-        .iter()
-        .copied()
-        .min_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap_or(0.0);
-    let max = xs
-        .iter()
-        .copied()
-        .max_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap_or(0.0);
-
-    (ave, sd, min, max)
+        (ave, sd, min, max)
+    }
 }
 
 ///

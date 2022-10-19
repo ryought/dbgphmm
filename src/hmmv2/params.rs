@@ -8,6 +8,9 @@ use pyo3::prelude::*;
 ///
 /// PHMMParams for HMMv2
 ///
+/// ## TODO
+/// * add Copy to PHMMParams
+///
 #[pyclass]
 #[derive(Debug, Clone, PartialEq)]
 #[allow(non_snake_case)]

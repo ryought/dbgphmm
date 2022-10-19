@@ -4,10 +4,12 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, Reads, Seq, Sequence};
+use crate::common::{
+    CopyNum, PositionedReads, PositionedSequence, Reads, Seq, SeqStyle, Sequence, StyledSequence,
+};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -134,6 +136,30 @@ impl GenomeGraph {
         let mut g = DiGraph::new();
         for seq in seqs {
             g.add_node(GenomeNode::new(seq.as_ref(), 1));
+        }
+        GenomeGraph(g)
+    }
+    ///
+    /// Create `GenomeGraph` from the sequences
+    ///
+    pub fn from_styled_seqs<T>(seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let mut g = DiGraph::new();
+        for seq in seqs {
+            let styled_seq = seq.as_ref();
+            match styled_seq.style() {
+                SeqStyle::Circular => {
+                    let node = g.add_node(GenomeNode::new(styled_seq.seq(), 1));
+                    g.add_edge(node, node, GenomeEdge::new(Some(1)));
+                }
+                SeqStyle::Linear => {
+                    g.add_node(GenomeNode::new(styled_seq.seq(), 1));
+                }
+                _ => panic!("GenomeGraph from linear fragment is not possible"),
+            }
         }
         GenomeGraph(g)
     }
@@ -496,10 +522,9 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(10),
                 seed: 0,
-                length: 1000,
+                length: ReadLength::StateCount(1000),
                 // start_points: StartPoints::Random,
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         });
@@ -516,9 +541,8 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(100),
                 seed: 0,
-                length: 100,
+                length: ReadLength::StateCount(100),
                 start_points: StartPoints::Random,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         };
@@ -542,9 +566,8 @@ mod tests {
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(15),
                 seed: 0,
-                length: 1000,
+                length: ReadLength::StateCount(1000),
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: PHMMParams::default(),
         });

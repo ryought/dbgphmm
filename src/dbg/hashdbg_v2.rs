@@ -151,6 +151,17 @@ impl<K: KmerLike> HashDbg<K> {
         }
         d
     }
+    pub fn from_styled_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let mut d = HashDbg::new(k);
+        for seq in seqs {
+            d.add_styled_sequence(seq.as_ref());
+        }
+        d
+    }
 }
 
 impl<K: KmerLike> HashDbg<K> {
@@ -161,6 +172,19 @@ impl<K: KmerLike> HashDbg<K> {
         let mut hm = HashMap::default();
         for kmer in self.kmers() {
             hm.insert(kmer.clone(), self.get(kmer));
+        }
+        hm
+    }
+    ///
+    /// generate the list of kmers in the dbg according to copy numbers.
+    ///
+    pub fn to_copy_nums_list(&self) -> HashMap<CopyNum, Vec<K>> {
+        let mut hm = HashMap::default();
+        for kmer in self.kmers() {
+            let copy_num = self.get(kmer);
+            hm.entry(copy_num)
+                .or_insert_with(|| Vec::new())
+                .push(kmer.clone());
         }
         hm
     }

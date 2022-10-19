@@ -8,7 +8,7 @@ use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{ReadAmount, SampleProfile, StartPoints};
+use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 
 ///
@@ -16,6 +16,7 @@ use crate::kmer::VecKmer;
 ///
 pub enum ReadType {
     FullLength,
+    FixedSizeFragment,
     Fragment,
 }
 
@@ -86,16 +87,25 @@ pub fn generate_dataset(
     k_init: usize,
     k_target: usize,
 ) -> Dataset {
-    let g = GenomeGraph::from_seqs(&genome);
+    let g = GenomeGraph::from_styled_seqs(&genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
             has_revcomp: true,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(genome_size * coverage),
                 seed: read_seed,
-                length: read_length,
+                length: ReadLength::StateCount(read_length),
                 start_points: StartPoints::Random,
-                endable: false,
+            },
+            phmm_params: phmm_params.clone(),
+        },
+        ReadType::FixedSizeFragment => ReadProfile {
+            has_revcomp: false,
+            sample_profile: SampleProfile {
+                read_amount: ReadAmount::TotalBases(genome_size * coverage),
+                seed: read_seed,
+                length: ReadLength::EmitCount(read_length),
+                start_points: StartPoints::Random,
             },
             phmm_params: phmm_params.clone(),
         },
@@ -104,15 +114,17 @@ pub fn generate_dataset(
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(coverage),
                 seed: read_seed,
-                length: read_length,
+                length: ReadLength::StateCount(read_length),
                 start_points: StartPoints::AllStartPoints,
-                endable: false,
             },
             phmm_params: phmm_params.clone(),
         },
     };
     let pos_reads = g.sample_positioned_reads(&profile);
-    // g.show_coverage(&pos_reads);
+    for read in pos_reads.iter() {
+        println!("{}", read);
+    }
+    g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
 
     let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);
@@ -150,9 +162,8 @@ pub fn generate_full_length_dataset(
         sample_profile: SampleProfile {
             read_amount: ReadAmount::TotalBases(genome_size * coverage),
             seed: read_seed,
-            length: 1000,
+            length: ReadLength::StateCount(1000),
             start_points: StartPoints::AllStartPoints,
-            endable: false,
         },
         phmm_params: phmm_params.clone(),
     };

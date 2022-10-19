@@ -3,10 +3,10 @@ use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdg
 use dbgphmm::dbg::mocks::mock_intersection_small;
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::em::float::{
-    em, em_result_to_final_dbg, em_result_to_node_historys, inspect_density_histgram,
-    inspect_freqs_histgram, shrink_nodes,
+    em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, run, shrink_nodes,
 };
 use dbgphmm::genome;
+use dbgphmm::io::write_string;
 use dbgphmm::prelude::*;
 use dbgphmm::vector::{DenseStorage, NodeVec};
 
@@ -18,7 +18,7 @@ fn run_small() {
     let params = PHMMParams::zero_error();
 
     let result = em(&fdbg, &reads, &params, genome_size, 0.1, 10, 10);
-    let historys = em_result_to_node_historys(&result);
+    let historys = result.to_node_historys();
 
     let json = dbg.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
     // let (edge_freqs, init_freqs, p) = e_step(&fdbg, &reads, &params);
@@ -56,28 +56,31 @@ fn run_simple() {
     let run_shrink = true;
 
     if run_em {
+        eprintln!("{}", dbg_raw.to_node_copy_nums());
         let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
         eprintln!("n_nodes={}", fdbg.n_nodes());
         eprintln!("n_edges={}", fdbg.n_edges());
         fdbg.scale_density(genome_size as CopyDensity / dbg_raw.genome_size() as CopyDensity);
+        eprintln!("{}", fdbg.to_node_copy_densities());
 
         let result = em(
             &fdbg,
             &dataset.reads,
             &param,
             genome_size as CopyDensity,
-            0.01,
-            10,
-            10,
+            0.001,
+            50,
+            50,
         );
-        let mut historys = em_result_to_node_historys(&result);
-        let final_fdbg = em_result_to_final_dbg(&result);
+        let mut historys = result.to_node_historys();
+        let final_fdbg = &result.to_final_dbg();
+        result.inspect_stop_reason();
 
         if let Some(final_fdbg) = final_fdbg {
             // inspect histogram
-            inspect_density_histgram(&dbg_true, &final_fdbg);
+            final_fdbg.inspect_freqs_histogram(&genome);
 
-            let shrink_min_density = 0.1;
+            let shrink_min_density = 0.05;
             eprintln!("n_red={}", fdbg.n_redundant_nodes(shrink_min_density));
             eprintln!("n_dead={}", fdbg.n_dead_nodes());
 
@@ -111,6 +114,130 @@ fn run_simple() {
     }
 }
 
+fn run_upgrade() {
+    // let (genome, genome_size) = genome::simple(100, 5);
+    let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    eprintln!("{}", genome[0]);
+    let coverage = 20;
+    let param = PHMMParams::uniform(0.01);
+    let dataset = generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,
+        param.clone(),
+        coverage,
+        2000,
+        ReadType::FullLength,
+        8,
+        64,
+    );
+    // dataset.show_reads();
+
+    // dbg_raw
+    let dbg_raw = dataset.dbg_raw;
+
+    // dbg_true
+    let mut dbg_true = dbg_raw.clone();
+    let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+    dbg_true.set_node_copy_nums(&copy_nums_true);
+
+    let mut fdbg = FloatDbg::from_dbg(&dbg_raw);
+    eprintln!("n_nodes={}", fdbg.n_nodes());
+    eprintln!("n_edges={}", fdbg.n_edges());
+    fdbg.scale_by_total_density(genome_size as CopyDensity);
+
+    run(
+        &fdbg,
+        &dataset.reads,
+        &param,
+        genome_size as CopyDensity,
+        0.001,
+        50,
+        50,
+        0.1,
+        40,
+        |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
+            init.benchmark(&genome, *p_init);
+            opt.benchmark(&genome, *p_opt);
+            shrinked.benchmark(&genome, *p_shrinked);
+        },
+    );
+
+    // let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
+    // println!("{}", json);
+}
+
+fn run_frag() {
+    let (genome, genome_size) = genome::simple_circular(100, 5);
+    // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    eprintln!("{}", genome[0]);
+    let coverage = 10;
+    let param = PHMMParams::uniform(0.001);
+    let dataset = generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,
+        param.clone(),
+        coverage,
+        50,
+        ReadType::FixedSizeFragment,
+        8,
+        64,
+    );
+    dataset.show_reads();
+
+    let json = dataset.dbg_raw.to_cytoscape();
+    write_string("circular_raw.json", &json);
+
+    // optimize
+    let mut fdbg = FloatDbg::from_dbg(&dataset.dbg_raw);
+    eprintln!("n_nodes={}", fdbg.n_nodes());
+    eprintln!("n_edges={}", fdbg.n_edges());
+    fdbg.scale_by_total_density(genome_size as CopyDensity);
+
+    let upgrade = false;
+
+    if upgrade {
+        // upgrade
+        run(
+            &fdbg,
+            &dataset.reads,
+            &param,
+            genome_size as CopyDensity,
+            0.001,
+            50,
+            50,
+            0.1,
+            40,
+            |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
+                init.benchmark(&genome, *p_init);
+                opt.benchmark(&genome, *p_opt);
+                shrinked.benchmark(&genome, *p_shrinked);
+            },
+        );
+    } else {
+        // single
+        let result = em(
+            &fdbg,
+            &dataset.reads,
+            &param,
+            genome_size as CopyDensity,
+            0.001,
+            50,
+            50,
+        );
+        let mut historys = result.to_node_historys();
+
+        let mut dbg_true = dataset.dbg_raw.clone();
+        let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+        dbg_true.set_node_copy_nums(&copy_nums_true);
+        let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
+        write_string("circular_em.json", &json);
+    }
+}
+
 fn main() {
-    run_simple();
+    run_frag();
+    // run_upgrade();
+    // run_simple();
 }

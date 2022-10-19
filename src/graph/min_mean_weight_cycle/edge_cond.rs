@@ -209,6 +209,9 @@ pub fn traceback<N, E: FloatWeight>(
 ///
 /// Find all edge simple cycles in the given path.
 ///
+/// TODO
+/// * sometimes the output contains cycles with repeated edges
+///
 pub fn find_all_simple_cycles_in_path<N, E>(
     _graph: &DiGraph<N, E>,
     path: &[EdgeIndex],
@@ -256,6 +259,9 @@ fn find_min_mean_weight_cycle_in_path<N, E: FloatWeight>(
 
     cycles
         .iter()
+        // TODO this is heavy find_all_simple_cycles_in_path should remove all non-edge-simple cycles
+        // before this filtering
+        .filter(|(i, j)| is_edge_simple(graph, &path[*i..*j]))
         .map(|(i, j)| (*i, *j, total_weight(graph, &path[*i..*j]) / (j - i) as f64))
         .min_by(|(_, _, wa), (_, _, wb)| wa.partial_cmp(&wb).expect("dists contains nan"))
         .map(|(i, j, _)| path[i..j].to_vec())

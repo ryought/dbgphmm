@@ -103,15 +103,36 @@ pub struct SampleProfile {
     ///
     /// length (i.e. bases) of reads
     ///
-    pub length: usize,
+    pub length: ReadLength,
     ///
     /// start points of reads.
     ///
     pub start_points: StartPoints,
-    ///
-    /// is endable in the middle of the model.
-    ///
-    pub endable: bool,
+}
+
+///
+/// Read length specs
+///
+/// * Endable
+///
+#[derive(Clone, Debug, Copy)]
+pub enum ReadLength {
+    /// The Sampled sequences will have the exactly fixed length.
+    EmitCount(usize),
+    /// The upper limit of transition is determined.
+    StateCount(usize),
+    /// Transition will stop freely at any state.
+    /// Sample length distribution will be determined by `PHMMParams.p_end`.
+    Endable(usize),
+}
+
+impl ReadLength {
+    pub fn is_endable(&self) -> bool {
+        match self {
+            ReadLength::Endable(_) => true,
+            _ => false,
+        }
+    }
 }
 
 ///
@@ -148,7 +169,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample(&self, length: usize, seed: u64) -> History {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-        self.sample_rng(&mut rng, length, true)
+        self.sample_rng(&mut rng, ReadLength::Endable(length))
     }
     ///
     /// Generate a one-shot sequence of Emission and Hidden states
@@ -159,7 +180,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         Historys(
             (0..n_samples)
-                .map(|_| self.sample_rng(&mut rng, length, true))
+                .map(|_| self.sample_rng(&mut rng, ReadLength::Endable(length)))
                 .collect(),
         )
     }
@@ -178,13 +199,25 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     pub fn sample_by_profile(&self, profile: &SampleProfile) -> Historys {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(profile.seed);
-        let mut sampler = || match &profile.start_points {
+        let mut sampler_from = || match &profile.start_points {
             StartPoints::Custom(nodes) => {
-                self.sample_rng_from_nodes(&mut rng, profile.length, nodes, profile.endable)
+                self.sample_rng_from_nodes(&mut rng, profile.length, nodes)
             }
-            StartPoints::Random => self.sample_rng(&mut rng, profile.length, profile.endable),
+            StartPoints::Random => self.sample_rng(&mut rng, profile.length),
             StartPoints::AllStartPoints => {
                 panic!("StartPoints::AllStartPoints is not resolved until sample_by_profile")
+            }
+        };
+        let mut sampler = || match profile.length {
+            ReadLength::EmitCount(count) => loop {
+                let history = sampler_from();
+                if history.total_bases() == count {
+                    return history;
+                }
+            },
+            _ => {
+                let history = sampler_from();
+                return history;
             }
         };
         let historys = match profile.read_amount {
@@ -206,8 +239,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Generate a sequence of Emission and Hidden states
     /// by running a profile HMM using the given rng(random number generator).
     ///
-    pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: usize, endable: bool) -> History {
-        self.sample_rng_from(rng, length, State::MatchBegin, endable)
+    pub fn sample_rng<R: Rng>(&self, rng: &mut R, length: ReadLength) -> History {
+        self.sample_rng_from(rng, length, State::MatchBegin)
     }
     ///
     /// Generate full length sample
@@ -218,14 +251,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn sample_rng_from_nodes<R: Rng>(
         &self,
         rng: &mut R,
-        length: usize,
+        length: ReadLength,
         froms: &[NodeIndex],
-        endable: bool,
     ) -> History {
         let from = self
             .pick_init_node_from(rng, froms)
             .expect("froms are empty");
-        self.sample_rng_from(rng, length, State::Match(from), endable)
+        self.sample_rng_from(rng, length, State::Match(from))
     }
     ///
     /// Generate a sequence of Emission and Hidden states
@@ -237,14 +269,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///     if true, it allows a transition to End state while sampling, so
     ///     the sampled sequence can be shorter than the given length.
     ///
-    pub fn sample_rng_from<R: Rng>(
-        &self,
-        rng: &mut R,
-        length: usize,
-        from: State,
-        endable: bool,
-    ) -> History {
+    pub fn sample_rng_from<R: Rng>(&self, rng: &mut R, length: ReadLength, from: State) -> History {
         let mut history = History::new();
+
+        // counter
+        let mut n_state = 0;
+        let mut n_emission = 0;
 
         // (1) init
         let mut state = from;
@@ -254,16 +284,38 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             _ => {
                 emission = self.make_emission(rng, from);
                 history.push(state, emission);
+
+                // update counter
+                n_emission += 1;
             }
         }
 
-        for _ in 0..length {
+        loop {
             // (2) step
-            (state, emission) = self.sample_step(rng, state, endable);
+            (state, emission) = self.sample_step(rng, state, length.is_endable());
             history.push(state, emission);
 
+            // update counter
+            n_state += 1;
+            if emission.is_base() {
+                n_emission += 1;
+            }
+
+            // loop exit conditions
             if let State::End = state {
                 break;
+            }
+            match length {
+                ReadLength::StateCount(c) | ReadLength::Endable(c) => {
+                    if n_state == c {
+                        break;
+                    }
+                }
+                ReadLength::EmitCount(c) => {
+                    if n_emission == c {
+                        break;
+                    }
+                }
             }
         }
 
@@ -502,7 +554,11 @@ mod tests {
         for i in 0..10 {
             println!("{}", i);
             // start node is ni(0)
-            let hist = phmm.sample_rng_from_nodes(&mut rng, 100, &[NodeIndex::new(0)], false);
+            let hist = phmm.sample_rng_from_nodes(
+                &mut rng,
+                ReadLength::StateCount(100),
+                &[NodeIndex::new(0)],
+            );
             println!("{}", hist);
             // first is ni(0)
             assert_eq!(hist.0[0].0.to_node_index(), Some(NodeIndex::new(0)));
@@ -552,9 +608,8 @@ mod tests {
         let hists = phmm.sample_by_profile(&SampleProfile {
             read_amount: ReadAmount::Count(10),
             seed: 0,
-            length: 100,
+            length: ReadLength::StateCount(100),
             start_points: StartPoints::Custom(vec![start_point]),
-            endable: false,
         });
         for hist in hists.iter() {
             println!("a {} {}", hist, hist.to_sequence().len());
@@ -566,9 +621,8 @@ mod tests {
         let hists = phmm.sample_by_profile(&SampleProfile {
             read_amount: ReadAmount::TotalBases(500),
             seed: 0,
-            length: 100,
+            length: ReadLength::StateCount(100),
             start_points: StartPoints::Random,
-            endable: false,
         });
         for hist in hists.iter() {
             println!("b {}", sequence_to_string(&hist.to_sequence()));
@@ -576,5 +630,19 @@ mod tests {
         let total_bases: usize = hists.iter().map(|hist| hist.total_bases()).sum();
         println!("total={}", total_bases);
         assert_eq!(total_bases, 500);
+
+        // c
+        let hists = phmm.sample_by_profile(&SampleProfile {
+            read_amount: ReadAmount::Count(10),
+            seed: 0,
+            length: ReadLength::EmitCount(5),
+            start_points: StartPoints::Random,
+        });
+        for hist in hists.iter() {
+            println!("b {}", sequence_to_string(&hist.to_sequence()));
+            assert_eq!(hist.total_bases(), 5);
+        }
+        let total_bases: usize = hists.iter().map(|hist| hist.total_bases()).sum();
+        assert_eq!(total_bases, 50);
     }
 }
