@@ -197,6 +197,12 @@ fn run_frag() {
 
     let upgrade = false;
 
+    let phmm = dataset.dbg_raw.to_phmm(param);
+    let out = phmm.run(&dataset.reads[0]);
+    dataset
+        .dbg_raw
+        .show_mapping_summary(&dataset.reads[0], &out);
+
     if upgrade {
         // upgrade
         run(

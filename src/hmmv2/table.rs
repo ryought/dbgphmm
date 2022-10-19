@@ -7,6 +7,7 @@
 //!
 //! F[Match,v] or B[Match,v]
 //!
+use super::sample::State;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
@@ -165,6 +166,24 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             v[node] += p_d;
         }
         v
+    }
+    ///
+    ///
+    ///
+    pub fn to_states(&self) -> Vec<(State, Prob)> {
+        let mut ret = Vec::new();
+        for (node, p) in self.m.iter() {
+            ret.push((State::Match(node), p));
+        }
+        for (node, p) in self.i.iter() {
+            ret.push((State::Ins(node), p));
+        }
+        for (node, p) in self.d.iter() {
+            ret.push((State::Del(node), p));
+        }
+        ret.sort_by_key(|(_, p)| *p);
+        ret.reverse();
+        ret
     }
 }
 

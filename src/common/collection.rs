@@ -125,6 +125,13 @@ impl<S: Seq> ReadCollection<S> {
     }
 }
 
+impl<S: Seq> std::ops::Index<usize> for ReadCollection<S> {
+    type Output = S;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.reads[index]
+    }
+}
+
 impl PositionedReads {
     ///
     /// Remove position information and convert to `Reads`.
