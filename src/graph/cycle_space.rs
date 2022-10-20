@@ -16,7 +16,7 @@ use petgraph::{Direction, EdgeType};
 // use petgraph::unionfind::UnionFind;
 
 #[derive(Clone)]
-struct CycleSpace {
+pub struct CycleSpace {
     ///
     /// a set of all cycle basis.
     ///
@@ -31,7 +31,7 @@ impl CycleSpace {
     ///
     /// constructor from a set of basis
     ///
-    fn new(basis: Vec<SimpleCycle>) -> Self {
+    pub fn new(basis: Vec<SimpleCycle>) -> Self {
         let graph = to_coef_adj_graph(&basis);
         let node_map = |x: &FixedBitSet, y: &FixedBitSet| {
             let mut z = x.clone();
