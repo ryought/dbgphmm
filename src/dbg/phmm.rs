@@ -1,11 +1,14 @@
 //!
 //! dbg as a seqgraph and phmm
 //!
-use super::dbg::{Dbg, DbgEdge, DbgNode};
+use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
 use crate::common::{CopyNum, Seq};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
+use crate::hmmv2::freq::PHMMOutput;
 use crate::hmmv2::params::PHMMParams;
+use crate::hmmv2::result::PHMMResultLike;
+use crate::hmmv2::sample::State;
 use crate::prob::Prob;
 use rayon::prelude::*;
 
@@ -54,6 +57,47 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
         -lambda * size_diff.powi(2)
     }
+}
+
+impl<N: DbgNodeBase, E> Dbg<N, E> {
+    ///
+    /// show mapping of a sequence of emissions in cli.
+    /// list the nodes which emits emissons[i] with high probability.
+    ///
+    pub fn show_mapping_summary<R: PHMMResultLike>(
+        &self,
+        emissions: &[u8],
+        output: &PHMMOutput<R>,
+    ) {
+        let k = self.k();
+        for (i, state_probs) in output.iter_emit_probs().skip(1).enumerate() {
+            println!("{}{}", spaces(k + 1), emissions.to_str());
+            println!("{}*{}", spaces(k + 1 + i), i);
+            for (state, p) in state_probs.to_states().into_iter().take(10) {
+                let ep = p.to_value();
+                let s_state = match state {
+                    State::Match(v) => format!("M {}", self.kmer(v)),
+                    State::Ins(v) => format!("I {}", self.kmer(v)),
+                    State::Del(v) => format!("D {}", self.kmer(v)),
+                    State::MatchBegin => format!("MB"),
+                    State::InsBegin => format!("IB"),
+                    State::End => format!("E"),
+                };
+                let s_p = format!("{}", ep);
+                println!("{}{} {}", spaces(i), s_state, s_p);
+            }
+        }
+    }
+}
+
+///
+/// get strings with repeated n-times space (' ').
+///
+fn spaces(n: usize) -> String {
+    // old rust
+    // std::iter::repeat(" ").take(n).collect::<String>()
+    // new rust 1.16
+    " ".repeat(n)
 }
 
 #[cfg(test)]

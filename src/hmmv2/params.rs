@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 /// * add Copy to PHMMParams
 ///
 #[pyclass]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 #[allow(non_snake_case)]
 pub struct PHMMParams {
     pub p_mismatch: Prob,
