@@ -168,10 +168,11 @@ fn run_upgrade() {
 }
 
 fn run_frag() {
-    let (genome, genome_size) = genome::simple_circular(100, 5);
+    // let (genome, genome_size) = genome::simple_circular(100, 5);
+    let (genome, genome_size) = genome::simple(100, 5);
     // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     eprintln!("{}", genome[0]);
-    let coverage = 10;
+    let coverage = 20;
     let param = PHMMParams::uniform(0.001);
     let dataset = generate_dataset(
         genome.clone(),
@@ -187,7 +188,7 @@ fn run_frag() {
     dataset.show_reads();
 
     let json = dataset.dbg_raw.to_cytoscape();
-    write_string("circular_raw.json", &json);
+    write_string("linear_raw.json", &json);
 
     // optimize
     let mut fdbg = FloatDbg::from_dbg(&dataset.dbg_raw);
@@ -197,11 +198,11 @@ fn run_frag() {
 
     let upgrade = false;
 
-    let phmm = dataset.dbg_raw.to_phmm(param);
-    let out = phmm.run(&dataset.reads[0]);
-    dataset
-        .dbg_raw
-        .show_mapping_summary(&dataset.reads[0], &out);
+    // let phmm = dataset.dbg_raw.to_phmm(param);
+    // let output = phmm.run(&dataset.reads[0]);
+    // dataset
+    //     .dbg_raw
+    //     .show_mapping_summary(&dataset.reads[0], &output);
 
     if upgrade {
         // upgrade
@@ -213,7 +214,7 @@ fn run_frag() {
             0.001,
             50,
             50,
-            0.1,
+            0.05,
             40,
             |((init, p_init), (opt, p_opt), (shrinked, p_shrinked))| {
                 init.benchmark(&genome, *p_init);
@@ -238,7 +239,7 @@ fn run_frag() {
         let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
         dbg_true.set_node_copy_nums(&copy_nums_true);
         let json = dbg_true.to_cytoscape_with_attrs_and_historys(&[], &[], &historys);
-        write_string("circular_em.json", &json);
+        write_string("linear_em.json", &json);
     }
 }
 
