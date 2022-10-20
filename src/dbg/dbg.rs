@@ -16,8 +16,8 @@ use crate::kmer::{KmerLike, NullableKmer};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-use petgraph::Direction;
+use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
+use petgraph::{Direction, EdgeType};
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
 pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
@@ -751,21 +751,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 // Edge-centric Dbg conversion
 //
 impl<N: DbgNodeBase, E> Dbg<N, E> {
-    /// Construct edge-centric dbg from node-centric dbg
     ///
-    /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
-    ///     by using a function `node`
-    ///     `node()` will be called with `km1mer: KmerLike`
-    /// - a node (k-mer) in Dbg -> an edge in EDbg
-    ///     by using a function `edge`
-    ///     `edge()` will be called with node index and its weight
+    /// Construct backend graph (petgraph::Graph) of edge-centric-version of de Bruijn graph. This
+    /// method can construct both directed/undirected graph.
     ///
-    pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
+    pub fn to_edbg_graph<Ty: EdgeType, EN, EE, FN, FE>(
+        &self,
+        to_node: FN,
+        to_edge: FE,
+    ) -> Graph<EN, EE, Ty, DefaultIx>
     where
         FN: Fn(&N::Kmer) -> EN,
         FE: Fn(NodeIndex, &N) -> EE,
     {
-        let mut graph = DiGraph::new();
+        let mut graph = Graph::default();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
         for (node, weight) in self.nodes() {
@@ -796,6 +795,24 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             // add an edge for this kmer
             graph.add_edge(v, w, to_edge(node, weight));
         }
+
+        graph
+    }
+    /// Construct edge-centric dbg from node-centric dbg
+    ///
+    /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
+    ///     by using a function `node`
+    ///     `node()` will be called with `km1mer: KmerLike`
+    /// - a node (k-mer) in Dbg -> an edge in EDbg
+    ///     by using a function `edge`
+    ///     `edge()` will be called with node index and its weight
+    ///
+    pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
+    where
+        FN: Fn(&N::Kmer) -> EN,
+        FE: Fn(NodeIndex, &N) -> EE,
+    {
+        let graph = self.to_edbg_graph(to_node, to_edge);
         EDbg::new(self.k(), graph)
     }
 }
