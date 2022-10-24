@@ -9,6 +9,7 @@ use dbgphmm::genome;
 use dbgphmm::io::write_string;
 use dbgphmm::prelude::*;
 use dbgphmm::vector::{DenseStorage, NodeVec};
+use rayon::prelude::*;
 
 fn run_small() {
     let dbg = mock_intersection_small();
@@ -130,12 +131,25 @@ fn run_mcmc() {
         8,
         40,
     );
-    let dbg_raw = dataset.dbg_raw;
+    let dbg_raw = dataset.dbg_raw.clone();
     let mut dbg_true = dbg_raw.clone();
     let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
-    println!("n={}", dbg_true.neighbor_copy_nums().len())
+    let mut neighbors = dbg_true.neighbor_copy_nums();
+    neighbors.push(copy_nums_true);
+    neighbors.par_iter().for_each(|copy_nums| {
+        let mut dbg = dbg_true.clone();
+        dbg.set_node_copy_nums(copy_nums);
+        let p = dbg.to_full_prob(param, &dataset.reads);
+        println!(
+            "{}\t{}\t{}\t{}",
+            dbg.genome_size(),
+            p.to_log_value(),
+            copy_nums,
+            dbg,
+        );
+    })
 }
 
 fn run_upgrade() {

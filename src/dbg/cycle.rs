@@ -88,7 +88,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let null_node = get_null_node(&edbg);
         let st = spanning_tree(&edbg, null_node);
         let basis = st.cycle_basis_list(&edbg);
-        println!("n_basis={}", basis.len());
         let space = CycleSpace::new(basis);
 
         let mut ret = Vec::new();
@@ -99,7 +98,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             // println!("simple_cycle={}", simple_cycle);
             match simple_cycle.to_cycle(&edbg) {
                 Some(cycle) => {
-                    println!("cycle={}", cycle);
                     // +1 along cycle
                     let increased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, false);
                     if increased.is_some() {

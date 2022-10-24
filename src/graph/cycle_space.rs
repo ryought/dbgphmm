@@ -80,7 +80,7 @@ impl Iterator for CycleSpace {
     fn next(&mut self) -> Option<SimpleCycle> {
         match self.iter.next() {
             Some(coef) => {
-                println!("[cyclespace] {:b}", coef);
+                // println!("[cyclespace] {:b}", coef);
                 Some(coef_to_cycle(&self.basis, coef))
             }
             None => None,
