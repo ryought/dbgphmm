@@ -94,7 +94,7 @@ impl SimpleCycle {
     /// * edge-simple (no edge is used multiple times)
     /// the traverse is easy.
     ///
-    pub fn to_cycle<N, E>(&self, graph: &UnGraph<N, E>) -> Cycle {
+    pub fn to_cycle<N, E>(&self, graph: &UnGraph<N, E>) -> Option<Cycle> {
         let mut path = Vec::new();
         let mut unvisited = self.clone();
 
@@ -114,7 +114,11 @@ impl SimpleCycle {
                 .map(|new_edge_ref| new_edge_ref.id())
                 .filter(|&new_edge| new_edge != edge && unvisited.bitset()[new_edge.index()])
                 .collect();
-            assert!(next_edges.len() < 2, "cycle contain a repeated node");
+
+            if next_edges.len() >= 2 {
+                // assert!(next_edges.len() < 2, "cycle contain a repeated node");
+                return None;
+            }
 
             // Prev iteration:
             //            edge         next_edges[0]
@@ -141,7 +145,7 @@ impl SimpleCycle {
             }
         }
 
-        Cycle::new(path)
+        Some(Cycle::new(path))
     }
     pub fn is_disjoint(&self, other: &SimpleCycle) -> bool {
         self.0.is_disjoint(&other.0)
@@ -249,7 +253,7 @@ fn cmp<X: PartialOrd + Copy>(xs: &[X], i: usize, j: usize) -> Ordering {
 ///
 /// is_rev=false the first edge will be +1.
 ///
-fn apply_cycle<N, E>(
+pub fn apply_cycle<N, E>(
     graph: &DiGraph<N, E>,
     copy_nums: &EdgeCopyNums,
     cycle: &Cycle,
@@ -363,15 +367,15 @@ mod tests {
         println!("{:?}", c2.is_disjoint(&c3));
         println!("{}", c1.symmetric_difference(&c2));
 
-        let c1a = c1.to_cycle(&g);
+        let c1a = c1.to_cycle(&g).unwrap();
         println!("{}", c1a);
         assert_eq!(c1a, Cycle::from(&[0, 2, 1]));
 
-        let c2a = c2.to_cycle(&g);
+        let c2a = c2.to_cycle(&g).unwrap();
         println!("{}", c2a);
         assert_eq!(c2a, Cycle::from(&[2, 4, 3]));
 
-        let c3a = c3.to_cycle(&g);
+        let c3a = c3.to_cycle(&g).unwrap();
         println!("{}", c3a);
         assert_eq!(c3a, Cycle::from(&[3, 5]));
     }

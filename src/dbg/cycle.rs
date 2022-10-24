@@ -1,12 +1,14 @@
 //!
 //! copy number enumeration with cycle basis
 //!
-use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, NodeCopyNums};
+use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::EDbgNode;
+use crate::graph::cycle::{apply_cycle, Cycle, SimpleCycle};
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::kmer::kmer::{Kmer, KmerLike};
+use petgraph::dot::Dot;
 use petgraph::graph::{NodeIndex, UnGraph};
 
 pub type UndirectedEdbg<K> = UnGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>;
@@ -30,12 +32,14 @@ fn get_null_node<K: KmerLike>(edbg: &UndirectedEdbg<K>) -> NodeIndex {
 pub struct CopyNumsIterator<K: KmerLike> {
     edbg: UndirectedEdbg<K>,
     space: CycleSpace,
+    // queue: Vec<NodeCopyNums>,
 }
 impl<K: KmerLike> Iterator for CopyNumsIterator<K> {
     type Item = NodeCopyNums;
     fn next(&mut self) -> Option<Self::Item> {
-        // update copy_nums using each cycle (for both +1/-1 directions) if resulting copy_nums
-        // vector is valid.
+        // (1) pop a candidate update cycle from cycle space
+        // (2) update copy_nums using each cycle (for both +1/-1 directions)
+        // if resulting copy_nums vector is valid.
         unimplemented!();
     }
 }
@@ -73,6 +77,53 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let space = CycleSpace::new(basis);
         CopyNumsIterator { edbg, space }
     }
+    ///
+    /// List up all neighboring copy numbers
+    /// **Heavy function**
+    ///
+    pub fn neighbor_copy_nums(&self) -> Vec<NodeCopyNums> {
+        // (1) create undirected edge-centric-dbg.
+        let edbg = self.to_undirected_edbg_graph();
+        // (2) enumerate cycles in the undirected graph using CycleSpace iterator.
+        let null_node = get_null_node(&edbg);
+        let st = spanning_tree(&edbg, null_node);
+        let basis = st.cycle_basis_list(&edbg);
+        let space = CycleSpace::new(basis);
+
+        let mut ret = Vec::new();
+        let edbg_directed = self.to_edbg();
+        let copy_nums = self.to_node_copy_nums().switch_index();
+        println!("{}", Dot::with_config(&edbg_directed.graph, &[]));
+        for simple_cycle in space {
+            println!("simple_cycle={}", simple_cycle);
+            match simple_cycle.to_cycle(&edbg) {
+                Some(cycle) => {
+                    println!("cycle={}", cycle);
+                    // +1 along cycle
+                    let increased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, false);
+                    if increased.is_some() {
+                        let c = increased.unwrap().switch_index();
+                        println!("c+={}", c);
+                        ret.push(c);
+                    } else {
+                        println!("c+=no");
+                    }
+                    // -1 along cycle
+                    let decreased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, true);
+                    if decreased.is_some() {
+                        let c = decreased.unwrap().switch_index();
+                        println!("c-={}", c);
+                        ret.push(c);
+                    } else {
+                        println!("c-=no");
+                    }
+                }
+                None => {}
+            };
+        }
+
+        ret
+    }
 }
 
 //
@@ -99,6 +150,14 @@ mod tests {
         let basis = st.cycle_basis_list(&ug);
         for (i, b) in basis.iter().enumerate() {
             println!("#{} {}", i, b);
+        }
+    }
+    #[test]
+    fn neighbor_test() {
+        let dbg = mock_intersection_small();
+        println!("c0={}", dbg.to_node_copy_nums());
+        for copy_num in dbg.neighbor_copy_nums() {
+            println!("c={}", copy_num);
         }
     }
 }
