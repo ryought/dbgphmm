@@ -114,6 +114,30 @@ fn run_simple() {
     }
 }
 
+fn run_mcmc() {
+    // let (genome, genome_size) = genome::simple(100, 5);
+    let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    let coverage = 10;
+    let param = PHMMParams::uniform(0.001);
+    let dataset = generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,
+        param.clone(),
+        coverage,
+        2000,
+        ReadType::FullLength,
+        8,
+        40,
+    );
+    let dbg_raw = dataset.dbg_raw;
+    let mut dbg_true = dbg_raw.clone();
+    let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+    dbg_true.set_node_copy_nums(&copy_nums_true);
+
+    println!("n={}", dbg_true.neighbor_copy_nums().len())
+}
+
 fn run_upgrade() {
     // let (genome, genome_size) = genome::simple(100, 5);
     let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
@@ -244,7 +268,8 @@ fn run_frag() {
 }
 
 fn main() {
-    run_frag();
+    run_mcmc();
+    // run_frag();
     // run_upgrade();
     // run_simple();
 }

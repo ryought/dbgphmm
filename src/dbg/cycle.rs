@@ -88,14 +88,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let null_node = get_null_node(&edbg);
         let st = spanning_tree(&edbg, null_node);
         let basis = st.cycle_basis_list(&edbg);
+        println!("n_basis={}", basis.len());
         let space = CycleSpace::new(basis);
 
         let mut ret = Vec::new();
         let edbg_directed = self.to_edbg();
         let copy_nums = self.to_node_copy_nums().switch_index();
-        println!("{}", Dot::with_config(&edbg_directed.graph, &[]));
+        // println!("{}", Dot::with_config(&edbg_directed.graph, &[]));
         for simple_cycle in space {
-            println!("simple_cycle={}", simple_cycle);
+            // println!("simple_cycle={}", simple_cycle);
             match simple_cycle.to_cycle(&edbg) {
                 Some(cycle) => {
                     println!("cycle={}", cycle);
@@ -103,19 +104,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     let increased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, false);
                     if increased.is_some() {
                         let c = increased.unwrap().switch_index();
-                        println!("c+={}", c);
+                        // println!("c+={}", c);
                         ret.push(c);
                     } else {
-                        println!("c+=no");
+                        // println!("c+=no");
                     }
                     // -1 along cycle
                     let decreased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, true);
                     if decreased.is_some() {
                         let c = decreased.unwrap().switch_index();
-                        println!("c-={}", c);
+                        // println!("c-={}", c);
                         ret.push(c);
                     } else {
-                        println!("c-=no");
+                        // println!("c-=no");
                     }
                 }
                 None => {}
