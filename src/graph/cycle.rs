@@ -1,6 +1,7 @@
 //!
 //! Cycle in graph
 //!
+use crate::dbg::dbg::{EdgeCopyNums, NodeCopyNums};
 use fixedbitset::FixedBitSet;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
@@ -243,6 +244,73 @@ fn cmp<X: PartialOrd + Copy>(xs: &[X], i: usize, j: usize) -> Ordering {
     Ordering::Equal
 }
 
+///
+/// modify EdgeCopyNums along the cycle in +1 (if is_rev=false) or -1 (if is_rev=true)
+///
+/// is_rev=false the first edge will be +1.
+///
+fn apply_cycle<N, E>(
+    graph: &DiGraph<N, E>,
+    copy_nums: &EdgeCopyNums,
+    cycle: &Cycle,
+    is_rev: bool,
+) -> Option<EdgeCopyNums> {
+    let mut ret = copy_nums.clone();
+
+    let mut prev_edge = None;
+    let mut dir_is_rev = is_rev;
+
+    for &edge in cycle.edges() {
+        // the edge is opposite, flip the direction
+        if prev_edge.is_some() && !is_same_dir(graph, prev_edge.unwrap(), edge) {
+            dir_is_rev = !dir_is_rev;
+        }
+        if dir_is_rev {
+            if ret[edge] == 0 {
+                return None;
+            }
+            ret[edge] -= 1;
+        } else {
+            if ret[edge] == usize::MAX {
+                return None;
+            }
+            ret[edge] += 1;
+        }
+        prev_edge = Some(edge);
+    }
+
+    Some(ret)
+}
+
+/// adjacent two edges are same direction or not?
+///
+/// true  if --->---> or <---<---
+/// false if ---><--- or <------>
+///
+fn is_same_dir<N, E>(graph: &DiGraph<N, E>, e_a: EdgeIndex, e_b: EdgeIndex) -> bool {
+    let (v_a, w_a) = graph.edge_endpoints(e_a).unwrap();
+    let (v_b, w_b) = graph.edge_endpoints(e_b).unwrap();
+
+    // self-loop check
+    if v_a == w_a || v_b == w_b {
+        panic!("direction of self-loop will be ambiguous");
+    }
+
+    if w_a == v_b || v_a == w_b {
+        // --->--->
+        // or
+        // <---<---
+        true
+    } else if w_a == w_b || v_a == v_b {
+        // ---><---
+        // or
+        // <------>
+        false
+    } else {
+        panic!("four endpoints are not connected");
+    }
+}
+
 //
 // tests
 //
@@ -323,5 +391,29 @@ mod tests {
     fn other_endpoint_test_panic() {
         let g: UnGraph<(), ()> = UnGraph::from_edges(&[(0, 1), (0, 2), (1, 2), (3, 3)]);
         other_endpoint(&g, ei(0), ni(3));
+    }
+
+    #[test]
+    fn apply_cycle_test() {
+        //
+        // 0 -> 1 -> 2 -> 3
+        //  \           /
+        //   -> 4 -> 5 >
+        //
+        let g: DiGraph<(), ()> =
+            DiGraph::from_edges(&[(0, 1), (1, 2), (2, 3), (0, 4), (4, 5), (5, 3)]);
+        let n = EdgeCopyNums::from_slice(&[1, 1, 1, 1, 1, 1], 0);
+        let c = Cycle::from(&[0, 1, 2, 5, 4, 3]);
+        println!("n={}", n);
+        let n1 = apply_cycle(&g, &n, &c, false).unwrap();
+        println!("n1={}", n1);
+        assert_eq!(n1.to_vec(), vec![2, 2, 2, 0, 0, 0]);
+        let n2 = apply_cycle(&g, &n, &c, true).unwrap();
+        println!("n2={}", n2);
+        assert_eq!(n2.to_vec(), vec![0, 0, 0, 2, 2, 2]);
+        let n3 = apply_cycle(&g, &n2, &c, false).unwrap();
+        assert_eq!(n3.to_vec(), vec![1, 1, 1, 1, 1, 1]);
+        let n4 = apply_cycle(&g, &n2, &c, true);
+        assert!(n4.is_none());
     }
 }
