@@ -2,7 +2,9 @@
 //! Cycle in graph
 //!
 use fixedbitset::FixedBitSet;
+use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
+use petgraph::visit::EdgeRef;
 use std::cmp::Ordering;
 
 ///
@@ -10,13 +12,20 @@ use std::cmp::Ordering;
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cycle(Vec<EdgeIndex>);
+//
+// Cycle
+//
+impl std::fmt::Display for Cycle {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0.iter().map(|e| e.index()).join(","))
+    }
+}
 
 ///
 /// simple cycle (without edge repetition)
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimpleCycle(FixedBitSet);
-
 //
 // TODO
 // should use to_cycle and show as edge list.
@@ -65,11 +74,73 @@ impl SimpleCycle {
     pub fn bitset(&self) -> &FixedBitSet {
         &self.0
     }
+    /// length of the bitset.
+    /// Should correspond to the number of edges in the graph.
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn to_cycle<N, E>(graph: &UnGraph<N, E>) -> Cycle {
-        unimplemented!();
+    /// Get the first non-zero element in bitset.
+    fn first_element(&self) -> Option<usize> {
+        self.bitset().ones().next()
+    }
+    fn set(&mut self, index: usize, enabled: bool) {
+        self.0.set(index, enabled);
+    }
+    ///
+    /// Convert simple cycle into cycle (= list of edges)
+    /// Assuming the SimpleCycle is
+    /// * irreducible (the cycle is not a union of two disjoint cycle)
+    /// * edge-simple (no edge is used multiple times)
+    /// the traverse is easy.
+    ///
+    pub fn to_cycle<N, E>(&self, graph: &UnGraph<N, E>) -> Cycle {
+        let mut path = Vec::new();
+        let mut unvisited = self.clone();
+
+        //            edge
+        // init_node ------> node ...
+        let mut edge = EdgeIndex::new(unvisited.first_element().expect("cycle is empty"));
+        // update path and unvisited
+        path.push(edge);
+        unvisited.set(edge.index(), false);
+        let (init_node, mut node) = graph.edge_endpoints(edge).unwrap();
+
+        // pick a child of node that is in SimpleCycle
+        // assert that only one child satisfies the condition.
+        loop {
+            let next_edges: Vec<_> = graph
+                .edges(node)
+                .map(|new_edge_ref| new_edge_ref.id())
+                .filter(|&new_edge| new_edge != edge && unvisited.bitset()[new_edge.index()])
+                .collect();
+            assert!(next_edges.len() < 2, "cycle contain a repeated node");
+
+            // Prev iteration:
+            //            edge         next_edges[0]
+            // init_node ------> node --------------->
+            //
+            // Next iteration:
+            //                             edge
+            //                        ---------------> node
+            if next_edges.len() == 1 {
+                // len=1
+                // move to next
+                edge = next_edges[0];
+                // update path and unvisited
+                path.push(edge);
+                unvisited.set(edge.index(), false);
+                node = other_endpoint(graph, edge, node).expect("");
+            } else {
+                // len=0
+                // returned to the original node
+                if node != init_node {
+                    panic!("could not get back to the original node");
+                }
+                break;
+            }
+        }
+
+        Cycle::new(path)
     }
     pub fn is_disjoint(&self, other: &SimpleCycle) -> bool {
         self.0.is_disjoint(&other.0)
@@ -78,6 +149,24 @@ impl SimpleCycle {
         let mut x = self.0.clone();
         x.symmetric_difference_with(&other.0);
         SimpleCycle::new(x)
+    }
+}
+
+fn other_endpoint<N, E>(
+    graph: &UnGraph<N, E>,
+    edge: EdgeIndex,
+    node: NodeIndex,
+) -> Option<NodeIndex> {
+    let (v, w) = graph.edge_endpoints(edge).unwrap();
+    // if other
+    if v == node && w != node {
+        Some(w)
+    } else if v != node && w == node {
+        Some(v)
+    } else if v == node && w == node {
+        None
+    } else {
+        panic!("Neither endpoint node is not the specified node")
     }
 }
 
@@ -161,6 +250,7 @@ fn cmp<X: PartialOrd + Copy>(xs: &[X], i: usize, j: usize) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::{ei, ni};
 
     #[test]
     fn cycle_compare() {
@@ -204,5 +294,34 @@ mod tests {
         println!("{:?}", c1.is_disjoint(&c3));
         println!("{:?}", c2.is_disjoint(&c3));
         println!("{}", c1.symmetric_difference(&c2));
+
+        let c1a = c1.to_cycle(&g);
+        println!("{}", c1a);
+        assert_eq!(c1a, Cycle::from(&[0, 2, 1]));
+
+        let c2a = c2.to_cycle(&g);
+        println!("{}", c2a);
+        assert_eq!(c2a, Cycle::from(&[2, 4, 3]));
+
+        let c3a = c3.to_cycle(&g);
+        println!("{}", c3a);
+        assert_eq!(c3a, Cycle::from(&[3, 5]));
+    }
+
+    #[test]
+    fn other_endpoint_test() {
+        let g: UnGraph<(), ()> = UnGraph::from_edges(&[(0, 1), (0, 2), (1, 2), (3, 3)]);
+        assert_eq!(other_endpoint(&g, ei(0), ni(0)), Some(ni(1)));
+        assert_eq!(other_endpoint(&g, ei(0), ni(1)), Some(ni(0)));
+        assert_eq!(other_endpoint(&g, ei(1), ni(0)), Some(ni(2)));
+        assert_eq!(other_endpoint(&g, ei(1), ni(2)), Some(ni(0)));
+        assert_eq!(other_endpoint(&g, ei(1), ni(2)), Some(ni(0)));
+        assert_eq!(other_endpoint(&g, ei(3), ni(3)), None);
+    }
+    #[test]
+    #[should_panic]
+    fn other_endpoint_test_panic() {
+        let g: UnGraph<(), ()> = UnGraph::from_edges(&[(0, 1), (0, 2), (1, 2), (3, 3)]);
+        other_endpoint(&g, ei(0), ni(3));
     }
 }
