@@ -21,7 +21,8 @@ fn run_mcmc() {
         40,
     );
     let dbg_raw = dataset.dbg_raw.clone();
-    let mut dbg_true = dbg_raw.clone();
+    let mut dbg_true = dbg_raw.clone().shrink_single_copy_node();
+    dbg_true.remove_zero_copy_node();
     let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
@@ -30,9 +31,9 @@ fn run_mcmc() {
     println!("# n_kmers_with_null={}", dbg_true.n_kmers_with_null());
     println!("# n_dead_nodes={}", dbg_true.n_dead_nodes());
     println!("# n_nodes={}", dbg_true.n_nodes());
+
     let mut neighbors = dbg_true.neighbor_copy_nums();
     println!("# n_neighbors={}", neighbors.len());
-
     neighbors.push(copy_nums_true.clone());
     let neighbors: Vec<_> = neighbors
         .into_par_iter()

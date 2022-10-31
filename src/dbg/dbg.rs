@@ -13,6 +13,8 @@ use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
+use crate::min_flow::flow::{Flow, FlowEdgeBase};
+use crate::min_flow::min_cost_flow_from;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
@@ -970,6 +972,36 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn remove_zero_copy_node(&mut self) {
         self.graph
             .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
+    }
+    ///
+    /// shrink single copy nodes
+    ///
+    pub fn shrink_single_copy_node(&self) -> Self {
+        let edbg = self.to_edbg_generic(
+            // to_node:
+            |_| (),
+            // to_edge:
+            |node, weight| {
+                let copy_num = weight.copy_num();
+                if copy_num <= 1 {
+                    // redundant k-mer
+                    FlowEdgeBase::new(0, copy_num, 1.0)
+                } else {
+                    // necessary
+                    FlowEdgeBase::new(copy_num, 10000, 0.0)
+                }
+            },
+        );
+        // solve as min_flow
+        let current_flow: Flow<usize> = self.to_node_copy_nums().switch_index();
+        let flow = min_cost_flow_from(&edbg.graph, &current_flow);
+
+        // TODO
+        // inspect_flow_constraint(&flow, &edbg.graph);
+
+        let mut ret = self.clone();
+        ret.set_node_copy_nums(&flow.switch_index());
+        ret
     }
 }
 
