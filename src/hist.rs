@@ -1,6 +1,7 @@
 //!
 //! Histogram counter
 //!
+use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 
@@ -28,6 +29,31 @@ pub fn stat(xs: &[f64]) -> (f64, f64, f64, f64) {
 
         (ave, sd, min, max)
     }
+}
+
+///
+/// convert a list of occurrences (x, p(x)) into {x: p(x)}
+///
+pub fn get_normalized_probs(probs: &[(usize, Prob)]) -> Vec<(usize, Prob)> {
+    let mut h = HashMap::default();
+    for &(x, px) in probs {
+        match h.get(&x) {
+            Some(&p0x) => {
+                h.insert(x, p0x + px);
+            }
+            None => {
+                h.insert(x, px);
+            }
+        }
+    }
+    // total probability
+    // let z: Prob = h.values().sum();
+    // let mut pxs: Vec<_> = h.into_iter().map(|(x, px)| (x, px / z)).collect();
+    // pxs.sort();
+    // pxs
+
+    // not normalized
+    h.into_iter().collect()
 }
 
 ///
@@ -118,6 +144,7 @@ impl std::fmt::Display for Hist {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prob::p;
     #[test]
     fn hist_test() {
         let mut h = Hist::new();
@@ -159,5 +186,17 @@ mod tests {
         assert_eq!(min, 0.0);
         assert_eq!(max, 10.0);
         println!("{} {} {} {}", ave, sd, min, max);
+    }
+    #[test]
+    fn hist_get_normalized() {
+        let pxs = get_normalized_probs(&[(0, p(0.5)), (0, p(0.2)), (1, p(0.2)), (0, p(0.1))]);
+        assert_abs_diff_eq!(pxs[0].1, p(0.8));
+        assert_abs_diff_eq!(pxs[0].0, 0);
+        assert_abs_diff_eq!(pxs[1].1, p(0.2));
+        assert_abs_diff_eq!(pxs[1].0, 1);
+
+        let pxs = get_normalized_probs(&[(0, p(0.5)), (0, p(0.2))]);
+        assert_abs_diff_eq!(pxs[0].1, p(1.0));
+        assert_abs_diff_eq!(pxs[0].0, 0);
     }
 }

@@ -5,9 +5,9 @@ use rayon::prelude::*;
 
 fn run_mcmc() {
     // let (genome, genome_size) = genome::simple(100, 5);
-    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.03, 0, 0);
+    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
     // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
-    let coverage = 20;
+    let coverage = 10;
     let param = PHMMParams::uniform(0.003);
     let dataset = generate_dataset(
         genome.clone(),
@@ -17,7 +17,7 @@ fn run_mcmc() {
         coverage,
         2000,
         ReadType::FullLength,
-        8,
+        16,
         40,
     );
     let dbg_raw = dataset.dbg_raw.clone();

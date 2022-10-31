@@ -7,9 +7,10 @@ use super::edge_centric::EDbgNode;
 use crate::graph::cycle::{apply_cycle, Cycle, SimpleCycle};
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
-use crate::hist::Hist;
+use crate::hist::{get_normalized_probs, Hist};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::prob::Prob;
+use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{NodeIndex, UnGraph};
 
@@ -137,12 +138,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         for (node, weight) in self.nodes() {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
+
+            let copy_nums_with_prob: Vec<_> =
+                neighbors.iter().map(|(cn, p)| (cn[node], *p)).collect();
+            let normalized = get_normalized_probs(&copy_nums_with_prob);
+            let txt_normalized = normalized
+                .iter()
+                .map(|(x, p)| format!("p(x={})={}", x, p.to_value()))
+                .join(",");
             println!(
-                "K\t{}\t{}\t{}\t{}\t{:?}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
                 weight.kmer(),
                 node.index(),
                 weight.copy_num(),
                 hist,
+                txt_normalized,
                 copy_nums,
             );
         }
