@@ -7,6 +7,27 @@ use itertools::{chain, izip, Itertools};
 
 impl<S, Ix> Vector<S, Ix>
 where
+    S: Storage<Item = usize>,
+    Ix: Indexable,
+{
+    ///
+    /// sum of difference of two arrays
+    ///
+    pub fn dist<T>(&self, other: &Vector<T, Ix>) -> usize
+    where
+        T: Storage<Item = usize>,
+    {
+        assert_eq!(self.len(), other.len());
+        let mut ret = 0;
+        for i in 0..self.len() {
+            ret += self[Ix::new(i)].abs_diff(other[Ix::new(i)]);
+        }
+        ret
+    }
+}
+
+impl<S, Ix> Vector<S, Ix>
+where
     S: Storage<Item = f64>,
     Ix: Indexable,
 {
@@ -220,5 +241,16 @@ mod tests {
         let mut w: Vector<SparseStorage<Prob>, usize> =
             Vector::from_slice(&[p(0.3), p(0.022), p(1.0), p(0.2), p(0.0), p(0.12)], p(0.0));
         assert!(!v.is_same_ranking(&w, p(0.2)));
+    }
+    #[test]
+    fn vector_dist() {
+        let v: Vector<SparseStorage<usize>, usize> = Vector::from_slice(&[0, 1, 2, 3, 4], 0);
+        let w1: Vector<SparseStorage<usize>, usize> = Vector::from_slice(&[0, 1, 2, 3, 4], 0);
+        println!("{}", v.dist(&w1));
+        assert_eq!(v.dist(&w1), 0);
+
+        let w2: Vector<SparseStorage<usize>, usize> = Vector::from_slice(&[0, 1, 2, 2, 6], 0);
+        println!("{}", v.dist(&w2));
+        assert_eq!(v.dist(&w2), 3);
     }
 }

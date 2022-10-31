@@ -50,6 +50,16 @@ impl Hist {
         Hist(HashMap::default())
     }
     ///
+    /// create histogram from occurance table
+    ///
+    pub fn from(values: &[usize]) -> Self {
+        let mut h = Hist::new();
+        for &value in values {
+            h.add(value);
+        }
+        h
+    }
+    ///
     /// Increment a count of the value
     ///
     pub fn add(&mut self, value: usize) {
@@ -127,6 +137,12 @@ mod tests {
         assert_eq!(c, vec![(2, 2), (3, 1), (10, 3)]);
         println!("{}", h);
         assert_eq!(h.to_string(), "2:2,3:1,10:3");
+    }
+    #[test]
+    fn hist_test_from() {
+        let h = Hist::from(&[9, 8, 2, 2, 8, 5]);
+        println!("{}", h);
+        assert_eq!(h.to_string(), "2:2,5:1,8:2,9:1");
     }
     #[test]
     fn stat_ave_sd() {

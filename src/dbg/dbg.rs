@@ -379,6 +379,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let (_, n_choices) = self.to_styled_seqs_with_n_choices();
         n_choices
     }
+    ///
+    /// count kmers which is has_null=true.
+    ///
+    pub fn n_kmers_with_null(&self) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.kmer().has_null())
+            .count()
+    }
+    ///
+    /// get the number of dead (= x0) nodes.
+    ///
+    pub fn n_dead_nodes(&self) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.copy_num() == 0)
+            .count()
+    }
 }
 
 ///

@@ -7,7 +7,9 @@ use super::edge_centric::EDbgNode;
 use crate::graph::cycle::{apply_cycle, Cycle, SimpleCycle};
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
+use crate::hist::Hist;
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::{NodeIndex, UnGraph};
 
@@ -122,6 +124,29 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
 
         ret
+    }
+    ///
+    /// check the variance of copy_num of each kmer
+    ///
+    pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
+        let print_header = || {
+            println!("# kmer\tnode_id\tcurrent_copy_num\tcopy_nums");
+        };
+
+        print_header();
+        for (node, weight) in self.nodes() {
+            let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
+            let hist = Hist::from(&copy_nums);
+            println!(
+                "K\t{}\t{}\t{}\t{}\t{:?}",
+                weight.kmer(),
+                node.index(),
+                weight.copy_num(),
+                hist,
+                copy_nums,
+            );
+        }
+        print_header();
     }
 }
 
