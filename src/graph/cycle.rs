@@ -23,6 +23,36 @@ impl std::fmt::Display for Cycle {
 }
 
 ///
+/// cycle with direction info (as a list of (edge, direction))
+///
+#[derive(Debug, Clone, PartialEq)]
+pub struct CycleWithDir(Vec<(EdgeIndex, bool)>);
+impl CycleWithDir {
+    pub fn new(edges: Vec<(EdgeIndex, bool)>) -> Self {
+        Self(edges)
+    }
+    pub fn edges(&self) -> &[(EdgeIndex, bool)] {
+        &self.0
+    }
+    /// reverse all directions in the cycle
+    pub fn reverse_dir(self) -> Self {
+        Self(self.0.into_iter().map(|(e, is_rev)| (e, !is_rev)).collect())
+    }
+}
+impl std::fmt::Display for CycleWithDir {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|(e, dir)| format!("{}{}", e.index(), if *dir { "+" } else { "-" }))
+                .join(",")
+        )
+    }
+}
+
+///
 /// simple cycle (without edge repetition)
 ///
 #[derive(Debug, Clone, PartialEq)]
@@ -248,27 +278,12 @@ fn cmp<X: PartialOrd + Copy>(xs: &[X], i: usize, j: usize) -> Ordering {
     Ordering::Equal
 }
 
-///
-/// modify EdgeCopyNums along the cycle in +1 (if is_rev=false) or -1 (if is_rev=true)
-///
-/// is_rev=false the first edge will be +1.
-///
-pub fn apply_cycle<N, E>(
-    graph: &DiGraph<N, E>,
+pub fn apply_cycle_with_dir(
     copy_nums: &EdgeCopyNums,
-    cycle: &Cycle,
-    is_rev: bool,
+    cycle: &CycleWithDir,
 ) -> Option<EdgeCopyNums> {
     let mut ret = copy_nums.clone();
-
-    let mut prev_edge = None;
-    let mut dir_is_rev = is_rev;
-
-    for &edge in cycle.edges() {
-        // the edge is opposite, flip the direction
-        if prev_edge.is_some() && !is_same_dir(graph, prev_edge.unwrap(), edge) {
-            dir_is_rev = !dir_is_rev;
-        }
+    for &(edge, dir_is_rev) in cycle.edges() {
         if dir_is_rev {
             if ret[edge] == 0 {
                 return None;
@@ -280,10 +295,44 @@ pub fn apply_cycle<N, E>(
             }
             ret[edge] += 1;
         }
+    }
+    Some(ret)
+}
+
+pub fn to_cycle_with_dir<N, E>(graph: &DiGraph<N, E>, cycle: &Cycle) -> CycleWithDir {
+    let mut prev_edge = None;
+    let mut dir_is_rev = false; // direction of the first edge is always forward.
+    let mut ret = Vec::new();
+
+    for &edge in cycle.edges() {
+        // the edge is opposite, flip the direction
+        if prev_edge.is_some() && !is_same_dir(graph, prev_edge.unwrap(), edge) {
+            dir_is_rev = !dir_is_rev;
+        }
+        ret.push((edge, dir_is_rev));
         prev_edge = Some(edge);
     }
 
-    Some(ret)
+    CycleWithDir::new(ret)
+}
+
+///
+/// modify EdgeCopyNums along the cycle in +1 (if is_rev=false) or -1 (if is_rev=true)
+///
+/// is_rev=false the first edge will be +1.
+///
+pub fn apply_cycle<N, E>(
+    graph: &DiGraph<N, E>,
+    copy_nums: &EdgeCopyNums,
+    cycle: &Cycle,
+    is_rev: bool,
+) -> Option<EdgeCopyNums> {
+    let cycle_with_dir = to_cycle_with_dir(graph, cycle);
+    if is_rev {
+        apply_cycle_with_dir(copy_nums, &cycle_with_dir.reverse_dir())
+    } else {
+        apply_cycle_with_dir(copy_nums, &cycle_with_dir)
+    }
 }
 
 /// adjacent two edges are same direction or not?

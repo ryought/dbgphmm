@@ -144,7 +144,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let normalized = get_normalized_probs(&copy_nums_with_prob);
             let txt_normalized = normalized
                 .iter()
-                .map(|(x, p)| format!("p(x={})={}", x, p.to_value()))
+                .map(|(x, p)| format!("p(x={})={}", x, p.to_log_value()))
                 .join(",");
             println!(
                 "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
@@ -186,12 +186,39 @@ mod tests {
             println!("#{} {}", i, b);
         }
     }
+    ///
+    /// abbr of `NodeCopyNums::from_slice(xs, 0)` used in the test `neighbor_copy_nums_test`
+    ///
+    fn to_nc(xs: &[usize]) -> NodeCopyNums {
+        NodeCopyNums::from_slice(xs, 0)
+    }
     #[test]
-    fn neighbor_test() {
+    fn neighbor_copy_nums_test() {
         let dbg = mock_intersection_small();
         println!("c0={}", dbg.to_node_copy_nums());
-        for copy_num in dbg.neighbor_copy_nums() {
+        let copy_nums = dbg.neighbor_copy_nums();
+
+        // debug
+        for copy_num in copy_nums.iter() {
             println!("c={}", copy_num);
         }
+
+        assert_eq!(
+            copy_nums,
+            vec![
+                to_nc(&[1, 2, 1, 1, 1, 0, 0, 0, 2, 1, 1, 1, 2, 1, 2, 1, 0, 1]),
+                to_nc(&[1, 0, 1, 1, 1, 2, 2, 2, 0, 1, 1, 1, 0, 1, 0, 1, 2, 1]),
+                to_nc(&[1, 2, 2, 2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 2, 2, 1, 1]),
+                to_nc(&[1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1]),
+                to_nc(&[2, 2, 1, 1, 2, 1, 1, 1, 2, 2, 1, 1, 2, 2, 2, 1, 1, 2]),
+                to_nc(&[0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0]),
+                to_nc(&[1, 1, 2, 2, 1, 2, 2, 2, 1, 1, 2, 2, 1, 1, 1, 2, 2, 1]),
+                to_nc(&[1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1]),
+                to_nc(&[2, 1, 1, 1, 2, 2, 2, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 2]),
+                to_nc(&[0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0]),
+                to_nc(&[2, 1, 0, 0, 2, 1, 1, 1, 1, 2, 0, 0, 1, 2, 1, 0, 1, 2]),
+                to_nc(&[0, 1, 2, 2, 0, 1, 1, 1, 1, 0, 2, 2, 1, 0, 1, 2, 1, 0]),
+            ]
+        );
     }
 }
