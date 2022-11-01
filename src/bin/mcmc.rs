@@ -7,7 +7,7 @@ fn run_mcmc() {
     // let (genome, genome_size) = genome::simple(100, 5);
     let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
     // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
-    let coverage = 10;
+    let coverage = 20;
     let param = PHMMParams::uniform(0.003);
     let dataset = generate_dataset(
         genome.clone(),
@@ -35,19 +35,27 @@ fn run_mcmc() {
     let mut neighbors = dbg_true.neighbor_copy_nums();
     println!("# n_neighbors={}", neighbors.len());
     neighbors.push(copy_nums_true.clone());
+
+    println!("#N genome_size\tcopy_nums_diff\tp\tkmer-state\tdbg\tcopy_nums");
+
     let neighbors: Vec<_> = neighbors
         .into_par_iter()
         .map(|copy_nums| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
             let p = dbg.to_full_prob(param, &dataset.reads);
+            let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t{}\t{}",
+                "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}",
                 dbg.genome_size(),
                 copy_nums.dist(&copy_nums_true),
                 p.to_log_value(),
-                copy_nums,
+                n_missing,
+                n_missing_null,
+                n_error,
+                n_error_null,
                 dbg,
+                copy_nums,
             );
             (copy_nums, p)
         })

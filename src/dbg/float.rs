@@ -9,6 +9,7 @@ use crate::hist::stat;
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::q::QScore;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
+use crate::kmer::common::kmers_to_string;
 use crate::min_flow::FlowRateLike;
 use crate::prelude::*;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
@@ -445,10 +446,6 @@ impl<K: KmerLike> Dbg<FloatDbgNode<K>, FloatDbgEdge> {
 
         (n_missing, n_error)
     }
-}
-
-fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
-    format!("{}", kmers.iter().format(","))
 }
 
 //

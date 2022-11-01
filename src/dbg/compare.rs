@@ -2,10 +2,11 @@
 //! Comparison methods of two de Bruijn graphs.
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::common::{CopyNum, Seq, SeqStyle, Sequence};
+use crate::common::{CopyNum, Genome, Seq, SeqStyle, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::e2e::Dataset;
 use crate::hist::Hist;
+use crate::kmer::common::kmers_to_string;
 use crate::kmer::common::linear_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::prob::Prob;
@@ -502,6 +503,54 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             prior: self.to_prior_score(lambda, dataset.genome_size),
             kmer_classification: self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw),
         }
+    }
+    ///
+    /// inspect kmer existence
+    ///
+    /// * Missing kmers: exists in genome but not exists in Dbg
+    /// * Error kmers: not exists in genome but exists in Dbg
+    ///
+    pub fn inspect_kmers(&self, genome: &Genome) -> ((usize, usize), (usize, usize)) {
+        // density map of this FloatDbg
+        let copy_nums = self.to_kmer_profile();
+        // calculate true copy_nums with Genome
+        let hd: HashDbg<N::Kmer> = HashDbg::from_styled_seqs(self.k(), genome);
+        let copy_nums_true = hd.to_kmer_profile();
+
+        // missing
+        let missings: Vec<_> = copy_nums_true
+            .iter()
+            .filter(|(kmer, &copy_num_true)| {
+                let copy_num = copy_nums.get(&kmer).copied().unwrap_or(0);
+                copy_num_true > 0 && copy_num == 0
+            })
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_missing = missings.len();
+        let n_missing_null = missings.iter().filter(|kmer| kmer.has_null()).count();
+
+        // error
+        let errors: Vec<_> = copy_nums
+            .iter()
+            .filter(|(kmer, &copy_num)| {
+                let copy_num_true = copy_nums_true.get(&kmer).copied().unwrap_or(0);
+                copy_num_true == 0 && copy_num > 0
+            })
+            .map(|(kmer, _)| kmer.clone())
+            .collect();
+        let n_error = errors.len();
+        let n_error_null = errors.iter().filter(|kmer| kmer.has_null()).count();
+
+        // eprintln!(
+        //     "n_nodes={} n_missing={} ({}) n_error={} ({})",
+        //     self.n_nodes(),
+        //     n_missing,
+        //     kmers_to_string(&missings),
+        //     n_error,
+        //     kmers_to_string(&errors),
+        // );
+
+        ((n_missing, n_missing_null), (n_error, n_error_null))
     }
 }
 
