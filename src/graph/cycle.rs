@@ -28,6 +28,9 @@ impl std::fmt::Display for Cycle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CycleWithDir(Vec<(EdgeIndex, bool)>);
 impl CycleWithDir {
+    pub fn empty() -> Self {
+        Self(Vec::new())
+    }
     pub fn new(edges: Vec<(EdgeIndex, bool)>) -> Self {
         Self(edges)
     }
@@ -38,6 +41,87 @@ impl CycleWithDir {
     pub fn reverse_dir(self) -> Self {
         Self(self.0.into_iter().map(|(e, is_rev)| (e, !is_rev)).collect())
     }
+    ///
+    /// List up breakpoints of the cycle.
+    ///
+    /// breakpoint is index `i` such that i-th edge and i+1-th edge have different direction.
+    ///
+    fn breakpoints(&self) -> Vec<usize> {
+        let n = self.0.len();
+        let mut ret = Vec::new();
+        for i in 0..n {
+            let (_e_a, dir_a) = self.0[if i == 0 { n - 1 } else { i - 1 }];
+            let (_e_b, dir_b) = self.0[i];
+            if dir_a != dir_b {
+                ret.push(i);
+            }
+        }
+        ret
+    }
+    ///
+    /// collapse the adj edges with same direction
+    /// `[e1+,e2+,e3+,e4-,e5-,e6-] -> [([e1,e2,e3],+),([e4,e5,e6],-)]`
+    ///
+    pub fn collapse_dir(&self) -> Vec<(Vec<EdgeIndex>, bool)> {
+        if self.edges().len() == 0 {
+            // empty cycle
+            Vec::new()
+        } else {
+            let breakpoints = self.breakpoints();
+            let n = breakpoints.len();
+            let mut ret = Vec::new();
+            // is the same dir only
+            // look for the breaking point
+            if n == 0 {
+                ret.push(to_collapsed(&self.0));
+            } else {
+                for i in 0..n {
+                    let breakpoint_a = breakpoints[i];
+                    let breakpoint_b = breakpoints[(i + 1) % n];
+                    let segment = get_round_slice(&self.0, breakpoint_a, breakpoint_b);
+                    ret.push(to_collapsed(&segment));
+                }
+            }
+            ret
+        }
+    }
+}
+///
+/// get `xs[i..j]` with rounding index `i,j (0 <= i,j < len(xs))`
+///
+/// * i <= j then usual xs[i..j]
+/// * i > j  then xs[i..] xs[..j] is returned
+///
+fn get_round_slice<X: Clone>(xs: &[X], i: usize, j: usize) -> Vec<X> {
+    let n = xs.len();
+    assert!(i < n);
+    assert!(j < n);
+    if i <= j {
+        xs[i..j].to_vec()
+    } else {
+        [&xs[i..], &xs[..j]].concat()
+    }
+}
+fn get_all_same_value<T: PartialEq + Clone>(slice: &[T]) -> Option<T> {
+    match slice.get(0) {
+        Some(first) => {
+            if slice.iter().all(|x| x == first) {
+                Some(first.clone())
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+///
+/// Vec<(T, bool)> into (Vec<T>, bool) assume bool has the same entry.
+///
+fn to_collapsed<T: Clone>(slice: &[(T, bool)]) -> (Vec<T>, bool) {
+    let xs: Vec<T> = slice.iter().map(|(x, _)| x.clone()).collect();
+    let bs: Vec<bool> = slice.iter().map(|(_, b)| *b).collect();
+    let b = get_all_same_value(&bs).unwrap();
+    (xs, b)
 }
 impl std::fmt::Display for CycleWithDir {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -46,7 +130,7 @@ impl std::fmt::Display for CycleWithDir {
             "{}",
             self.0
                 .iter()
-                .map(|(e, dir)| format!("{}{}", e.index(), if *dir { "+" } else { "-" }))
+                .map(|(e, is_rev)| format!("{}{}", e.index(), if *is_rev { "-" } else { "+" }))
                 .join(",")
         )
     }
@@ -468,5 +552,106 @@ mod tests {
         assert_eq!(n3.to_vec(), vec![1, 1, 1, 1, 1, 1]);
         let n4 = apply_cycle(&g, &n2, &c, true);
         assert!(n4.is_none());
+    }
+
+    #[test]
+    fn get_round_slice_test() {
+        let xs = vec![0, 1, 2, 3, 4, 5];
+        println!("{:?}", get_round_slice(&xs, 4, 1));
+        assert_eq!(get_round_slice(&xs, 0, 0).len(), 0);
+        assert_eq!(get_round_slice(&xs, 2, 2).len(), 0);
+        assert_eq!(get_round_slice(&xs, 1, 4), vec![1, 2, 3]);
+        assert_eq!(get_round_slice(&xs, 1, 5), vec![1, 2, 3, 4]);
+        assert_eq!(get_round_slice(&xs, 4, 1), vec![4, 5, 0]);
+    }
+    #[test]
+    fn get_all_same_value_test() {
+        assert_eq!(get_all_same_value(&[0, 0, 0, 0]), Some(0));
+        assert_eq!(get_all_same_value(&[0, 1, 0, 0]), None);
+        assert_eq!(get_all_same_value::<usize>(&[]), None);
+    }
+
+    #[test]
+    fn cycle_with_dir_test() {
+        {
+            let c0 = CycleWithDir::new(vec![
+                (ei(0), false),
+                (ei(1), true),
+                (ei(2), true),
+                (ei(3), true),
+                (ei(4), false),
+                (ei(5), false),
+            ]);
+            // c0 has two breakpoints
+            // - between c0[0] and c0[1]
+            // - between c0[3] and c0[4]
+            println!("{:?}", c0.breakpoints());
+            println!("{:?}", c0.collapse_dir());
+            assert_eq!(c0.breakpoints(), vec![1, 4]);
+            assert_eq!(
+                c0.collapse_dir(),
+                vec![
+                    (vec![ei(1), ei(2), ei(3)], true),
+                    (vec![ei(4), ei(5), ei(0)], false),
+                ]
+            );
+        }
+
+        {
+            let c0 = CycleWithDir::new(vec![
+                (ei(0), true),
+                (ei(1), true),
+                (ei(2), true),
+                (ei(3), false),
+                (ei(4), false),
+                (ei(5), false),
+            ]);
+            assert_eq!(c0.breakpoints(), vec![0, 3]);
+            assert_eq!(
+                c0.collapse_dir(),
+                vec![
+                    (vec![ei(0), ei(1), ei(2)], true),
+                    (vec![ei(3), ei(4), ei(5)], false),
+                ]
+            );
+        }
+
+        {
+            let c0 = CycleWithDir::new(vec![
+                (ei(0), true),
+                (ei(1), true),
+                (ei(2), true),
+                (ei(3), true),
+            ]);
+            assert_eq!(c0.breakpoints().len(), 0);
+            assert_eq!(
+                c0.collapse_dir(),
+                vec![(vec![ei(0), ei(1), ei(2), ei(3)], true)]
+            );
+        }
+
+        {
+            let c0 = CycleWithDir::new(vec![
+                (ei(0), true),
+                (ei(1), true),
+                (ei(2), false),
+                (ei(3), false),
+                (ei(4), true),
+                (ei(5), true),
+                (ei(6), false),
+                (ei(7), false),
+                (ei(8), true),
+            ]);
+            assert_eq!(c0.breakpoints(), vec![2, 4, 6, 8]);
+            assert_eq!(
+                c0.collapse_dir(),
+                vec![
+                    (vec![ei(2), ei(3)], false),
+                    (vec![ei(4), ei(5)], true),
+                    (vec![ei(6), ei(7)], false),
+                    (vec![ei(8), ei(0), ei(1)], true),
+                ]
+            );
+        }
     }
 }
