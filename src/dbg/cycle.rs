@@ -179,7 +179,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         print_header();
     }
     pub fn summarize_cycle_with_dir(&self, cycle: &CycleWithDir) -> String {
-        // let segments = cycle.collapse_dir();
+        let segments = cycle.collapse_dir();
         // segments
         //     .iter()
         //     .map(|(edges, is_rev)| {
@@ -194,7 +194,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         //     })
         //     .join(",")
         // format!("len={},edges={}", cycle.edges().len(), cycle)
-        format!("len={}", cycle.edges().len())
+        format!(
+            "len={},segments={}",
+            cycle.edges().len(),
+            segments
+                .iter()
+                .map(|(edges, is_rev)| if *is_rev {
+                    format!("{}-", edges.len())
+                } else {
+                    format!("{}+", edges.len())
+                })
+                .join(",")
+        )
     }
 }
 

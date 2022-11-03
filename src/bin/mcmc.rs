@@ -18,7 +18,7 @@ fn run_mcmc() {
         coverage,
         2000,
         ReadType::FullLength,
-        32,
+        48,
         40,
     );
     let dbg_raw = dataset.dbg_raw.clone();
@@ -42,32 +42,40 @@ fn run_mcmc() {
         "#N genome_size\tcopy_nums_diff\tp\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
     );
 
-    let neighbors: Vec<_> = neighbors
+    let mut neighbors: Vec<_> = neighbors
         .into_par_iter()
         .filter(|(copy_nums, _)| copy_nums.sum() > 0)
         .map(|(copy_nums, cycle)| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
             let p = dbg.to_full_prob(param, &dataset.reads);
-            let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
-            println!(
-                "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}\t{}",
-                dbg.genome_size(),
-                copy_nums.dist(&copy_nums_true),
-                p.to_log_value(),
-                n_missing,
-                n_missing_null,
-                n_error,
-                n_error_null,
-                dbg.summarize_cycle_with_dir(&cycle),
-                dbg,
-                copy_nums,
-            );
-            (copy_nums, p)
+            (copy_nums, cycle, dbg, p)
         })
         .collect();
+    neighbors.sort_by_key(|(_, _, _, p)| *p);
+    neighbors.reverse();
+    neighbors.iter().for_each(|(copy_nums, cycle, dbg, p)| {
+        let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
+        println!(
+            "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}\t{}",
+            dbg.genome_size(),
+            copy_nums.dist(&copy_nums_true),
+            p.to_log_value(),
+            n_missing,
+            n_missing_null,
+            n_error,
+            n_error_null,
+            dbg.summarize_cycle_with_dir(cycle),
+            dbg,
+            copy_nums,
+        );
+    });
 
     // (a)
+    let neighbors: Vec<_> = neighbors
+        .into_iter()
+        .map(|(copy_nums, _, _, p)| (copy_nums, p))
+        .collect();
     dbg_true.inspect_kmer_variance(&neighbors);
 }
 
