@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 /// Dense storage powered by `std::Vec`
 ///
 /// In `DenseStorage`, internal id equals to index.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
 pub struct DenseStorage<T>(Vec<T>);
 
 impl<T> Storage for DenseStorage<T>

@@ -12,6 +12,7 @@ use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::prob::Prob;
+use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{NodeIndex, UnGraph};
@@ -102,6 +103,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let space = CycleSpace::new(basis);
 
         let mut ret = Vec::new();
+        let mut is_stored: HashSet<NodeCopyNums> = HashSet::default();
         let edbg_directed = self.to_edbg();
         let copy_nums = self.to_node_copy_nums().switch_index();
         // println!("{}", Dot::with_config(&edbg_directed.graph, &[]));
@@ -114,8 +116,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     let increased = apply_cycle_with_dir(&copy_nums, &cycle_increase);
                     if increased.is_some() {
                         let c = increased.unwrap().switch_index();
-                        // println!("c+={}", c);
-                        ret.push((c, cycle_increase.clone()));
+                        if !is_stored.contains(&c) {
+                            // c is new copy_nums vector
+                            // println!("c+={}", c);
+                            ret.push((c.clone(), cycle_increase.clone()));
+                            is_stored.insert(c);
+                        }
                     } else {
                         // println!("c+=no");
                     }
@@ -125,8 +131,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     let decreased = apply_cycle_with_dir(&copy_nums, &cycle_decrease);
                     if decreased.is_some() {
                         let c = decreased.unwrap().switch_index();
-                        // println!("c-={}", c);
-                        ret.push((c, cycle_decrease));
+                        if !is_stored.contains(&c) {
+                            // println!("c-={}", c);
+                            ret.push((c.clone(), cycle_decrease));
+                            is_stored.insert(c);
+                        }
                     } else {
                         // println!("c-=no");
                     }
