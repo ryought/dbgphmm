@@ -30,8 +30,10 @@ impl QScore {
     ///
     pub fn total(&self) -> f64 {
         // TODO
-        // self.init + self.trans + self.prior
-        self.trans
+        // (2) trans_only
+        // self.trans
+        // (1) trans_and_init
+        self.init + self.trans + self.prior
     }
     ///
     /// subtract other from self `self - other`
