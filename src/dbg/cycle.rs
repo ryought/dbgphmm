@@ -4,7 +4,9 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::EDbgNode;
-use crate::graph::cycle::{apply_cycle, Cycle, SimpleCycle};
+use crate::graph::cycle::{
+    apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
+};
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
@@ -80,11 +82,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let space = CycleSpace::new(basis);
         CopyNumsIterator { edbg, space }
     }
+    pub fn neighbor_copy_nums(&self) -> Vec<NodeCopyNums> {
+        self.neighbor_copy_nums_and_cycles()
+            .into_iter()
+            .map(|(ncn, _)| ncn)
+            .collect()
+    }
     ///
     /// List up all neighboring copy numbers
     /// **Heavy function**
     ///
-    pub fn neighbor_copy_nums(&self) -> Vec<NodeCopyNums> {
+    pub fn neighbor_copy_nums_and_cycles(&self) -> Vec<(NodeCopyNums, CycleWithDir)> {
         // (1) create undirected edge-centric-dbg.
         let edbg = self.to_undirected_edbg_graph();
         // (2) enumerate cycles in the undirected graph using CycleSpace iterator.
@@ -102,20 +110,23 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             match simple_cycle.to_cycle(&edbg) {
                 Some(cycle) => {
                     // +1 along cycle
-                    let increased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, false);
+                    let cycle_increase = to_cycle_with_dir(&edbg_directed.graph, &cycle);
+                    let increased = apply_cycle_with_dir(&copy_nums, &cycle_increase);
                     if increased.is_some() {
                         let c = increased.unwrap().switch_index();
                         // println!("c+={}", c);
-                        ret.push(c);
+                        ret.push((c, cycle_increase.clone()));
                     } else {
                         // println!("c+=no");
                     }
+
                     // -1 along cycle
-                    let decreased = apply_cycle(&edbg_directed.graph, &copy_nums, &cycle, true);
+                    let cycle_decrease = cycle_increase.reverse_dir();
+                    let decreased = apply_cycle_with_dir(&copy_nums, &cycle_decrease);
                     if decreased.is_some() {
                         let c = decreased.unwrap().switch_index();
                         // println!("c-={}", c);
-                        ret.push(c);
+                        ret.push((c, cycle_decrease));
                     } else {
                         // println!("c-=no");
                     }
@@ -157,6 +168,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             );
         }
         print_header();
+    }
+    pub fn summarize_cycle_with_dir(&self, cycle: &CycleWithDir) -> String {
+        format!("{}", cycle)
     }
 }
 

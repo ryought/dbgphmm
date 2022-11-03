@@ -1,5 +1,6 @@
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::genome;
+use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::prelude::*;
 use rayon::prelude::*;
 
@@ -32,21 +33,21 @@ fn run_mcmc() {
     println!("# n_dead_nodes={}", dbg_true.n_dead_nodes());
     println!("# n_nodes={}", dbg_true.n_nodes());
 
-    let mut neighbors = dbg_true.neighbor_copy_nums();
+    let mut neighbors = dbg_true.neighbor_copy_nums_and_cycles();
     println!("# n_neighbors={}", neighbors.len());
-    neighbors.push(copy_nums_true.clone());
+    neighbors.push((copy_nums_true.clone(), CycleWithDir::empty()));
 
     println!("#N genome_size\tcopy_nums_diff\tp\tkmer-state\tdbg\tcopy_nums");
 
     let neighbors: Vec<_> = neighbors
         .into_par_iter()
-        .map(|copy_nums| {
+        .map(|(copy_nums, cycle)| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
             let p = dbg.to_full_prob(param, &dataset.reads);
             let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}",
+                "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}\t{}",
                 dbg.genome_size(),
                 copy_nums.dist(&copy_nums_true),
                 p.to_log_value(),
@@ -55,6 +56,7 @@ fn run_mcmc() {
                 n_error,
                 n_error_null,
                 dbg,
+                dbg.summarize_cycle_with_dir(&cycle),
                 copy_nums,
             );
             (copy_nums, p)
