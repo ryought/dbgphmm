@@ -74,17 +74,19 @@ fn run_mcmc() {
     neighbors.iter().for_each(|(copy_nums, cycle, dbg, p)| {
         let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
         println!(
-            "N\t{}\t{}\t{}\t({},{}),({},{})\t{}\t{}\t{}",
-            dbg.genome_size(),
-            copy_nums.dist(&copy_nums_true),
-            p.to_log_value(),
-            n_missing,
-            n_missing_null,
-            n_error,
-            n_error_null,
-            dbg.summarize_cycle_with_dir(cycle),
+            "N {:<100}{}",
+            format!(
+                "{:<5}\t{:<5}\t{:<20}\t{:<20}\t{:<30}",
+                dbg.genome_size(),
+                copy_nums.dist(&copy_nums_true),
+                p.to_log_value(),
+                format!(
+                    "({:<3}{:<3}),({:<3}{:<3})",
+                    n_missing, n_missing_null, n_error, n_error_null,
+                ),
+                dbg.summarize_cycle_with_dir(cycle),
+            ),
             dbg,
-            copy_nums,
         );
     });
 

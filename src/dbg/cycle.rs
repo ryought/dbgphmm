@@ -164,7 +164,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let normalized = get_normalized_probs(&copy_nums_with_prob);
             let txt_normalized = normalized
                 .iter()
-                .map(|(x, p)| format!("p(x={})={}", x, p.to_value()))
+                .map(|(x, p)| format!("p(x={})={:.5}", x, p.to_value()))
                 .join(",");
             println!(
                 "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
