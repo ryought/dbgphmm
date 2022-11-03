@@ -47,13 +47,13 @@ pub fn get_normalized_probs(probs: &[(usize, Prob)]) -> Vec<(usize, Prob)> {
         }
     }
     // total probability
-    // let z: Prob = h.values().sum();
-    // let mut pxs: Vec<_> = h.into_iter().map(|(x, px)| (x, px / z)).collect();
-    // pxs.sort();
-    // pxs
+    let z: Prob = h.values().sum();
+    let mut pxs: Vec<_> = h.into_iter().map(|(x, px)| (x, px / z)).collect();
+    pxs.sort();
+    pxs
 
     // not normalized
-    h.into_iter().collect()
+    // h.into_iter().collect()
 }
 
 ///

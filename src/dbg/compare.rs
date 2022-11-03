@@ -526,8 +526,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .map(|(kmer, _)| kmer.clone())
             .collect();
-        let n_missing = missings.len();
         let n_missing_null = missings.iter().filter(|kmer| kmer.has_null()).count();
+        let n_missing = missings.len() - n_missing_null;
 
         // error
         let errors: Vec<_> = copy_nums
@@ -538,8 +538,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .map(|(kmer, _)| kmer.clone())
             .collect();
-        let n_error = errors.len();
         let n_error_null = errors.iter().filter(|kmer| kmer.has_null()).count();
+        let n_error = errors.len() - n_error_null;
 
         // eprintln!(
         //     "n_nodes={} n_missing={} ({}) n_error={} ({})",

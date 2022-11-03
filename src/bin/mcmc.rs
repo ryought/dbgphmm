@@ -5,8 +5,8 @@ use dbgphmm::prelude::*;
 use rayon::prelude::*;
 
 fn run_mcmc() {
-    // let (genome, genome_size) = genome::simple(100, 5);
-    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
+    let (genome, genome_size) = genome::simple(100, 5);
+    // let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
     // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     let coverage = 20;
     let param = PHMMParams::uniform(0.003);
@@ -32,15 +32,19 @@ fn run_mcmc() {
     println!("# n_kmers_with_null={}", dbg_true.n_kmers_with_null());
     println!("# n_dead_nodes={}", dbg_true.n_dead_nodes());
     println!("# n_nodes={}", dbg_true.n_nodes());
+    println!("# n_edges={}", dbg_true.n_edges());
 
     let mut neighbors = dbg_true.neighbor_copy_nums_and_cycles();
     println!("# n_neighbors={}", neighbors.len());
     neighbors.push((copy_nums_true.clone(), CycleWithDir::empty()));
 
-    println!("#N genome_size\tcopy_nums_diff\tp\tkmer-state\tdbg\tcopy_nums");
+    println!(
+        "#N genome_size\tcopy_nums_diff\tp\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
+    );
 
     let neighbors: Vec<_> = neighbors
         .into_par_iter()
+        .filter(|(copy_nums, _)| copy_nums.sum() > 0)
         .map(|(copy_nums, cycle)| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
@@ -55,8 +59,8 @@ fn run_mcmc() {
                 n_missing_null,
                 n_error,
                 n_error_null,
-                dbg,
                 dbg.summarize_cycle_with_dir(&cycle),
+                dbg,
                 copy_nums,
             );
             (copy_nums, p)

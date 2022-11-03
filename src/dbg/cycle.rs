@@ -142,7 +142,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
         let print_header = || {
-            println!("# kmer\tnode_id\tcurrent_copy_num\tcopy_nums");
+            println!("#K kmer\tnode_id\tcurrent_copy_num\tprobs\tcopy_nums");
         };
 
         print_header();
@@ -155,7 +155,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let normalized = get_normalized_probs(&copy_nums_with_prob);
             let txt_normalized = normalized
                 .iter()
-                .map(|(x, p)| format!("p(x={})={}", x, p.to_log_value()))
+                .map(|(x, p)| format!("p(x={})={}", x, p.to_value()))
                 .join(",");
             println!(
                 "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
@@ -170,7 +170,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         print_header();
     }
     pub fn summarize_cycle_with_dir(&self, cycle: &CycleWithDir) -> String {
-        format!("{}", cycle)
+        // let segments = cycle.collapse_dir();
+        // segments
+        //     .iter()
+        //     .map(|(edges, is_rev)| {
+        //         format!(
+        //             "{}{}",
+        //             edges
+        //                 .iter()
+        //                 .map(|edge| self.kmer(NodeIndex::new(edge.index())))
+        //                 .join(","),
+        //             is_rev
+        //         )
+        //     })
+        //     .join(",")
+        // format!("len={},edges={}", cycle.edges().len(), cycle)
+        format!("len={}", cycle.edges().len())
     }
 }
 
