@@ -1,15 +1,32 @@
+use clap::{AppSettings, ArgEnum, Clap};
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::prelude::*;
 use rayon::prelude::*;
 
+#[derive(Clap)]
+struct Opts {
+    #[clap(short = 'k', default_value = "24")]
+    k: usize,
+    #[clap(short = 'c', default_value = "20")]
+    coverage: usize,
+    #[clap(short = 'p', default_value = "0.003")]
+    p_error: f64,
+    #[clap(short, long)]
+    simple: bool,
+}
+
 fn run_mcmc() {
-    // let (genome, genome_size) = genome::simple(100, 5);
-    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
-    // let (genome, genome_size) = genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
-    let coverage = 20;
-    let param = PHMMParams::uniform(0.003);
+    let opts: Opts = Opts::parse();
+    let (genome, genome_size) = if opts.simple {
+        genome::simple(100, 5)
+    } else {
+        genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0)
+        // genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
+    };
+    let coverage = opts.coverage;
+    let param = PHMMParams::uniform(opts.p_error);
     let dataset = generate_dataset(
         genome.clone(),
         genome_size,
@@ -18,7 +35,7 @@ fn run_mcmc() {
         coverage,
         2000,
         ReadType::FullLength,
-        48,
+        opts.k,
         40,
     );
     let dbg_raw = dataset.dbg_raw.clone();
