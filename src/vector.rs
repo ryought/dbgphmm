@@ -132,7 +132,7 @@ impl<'a, S: Storage> Iterator for StorageIterator<'a, S> {
 /// 2. backend storage `S: Storage`
 /// 3. index type `Ix: Indexable`
 ///
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Vector<S: Storage, Ix: Indexable = usize> {
     /// Backend storage of the Vector
     storage: S,

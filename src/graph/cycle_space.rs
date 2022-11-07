@@ -16,7 +16,7 @@ use petgraph::{Direction, EdgeType};
 // use petgraph::unionfind::UnionFind;
 
 #[derive(Clone)]
-struct CycleSpace {
+pub struct CycleSpace {
     ///
     /// a set of all cycle basis.
     ///
@@ -31,7 +31,7 @@ impl CycleSpace {
     ///
     /// constructor from a set of basis
     ///
-    fn new(basis: Vec<SimpleCycle>) -> Self {
+    pub fn new(basis: Vec<SimpleCycle>) -> Self {
         let graph = to_coef_adj_graph(&basis);
         let node_map = |x: &FixedBitSet, y: &FixedBitSet| {
             let mut z = x.clone();
@@ -79,14 +79,17 @@ impl Iterator for CycleSpace {
     type Item = SimpleCycle;
     fn next(&mut self) -> Option<SimpleCycle> {
         match self.iter.next() {
-            Some(coef) => Some(coef_to_cycle(&self.basis, coef)),
+            Some(coef) => {
+                // println!("[cyclespace] {:b}", coef);
+                Some(coef_to_cycle(&self.basis, coef))
+            }
             None => None,
         }
     }
 }
 
 #[derive(Clone)]
-struct AdjGraphNodeIterator<N: PartialEq + Clone> {
+struct AdjGraphNodeIterator<N: Eq + Clone + std::hash::Hash> {
     /// degree of adjacency (i.e. how many times the graph was upconverted)
     k: usize,
     /// node indices
@@ -97,7 +100,7 @@ struct AdjGraphNodeIterator<N: PartialEq + Clone> {
     node_map: fn(&N, &N) -> N,
 }
 
-impl<N: PartialEq + Clone> AdjGraphNodeIterator<N> {
+impl<N: Eq + Clone + std::hash::Hash> AdjGraphNodeIterator<N> {
     /// constructor of `AdjGraphNodeIterator`
     /// start from k=1 and i=0.
     pub fn new(graph: UnGraph<N, ()>, node_map: fn(&N, &N) -> N) -> Self {
@@ -115,11 +118,12 @@ impl<N: PartialEq + Clone> AdjGraphNodeIterator<N> {
     }
 }
 
-impl<N: PartialEq + Clone> Iterator for AdjGraphNodeIterator<N> {
+impl<N: Eq + Clone + std::hash::Hash> Iterator for AdjGraphNodeIterator<N> {
     type Item = N;
     fn next(&mut self) -> Option<N> {
         // upconvert
         let n = self.graph.node_count();
+        // println!("[adj] k={} i={} n={}", self.k, self.i, n);
         if n > 0 && self.i == n {
             self.upconvert()
         }
@@ -144,12 +148,13 @@ impl<N: PartialEq + Clone> Iterator for AdjGraphNodeIterator<N> {
 ///
 fn into_adj_graph_no_node_dups<N, F>(graph: &UnGraph<N, ()>, node_map: F) -> UnGraph<N, ()>
 where
-    N: PartialEq,
+    N: Eq + Clone + std::hash::Hash,
     F: Fn(&N, &N) -> N,
 {
     let mut g = UnGraph::new_undirected();
     // map from edge in G into node in G*
     let mut edge_to_node: HashMap<EdgeIndex, NodeIndex> = HashMap::default();
+    let mut node_weight_to_id: HashMap<N, NodeIndex> = HashMap::default();
 
     // add node for each edge
     for edge in graph.edge_indices() {
@@ -161,10 +166,7 @@ where
         // create a node corresponds to the edge if not exists
         let new_node_weight = node_map(node_weight_a, node_weight_b);
 
-        let node = g.node_indices().find(|node| {
-            let node_weight = g.node_weight(*node).unwrap();
-            node_weight == &new_node_weight
-        });
+        let node = node_weight_to_id.get(&new_node_weight).copied();
 
         match node {
             Some(node) => {
@@ -173,8 +175,9 @@ where
             }
             None => {
                 // the node is new and to be created
-                let node = g.add_node(new_node_weight);
+                let node = g.add_node(new_node_weight.clone());
                 edge_to_node.insert(edge, node);
+                node_weight_to_id.insert(new_node_weight, node);
             }
         }
     }

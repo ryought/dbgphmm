@@ -13,11 +13,13 @@ use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
+use crate::min_flow::flow::{Flow, FlowEdgeBase};
+use crate::min_flow::min_cost_flow_from;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-use petgraph::Direction;
+use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
+use petgraph::{Direction, EdgeType};
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
 pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
@@ -378,6 +380,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn n_traverse_choices(&self) -> usize {
         let (_, n_choices) = self.to_styled_seqs_with_n_choices();
         n_choices
+    }
+    ///
+    /// count kmers which is has_null=true.
+    ///
+    pub fn n_kmers_with_null(&self) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.kmer().has_null())
+            .count()
+    }
+    ///
+    /// get the number of dead (= x0) nodes.
+    ///
+    pub fn n_dead_nodes(&self) -> usize {
+        self.nodes()
+            .filter(|(_, weight)| weight.copy_num() == 0)
+            .count()
     }
 }
 
@@ -751,21 +769,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 // Edge-centric Dbg conversion
 //
 impl<N: DbgNodeBase, E> Dbg<N, E> {
-    /// Construct edge-centric dbg from node-centric dbg
     ///
-    /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
-    ///     by using a function `node`
-    ///     `node()` will be called with `km1mer: KmerLike`
-    /// - a node (k-mer) in Dbg -> an edge in EDbg
-    ///     by using a function `edge`
-    ///     `edge()` will be called with node index and its weight
+    /// Construct backend graph (petgraph::Graph) of edge-centric-version of de Bruijn graph. This
+    /// method can construct both directed/undirected graph.
     ///
-    pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
+    pub fn to_edbg_graph<Ty: EdgeType, EN, EE, FN, FE>(
+        &self,
+        to_node: FN,
+        to_edge: FE,
+    ) -> Graph<EN, EE, Ty, DefaultIx>
     where
         FN: Fn(&N::Kmer) -> EN,
         FE: Fn(NodeIndex, &N) -> EE,
     {
-        let mut graph = DiGraph::new();
+        let mut graph = Graph::default();
         let mut nodes: HashMap<N::Kmer, NodeIndex> = HashMap::default();
 
         for (node, weight) in self.nodes() {
@@ -796,6 +813,24 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             // add an edge for this kmer
             graph.add_edge(v, w, to_edge(node, weight));
         }
+
+        graph
+    }
+    /// Construct edge-centric dbg from node-centric dbg
+    ///
+    /// - a intersection (k-1-mer) in Dbg -> a node in EDbg
+    ///     by using a function `node`
+    ///     `node()` will be called with `km1mer: KmerLike`
+    /// - a node (k-mer) in Dbg -> an edge in EDbg
+    ///     by using a function `edge`
+    ///     `edge()` will be called with node index and its weight
+    ///
+    pub fn to_edbg_generic<EN, EE, FN, FE>(&self, to_node: FN, to_edge: FE) -> EDbg<EN, EE>
+    where
+        FN: Fn(&N::Kmer) -> EN,
+        FE: Fn(NodeIndex, &N) -> EE,
+    {
+        let graph = self.to_edbg_graph(to_node, to_edge);
         EDbg::new(self.k(), graph)
     }
 }
@@ -937,6 +972,36 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn remove_zero_copy_node(&mut self) {
         self.graph
             .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
+    }
+    ///
+    /// shrink single copy nodes
+    ///
+    pub fn shrink_single_copy_node(&self) -> Self {
+        let edbg = self.to_edbg_generic(
+            // to_node:
+            |_| (),
+            // to_edge:
+            |node, weight| {
+                let copy_num = weight.copy_num();
+                if copy_num <= 1 {
+                    // redundant k-mer
+                    FlowEdgeBase::new(0, copy_num, 1.0)
+                } else {
+                    // necessary
+                    FlowEdgeBase::new(copy_num, 10000, 0.0)
+                }
+            },
+        );
+        // solve as min_flow
+        let current_flow: Flow<usize> = self.to_node_copy_nums().switch_index();
+        let flow = min_cost_flow_from(&edbg.graph, &current_flow);
+
+        // TODO
+        // inspect_flow_constraint(&flow, &edbg.graph);
+
+        let mut ret = self.clone();
+        ret.set_node_copy_nums(&flow.switch_index());
+        ret
     }
 }
 

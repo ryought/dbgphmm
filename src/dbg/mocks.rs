@@ -48,7 +48,7 @@ pub fn mock_intersection() -> SimpleDbg<VecKmer> {
 /// k=4 dbg
 ///
 /// ATAGCT x1
-/// TTAGCC x1
+/// TAAGCC x1
 ///
 /// `TAGC` is intersecting.
 ///

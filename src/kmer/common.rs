@@ -2,6 +2,7 @@
 //! Kmer definitions
 //!
 use crate::common::{SeqStyle, StyledSequence, NULL_BASE, VALID_BASES};
+use itertools::Itertools;
 
 pub trait NullableKmer {
     ///
@@ -293,6 +294,13 @@ impl<'a, K: KmerLike> Iterator for MarginKmerIterator<'a, K> {
             None
         }
     }
+}
+
+///
+/// `&[Kmer(ATCG), Kmer(TCGT)] -> String("ATCG,TCGT")`
+///
+pub fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
+    format!("{}", kmers.iter().format(","))
 }
 
 //

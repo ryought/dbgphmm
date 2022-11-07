@@ -11,12 +11,12 @@ use petgraph::visit::{Bfs, VisitMap, Visitable};
 use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
-struct EdgeInfo {
+pub struct EdgeInfo {
     origin: EdgeIndex,
 }
 
 #[derive(Clone, Debug)]
-struct SpanningTree {
+pub struct SpanningTree {
     pub tree: UnGraph<(), EdgeInfo>,
     pub extra_edges: Vec<EdgeIndex>,
 }
@@ -48,6 +48,13 @@ impl SpanningTree {
         let cycle = Cycle::new(edges_in_graph);
         SimpleCycle::from(graph, &cycle)
     }
+    ///
+    ///
+    ///
+    pub fn cycle_basis_list<N, E>(&self, graph: &UnGraph<N, E>) -> Vec<SimpleCycle> {
+        let n = self.n_cycle_basis();
+        (0..n).map(|index| self.cycle_basis(graph, index)).collect()
+    }
 }
 
 fn nodes_to_edges<N, E>(graph: &UnGraph<N, E>, nodes: &[NodeIndex]) -> Vec<EdgeIndex> {
@@ -69,7 +76,7 @@ fn nodes_to_edges<N, E>(graph: &UnGraph<N, E>, nodes: &[NodeIndex]) -> Vec<EdgeI
 ///
 /// - all nodes in the graph are reachable from the specified `start` node.
 ///
-fn spanning_tree<N, E>(graph: &UnGraph<N, E>, start: NodeIndex) -> SpanningTree {
+pub fn spanning_tree<N, E>(graph: &UnGraph<N, E>, start: NodeIndex) -> SpanningTree {
     let mut edges = Vec::new();
     let mut edge_used = vec![false; graph.edge_count()];
 
@@ -96,7 +103,6 @@ fn spanning_tree<N, E>(graph: &UnGraph<N, E>, start: NodeIndex) -> SpanningTree 
     }
 
     let mut tree: UnGraph<(), EdgeInfo> = UnGraph::from_edges(&edges);
-    println!("tree={:?}", Dot::with_config(&tree, &[]));
 
     // collect unused edges
     let mut extra_edges: Vec<EdgeIndex<DefaultIx>> = Vec::new();
@@ -105,8 +111,6 @@ fn spanning_tree<N, E>(graph: &UnGraph<N, E>, start: NodeIndex) -> SpanningTree 
             extra_edges.push(EdgeIndex::new(edge_index));
         }
     }
-
-    println!("{:?}", extra_edges);
 
     SpanningTree { tree, extra_edges }
 }
