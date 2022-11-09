@@ -16,6 +16,7 @@ use fnv::FnvHashSet as HashSet;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
+use std::collections::VecDeque;
 
 ///
 /// Enumerate all simple cycles (elementary circuits; a node-simple path starts/ends from the same node)
@@ -25,7 +26,8 @@ use petgraph::Direction;
 ///     there are path of both directions (v->w and w->v) between any two nodes v and w).
 ///
 /// TODO
-/// * if graph has self-loops, output them as simple cycles.
+/// * If graph has self-loops, output them as simple cycles.
+/// * To find simple_cycles in residue graph prohibit (v+ -> v-)-type transitions
 ///
 pub fn simple_cycles_as_nodes<N, E>(graph: &DiGraph<N, E>) -> Vec<Vec<NodeIndex>> {
     // let mut cycles = vec![];
@@ -122,6 +124,49 @@ pub fn simple_cycles<N, E>(graph: &DiGraph<N, E>) -> Vec<Cycle> {
         .collect()
 }
 
+///
+/// enumerate all cycles whose length is k
+///
+pub fn simple_k_cycles<N, E>(graph: &DiGraph<N, E>, k: usize) -> Vec<Cycle> {
+    let mut queue = VecDeque::new();
+    let mut cycles = Vec::new();
+
+    // initialize
+    for node in graph.node_indices() {
+        queue.push_back((node, node, vec![]));
+    }
+
+    while let Some((v0, vn, edges)) = queue.pop_front() {
+        // path v0 ---> vn
+
+        // if graph has edge vn -> v0 this can be cycle
+        for edge in graph.edges_connecting(vn, v0) {
+            let mut cycle = edges.clone();
+            cycle.push(edge.id());
+            cycles.push(Cycle::new(cycle));
+        }
+
+        // extend v0 ---> vn -> v
+        if edges.len() < k - 1 {
+            for edge in graph.edges_directed(vn, Direction::Outgoing) {
+                let v = edge.target();
+                let is_node_simple = edges.iter().all(|&edge| {
+                    let (s, t) = graph.edge_endpoints(edge).unwrap();
+                    s != v && t != v
+                });
+
+                if v.index() > v0.index() && is_node_simple {
+                    let mut new_edges = edges.clone();
+                    new_edges.push(edge.id());
+                    queue.push_back((v0, v, new_edges));
+                }
+            }
+        }
+    }
+
+    cycles
+}
+
 //
 // tests
 //
@@ -157,6 +202,49 @@ mod tests {
         assert_eq!(
             cycles,
             vec![vec![ni(1), ni(3), ni(2)], vec![ni(1), ni(3), ni(4), ni(5)],]
+        );
+    }
+    #[test]
+    fn simple_k_cycles_test_1() {
+        let g: DiGraph<(), ()> =
+            DiGraph::from_edges(&[(0, 0), (0, 1), (0, 2), (1, 2), (2, 0), (2, 1), (2, 2)]);
+        let cycles = simple_k_cycles(&g, 2);
+        println!("cycles={:?}", cycles);
+        assert_eq!(
+            cycles,
+            vec![
+                Cycle::from(&[0]),
+                Cycle::from(&[6]),
+                Cycle::from(&[2, 4]),
+                Cycle::from(&[3, 5]),
+            ]
+        );
+        let cycles = simple_k_cycles(&g, 10);
+        println!("cycles={:?}", cycles);
+        assert_eq!(
+            cycles,
+            vec![
+                Cycle::from(&[0]),
+                Cycle::from(&[6]),
+                Cycle::from(&[2, 4]),
+                Cycle::from(&[3, 5]),
+                Cycle::from(&[1, 3, 4]),
+            ]
+        );
+    }
+    #[test]
+    fn simple_k_cycles_test_2() {
+        let g: DiGraph<(), ()> =
+            DiGraph::from_edges(&[(0, 2), (2, 1), (1, 3), (3, 2), (3, 4), (4, 5), (5, 1)]);
+        let cycles = simple_k_cycles(&g, 2);
+        println!("cycles={:?}", cycles);
+        assert_eq!(cycles.len(), 0);
+
+        let cycles = simple_k_cycles(&g, 10);
+        println!("cycles={:?}", cycles);
+        assert_eq!(
+            cycles,
+            vec![Cycle::from(&[2, 3, 1]), Cycle::from(&[2, 4, 5, 6]),]
         );
     }
 }
