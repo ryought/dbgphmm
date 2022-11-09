@@ -7,9 +7,9 @@ use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0);
+    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 100, 0.01, 0, 0);
     let coverage = 10;
-    let param = PHMMParams::uniform(0.01);
+    let param = PHMMParams::uniform(0.001);
     let dataset = generate_dataset(
         genome.clone(),
         genome_size,
@@ -25,8 +25,8 @@ fn main() {
     // let mut dbg_true = dbg_raw.clone();
     let mut dbg_true = dbg_raw.clone().shrink_single_copy_node();
     dbg_true.remove_zero_copy_node();
-    let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
-    dbg_true.set_node_copy_nums(&copy_nums_true);
+    // let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
+    // dbg_true.set_node_copy_nums(&copy_nums_true);
 
     println!("# genome={}", genome[0]);
     println!("# k={}", dbg_true.k());
@@ -40,10 +40,13 @@ fn main() {
     let duration = start.elapsed();
     println!("# n_neighbors={}", neighbors.len());
     println!("# time_neighbors={}", duration.as_millis());
+    for neighbor in neighbors {
+        println!("c={}", neighbor.sum());
+    }
 
-    let start = Instant::now();
-    let neighbors = dbg_true.neighbor_copy_nums();
-    let duration = start.elapsed();
-    println!("# n_neighbors={}", neighbors.len());
-    println!("# time_neighbors={}", duration.as_millis());
+    // let start = Instant::now();
+    // let neighbors = dbg_true.neighbor_copy_nums();
+    // let duration = start.elapsed();
+    // println!("# n_neighbors={}", neighbors.len());
+    // println!("# time_neighbors={}", duration.as_millis());
 }
