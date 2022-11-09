@@ -128,6 +128,20 @@ pub fn simple_cycles<N, E>(graph: &DiGraph<N, E>) -> Vec<Cycle> {
 /// enumerate all cycles whose length is k
 ///
 pub fn simple_k_cycles<N, E>(graph: &DiGraph<N, E>, k: usize) -> Vec<Cycle> {
+    simple_k_cycles_with_cond(graph, k, |_, _| true)
+}
+
+///
+/// enumerate all cycles whose length is k with `is_movable` condition
+///
+pub fn simple_k_cycles_with_cond<N, E, F>(
+    graph: &DiGraph<N, E>,
+    k: usize,
+    is_movable: F,
+) -> Vec<Cycle>
+where
+    F: Fn(EdgeIndex, EdgeIndex) -> bool,
+{
     let mut queue = VecDeque::new();
     let mut cycles = Vec::new();
 
@@ -138,27 +152,32 @@ pub fn simple_k_cycles<N, E>(graph: &DiGraph<N, E>, k: usize) -> Vec<Cycle> {
 
     while let Some((v0, vn, edges)) = queue.pop_front() {
         // path v0 ---> vn
+        let last_edge = edges.last().copied();
 
         // if graph has edge vn -> v0 this can be cycle
         for edge in graph.edges_connecting(vn, v0) {
-            let mut cycle = edges.clone();
-            cycle.push(edge.id());
-            cycles.push(Cycle::new(cycle));
+            if last_edge.is_none() || is_movable(last_edge.unwrap(), edge.id()) {
+                let mut cycle = edges.clone();
+                cycle.push(edge.id());
+                cycles.push(Cycle::new(cycle));
+            }
         }
 
         // extend v0 ---> vn -> v
         if edges.len() < k - 1 {
             for edge in graph.edges_directed(vn, Direction::Outgoing) {
-                let v = edge.target();
-                let is_node_simple = edges.iter().all(|&edge| {
-                    let (s, t) = graph.edge_endpoints(edge).unwrap();
-                    s != v && t != v
-                });
+                if last_edge.is_none() || is_movable(last_edge.unwrap(), edge.id()) {
+                    let v = edge.target();
+                    let is_node_simple = edges.iter().all(|&edge| {
+                        let (s, t) = graph.edge_endpoints(edge).unwrap();
+                        s != v && t != v
+                    });
 
-                if v.index() > v0.index() && is_node_simple {
-                    let mut new_edges = edges.clone();
-                    new_edges.push(edge.id());
-                    queue.push_back((v0, v, new_edges));
+                    if v.index() > v0.index() && is_node_simple {
+                        let mut new_edges = edges.clone();
+                        new_edges.push(edge.id());
+                        queue.push_back((v0, v, new_edges));
+                    }
                 }
             }
         }

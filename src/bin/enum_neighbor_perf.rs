@@ -8,7 +8,8 @@ use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let (genome, genome_size) = genome::tandem_repeat_haploid(20, 100, 0.01, 0, 0);
+    // let (genome, genome_size) = genome::tandem_repeat_haploid(20, 50, 0.01, 0, 0);
+    let (genome, genome_size) = genome::simple(1000, 2);
     let coverage = 10;
     let param = PHMMParams::uniform(0.001);
     let dataset = generate_dataset(
@@ -19,7 +20,7 @@ fn main() {
         coverage,
         5000,
         ReadType::FullLength,
-        16,
+        40,
         40,
     );
     let dbg_raw = dataset.dbg_raw.clone();
@@ -44,9 +45,9 @@ fn main() {
     let duration = start.elapsed();
     println!("# n_neighbors={}", neighbors.len());
     println!("# time_neighbors={}", duration.as_millis());
-    for neighbor in neighbors {
-        println!("c={}", neighbor.sum());
-    }
+    // for neighbor in neighbors {
+    //     println!("c={}", neighbor.sum());
+    // }
 
     // let start = Instant::now();
     // let neighbors = dbg_true.neighbor_copy_nums();

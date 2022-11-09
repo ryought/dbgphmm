@@ -6,6 +6,7 @@ pub mod bipartite;
 pub use bipartite::Bipartite;
 pub mod backless_bellman_ford;
 pub mod bellman_ford;
+pub mod compact;
 pub mod cycle;
 pub mod cycle_enumeration;
 pub mod cycle_space;

@@ -161,6 +161,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .collect()
     }
     ///
+    /// use Johnson1975 and collapse-simple-path
+    ///
+    pub fn neighbor_copy_nums_more_fast(&self) -> Vec<NodeCopyNums> {
+        // convert to edbg, residue graph
+        let rg = self.to_residue_edbg();
+        let copy_num = self.to_node_copy_nums().switch_index();
+        // enumerate all cycles
+        generate_all_neighbor_flows(&rg, &copy_num)
+            .into_iter()
+            .map(|flow| flow.switch_index())
+            .collect()
+    }
+    ///
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
