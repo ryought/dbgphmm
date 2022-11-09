@@ -2,6 +2,7 @@ use clap::{AppSettings, ArgEnum, Clap};
 use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
+use dbgphmm::kmer::common::kmers_to_string;
 use dbgphmm::prelude::*;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
@@ -16,7 +17,7 @@ fn main() {
         0,
         param,
         coverage,
-        2000,
+        5000,
         ReadType::FullLength,
         16,
         40,
@@ -25,8 +26,10 @@ fn main() {
     // let mut dbg_true = dbg_raw.clone();
     let mut dbg_true = dbg_raw.clone().shrink_single_copy_node();
     dbg_true.remove_zero_copy_node();
-    // let (copy_nums_true, _) = dbg_true.to_copy_nums_of_styled_seqs(&genome).unwrap();
-    // dbg_true.set_node_copy_nums(&copy_nums_true);
+    let (copy_nums_true, _) = dbg_true
+        .to_copy_nums_of_styled_seqs(&genome)
+        .unwrap_or_else(|err| panic!("true kmers {} is missing", kmers_to_string(&err)));
+    dbg_true.set_node_copy_nums(&copy_nums_true);
 
     println!("# genome={}", genome[0]);
     println!("# k={}", dbg_true.k());
