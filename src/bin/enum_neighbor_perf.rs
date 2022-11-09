@@ -32,6 +32,7 @@ fn main() {
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
     println!("# genome={}", genome[0]);
+    println!("# degrees={:?}", dbg_true.degree_stats());
     println!("# k={}", dbg_true.k());
     println!("# n_kmers_with_null={}", dbg_true.n_kmers_with_null());
     println!("# n_dead_nodes={}", dbg_true.n_dead_nodes());

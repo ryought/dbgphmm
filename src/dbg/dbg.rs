@@ -158,6 +158,14 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    /// count in degree
+    pub fn in_degree(&self, node: NodeIndex) -> usize {
+        self.graph.edges_directed(node, Direction::Incoming).count()
+    }
+    /// count out degree
+    pub fn out_degree(&self, node: NodeIndex) -> usize {
+        self.graph.edges_directed(node, Direction::Outgoing).count()
+    }
     /// Get a reference of node weight
     pub fn node(&self, node: NodeIndex) -> &N {
         self.graph.node_weight(node).unwrap()
@@ -287,6 +295,17 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             }
         }
         true
+    }
+    ///
+    /// count the number of nodes with (in_degree, out_degree).
+    ///
+    pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
+        let mut h = HashMap::default();
+        for (node, _) in self.nodes() {
+            *h.entry((self.in_degree(node), self.out_degree(node)))
+                .or_insert(0) += 1;
+        }
+        h
     }
 }
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
