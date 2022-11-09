@@ -16,6 +16,10 @@ use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use itertools::Itertools;
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_with::{
+    serde_as, DeserializeAs, DeserializeFromStr, DisplayFromStr, SerializeAs, SerializeDisplay,
+};
 use std::str::FromStr;
 
 //
@@ -72,6 +76,12 @@ pub trait Seq: AsRef<Bases> {
     }
 }
 impl<T: AsRef<Bases>> Seq for T {}
+// TODO
+// impl<T: Seq> std::fmt::Display for T {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "hoge")
+//     }
+// }
 
 /// Convert Sequence(Vec<u8>) into &str
 /// useful in displaying
@@ -91,9 +101,46 @@ pub fn genome_size(genome: &Genome) -> usize {
 
 /// Struct for storing multiple emissions, reads.
 ///
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(bound = "S: BaseTypeTrait")]
 pub struct ReadCollection<S: Seq> {
+    #[serde_as(as = "Vec<BaseType>")]
     pub reads: Vec<S>,
+}
+
+//
+// support serialize/deserialize of Vec<u8> as Bases
+//
+trait BaseTypeTrait {
+    fn to_string(&self) -> &str;
+    fn from_str(s: &str) -> Self;
+}
+impl BaseTypeTrait for Vec<u8> {
+    fn to_string(&self) -> &str {
+        std::str::from_utf8(self.as_ref()).unwrap()
+    }
+    fn from_str(s: &str) -> Vec<u8> {
+        s.to_string().into_bytes()
+    }
+}
+struct BaseType;
+impl<T: BaseTypeTrait> SerializeAs<T> for BaseType {
+    fn serialize_as<S>(source: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(source.to_string())
+    }
+}
+impl<'de, T: BaseTypeTrait> DeserializeAs<'de, T> for BaseType {
+    fn deserialize_as<D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer).map_err(serde::de::Error::custom)?;
+        Ok(T::from_str(&s))
+    }
 }
 
 ///
@@ -243,7 +290,7 @@ impl FromStr for SeqStyle {
 /// Sequence with style specified.
 ///
 #[pyclass]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct StyledSequence {
     seq: Sequence,
     style: SeqStyle,
@@ -303,6 +350,12 @@ impl std::fmt::Display for StyledSequence {
 ///
 #[derive(Clone, Debug)]
 pub struct StyledSequenceParseError;
+// required for serde
+impl std::fmt::Display for StyledSequenceParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "styleparseeerror")
+    }
+}
 
 impl FromStr for StyledSequence {
     type Err = StyledSequenceParseError;
@@ -424,5 +477,39 @@ mod tests {
         println!("{}", s1.to_str());
         println!("{}", s2.to_str());
         assert_eq!(s2, b"GGGCCGAT");
+    }
+    #[test]
+    fn reads_serialize() {
+        let reads = ReadCollection::from(vec![b"ATCGATTCGTA".to_vec(), b"TTTTTTGTGGGGTG".to_vec()]);
+        let json = serde_json::to_string(&reads).unwrap();
+        println!("{}", json);
+        assert_eq!(json, "{\"reads\":[\"ATCGATTCGTA\",\"TTTTTTGTGGGGTG\"]}");
+        let reads2: Reads = serde_json::from_str(&json).unwrap();
+        println!("{:?}", reads2);
+        assert_eq!(reads, reads2);
+    }
+    #[test]
+    fn styled_seq_serialize() {
+        let ts = vec![1, 2, 3];
+        println!("{}", serde_json::to_string(&ts).unwrap());
+
+        // single styledsequence
+        let x0 = StyledSequence::new(b"ATCGAT".to_vec(), SeqStyle::Circular);
+        let json = serde_json::to_string(&x0).unwrap();
+        assert_eq!(json, "\"C:ATCGAT\"");
+        let x: StyledSequence = serde_json::from_str(&json).unwrap();
+        println!("x={}", x);
+        assert_eq!(x, x0);
+
+        // multiple styledsequences
+        let xs0 = vec![
+            StyledSequence::new(b"ATCGAT".to_vec(), SeqStyle::Circular),
+            StyledSequence::new(b"GGGC".to_vec(), SeqStyle::Linear),
+        ];
+        let json = serde_json::to_string(&xs0).unwrap();
+        println!("{}", json);
+        assert_eq!(json, "[\"C:ATCGAT\",\"L:GGGC\"]");
+        let xs: Vec<StyledSequence> = serde_json::from_str(&json).unwrap();
+        assert_eq!(xs, xs0);
     }
 }
