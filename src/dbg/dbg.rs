@@ -15,6 +15,7 @@ use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::min_flow::flow::{Flow, FlowEdgeBase};
 use crate::min_flow::min_cost_flow_from;
+use crate::min_flow::residue::{flow_to_residue, ResidueGraph};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
@@ -157,6 +158,14 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
     pub fn n_edges(&self) -> usize {
         self.graph.edge_count()
     }
+    /// count in degree
+    pub fn in_degree(&self, node: NodeIndex) -> usize {
+        self.graph.edges_directed(node, Direction::Incoming).count()
+    }
+    /// count out degree
+    pub fn out_degree(&self, node: NodeIndex) -> usize {
+        self.graph.edges_directed(node, Direction::Outgoing).count()
+    }
     /// Get a reference of node weight
     pub fn node(&self, node: NodeIndex) -> &N {
         self.graph.node_weight(node).unwrap()
@@ -286,6 +295,17 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             }
         }
         true
+    }
+    ///
+    /// count the number of nodes with (in_degree, out_degree).
+    ///
+    pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
+        let mut h = HashMap::default();
+        for (node, _) in self.nodes() {
+            *h.entry((self.in_degree(node), self.out_degree(node)))
+                .or_insert(0) += 1;
+        }
+        h
     }
 }
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
@@ -513,7 +533,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
     /// as a sequence with SeqStyle::Linear.
     ///
-    fn to_nodes_of_seq(&self, seq: &[u8]) -> Option<Vec<NodeIndex>> {
+    fn to_nodes_of_seq(&self, seq: &[u8]) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_nodes_of_styled_seq(&styled_sequence)
     }
@@ -523,21 +543,30 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// If the sequence cannot be emitted using a path in the dbg, returns None.
     ///
-    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Option<Vec<NodeIndex>> {
+    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
+        let mut missing_kmers = Vec::new();
         for kmer in styled_sequence_to_kmers(seq, self.k()) {
             match m.get(&kmer) {
-                None => return None,
+                None => missing_kmers.push(kmer.clone()),
                 Some(&node) => nodes.push(node),
             }
         }
-        Some(nodes)
+
+        if missing_kmers.is_empty() {
+            Ok(nodes)
+        } else {
+            Err(missing_kmers)
+        }
     }
     ///
     /// generate node/edge copy numbers of the given sequence as SeqStyle::Linear
     ///
-    pub fn to_copy_nums_of_seq(&self, seq: &[u8]) -> Option<(NodeCopyNums, EdgeCopyNums)> {
+    pub fn to_copy_nums_of_seq(
+        &self,
+        seq: &[u8],
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_copy_nums_of_styled_seq(&styled_sequence)
     }
@@ -547,27 +576,34 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// returns None if any of kmers in the seqs does not exist in dBG.
     ///
-    pub fn to_copy_nums_of_styled_seqs<T>(&self, seqs: T) -> Option<(NodeCopyNums, EdgeCopyNums)>
+    pub fn to_copy_nums_of_styled_seqs<T>(
+        &self,
+        seqs: T,
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
     {
         let mut nc_ret: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec_ret: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
+        let mut missing_kmers = Vec::new();
 
         for seq in seqs {
             let s = seq.as_ref();
             match self.to_copy_nums_of_styled_seq(seq.as_ref()) {
-                Some((nc, ec)) => {
+                Ok((nc, ec)) => {
                     nc_ret += &nc;
                     ec_ret += &ec;
                 }
-                None => {
-                    return None;
-                }
+                Err(mut missings) => missing_kmers.append(&mut missings),
             }
         }
-        Some((nc_ret, ec_ret))
+
+        if missing_kmers.is_empty() {
+            Ok((nc_ret, ec_ret))
+        } else {
+            Err(missing_kmers)
+        }
     }
     ///
     /// generate node/edge copy numbers of the given sequence
@@ -575,14 +611,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_styled_seq(
         &self,
         seq: &StyledSequence,
-    ) -> Option<(NodeCopyNums, EdgeCopyNums)> {
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
 
         match self.to_nodes_of_styled_seq(seq) {
-            None => None,
-            Some(nodes) => {
+            Err(missings) => Err(missings),
+            Ok(nodes) => {
                 // add node counts
                 for &node in nodes.iter() {
                     nc[node] += 1;
@@ -606,7 +642,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     ec[edge] += 1;
                 }
 
-                Some((nc, ec))
+                Ok((nc, ec))
             }
         }
     }
@@ -867,6 +903,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr)
             },
         )
+    }
+    ///
+    /// +1/-1 edges
+    ///
+    pub fn to_residue_edbg(&self) -> ResidueGraph<usize> {
+        let edbg = self.to_edbg_generic(
+            |_| (),
+            |_node, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
+        let copy_num = self.to_node_copy_nums().switch_index();
+        flow_to_residue(&edbg.graph, &copy_num)
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
@@ -1150,14 +1200,16 @@ mod tests {
             StyledSequence::linear(b"ATCGTC".to_vec()),
             StyledSequence::linear(b"ATCGTC".to_vec()),
         ]);
-        assert!(ret.is_none());
+        println!("(1) {:?}", ret);
+        assert!(ret.is_err());
 
         // (2) true genomic StyledSeqs
         let ret = dbg.to_copy_nums_of_styled_seqs(&[
             StyledSequence::linear(b"ATTCGATCGAT".to_vec()),
             StyledSequence::linear(b"ATTCGATCGAT".to_vec()),
         ]);
-        assert!(ret.is_some());
+        println!("(2) {:?}", ret);
+        assert!(ret.is_ok());
         let (nc, ec) = ret.unwrap();
         println!("nc={}", nc);
         println!("ec={}", ec);

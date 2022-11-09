@@ -2,6 +2,7 @@
 /data
 /scripts/__pycache__/
 /logs
+/data*
 /output*
 /.env/
 /*.json

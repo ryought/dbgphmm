@@ -23,10 +23,11 @@ pub mod optimizer;
 pub mod playground;
 pub mod prelude;
 pub mod prob;
+pub mod python;
 pub mod random_seq;
 pub mod reads;
-pub mod python;
 pub mod stats;
+pub mod utils;
 pub mod veclike;
 pub mod vector;
 

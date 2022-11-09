@@ -11,6 +11,7 @@ use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::min_flow::residue::generate_all_neighbor_flows;
 use crate::prob::Prob;
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
@@ -147,6 +148,32 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         ret
     }
     ///
+    /// use Johnson1975
+    ///
+    pub fn neighbor_copy_nums_fast(&self) -> Vec<NodeCopyNums> {
+        // convert to edbg, residue graph
+        let rg = self.to_residue_edbg();
+        let copy_num = self.to_node_copy_nums().switch_index();
+        // enumerate all cycles
+        generate_all_neighbor_flows(&rg, &copy_num)
+            .into_iter()
+            .map(|flow| flow.switch_index())
+            .collect()
+    }
+    ///
+    /// use Johnson1975 and collapse-simple-path
+    ///
+    pub fn neighbor_copy_nums_more_fast(&self) -> Vec<NodeCopyNums> {
+        // convert to edbg, residue graph
+        let rg = self.to_residue_edbg();
+        let copy_num = self.to_node_copy_nums().switch_index();
+        // enumerate all cycles
+        generate_all_neighbor_flows(&rg, &copy_num)
+            .into_iter()
+            .map(|flow| flow.switch_index())
+            .collect()
+    }
+    ///
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
@@ -217,6 +244,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 mod tests {
     use super::super::mocks::*;
     use super::*;
+    use crate::utils::is_equal_as_set;
     use petgraph::dot::Dot;
     #[test]
     fn basic_dbg_to_undirected() {
@@ -269,5 +297,12 @@ mod tests {
                 to_nc(&[0, 1, 2, 2, 0, 1, 1, 1, 1, 0, 2, 2, 1, 0, 1, 2, 1, 0]),
             ]
         );
+
+        let copy_nums_v2 = dbg.neighbor_copy_nums_fast();
+        for copy_num in copy_nums_v2.iter() {
+            println!("c2={}", copy_num);
+        }
+
+        assert!(is_equal_as_set(&copy_nums, &copy_nums_v2));
     }
 }
