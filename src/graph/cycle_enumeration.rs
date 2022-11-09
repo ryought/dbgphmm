@@ -10,8 +10,11 @@
 //! * Johnson1975
 //! Finding all the elementary circuits of a directed graph
 //!
+use crate::graph::cycle::Cycle;
+use crate::graph::float_weight::nodes_to_edges;
 use fnv::FnvHashSet as HashSet;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 
 ///
@@ -24,7 +27,7 @@ use petgraph::Direction;
 /// TODO
 /// * if graph has self-loops, output them as simple cycles.
 ///
-pub fn simple_cycles<N, E>(graph: &DiGraph<N, E>) -> Vec<Vec<NodeIndex>> {
+pub fn simple_cycles_as_nodes<N, E>(graph: &DiGraph<N, E>) -> Vec<Vec<NodeIndex>> {
     // let mut cycles = vec![];
     let n = graph.node_count();
     let ix = |node: NodeIndex| node.index();
@@ -103,6 +106,22 @@ pub fn simple_cycles<N, E>(graph: &DiGraph<N, E>) -> Vec<Vec<NodeIndex>> {
     ret
 }
 
+///
+/// assuming there are no parallel edges
+///
+pub fn simple_cycles<N, E>(graph: &DiGraph<N, E>) -> Vec<Cycle> {
+    simple_cycles_as_nodes(graph)
+        .into_iter()
+        .map(|nodes| {
+            let edges = nodes_to_edges(graph, &nodes, |graph, v, w| {
+                // assert!()
+                graph.edges_connecting(v, w).next().unwrap().id()
+            });
+            Cycle::new(edges)
+        })
+        .collect()
+}
+
 //
 // tests
 //
@@ -116,7 +135,7 @@ mod tests {
     fn simple_cycles_test_1() {
         let g: DiGraph<(), ()> =
             DiGraph::from_edges(&[(0, 0), (0, 1), (0, 2), (1, 2), (2, 0), (2, 1), (2, 2)]);
-        let cycles = simple_cycles(&g);
+        let cycles = simple_cycles_as_nodes(&g);
         println!("cycles={:?}", cycles);
         assert_eq!(
             cycles,
@@ -127,6 +146,17 @@ mod tests {
                 vec![ni(1), ni(2)],
                 vec![ni(2)],
             ]
+        );
+    }
+    #[test]
+    fn simple_cycles_test_2() {
+        let g: DiGraph<(), ()> =
+            DiGraph::from_edges(&[(0, 2), (2, 1), (1, 3), (3, 2), (3, 4), (4, 5), (5, 1)]);
+        let cycles = simple_cycles_as_nodes(&g);
+        println!("cycles={:?}", cycles);
+        assert_eq!(
+            cycles,
+            vec![vec![ni(1), ni(3), ni(2)], vec![ni(1), ni(3), ni(4), ni(5)],]
         );
     }
 }

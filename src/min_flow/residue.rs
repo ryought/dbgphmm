@@ -8,6 +8,7 @@ use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate, FlowRateLike};
 use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::cycle_enumeration::simple_cycles;
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
     total_weight,
@@ -274,6 +275,20 @@ fn apply_residual_edges_to_flow<F: FlowRateLike>(
 
     // (2) apply these changes to the flow along the cycle
     change_flow_along_edges(flow, rg, edges, flow_change_amount)
+}
+
+///
+/// list up all neighboring flows
+///
+pub fn generate_all_neighbor_flows<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    flow: &Flow<F>,
+) -> Vec<Flow<F>> {
+    simple_cycles(rg)
+        .into_iter()
+        .map(|cycle| apply_residual_edges_to_flow(flow, rg, cycle.edges()))
+        .filter(|new_flow| new_flow != flow)
+        .collect()
 }
 
 fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(

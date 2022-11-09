@@ -15,6 +15,7 @@ use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::min_flow::flow::{Flow, FlowEdgeBase};
 use crate::min_flow::min_cost_flow_from;
+use crate::min_flow::residue::{flow_to_residue, ResidueGraph};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
@@ -867,6 +868,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr)
             },
         )
+    }
+    ///
+    /// +1/-1 edges
+    ///
+    pub fn to_residue_edbg(&self) -> ResidueGraph<usize> {
+        let edbg = self.to_edbg_generic(
+            |_| (),
+            |_node, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
+        let copy_num = self.to_node_copy_nums().switch_index();
+        flow_to_residue(&edbg.graph, &copy_num)
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
