@@ -10,6 +10,8 @@ use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+use serde::Serialize;
+use serde_with::{serde_as, DisplayFromStr};
 
 ///
 /// Read types
@@ -34,10 +36,13 @@ pub struct DatasetConfig {}
 /// * Dataset.dbg_true_init
 /// * Dataset.dbg_true
 ///
-pub struct Dataset {
+// #[serde_as]
+// #[derive(Clone, Serialize)]
+pub struct Experiment {
     ///
     /// genome sequence
     ///
+    // #[serde_as(as = "Vec<DisplayFromStr>")]
     pub genome: Genome,
     ///
     /// size of the genome
@@ -65,7 +70,7 @@ pub struct Dataset {
     pub dbg_true: SimpleDbg<VecKmer>,
 }
 
-impl Dataset {
+impl Experiment {
     ///
     /// show reads
     ///
@@ -86,7 +91,7 @@ pub fn generate_dataset(
     read_type: ReadType,
     k_init: usize,
     k_target: usize,
-) -> Dataset {
+) -> Experiment {
     let g = GenomeGraph::from_styled_seqs(&genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
@@ -135,7 +140,7 @@ pub fn generate_dataset(
     // (5) true k=50 (read length)
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, &genome);
 
-    Dataset {
+    Experiment {
         genome,
         genome_size,
         reads,
@@ -155,7 +160,7 @@ pub fn generate_full_length_dataset(
     read_seed: u64,
     phmm_params: PHMMParams,
     coverage: usize,
-) -> Dataset {
+) -> Experiment {
     let g = GenomeGraph::from_seqs(&genome);
     let profile = ReadProfile {
         has_revcomp: true,
@@ -183,7 +188,7 @@ pub fn generate_full_length_dataset(
     // (5) true k=50 (read length)
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(100, &genome);
 
-    Dataset {
+    Experiment {
         genome,
         genome_size,
         reads,

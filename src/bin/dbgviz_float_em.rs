@@ -1,7 +1,7 @@
 use dbgphmm::common::{ni, Reads};
 use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use dbgphmm::dbg::mocks::mock_intersection_small;
-use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
+use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
 use dbgphmm::em::float::{
     em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, run, shrink_nodes,
 };

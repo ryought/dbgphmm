@@ -3,7 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_dataset, Dataset, ReadType};
+    use crate::e2e::{generate_dataset, Experiment, ReadType};
     use crate::em::compression::v1::{compression, compression_step};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
@@ -17,7 +17,7 @@ mod tests {
     use crate::kmer::VecKmer;
     use crate::random_seq::generate;
 
-    fn e2e_mock() -> Dataset {
+    fn e2e_mock() -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple(100, 0);
@@ -27,7 +27,7 @@ mod tests {
         e2e_mock_from_genome(&genome, genome_size, 10, 40)
     }
 
-    fn e2e_mock_diploid() -> Dataset {
+    fn e2e_mock_diploid() -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple_diploid();
@@ -43,7 +43,7 @@ mod tests {
         genome_size: usize,
         count: usize,
         k_target: usize,
-    ) -> Dataset {
+    ) -> Experiment {
         println!("generating reads");
         generate_dataset(
             genome.clone(),

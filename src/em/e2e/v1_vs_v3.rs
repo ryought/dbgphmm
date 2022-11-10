@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::common::Seq;
-    use crate::e2e::{generate_dataset, Dataset, ReadType};
+    use crate::e2e::{generate_dataset, Experiment, ReadType};
     use crate::em::infer_with_on_iteration;
     use crate::em::scheduler::SchedulerType1;
     use crate::genome;

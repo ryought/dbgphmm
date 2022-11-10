@@ -3,7 +3,7 @@
 //!
 use crate::common::{CopyNum, Genome};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::e2e::{generate_dataset, Dataset, ReadType};
+use crate::e2e::{generate_dataset, Experiment, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
 use std::io::Write;
 
@@ -16,7 +16,7 @@ use std::io::Write;
 ///
 pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
     logs: &[CompressionV3Log<N, E>],
-    dataset: &Dataset,
+    dataset: &Experiment,
 ) {
     for (iteration, log) in logs.iter().enumerate() {
         println!("{}\t{}", iteration, log.to_benchmark_string(dataset));
@@ -26,7 +26,7 @@ pub fn inspect_compression_logs<N: DbgNode, E: DbgEdge>(
 pub fn write_compression_logs<N: DbgNode, E: DbgEdge, F: Write>(
     f: &mut F,
     logs: &[CompressionV3Log<N, E>],
-    dataset: &Dataset,
+    dataset: &Experiment,
     header: &str,
 ) {
     for (iteration, log) in logs.iter().enumerate() {

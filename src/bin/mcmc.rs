@@ -1,5 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
-use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
+use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::prelude::*;

@@ -4,7 +4,7 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::{CopyNum, Genome, Seq, SeqStyle, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
-use crate::e2e::Dataset;
+use crate::e2e::Experiment;
 use crate::hist::Hist;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::common::linear_sequence_to_kmers;
@@ -481,7 +481,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * kmer_existence
     /// * kmer_hists
     ///
-    pub fn benchmark(&self, dataset: &Dataset) -> BenchResult<N::Kmer> {
+    pub fn benchmark(&self, dataset: &Experiment) -> BenchResult<N::Kmer> {
         BenchResult {
             likelihood: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
             genome_size: self.genome_size(),
@@ -495,7 +495,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn benchmark_compression(
         &self,
-        dataset: &Dataset,
+        dataset: &Experiment,
         lambda: f64,
     ) -> CompressionBenchResult<N::Kmer> {
         CompressionBenchResult {

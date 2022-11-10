@@ -13,7 +13,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_full_length_dataset, Dataset};
+    use crate::e2e::{generate_full_length_dataset, Experiment};
     use crate::em::compression::v1::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::runner::benchmark;
     use crate::em::infer;
@@ -34,7 +34,7 @@ mod tests {
         read_seed: u64,
         phmm_params: PHMMParams,
         coverage: usize,
-    ) -> Dataset {
+    ) -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =
@@ -50,7 +50,7 @@ mod tests {
         hap_seed: u64,
         div_seed: u64,
         read_seed: u64,
-    ) -> Dataset {
+    ) -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) =

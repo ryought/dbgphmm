@@ -6,7 +6,7 @@ use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
 use crate::dbg::compare::{CompareResult, CompareWithSeqResult};
 use crate::dbg::dbg::{DbgEdge, DbgNode};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-use crate::e2e::{Dataset, ReadType};
+use crate::e2e::{Experiment, ReadType};
 use crate::em::e2e::compression::write_compression_logs;
 use crate::em::infer;
 use crate::em::scheduler::SchedulerType1;
@@ -22,7 +22,7 @@ use std::io::Write;
 ///
 /// show a TaskLog list with true genome
 ///
-pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], dataset: &Dataset) {
+pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], dataset: &Experiment) {
     // header
     println!("iter\ttype\tstep\tprob\tmin_flow\tgenome_size\tcompare\tdbg\t");
     // body
@@ -35,7 +35,7 @@ pub fn show_logs<N: DbgNode, E: DbgEdge>(task_logs: &[TaskLog<N, E>], dataset: &
 }
 
 pub fn benchmark(
-    dataset: &Dataset,
+    dataset: &Experiment,
     coverage: f64,
 ) -> (
     SimpleDbg<VecKmer>,
