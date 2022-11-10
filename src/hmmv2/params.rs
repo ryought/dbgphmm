@@ -4,6 +4,7 @@
 use crate::prob::Prob;
 use crate::vector::sparse::SIZE;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
 ///
 /// PHMMParams for HMMv2
@@ -12,7 +13,7 @@ use pyo3::prelude::*;
 /// * add Copy to PHMMParams
 ///
 #[pyclass]
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct PHMMParams {
     pub p_mismatch: Prob,

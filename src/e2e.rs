@@ -31,19 +31,35 @@ pub struct Dataset {
     ///
     /// genome sequence
     ///
-    pub genome: Genome,
+    genome: Genome,
     ///
     /// size of the genome
     ///
-    pub genome_size: usize,
+    genome_size: usize,
     ///
     /// sampled reads
     ///
-    pub reads: Reads,
+    reads: Reads,
+    ///
+    /// Profile HMM parameters used in read sampling
+    ///
+    phmm_params: PHMMParams,
     // ///
     // /// dataset label
     // ///
     // pub label: String,
+}
+
+impl Dataset {
+    pub fn genome(&self) -> &Genome {
+        &self.genome
+    }
+    pub fn genome_size(&self) -> usize {
+        self.genome_size
+    }
+    pub fn reads(&self) -> &Reads {
+        &self.reads
+    }
 }
 
 ///
@@ -96,17 +112,15 @@ impl Experiment {
     }
 }
 
-pub fn generate_experiment(
+pub fn generate_dataset(
     genome: Genome,
     genome_size: usize,
     read_seed: u64,
-    phmm_params: PHMMParams,
     coverage: usize,
     read_length: usize,
     read_type: ReadType,
-    k_init: usize,
-    k_target: usize,
-) -> Experiment {
+    phmm_params: PHMMParams,
+) -> Dataset {
     let g = GenomeGraph::from_styled_seqs(&genome);
     let profile = match read_type {
         ReadType::Fragment => ReadProfile {
@@ -147,20 +161,45 @@ pub fn generate_experiment(
     // g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
 
-    let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &reads);
+    Dataset {
+        genome,
+        genome_size,
+        reads,
+        phmm_params,
+    }
+}
+
+pub fn generate_experiment(
+    genome: Genome,
+    genome_size: usize,
+    read_seed: u64,
+    phmm_params: PHMMParams,
+    coverage: usize,
+    read_length: usize,
+    read_type: ReadType,
+    k_init: usize,
+    k_target: usize,
+) -> Experiment {
+    let dataset = generate_dataset(
+        genome,
+        genome_size,
+        read_seed,
+        coverage,
+        read_length,
+        read_type,
+        phmm_params,
+    );
+
+    let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.reads());
 
     // (4) compare with true dbg
-    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, &genome);
+    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.genome());
 
     // (5) true k=50 (read length)
-    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, &genome);
+    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, dataset.genome());
 
     Experiment {
-        dataset: Dataset {
-            genome,
-            genome_size,
-            reads,
-        },
+        dataset,
         phmm_params,
         dbg_raw,
         dbg_true_init,
@@ -210,6 +249,7 @@ pub fn generate_full_length_experiment(
             genome,
             genome_size,
             reads,
+            phmm_params,
         },
         phmm_params,
         dbg_raw,
@@ -232,6 +272,7 @@ mod tests {
             genome: vec![StyledSequence::linear(b"ATCGTTCTTC".to_vec())],
             genome_size: 10,
             reads: Reads::from(vec![b"ATCGT".to_vec(), b"TTTCG".to_vec()]),
+            phmm_params: PHMMParams::default(),
         };
         let json = serde_json::to_string(&d).unwrap();
         println!("{}", json);

@@ -3,11 +3,13 @@
 /// implements logaddexp
 ///
 use approx::AbsDiffEq;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
+use std::str::FromStr;
 
 ///
 /// Wrapper of f64 that represents probability `0 <= p <= 1`
 ///
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr)]
 pub struct Prob(f64);
 
 ///
@@ -70,7 +72,14 @@ impl Default for Prob {
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:.2}(=log({:.12}))", self.0, self.to_value())
+        write!(f, "{}({:.4})", self.0, self.to_value())
+    }
+}
+impl FromStr for Prob {
+    type Err = std::num::ParseFloatError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (front, _) = s.split_once('(').unwrap();
+        front.parse::<f64>().map(|p| Prob(p))
     }
 }
 
@@ -299,5 +308,25 @@ mod tests {
         assert_eq!(Prob::one(), Prob::from_prob(1.0));
         assert_eq!(Prob::zero(), Prob::from_prob(0.0));
         assert!(Prob::zero().is_zero());
+    }
+    #[test]
+    fn prob_serialize() {
+        // Display and FromStr
+        let p1 = Prob::one();
+        let p05 = Prob::from_prob(0.5);
+        let p0 = Prob::zero();
+        println!("{} {} {}", p1, p05, p0);
+        assert_eq!(Prob::from_str(&p1.to_string()).unwrap(), p1);
+        assert_eq!(Prob::from_str(&p05.to_string()).unwrap(), p05);
+        assert_eq!(Prob::from_str(&p0.to_string()).unwrap(), p0);
+
+        let f = |p: Prob| {
+            let json = &serde_json::to_string(&p).unwrap();
+            println!("p={} json={}", p, json);
+            serde_json::from_str(&json).unwrap()
+        };
+        assert_eq!(p1, f(p1));
+        assert_eq!(p05, f(p05));
+        assert_eq!(p0, f(p0));
     }
 }
