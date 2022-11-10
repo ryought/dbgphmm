@@ -48,7 +48,7 @@ mod tests {
 
         let (dbg_infer, logs) = infer_with_on_iteration(
             &dataset.dbg_raw,
-            &dataset.reads,
+            dataset.reads(),
             &dataset.phmm_params,
             &scheduler,
             genome_size,
@@ -98,7 +98,7 @@ mod tests {
 
         let (dbg_infer, logs) = infer_with_on_iteration(
             &dataset.dbg_raw,
-            &dataset.reads,
+            dataset.reads(),
             &dataset.phmm_params,
             &scheduler,
             genome_size,

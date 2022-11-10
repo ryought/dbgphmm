@@ -27,18 +27,7 @@ pub enum ReadType {
 ///
 pub struct DatasetConfig {}
 
-///
-/// Dataset collection struct
-///
-/// * Dataset.reads
-/// * Dataset.phmm_params
-/// * Dataset.dbg_raw
-/// * Dataset.dbg_true_init
-/// * Dataset.dbg_true
-///
-// #[serde_as]
-// #[derive(Clone, Serialize)]
-pub struct Experiment {
+pub struct Dataset {
     ///
     /// genome sequence
     ///
@@ -52,6 +41,21 @@ pub struct Experiment {
     /// sampled reads
     ///
     pub reads: Reads,
+}
+
+///
+/// Dataset collection struct
+///
+/// * Dataset.reads
+/// * Dataset.phmm_params
+/// * Dataset.dbg_raw
+/// * Dataset.dbg_true_init
+/// * Dataset.dbg_true
+///
+// #[serde_as]
+// #[derive(Clone, Serialize)]
+pub struct Experiment {
+    pub dataset: Dataset,
     ///
     /// Profile HMM parameters
     ///
@@ -71,11 +75,20 @@ pub struct Experiment {
 }
 
 impl Experiment {
+    pub fn genome(&self) -> &Genome {
+        &self.dataset.genome
+    }
+    pub fn genome_size(&self) -> usize {
+        self.dataset.genome_size
+    }
+    pub fn reads(&self) -> &Reads {
+        &self.dataset.reads
+    }
     ///
     /// show reads
     ///
     pub fn show_reads(&self) {
-        for (i, read) in self.reads.iter().enumerate() {
+        for (i, read) in self.reads().iter().enumerate() {
             println!("read#{}\t{}", i, read.to_str());
         }
     }
@@ -141,9 +154,11 @@ pub fn generate_dataset(
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, &genome);
 
     Experiment {
-        genome,
-        genome_size,
-        reads,
+        dataset: Dataset {
+            genome,
+            genome_size,
+            reads,
+        },
         phmm_params,
         dbg_raw,
         dbg_true_init,
@@ -189,9 +204,11 @@ pub fn generate_full_length_dataset(
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(100, &genome);
 
     Experiment {
-        genome,
-        genome_size,
-        reads,
+        dataset: Dataset {
+            genome,
+            genome_size,
+            reads,
+        },
         phmm_params,
         dbg_raw,
         dbg_true_init,

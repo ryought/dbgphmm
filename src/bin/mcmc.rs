@@ -65,7 +65,7 @@ fn run_mcmc() {
         .map(|(copy_nums, cycle)| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
-            let p = dbg.to_full_prob(param, &dataset.reads);
+            let p = dbg.to_full_prob(param, dataset.reads());
             (copy_nums, cycle, dbg, p)
         })
         .collect();

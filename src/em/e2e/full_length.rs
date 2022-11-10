@@ -64,7 +64,7 @@ mod tests {
 
         let (dbg, logs) = compression(
             &dataset.dbg_raw,
-            &dataset.reads,
+            dataset.reads(),
             &PHMMParams::default(),
             10.0,
             5,
@@ -86,7 +86,7 @@ mod tests {
 
         let (dbg, _) = extension(
             &dataset.dbg_true_init,
-            &dataset.reads,
+            dataset.reads(),
             &PHMMParams::default(),
             5,
         );
@@ -112,7 +112,7 @@ mod tests {
     fn e2e_full_diploid() {
         let dataset = e2e_mock_diploid();
 
-        for read in dataset.reads.iter() {
+        for read in dataset.reads().iter() {
             println!("read={}", sequence_to_string(read));
         }
 

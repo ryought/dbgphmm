@@ -483,10 +483,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn benchmark(&self, dataset: &Experiment) -> BenchResult<N::Kmer> {
         BenchResult {
-            likelihood: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
+            likelihood: self.to_full_prob(dataset.phmm_params.clone(), dataset.reads()),
             genome_size: self.genome_size(),
-            kmer_existence: self.check_kmer_existence_with_seqs(&dataset.genome),
-            kmer_hists: self.kmer_hists_from_seqs(&dataset.genome),
+            kmer_existence: self.check_kmer_existence_with_seqs(dataset.genome()),
+            kmer_hists: self.kmer_hists_from_seqs(dataset.genome()),
         }
     }
     ///
@@ -500,8 +500,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> CompressionBenchResult<N::Kmer> {
         CompressionBenchResult {
             common_bench: self.benchmark(dataset),
-            prior: self.to_prior_score(lambda, dataset.genome_size),
-            kmer_classification: self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw),
+            prior: self.to_prior_score(lambda, dataset.genome_size()),
+            kmer_classification: self
+                .kmer_classification_result(dataset.genome(), &dataset.dbg_raw),
         }
     }
     ///

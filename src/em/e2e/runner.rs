@@ -43,10 +43,10 @@ pub fn benchmark(
     Vec<CompareWithSeqResult<VecKmer>>,
 ) {
     let scheduler = SchedulerType1::new(dataset.dbg_raw.k(), dataset.dbg_true.k(), coverage);
-    let genome_size = dataset.genome_size;
+    let genome_size = dataset.genome_size();
     let (dbg_infer, logs) = infer(
         &dataset.dbg_raw,
-        &dataset.reads,
+        &dataset.reads(),
         &dataset.phmm_params,
         &scheduler,
         genome_size,
@@ -59,7 +59,7 @@ pub fn benchmark(
     println!("{}", dbg_infer.n_traverse_choices());
     println!("dbg_true=\n{}", dataset.dbg_true);
     println!("{}", dataset.dbg_true.n_traverse_choices());
-    for (i, haplotype) in dataset.genome.iter().enumerate() {
+    for (i, haplotype) in dataset.genome().iter().enumerate() {
         println!("genome{}=\n{}", i, sequence_to_string(haplotype));
     }
 
@@ -68,17 +68,17 @@ pub fn benchmark(
 
     let p_infer = dbg_infer
         .to_phmm(dataset.phmm_params.clone())
-        .to_full_prob_parallel(&dataset.reads);
+        .to_full_prob_parallel(dataset.reads());
     println!("p_infer={}", p_infer);
 
     let p_true = dataset
         .dbg_true
         .to_phmm(dataset.phmm_params.clone())
-        .to_full_prob_parallel(&dataset.reads);
+        .to_full_prob_parallel(dataset.reads());
     println!("p_true={}", p_true);
 
     let mut v = Vec::new();
-    for hap in &dataset.genome {
+    for hap in dataset.genome() {
         let rs = dbg_infer.compare_with_seq(&dataset.dbg_true, hap);
         println!("{}", rs);
         v.push(rs);

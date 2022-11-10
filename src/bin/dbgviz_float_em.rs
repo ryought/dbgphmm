@@ -46,7 +46,7 @@ fn run_simple() {
     // dataset.show_reads();
 
     // dbg_raw
-    let dbg_raw = dataset.dbg_raw;
+    let dbg_raw = dataset.dbg_raw.clone();
 
     // dbg_true
     let mut dbg_true = dbg_raw.clone();
@@ -66,7 +66,7 @@ fn run_simple() {
 
         let result = em(
             &fdbg,
-            &dataset.reads,
+            dataset.reads(),
             &param,
             genome_size as CopyDensity,
             0.001,
@@ -104,7 +104,7 @@ fn run_simple() {
         println!("{}", json);
     } else {
         let phmm = dbg_raw.to_phmm(param.clone());
-        let (nf, p) = phmm.to_node_freqs_parallel(&dataset.reads);
+        let (nf, p) = phmm.to_node_freqs_parallel(dataset.reads());
         inspect_freqs_histgram(&dbg_true, &nf);
         let json = dbg_true.to_cytoscape_with_attrs_and_historys(
             &[],
@@ -135,7 +135,7 @@ fn run_upgrade() {
     // dataset.show_reads();
 
     // dbg_raw
-    let dbg_raw = dataset.dbg_raw;
+    let dbg_raw = dataset.dbg_raw.clone();
 
     // dbg_true
     let mut dbg_true = dbg_raw.clone();
@@ -149,7 +149,7 @@ fn run_upgrade() {
 
     run(
         &fdbg,
-        &dataset.reads,
+        dataset.reads(),
         &param,
         genome_size as CopyDensity,
         0.001,
@@ -209,7 +209,7 @@ fn run_frag() {
         // upgrade
         run(
             &fdbg,
-            &dataset.reads,
+            dataset.reads(),
             &param,
             genome_size as CopyDensity,
             0.001,
@@ -227,7 +227,7 @@ fn run_frag() {
         // single
         let result = em(
             &fdbg,
-            &dataset.reads,
+            dataset.reads(),
             &param,
             genome_size as CopyDensity,
             0.001,
