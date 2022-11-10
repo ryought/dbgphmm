@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::common::Seq;
-    use crate::e2e::{generate_dataset, Experiment, ReadType};
+    use crate::e2e::{generate_experiment, Experiment, ReadType};
     use crate::em::infer_with_on_iteration;
     use crate::em::scheduler::SchedulerType1;
     use crate::genome;
@@ -16,7 +16,7 @@ mod tests {
         // let (genome, genome_size) = genome::diploid(200, 3, 0.1, 0);
         let (genome, genome_size) = genome::simple(200, 5);
         let coverage = 10;
-        let dataset = generate_dataset(
+        let dataset = generate_experiment(
             genome.clone(),
             genome_size,
             0,
@@ -66,7 +66,7 @@ mod tests {
         // data generation
         let (genome, genome_size) = genome::tandem_repeat_diploid(20, 20, 0.1, 0, 0, 0.01, 0);
         let coverage = 10;
-        let dataset = generate_dataset(
+        let dataset = generate_experiment(
             genome.clone(),
             genome_size,
             0,

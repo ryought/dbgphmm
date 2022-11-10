@@ -10,7 +10,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_dataset, Experiment, ReadType};
+    use crate::e2e::{generate_experiment, Experiment, ReadType};
     use crate::em::compression::v1::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::runner::{benchmark, show_logs};
     use crate::em::{Task, TaskLog};
@@ -29,7 +29,7 @@ mod tests {
         let g = GenomeGraph::from_seqs(&genome);
         let coverage = 10;
         let read_length = 50;
-        generate_dataset(
+        generate_experiment(
             genome,                //
             genome_size,           //
             11,                    // read_seed

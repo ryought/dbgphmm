@@ -1,7 +1,7 @@
 use dbgphmm::common::{ni, Reads};
 use dbgphmm::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use dbgphmm::dbg::mocks::mock_intersection_small;
-use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
+use dbgphmm::e2e::{generate_experiment, Experiment, ReadType};
 use dbgphmm::em::float::{
     em, em_with_upgrade, inspect_density_histgram, inspect_freqs_histgram, run, shrink_nodes,
 };
@@ -32,7 +32,7 @@ fn run_simple() {
     eprintln!("{}", genome[0]);
     let coverage = 10;
     let param = PHMMParams::uniform(0.001);
-    let dataset = generate_dataset(
+    let dataset = generate_experiment(
         genome.clone(),
         genome_size,
         0,
@@ -121,7 +121,7 @@ fn run_upgrade() {
     eprintln!("{}", genome[0]);
     let coverage = 20;
     let param = PHMMParams::uniform(0.01);
-    let dataset = generate_dataset(
+    let dataset = generate_experiment(
         genome.clone(),
         genome_size,
         0,
@@ -175,7 +175,7 @@ fn run_frag() {
     eprintln!("{}", genome[0]);
     let coverage = 10;
     let param = PHMMParams::uniform(0.001);
-    let dataset = generate_dataset(
+    let dataset = generate_experiment(
         genome.clone(),
         genome_size,
         0,

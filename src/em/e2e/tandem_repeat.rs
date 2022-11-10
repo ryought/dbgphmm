@@ -13,7 +13,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_full_length_dataset, Experiment};
+    use crate::e2e::{generate_full_length_experiment, Experiment};
     use crate::em::compression::v1::{compression, compression_step, compression_with_depths};
     use crate::em::e2e::runner::benchmark;
     use crate::em::infer;
@@ -42,7 +42,7 @@ mod tests {
         println!("genome hap_a: {}", sequence_to_string(&genome[0]));
 
         // (2) reads and dbgs
-        generate_full_length_dataset(genome, genome_size, read_seed, phmm_params, coverage)
+        generate_full_length_experiment(genome, genome_size, read_seed, phmm_params, coverage)
     }
 
     fn generate_dataset_diploid(
@@ -59,7 +59,7 @@ mod tests {
         println!("genome hap_b: {}", sequence_to_string(&genome[1]));
 
         // (2) reads and dbgs
-        generate_full_length_dataset(genome, genome_size, read_seed, PHMMParams::default(), 10)
+        generate_full_length_experiment(genome, genome_size, read_seed, PHMMParams::default(), 10)
     }
 
     #[ignore]

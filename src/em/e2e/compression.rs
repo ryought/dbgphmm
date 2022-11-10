@@ -3,7 +3,7 @@
 //!
 use crate::common::{CopyNum, Genome};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::e2e::{generate_dataset, Experiment, ReadType};
+use crate::e2e::{generate_experiment, Experiment, ReadType};
 use crate::em::compression::v3::{compression, compression_step, CompressionV3Log};
 use std::io::Write;
 
@@ -52,7 +52,7 @@ mod tests {
     fn e2e_compression_simple() {
         // data generation
         let (genome, genome_size) = genome::simple(200, 5);
-        let dataset = generate_dataset(
+        let dataset = generate_experiment(
             genome.clone(),
             genome_size,
             0,
@@ -98,7 +98,7 @@ mod tests {
     fn e2e_compression_tandem_repeat_diploid() {
         // data generation
         let (genome, genome_size) = genome::tandem_repeat_diploid(20, 20, 0.1, 0, 0, 0.01, 0);
-        let dataset = generate_dataset(
+        let dataset = generate_experiment(
             genome.clone(),
             genome_size,
             0,
@@ -144,7 +144,7 @@ mod tests {
     fn e2e_compression_tandem_repeat_diploid_start_from_true() {
         // data generation
         let (genome, genome_size) = genome::tandem_repeat_diploid(20, 20, 0.1, 0, 0, 0.01, 0);
-        let dataset = generate_dataset(
+        let dataset = generate_experiment(
             genome.clone(),
             genome_size,
             0,

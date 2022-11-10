@@ -40,6 +40,10 @@ pub struct Dataset {
     /// sampled reads
     ///
     pub reads: Reads,
+    // ///
+    // /// dataset label
+    // ///
+    // pub label: String,
 }
 
 ///
@@ -92,7 +96,7 @@ impl Experiment {
     }
 }
 
-pub fn generate_dataset(
+pub fn generate_experiment(
     genome: Genome,
     genome_size: usize,
     read_seed: u64,
@@ -167,7 +171,7 @@ pub fn generate_dataset(
 ///
 /// will deprecate
 ///
-pub fn generate_full_length_dataset(
+pub fn generate_full_length_experiment(
     genome: Genome,
     genome_size: usize,
     read_seed: u64,

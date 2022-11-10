@@ -3,7 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_dataset, Experiment, ReadType};
+    use crate::e2e::{generate_experiment, Experiment, ReadType};
     use crate::em::compression::v1::{compression, compression_step};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
@@ -45,7 +45,7 @@ mod tests {
         k_target: usize,
     ) -> Experiment {
         println!("generating reads");
-        generate_dataset(
+        generate_experiment(
             genome.clone(),
             genome_size,
             0,
