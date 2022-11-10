@@ -4,14 +4,13 @@
 //! * generate genome
 //! * generate reads
 //!
-use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence};
+use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
-use serde::Serialize;
-use serde_with::{serde_as, DisplayFromStr};
+use serde::{Deserialize, Serialize};
 
 ///
 /// Read types
@@ -27,11 +26,11 @@ pub enum ReadType {
 ///
 pub struct DatasetConfig {}
 
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Dataset {
     ///
     /// genome sequence
     ///
-    // #[serde_as(as = "Vec<DisplayFromStr>")]
     pub genome: Genome,
     ///
     /// size of the genome
@@ -52,8 +51,7 @@ pub struct Dataset {
 /// * Dataset.dbg_true_init
 /// * Dataset.dbg_true
 ///
-// #[serde_as]
-// #[derive(Clone, Serialize)]
+#[derive(Clone)]
 pub struct Experiment {
     pub dataset: Dataset,
     ///
@@ -213,5 +211,26 @@ pub fn generate_full_length_dataset(
         dbg_raw,
         dbg_true_init,
         dbg_true,
+    }
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn e2e_dataset_serialize_test() {
+        let d = Dataset {
+            genome: vec![StyledSequence::linear(b"ATCGTTCTTC".to_vec())],
+            genome_size: 10,
+            reads: Reads::from(vec![b"ATCGT".to_vec(), b"TTTCG".to_vec()]),
+        };
+        let json = serde_json::to_string(&d).unwrap();
+        println!("{}", json);
+        assert_eq!(d, serde_json::from_str(&json).unwrap());
     }
 }
