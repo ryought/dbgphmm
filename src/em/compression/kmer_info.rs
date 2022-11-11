@@ -3,7 +3,8 @@
 //!
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::dbg::draft::MAX_COPY_NUM_OF_EDGE;
+use crate::dbg::edge_centric::impls::SimpleEDbgEdgeWithAttr;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::min_flow::utils::clamped_log;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};

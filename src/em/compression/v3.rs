@@ -19,7 +19,8 @@ use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
-use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::dbg::draft::MAX_COPY_NUM_OF_EDGE;
+use crate::dbg::edge_centric::impls::SimpleEDbgEdgeWithAttr;
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
 

@@ -89,7 +89,7 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgNode<K> {
     }
 }
 
-impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdgeWithFreq<K> {
+impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdgeWithAttr<K, Freq> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -146,47 +146,6 @@ impl<K: KmerLike> std::fmt::Display for SimpleCompactedEDbgEdge<K> {
             self.copy_num,
             self.origin_edges.iter().map(|e| e.index()).join(",")
         )
-    }
-}
-
-//
-// edbg edge with freq
-//
-
-///
-/// Basic implementations of EDbgEdge, with frequency info.
-///
-pub type SimpleEDbgEdgeWithFreq<K> = SimpleEDbgEdgeWithAttr<K, Freq>;
-
-///
-/// maximum copy number
-///
-/// this corresponds to the capacity of edbg min-flow calculation.
-///
-pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
-
-impl<K: KmerLike> FlowEdge<usize> for SimpleEDbgEdgeWithFreq<K> {
-    fn demand(&self) -> usize {
-        0
-    }
-    fn capacity(&self) -> usize {
-        MAX_COPY_NUM_OF_EDGE
-    }
-}
-
-///
-/// Use edbg edge (with a freq) in min-flow.
-///
-/// if the kmer corresponding to the edge is not emittable, the cost
-/// should be ignored.
-///
-impl<K: KmerLike> ConvexCost<usize> for SimpleEDbgEdgeWithFreq<K> {
-    fn convex_cost(&self, flow: usize) -> f64 {
-        if self.kmer().is_emitable() {
-            (flow as f64 - self.attribute).powi(2)
-        } else {
-            0.0
-        }
     }
 }
 
