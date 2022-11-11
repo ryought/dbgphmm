@@ -20,6 +20,7 @@ pub mod mocks;
 pub mod seq_graph;
 pub mod shortest_cycle;
 pub mod spanning_tree;
+pub mod utils;
 pub use float_weight::FloatWeight;
 
 //
