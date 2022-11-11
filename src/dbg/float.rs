@@ -1,7 +1,7 @@
 //!
 //! de bruijn graph with float (real-valued) copy numbers
 //!
-use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
+use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
 use crate::common::{Genome, Seq};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::float_seq_graph::{FloatSeqEdge, FloatSeqGraph, FloatSeqNode};
@@ -27,7 +27,7 @@ pub type CopyDensity = f64;
 pub type FloatDbg<K> = Dbg<FloatDbgNode<K>, FloatDbgEdge>;
 
 /// node struct of FloatDbg
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FloatDbgNode<K: KmerLike> {
     kmer: K,
     copy_density: CopyDensity,
@@ -56,10 +56,12 @@ impl<K: KmerLike> FloatDbgNode<K> {
 }
 
 /// edge struct of FloatDbg
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FloatDbgEdge {
     copy_density: Option<CopyDensity>,
 }
+
+impl DbgEdgeBase for FloatDbgEdge {}
 
 impl FloatDbgEdge {
     fn new(copy_density: Option<CopyDensity>) -> Self {

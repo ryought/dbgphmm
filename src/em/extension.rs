@@ -12,7 +12,7 @@
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums};
 use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
-use crate::e2e::Dataset;
+use crate::e2e::Experiment;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::KmerLike;
@@ -75,7 +75,7 @@ impl<N: DbgNode, E: DbgEdge> ExtensionLog<N, E> {
     /// Detailed output when the origin datset (especially the true genome)
     /// data is available.
     ///
-    pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
+    pub fn to_benchmark_string(&self, dataset: &Experiment) -> String {
         format!(
             "{}\t{}\t{}\t{}",
             self.dbg.benchmark(&dataset),

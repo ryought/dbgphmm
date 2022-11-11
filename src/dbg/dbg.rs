@@ -7,6 +7,7 @@ use super::edge_centric::{
     SimpleEDbgEdgeWithAttr, SimpleEDbgNode, SimpleEDbgWithAttr,
 };
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
+use super::json::DbgAsJson;
 use crate::common::{CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
@@ -21,6 +22,7 @@ use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
 use petgraph::{Direction, EdgeType};
+use serde::{Deserialize, Serialize};
 
 pub type NodeCopyNums = NodeVec<DenseStorage<CopyNum>>;
 pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
@@ -30,7 +32,7 @@ pub type EdgeCopyNums = EdgeVec<DenseStorage<CopyNum>>;
 /// k
 ///
 #[derive(Clone)]
-pub struct Dbg<N: DbgNodeBase, E> {
+pub struct Dbg<N: DbgNodeBase, E: DbgEdgeBase> {
     ///
     /// k-mer size
     ///
@@ -41,7 +43,7 @@ pub struct Dbg<N: DbgNodeBase, E> {
     pub graph: DiGraph<N, E>,
 }
 
-pub trait DbgNodeBase: Clone + std::fmt::Display {
+pub trait DbgNodeBase: Clone + std::fmt::Display + PartialEq {
     type Kmer: KmerLike + NullableKmer;
     ///
     /// Kmer of this node of the Dbg
@@ -73,6 +75,8 @@ pub trait DbgNodeBase: Clone + std::fmt::Display {
     }
 }
 
+pub trait DbgEdgeBase: Clone + std::fmt::Display + PartialEq {}
+
 ///
 /// Trait for nodes in Dbg (with integer copy numbers)
 ///
@@ -99,7 +103,7 @@ pub trait DbgNode: DbgNodeBase {
 ///
 /// Trait for edges in Dbg (with integer copy numbers)
 ///
-pub trait DbgEdge: Clone + std::fmt::Display {
+pub trait DbgEdge: DbgEdgeBase {
     fn new(copy_num: Option<CopyNum>) -> Self;
     ///
     /// Copy number count of this edge in Dbg
@@ -114,7 +118,7 @@ pub trait DbgEdge: Clone + std::fmt::Display {
 /// Basic graph operations for Dbg
 /// without requirement of copy numbers
 ///
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     /// k-mer size of the de Bruijn Graph
     pub fn k(&self) -> usize {
         self.k
@@ -225,7 +229,7 @@ impl<N: DbgNodeBase, E> Dbg<N, E> {
             .map(|(e, _, _, _)| e)
     }
 }
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     ///
     /// NodeIndex(s) of heads/tails
     ///
@@ -416,6 +420,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         self.nodes()
             .filter(|(_, weight)| weight.copy_num() == 0)
             .count()
+    }
+    ///
+    ///
+    ///
+    pub fn copy_num_stats(&self) -> HashMap<usize, usize> {
+        let mut h = HashMap::default();
+        for (_, weight) in self.nodes() {
+            *h.entry(weight.copy_num()).or_insert(0) += 1;
+        }
+        h
     }
 }
 
@@ -672,7 +686,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     ///
     /// find the kmer in the de bruijn graph
     ///
@@ -725,7 +739,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 ///
 /// Basic constructors (of basic Dbg)
 ///
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     ///
     /// plain constructor of dbg
     ///
@@ -804,7 +818,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 //
 // Edge-centric Dbg conversion
 //
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     ///
     /// Construct backend graph (petgraph::Graph) of edge-centric-version of de Bruijn graph. This
     /// method can construct both directed/undirected graph.
@@ -1019,9 +1033,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Self::from_digraph(self.k() + 1, graph)
     }
     ///
+    ///
     pub fn remove_zero_copy_node(&mut self) {
+        self.remove_nodes(1)
+    }
+    ///
+    ///
+    pub fn remove_nodes(&mut self, min_copy_num: CopyNum) {
         self.graph
-            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() >= min_copy_num);
     }
     ///
     /// shrink single copy nodes

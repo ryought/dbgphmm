@@ -1,5 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
-use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
+use dbgphmm::e2e::{generate_experiment, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string;
@@ -12,7 +12,7 @@ fn main() {
     let (genome, genome_size) = genome::simple(1000, 2);
     let coverage = 10;
     let param = PHMMParams::uniform(0.001);
-    let dataset = generate_dataset(
+    let dataset = generate_experiment(
         genome.clone(),
         genome_size,
         0,

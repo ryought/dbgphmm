@@ -3,7 +3,7 @@ mod tests {
     use super::*;
     use crate::common::{sequence_to_string, Genome, Reads, Sequence};
     use crate::dbg::{Dbg, HashDbg, SimpleDbg};
-    use crate::e2e::{generate_dataset, Dataset, ReadType};
+    use crate::e2e::{generate_experiment, Experiment, ReadType};
     use crate::em::compression::v1::{compression, compression_step};
     use crate::em::e2e::runner::benchmark;
     use crate::em::extension::{extension, extension_step};
@@ -17,7 +17,7 @@ mod tests {
     use crate::kmer::VecKmer;
     use crate::random_seq::generate;
 
-    fn e2e_mock() -> Dataset {
+    fn e2e_mock() -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple(100, 0);
@@ -27,7 +27,7 @@ mod tests {
         e2e_mock_from_genome(&genome, genome_size, 10, 40)
     }
 
-    fn e2e_mock_diploid() -> Dataset {
+    fn e2e_mock_diploid() -> Experiment {
         // (1) generate genome and reads
         println!("generating genome");
         let (genome, genome_size) = simple_diploid();
@@ -43,9 +43,9 @@ mod tests {
         genome_size: usize,
         count: usize,
         k_target: usize,
-    ) -> Dataset {
+    ) -> Experiment {
         println!("generating reads");
-        generate_dataset(
+        generate_experiment(
             genome.clone(),
             genome_size,
             0,
@@ -64,7 +64,7 @@ mod tests {
 
         let (dbg, logs) = compression(
             &dataset.dbg_raw,
-            &dataset.reads,
+            dataset.reads(),
             &PHMMParams::default(),
             10.0,
             5,
@@ -86,7 +86,7 @@ mod tests {
 
         let (dbg, _) = extension(
             &dataset.dbg_true_init,
-            &dataset.reads,
+            dataset.reads(),
             &PHMMParams::default(),
             5,
         );
@@ -112,7 +112,7 @@ mod tests {
     fn e2e_full_diploid() {
         let dataset = e2e_mock_diploid();
 
-        for read in dataset.reads.iter() {
+        for read in dataset.reads().iter() {
             println!("read={}", sequence_to_string(read));
         }
 

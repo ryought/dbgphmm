@@ -4,7 +4,7 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::{CopyNum, Genome, Seq, SeqStyle, Sequence};
 use crate::dbg::hashdbg_v2::HashDbg;
-use crate::e2e::Dataset;
+use crate::e2e::Experiment;
 use crate::hist::Hist;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::common::linear_sequence_to_kmers;
@@ -481,12 +481,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * kmer_existence
     /// * kmer_hists
     ///
-    pub fn benchmark(&self, dataset: &Dataset) -> BenchResult<N::Kmer> {
+    pub fn benchmark(&self, dataset: &Experiment) -> BenchResult<N::Kmer> {
         BenchResult {
-            likelihood: self.to_full_prob(dataset.phmm_params.clone(), &dataset.reads),
+            likelihood: self.to_full_prob(dataset.phmm_params.clone(), dataset.reads()),
             genome_size: self.genome_size(),
-            kmer_existence: self.check_kmer_existence_with_seqs(&dataset.genome),
-            kmer_hists: self.kmer_hists_from_seqs(&dataset.genome),
+            kmer_existence: self.check_kmer_existence_with_seqs(dataset.genome()),
+            kmer_hists: self.kmer_hists_from_seqs(dataset.genome()),
         }
     }
     ///
@@ -495,13 +495,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn benchmark_compression(
         &self,
-        dataset: &Dataset,
+        dataset: &Experiment,
         lambda: f64,
     ) -> CompressionBenchResult<N::Kmer> {
         CompressionBenchResult {
             common_bench: self.benchmark(dataset),
-            prior: self.to_prior_score(lambda, dataset.genome_size),
-            kmer_classification: self.kmer_classification_result(&dataset.genome, &dataset.dbg_raw),
+            prior: self.to_prior_score(lambda, dataset.genome_size()),
+            kmer_classification: self
+                .kmer_classification_result(dataset.genome(), &dataset.dbg_raw),
         }
     }
     ///

@@ -6,7 +6,7 @@ use super::compression::v3::CompressionV3Log;
 use super::extension::ExtensionLog;
 use crate::common::Freq;
 use crate::dbg::dbg::{DbgEdge, DbgNode};
-use crate::e2e::Dataset;
+use crate::e2e::Experiment;
 use itertools::Itertools; // for .join("\n")
 
 ///
@@ -77,7 +77,7 @@ impl<N: DbgNode, E: DbgEdge> TaskLog<N, E> {
                 .join("\n"),
         }
     }
-    pub fn to_benchmark_string_with_header(&self, dataset: &Dataset, header: &str) -> String {
+    pub fn to_benchmark_string_with_header(&self, dataset: &Experiment, header: &str) -> String {
         match self {
             TaskLog::Compression(task, logs) => logs
                 .iter()

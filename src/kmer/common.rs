@@ -176,6 +176,9 @@ pub trait KmerLike:
     // construction
     fn from_bases(bases: &[u8]) -> Self;
     fn to_bases(&self) -> Vec<u8>;
+    fn from_str(s: &str) -> Self {
+        Self::from_bases(&s.to_string().into_bytes())
+    }
 }
 
 //

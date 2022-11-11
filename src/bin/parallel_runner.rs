@@ -1,4 +1,4 @@
-use dbgphmm::e2e::{generate_dataset, ReadType};
+use dbgphmm::e2e::{generate_experiment, ReadType};
 use dbgphmm::em::compression::v1::compression_with_depths;
 use dbgphmm::em::compression::v3;
 use dbgphmm::em::e2e::compression::write_compression_logs;
@@ -42,7 +42,7 @@ fn run(output_dir: &Path) {
             let (genome, genome_size) = genome::tandem_repeat_diploid(
                 unit_size, n_unit, div_init, seed, seed, div_hap, seed,
             );
-            let dataset = generate_dataset(
+            let dataset = generate_experiment(
                 genome,
                 genome_size,
                 seed,
@@ -57,9 +57,9 @@ fn run(output_dir: &Path) {
             // v3
             let (new_dbg_v3, logs_v3) = v3::compression(
                 &dataset.dbg_raw,
-                &dataset.reads,
+                dataset.reads(),
                 &dataset.phmm_params,
-                dataset.genome_size,
+                dataset.genome_size(),
                 lambda,
                 zero_penalty,
                 50,
@@ -72,7 +72,7 @@ fn run(output_dir: &Path) {
             // v1
             let (new_dbg_v1, logs_v1) = compression_with_depths(
                 &dataset.dbg_raw,
-                &dataset.reads,
+                dataset.reads(),
                 &dataset.phmm_params,
                 &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
             );

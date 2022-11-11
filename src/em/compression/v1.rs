@@ -1,6 +1,6 @@
 use crate::common::{Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::e2e::Dataset;
+use crate::e2e::Experiment;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, Cost};
@@ -47,7 +47,7 @@ impl<N: DbgNode, E: DbgEdge> CompressionLog<N, E> {
     /// Detailed output when the origin datset (especially the true genome)
     /// data is available.
     ///
-    pub fn to_benchmark_string(&self, dataset: &Dataset) -> String {
+    pub fn to_benchmark_string(&self, dataset: &Experiment) -> String {
         format!(
             "{}\t{}\t{}\t{}\t{}",
             self.dbg.benchmark(&dataset),

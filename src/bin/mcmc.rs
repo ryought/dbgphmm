@@ -1,5 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
-use dbgphmm::e2e::{generate_dataset, Dataset, ReadType};
+use dbgphmm::e2e::{generate_experiment, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::prelude::*;
@@ -27,7 +27,7 @@ fn run_mcmc() {
     };
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
-    let dataset = generate_dataset(
+    let dataset = generate_experiment(
         genome.clone(),
         genome_size,
         0,
@@ -65,7 +65,7 @@ fn run_mcmc() {
         .map(|(copy_nums, cycle)| {
             let mut dbg = dbg_true.clone();
             dbg.set_node_copy_nums(&copy_nums);
-            let p = dbg.to_full_prob(param, &dataset.reads);
+            let p = dbg.to_full_prob(param, dataset.reads());
             (copy_nums, cycle, dbg, p)
         })
         .collect();
