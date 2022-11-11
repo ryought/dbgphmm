@@ -42,6 +42,13 @@ fn main() {
         dbg_raw.set_node_copy_nums(&copy_nums_true);
     } else {
         eprintln!("assigning approximate copynums..");
+        let coverage = dataset.reads().len();
+        let freqs = dbg_raw.to_node_freqs() / coverage as f64;
+        let (copy_nums_approx, cost) = dbg_raw
+            .min_squared_error_copy_nums_from_freqs(&freqs)
+            .unwrap();
+        eprintln!("cost of approximate copynums = {}", cost);
+        dbg_raw.set_node_copy_nums(&copy_nums_approx);
     }
 
     // output

@@ -42,6 +42,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             (flow.switch_index(), cost)
         })
     }
+    ///
+    /// get current copy nums as node freqs
+    ///
+    pub fn to_node_freqs(&self) -> NodeFreqs {
+        let copy_nums = self.to_node_copy_nums();
+        NodeFreqs::from_inner_vec(
+            copy_nums
+                .to_inner_vec()
+                .into_iter()
+                .map(|copy_num| copy_num as Freq)
+                .collect(),
+        )
+    }
 }
 
 ///
@@ -103,5 +116,26 @@ impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
         } else {
             0.0
         }
+    }
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dbg::mocks;
+
+    #[test]
+    fn dbg_to_freqs_test() {
+        let dbg = mocks::mock_intersection_small();
+        let nc = dbg.to_node_copy_nums();
+        let nf = dbg.to_node_freqs();
+        println!("nc={}", nc);
+        println!("nf={}", nf);
+        assert_eq!(nc.to_vec(), vec![1; dbg.n_nodes()]);
+        assert_eq!(nf.to_vec(), vec![1.0; dbg.n_nodes()]);
     }
 }

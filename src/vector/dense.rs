@@ -102,6 +102,12 @@ where
     pub fn to_inner_vec(self) -> Vec<T> {
         self.0
     }
+    ///
+    /// create DenseStorage directly from inner_vec
+    ///
+    pub fn from_inner_vec(vec: Vec<T>) -> Self {
+        DenseStorage(vec)
+    }
 }
 
 #[cfg(test)]

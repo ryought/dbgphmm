@@ -238,6 +238,12 @@ where
     pub fn to_inner_vec(self) -> Vec<T> {
         self.storage.to_inner_vec()
     }
+    pub fn from_inner_vec(vec: Vec<T>) -> Self {
+        Vector {
+            storage: DenseStorage::from_inner_vec(vec),
+            ty: PhantomData,
+        }
+    }
 }
 
 /// private associated functions
