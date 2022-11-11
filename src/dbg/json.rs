@@ -144,11 +144,17 @@ mod tests {
     #[test]
     fn dbg_json_intersection_small() {
         let dbg = mocks::mock_intersection_small();
+        let nodes: Vec<_> = dbg.nodes().collect();
+        let edges: Vec<_> = dbg.edges().collect();
         let dbg_as_json = dbg.to_json_struct();
         let json = serde_json::to_string(&dbg_as_json).unwrap();
         println!("{}", json);
+
         let d2: DbgAsJson = serde_json::from_str(&json).unwrap();
         let dbg2: SimpleDbg<VecKmer> = SimpleDbg::from_json_struct(d2);
-        // assert_eq!(dbg, dbg2);
+        let nodes2: Vec<_> = dbg2.nodes().collect();
+        let edges2: Vec<_> = dbg2.edges().collect();
+        assert_eq!(nodes, nodes2);
+        assert_eq!(edges, edges2);
     }
 }

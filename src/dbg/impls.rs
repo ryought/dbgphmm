@@ -6,7 +6,7 @@ use crate::kmer::kmer::{Kmer, KmerLike};
 pub type SimpleDbg<K> = Dbg<SimpleDbgNode<K>, SimpleDbgEdge>;
 
 /// Basic implementations of DbgNode
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SimpleDbgNode<K: KmerLike> {
     kmer: K,
     copy_num: CopyNum,
@@ -32,7 +32,7 @@ impl<K: KmerLike> DbgNode for SimpleDbgNode<K> {
 }
 
 /// Basic implementations of DbgNode
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SimpleDbgEdge {
     copy_num: Option<CopyNum>,
 }
