@@ -1,7 +1,7 @@
 //!
 //! dbg as a seqgraph and phmm
 //!
-use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
+use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
 use crate::common::{CopyNum, Seq};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
@@ -59,7 +59,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
-impl<N: DbgNodeBase, E> Dbg<N, E> {
+impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     ///
     /// show mapping of a sequence of emissions in cli.
     /// list the nodes which emits emissons[i] with high probability.

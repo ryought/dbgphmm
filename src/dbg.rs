@@ -14,6 +14,7 @@ pub mod debug;
 pub mod float;
 pub mod flow_intersection;
 pub mod intersections;
+pub mod json;
 pub mod mocks;
 pub mod output;
 pub mod phmm;

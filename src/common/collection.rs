@@ -124,7 +124,7 @@ impl BaseTypeTrait for Vec<u8> {
         s.to_string().into_bytes()
     }
 }
-struct BaseType;
+pub struct BaseType;
 impl<T: BaseTypeTrait> SerializeAs<T> for BaseType {
     fn serialize_as<S>(source: &T, serializer: S) -> Result<S::Ok, S::Error>
     where

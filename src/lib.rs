@@ -16,6 +16,7 @@ pub mod hist;
 pub mod hmm;
 pub mod hmmv2;
 pub mod io;
+pub mod json;
 pub mod kmer;
 pub mod mcmc;
 pub mod min_flow;

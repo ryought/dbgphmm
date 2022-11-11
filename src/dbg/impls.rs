@@ -1,4 +1,4 @@
-use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
+use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
 use crate::common::{CopyNum, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
 
@@ -6,7 +6,7 @@ use crate::kmer::kmer::{Kmer, KmerLike};
 pub type SimpleDbg<K> = Dbg<SimpleDbgNode<K>, SimpleDbgEdge>;
 
 /// Basic implementations of DbgNode
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SimpleDbgNode<K: KmerLike> {
     kmer: K,
     copy_num: CopyNum,
@@ -32,10 +32,12 @@ impl<K: KmerLike> DbgNode for SimpleDbgNode<K> {
 }
 
 /// Basic implementations of DbgNode
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SimpleDbgEdge {
     copy_num: Option<CopyNum>,
 }
+
+impl DbgEdgeBase for SimpleDbgEdge {}
 
 impl DbgEdge for SimpleDbgEdge {
     fn new(copy_num: Option<CopyNum>) -> Self {
