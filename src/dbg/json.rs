@@ -70,7 +70,9 @@ where
 
         Dbg::from_digraph(j.k, graph)
     }
-    // pub fn to_json<W: fmt::Write>(&self, f: &mut W) -> fmt::Result {}
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(&self.to_json_struct()).unwrap()
+    }
 }
 
 impl<N, E> Dbg<N, E>

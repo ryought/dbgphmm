@@ -421,6 +421,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .filter(|(_, weight)| weight.copy_num() == 0)
             .count()
     }
+    ///
+    ///
+    ///
+    pub fn copy_num_stats(&self) -> HashMap<usize, usize> {
+        let mut h = HashMap::default();
+        for (_, weight) in self.nodes() {
+            *h.entry(weight.copy_num()).or_insert(0) += 1;
+        }
+        h
+    }
 }
 
 ///
@@ -1023,9 +1033,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Self::from_digraph(self.k() + 1, graph)
     }
     ///
+    ///
     pub fn remove_zero_copy_node(&mut self) {
+        self.remove_nodes(1)
+    }
+    ///
+    ///
+    pub fn remove_nodes(&mut self, min_copy_num: CopyNum) {
         self.graph
-            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() > 0);
+            .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() >= min_copy_num);
     }
     ///
     /// shrink single copy nodes
