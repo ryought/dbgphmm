@@ -154,6 +154,12 @@ pub trait KmerLike:
         self.extend_last(other.last())
     }
     ///
+    /// (XXXYYY, YYYZ) (two K/k mers) -> XXXYYYZ (K+1 mer)
+    ///
+    fn overlap(&self, other: &Self) -> Self {
+        self.extend_last(other.last())
+    }
+    ///
     /// upgrade k-mer head into k+1-mer
     ///
     /// NNX -> NNNX

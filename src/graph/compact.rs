@@ -19,6 +19,17 @@ fn node_degree<N, E>(graph: &DiGraph<N, E>, node: NodeIndex, dir: Direction) -> 
 }
 
 ///
+/// get a single edge from/to a node.
+///
+fn find_edge_directed<N, E>(
+    graph: &DiGraph<N, E>,
+    node: NodeIndex,
+    dir: Direction,
+) -> Option<EdgeIndex> {
+    graph.edges_directed(node, dir).next().map(|er| er.id())
+}
+
+///
 /// find a deadend node in graph (in order of index)
 ///
 fn find_deadend<N, E>(graph: &DiGraph<N, E>) -> Option<NodeIndex> {
@@ -46,10 +57,14 @@ pub fn remove_deadends<N, E>(graph: &mut DiGraph<N, E>) {
 ///
 /// find a node in simple-path i.e. in-deg = out-deg = 1
 ///
+/// Except nodes with a single self-loop.
+///
 fn find_simple_path_node<N, E>(graph: &DiGraph<N, E>) -> Option<NodeIndex> {
     graph.node_indices().find(|&node| {
         node_degree(graph, node, Direction::Incoming) == 1
             && node_degree(graph, node, Direction::Outgoing) == 1
+            && find_edge_directed(graph, node, Direction::Incoming)
+                != find_edge_directed(graph, node, Direction::Outgoing)
     })
 }
 
@@ -77,14 +92,30 @@ pub fn compact_simple_paths<N: Clone, E: Clone>(
         let t = out_edge_ref.target();
         let in_edge = in_edge_ref.id();
         let out_edge = out_edge_ref.id();
+        if in_edge == out_edge {
+            // self loop
+        }
 
         // take edge weight
-        let in_edge_weight = ret.remove_edge(in_edge).unwrap();
-        let out_edge_weight = ret.remove_edge(out_edge).unwrap();
+        // removing in_edge changes out_edge's index
+        // node with larger index should be removed first.
+        let (in_edge_weight, out_edge_weight) = if in_edge.index() < out_edge.index() {
+            // out fisrt
+            let o = ret.remove_edge(out_edge).unwrap();
+            let i = ret.remove_edge(in_edge).unwrap();
+            (i, o)
+        } else {
+            // in first
+            let i = ret.remove_edge(in_edge).unwrap();
+            let o = ret.remove_edge(out_edge).unwrap();
+            (i, o)
+        };
         let edge_weight = [in_edge_weight, out_edge_weight].concat();
 
-        ret.remove_node(node);
+        // removing node causes index change
+        // so add_edge must be done first
         ret.add_edge(s, t, edge_weight);
+        ret.remove_node(node);
     }
 
     ret
