@@ -5,9 +5,9 @@ use dbgphmm::prelude::*;
 
 #[derive(Clap)]
 struct Opts {
-    #[clap(short = 'c', default_value = "20")]
+    #[clap(short = 'c', default_value = "30")]
     coverage: usize,
-    #[clap(short = 'p', default_value = "0.003")]
+    #[clap(short = 'p', default_value = "0.001")]
     p_error: f64,
     #[clap(short, long)]
     simple: bool,
@@ -16,9 +16,11 @@ struct Opts {
 fn main() {
     let opts: Opts = Opts::parse();
     let (genome, genome_size) = if opts.simple {
-        genome::simple(100, 5)
+        // 100kb unique genome
+        genome::simple(100_000, 5)
     } else {
-        genome::tandem_repeat_haploid(20, 5, 0.01, 0, 0)
+        // 100kb genome (10k unit x 10)
+        genome::tandem_repeat_haploid(10_000, 10, 0.01, 0, 0)
         // genome::tandem_repeat_haploid(50, 4, 0.05, 0, 0);
     };
     let coverage = opts.coverage;
@@ -28,7 +30,7 @@ fn main() {
         genome_size,
         0,
         coverage,
-        2000,
+        genome_size * 2,
         ReadType::FullLength,
         param,
     );

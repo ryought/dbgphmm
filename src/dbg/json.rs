@@ -25,6 +25,9 @@ where
     N: DbgNode,
     E: DbgEdge,
 {
+    ///
+    ///
+    ///
     pub fn to_json_struct(&self) -> DbgAsJson {
         let nodes = self
             .nodes()
@@ -50,6 +53,9 @@ where
             edges,
         }
     }
+    ///
+    ///
+    ///
     pub fn from_json_struct(j: DbgAsJson) -> Self {
         let mut graph = DiGraph::new();
         for (id, kmer_string, copy_num) in j.nodes {
