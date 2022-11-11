@@ -8,6 +8,7 @@ use crate::kmer::{KmerLike, NullableKmer};
 use petgraph::graph::{DiGraph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use std::path::Path;
 use std::{fmt, fs, io};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,6 +73,16 @@ where
     }
     pub fn to_json(&self) -> String {
         serde_json::to_string(&self.to_json_struct()).unwrap()
+    }
+    // file related
+    pub fn to_json_file<P: AsRef<Path>>(&self, path: P) {
+        let mut file = fs::File::create(path).unwrap();
+        serde_json::to_writer(&mut file, &self.to_json_struct()).unwrap()
+    }
+    pub fn from_json_file<P: AsRef<Path>>(path: P) -> Self {
+        let mut file = fs::File::open(path).unwrap();
+        let json_struct: DbgAsJson = serde_json::from_reader(&mut file).unwrap();
+        Self::from_json_struct(json_struct)
     }
 }
 
