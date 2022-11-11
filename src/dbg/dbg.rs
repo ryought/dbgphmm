@@ -11,6 +11,7 @@ use super::json::DbgAsJson;
 use crate::common::{CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
+use crate::graph::compact::remove_deadends;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
@@ -1033,15 +1034,25 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         Self::from_digraph(self.k() + 1, graph)
     }
     ///
+    /// remove 0x nodes.
     ///
     pub fn remove_zero_copy_node(&mut self) {
         self.remove_nodes(1)
     }
     ///
+    /// remove nodes whose `copy_num` is below the `min_copy_num`.
     ///
     pub fn remove_nodes(&mut self, min_copy_num: CopyNum) {
         self.graph
             .retain_nodes(|g, v| g.node_weight(v).unwrap().copy_num() >= min_copy_num);
+    }
+    ///
+    /// remove deadend nodes
+    ///
+    /// note: this can cause flow-incosistency.
+    ///
+    pub fn remove_deadend_nodes(&mut self) {
+        remove_deadends(&mut self.graph)
     }
     ///
     /// shrink single copy nodes

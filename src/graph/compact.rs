@@ -37,11 +37,10 @@ fn find_deadend<N, E>(graph: &DiGraph<N, E>) -> Option<NodeIndex> {
 /// * Removing can cause node index change
 /// * There is room to improve, current algorithm takes O(N^2).
 ///
-pub fn remove_deadends<N, E>(mut graph: DiGraph<N, E>) -> DiGraph<N, E> {
+pub fn remove_deadends<N, E>(graph: &mut DiGraph<N, E>) {
     while let Some(deadend) = find_deadend(&graph) {
         graph.remove_node(deadend);
     }
-    graph
 }
 
 ///
@@ -130,7 +129,7 @@ mod tests {
     fn remove_deadends_test() {
         // graph with deadends
         {
-            let g: DiGraph<(), ()> = DiGraph::from_edges(&[
+            let mut g: DiGraph<(), ()> = DiGraph::from_edges(&[
                 // main circle <1,2,3,4>
                 (1, 2),
                 (2, 3),
@@ -148,22 +147,22 @@ mod tests {
             assert_eq!(node_degree(&g, ni(0), Direction::Outgoing), 0);
             assert_eq!(find_deadend(&g), Some(ni(0)));
 
-            let h = remove_deadends(g.clone());
-            println!("{:?}", Dot::with_config(&h, &[]));
-            assert_eq!(h.node_count(), 4);
-            assert_eq!(h.edge_count(), 4);
+            remove_deadends(&mut g);
+            println!("{:?}", Dot::with_config(&g, &[]));
+            assert_eq!(g.node_count(), 4);
+            assert_eq!(g.edge_count(), 4);
         }
 
         // graph with deadends
         {
-            let g: DiGraph<(), ()> = DiGraph::from_edges(&[(0, 1), (1, 2), (2, 3), (3, 0)]);
+            let mut g: DiGraph<(), ()> = DiGraph::from_edges(&[(0, 1), (1, 2), (2, 3), (3, 0)]);
             println!("{:?}", Dot::with_config(&g, &[]));
             assert_eq!(find_deadend(&g), None);
 
-            let h = remove_deadends(g.clone());
-            println!("{:?}", Dot::with_config(&h, &[]));
-            assert_eq!(h.node_count(), 4);
-            assert_eq!(h.edge_count(), 4);
+            remove_deadends(&mut g);
+            println!("{:?}", Dot::with_config(&g, &[]));
+            assert_eq!(g.node_count(), 4);
+            assert_eq!(g.edge_count(), 4);
         }
     }
 }

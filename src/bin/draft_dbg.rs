@@ -25,10 +25,18 @@ fn main() {
     eprintln!("constructing..");
     let mut dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(opts.k, dataset.reads());
     dbg_raw.remove_nodes(2);
+    dbg_raw.remove_deadend_nodes();
     println!("n_nodes={}", dbg_raw.n_nodes());
     println!("n_edges={}", dbg_raw.n_edges());
     println!("{:?}", dbg_raw.copy_num_stats());
     println!("{:?}", dbg_raw.degree_stats());
+
+    // assert that true-kmers in the graph
+    let (copy_nums_true, _) = dbg_raw
+        .to_copy_nums_of_styled_seqs(dataset.genome())
+        .unwrap();
+    dbg_raw.set_node_copy_nums(&copy_nums_true);
+
     /*
     eprintln!("shrinking..");
     let mut dbg_shrinked = dbg_raw.shrink_single_copy_node();
