@@ -12,7 +12,8 @@ struct User {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct List {
     a: Vec<User>,
-    #[serde(flatten)]
+    // TODO this does not work
+    // #[serde(flatten)]
     b: Vec<User>,
 }
 
