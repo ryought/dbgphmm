@@ -301,8 +301,15 @@ pub fn generate_all_neighbor_flows<F: FlowRateLike>(
     flows
 }
 
+#[derive(Clone, Debug, Copy)]
+enum CycleDetectMethod {
+    BellmanFord,
+    MinMeanWeightCycle,
+}
+
 fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
     graph: &ResidueGraph<F>,
+    method: CycleDetectMethod,
 ) -> Option<Vec<EdgeIndex>> {
     let mut node = NodeIndex::new(0);
     let mut dfs = Dfs::new(&graph, node);
@@ -315,14 +322,19 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
         //   <--- w
         //    e2 (-1 of e)
         //
-        let path = find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
-            let ew_a = graph.edge_weight(e_a).unwrap();
-            let ew_b = graph.edge_weight(e_b).unwrap();
+        let path = match method {
+            CycleDetectMethod::MinMeanWeightCycle => {
+                find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
+                    let ew_a = graph.edge_weight(e_a).unwrap();
+                    let ew_b = graph.edge_weight(e_b).unwrap();
 
-            let target_is_different = ew_a.target != ew_b.target;
-            let dir_is_same = ew_a.direction == ew_b.direction;
-            target_is_different || dir_is_same
-        });
+                    let target_is_different = ew_a.target != ew_b.target;
+                    let dir_is_same = ew_a.direction == ew_b.direction;
+                    target_is_different || dir_is_same
+                })
+            }
+            CycleDetectMethod::BellmanFord => find_negative_cycle_as_edges(&graph, node),
+        };
 
         if path.is_some() {
             return path;
@@ -347,6 +359,21 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
     return None;
 }
 
+///
+/// Find a negative cycle by using Bellman ford algorithm.
+/// Return cycle as edge list, not node list
+///
+pub fn find_negative_cycle_as_edges<N, E>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<Vec<EdgeIndex>>
+where
+    E: FloatWeight,
+{
+    bellman_ford::find_negative_cycle(graph, source)
+        .map(|nodes| node_list_to_edge_list(graph, &nodes))
+}
+
 fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> String {
     cycle
         .iter()
@@ -369,7 +396,7 @@ fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> S
 ///
 pub fn improve_residue_graph<F: FlowRateLike>(rg: &ResidueGraph<F>) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
-    let path = find_negative_cycle_in_whole_graph(&rg);
+    let path = find_negative_cycle_in_whole_graph(&rg, CycleDetectMethod::MinMeanWeightCycle);
     // draw(&rg);
 
     match path {
@@ -573,8 +600,28 @@ mod tests {
             c,
             ResidueEdge::new(1, -1.0, EdgeIndex::new(2), ResidueDirection::Up),
         );
-        let path = find_negative_cycle_in_whole_graph(&g);
-        assert_eq!(path.is_some(), true);
-        assert_eq!(path, Some(vec![ei(2)]));
+        {
+            let path =
+                find_negative_cycle_in_whole_graph(&g, CycleDetectMethod::MinMeanWeightCycle);
+            assert_eq!(path.is_some(), true);
+            assert_eq!(path, Some(vec![ei(2)]));
+        }
+
+        {
+            let path = find_negative_cycle_in_whole_graph(&g, CycleDetectMethod::BellmanFord);
+            assert_eq!(path.is_some(), true);
+            assert_eq!(path, Some(vec![ei(2)]));
+        }
+    }
+    //
+    // speed benchmarks
+    //
+    use test::Bencher;
+    #[bench]
+    fn bench_forward(b: &mut Bencher) {
+        b.iter(|| {
+            // do some test
+            println!("hoge");
+        });
     }
 }

@@ -41,6 +41,10 @@ fn main() {
             .expect("some true k-mer are not in the dbg, abort");
         dbg_raw.set_node_copy_nums(&copy_nums_true);
     } else {
+        // let g = dbg_raw.to_compact_edbg_graph();
+        // eprintln!("n_compacted_nodes={}", g.node_count());
+        // eprintln!("n_compacted_edges={}", g.edge_count());
+
         eprintln!("assigning approximate copynums..");
         let coverage = dataset.reads().len();
         let freqs = dbg_raw.to_node_freqs() / coverage as f64;

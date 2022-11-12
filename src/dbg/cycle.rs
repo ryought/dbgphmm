@@ -70,7 +70,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// create simple-path collapsed edbg
     ///
-    fn to_compact_edbg_graph(
+    pub fn to_compact_edbg_graph(
         &self,
     ) -> DiGraph<SimpleEDbgNode<N::Kmer>, SimpleCompactedEDbgEdge<N::Kmer>> {
         let graph: DiGraph<_, _> = self.to_edbg_graph(
@@ -91,8 +91,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .map(|(_, w)| w.kmer().clone())
                     .reduce(|accum, kmer| accum.overlap(&kmer))
                     .unwrap();
-                let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
-                    .expect("not all copynums in edge are the same");
+                // TODO
+                // let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
+                //     .expect("not all copynums in edge are the same");
+                let copy_num = 0;
                 SimpleCompactedEDbgEdge::new(kmer, copy_num, edges)
             },
         )
