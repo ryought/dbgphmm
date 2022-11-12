@@ -7,14 +7,13 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate, FlowRateLike};
-use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::bellman_ford;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
     total_weight,
 };
 use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
-use crate::graph::min_mean_weight_cycle::{find_negative_cycle, find_negative_edge_cycle};
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -524,6 +523,7 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
+    use crate::graph::min_mean_weight_cycle::find_negative_cycle;
 
     #[test]
     fn petgraph_negative_cycle_test() {
