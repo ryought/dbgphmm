@@ -302,7 +302,7 @@ pub fn generate_all_neighbor_flows<F: FlowRateLike>(
 }
 
 #[derive(Clone, Debug, Copy)]
-enum CycleDetectMethod {
+pub enum CycleDetectMethod {
     BellmanFord,
     MinMeanWeightCycle,
 }
@@ -394,9 +394,12 @@ fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> S
 ///
 /// Update residue graph by finding negative cycle
 ///
-pub fn improve_residue_graph<F: FlowRateLike>(rg: &ResidueGraph<F>) -> Option<Vec<EdgeIndex>> {
+pub fn improve_residue_graph<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    method: CycleDetectMethod,
+) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
-    let path = find_negative_cycle_in_whole_graph(&rg, CycleDetectMethod::MinMeanWeightCycle);
+    let path = find_negative_cycle_in_whole_graph(&rg, method);
     // draw(&rg);
 
     match path {
@@ -440,8 +443,9 @@ fn is_meaningful_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex
 fn update_flow_in_residue_graph<F: FlowRateLike>(
     flow: &Flow<F>,
     rg: &ResidueGraph<F>,
+    method: CycleDetectMethod,
 ) -> Option<(Flow<F>, Vec<EdgeIndex>)> {
-    match improve_residue_graph(rg) {
+    match improve_residue_graph(rg, method) {
         Some(cycle) => {
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &cycle);
@@ -481,9 +485,10 @@ fn cycle_in_residue_graph_into_update_info<F: FlowRateLike>(
 pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
+    method: CycleDetectMethod,
 ) -> Option<Flow<F>> {
     let rg = flow_to_residue(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, _)) => Some(new_flow),
         None => None,
     }
@@ -517,13 +522,14 @@ fn to_contiguous_direction_list(
 pub fn improve_flow_convex_with_update_info<F, N, E>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
+    method: CycleDetectMethod,
 ) -> Option<(Flow<F>, UpdateInfo)>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, cycle)) => Some((
             new_flow,
             cycle_in_residue_graph_into_update_info(&rg, &cycle),
@@ -534,13 +540,17 @@ where
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow_convex<F, N, E>(graph: &DiGraph<N, E>, flow: &Flow<F>) -> Option<Flow<F>>
+pub fn improve_flow_convex<F, N, E>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow<F>,
+    method: CycleDetectMethod,
+) -> Option<Flow<F>>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, _)) => Some(new_flow),
         None => None,
     }

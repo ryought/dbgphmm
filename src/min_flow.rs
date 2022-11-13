@@ -10,7 +10,7 @@ use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph
 pub use flow::total_cost;
 use flow::{assert_valid_flow, is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
-use residue::{improve_flow, improve_flow_convex};
+use residue::{improve_flow, improve_flow_convex, CycleDetectMethod};
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 
@@ -218,7 +218,9 @@ where
 
     loop {
         assert_valid_flow(&flow, &graph);
-        match improve_flow(graph, &flow) {
+        // solution of const cost is independent of cycle detection method
+        // use BellmanFord because it is fastest.
+        match improve_flow(graph, &flow, CycleDetectMethod::BellmanFord) {
             Some(new_flow) => {
                 flow = new_flow;
                 continue;
@@ -247,7 +249,9 @@ where
 
     loop {
         assert!(is_valid_flow(&flow, &graph));
-        match improve_flow_convex(graph, &flow) {
+        // solution of convex cost is independent of cycle detection method
+        // use BellmanFord because it is fastest.
+        match improve_flow_convex(graph, &flow, CycleDetectMethod::BellmanFord) {
             Some(new_flow) => {
                 flow = new_flow;
                 continue;
