@@ -16,6 +16,7 @@ use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
+pub mod compact;
 pub mod impls;
 pub mod output;
 use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};

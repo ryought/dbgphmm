@@ -6,6 +6,7 @@
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
@@ -256,6 +257,27 @@ pub fn generate_full_length_experiment(
         dbg_true_init,
         dbg_true,
     }
+}
+
+///
+/// Easy toy example
+/// * 100bp simple genome
+/// * p=0.1% 20x full length reads
+///
+pub fn generate_simple_genome_mock() -> Experiment {
+    let (genome, genome_size) = genome::simple(100, 5);
+    let param = PHMMParams::uniform(0.001);
+    generate_experiment(
+        genome,
+        genome_size,
+        0,
+        param,
+        20, // coverage is 20x
+        2000,
+        ReadType::FullLength,
+        40,
+        40,
+    )
 }
 
 //

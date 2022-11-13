@@ -2,9 +2,7 @@ use super::{EDbg, EDbgEdge, EDbgEdgeBase, EDbgNode};
 use crate::common::{CopyNum, Freq, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
-use crate::min_flow::flow::FlowEdge;
-use crate::min_flow::{Cost, FlowRate};
-use itertools::Itertools;
+use crate::min_flow::{Cost, FlowRate, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Basic implementations of EDbg
@@ -110,41 +108,6 @@ impl<K: KmerLike> std::fmt::Display for SimpleEDbgEdge<K> {
             self.kmer,
             self.copy_num,
             self.origin_node.index(),
-        )
-    }
-}
-
-//
-// Edge struct for Compacted Edbg
-//
-
-/// Basic implementations of Compacted EDbgEdge
-#[derive(Clone, Debug)]
-pub struct SimpleCompactedEDbgEdge<K: KmerLike> {
-    kmer: K,
-    copy_num: CopyNum,
-    origin_edges: Vec<EdgeIndex>,
-    // origin_nodes: Vec<NodeIndex>,
-}
-
-impl<K: KmerLike> SimpleCompactedEDbgEdge<K> {
-    pub fn new(kmer: K, copy_num: CopyNum, origin_edges: Vec<EdgeIndex>) -> Self {
-        SimpleCompactedEDbgEdge {
-            kmer,
-            copy_num,
-            origin_edges,
-        }
-    }
-}
-
-impl<K: KmerLike> std::fmt::Display for SimpleCompactedEDbgEdge<K> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{} (x{}) ({})",
-            self.kmer,
-            self.copy_num,
-            self.origin_edges.iter().map(|e| e.index()).join(",")
         )
     }
 }

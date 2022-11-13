@@ -2,9 +2,8 @@
 //! copy number enumeration with cycle basis
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
-use super::edge_centric::impls::{SimpleCompactedEDbgEdge, SimpleEDbgEdge, SimpleEDbgNode};
+use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgNode};
-use crate::graph::compact::compact_simple_paths;
 use crate::graph::cycle::{
     apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
 };
@@ -64,38 +63,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let kmer = weight.kmer().clone();
                 let copy_num = weight.copy_num();
                 SimpleEDbgEdge::new(kmer, copy_num, node)
-            },
-        )
-    }
-    ///
-    /// create simple-path collapsed edbg
-    ///
-    pub fn to_compact_edbg_graph(
-        &self,
-    ) -> DiGraph<SimpleEDbgNode<N::Kmer>, SimpleCompactedEDbgEdge<N::Kmer>> {
-        let graph: DiGraph<_, _> = self.to_edbg_graph(
-            |km1mer| SimpleEDbgNode::new(km1mer.clone()),
-            |node, weight| {
-                let kmer = weight.kmer().clone();
-                let copy_num = weight.copy_num();
-                SimpleEDbgEdge::new(kmer, copy_num, node)
-            },
-        );
-        let compacted = compact_simple_paths(&graph);
-        compacted.map(
-            |_node, weight| weight.clone(),
-            |_edge, weight| {
-                let edges: Vec<_> = weight.iter().map(|(e, _)| *e).collect();
-                let kmer = weight
-                    .iter()
-                    .map(|(_, w)| w.kmer().clone())
-                    .reduce(|accum, kmer| accum.overlap(&kmer))
-                    .unwrap();
-                // TODO
-                // let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
-                //     .expect("not all copynums in edge are the same");
-                let copy_num = 0;
-                SimpleCompactedEDbgEdge::new(kmer, copy_num, edges)
             },
         )
     }

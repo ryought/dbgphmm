@@ -20,6 +20,17 @@ pub fn all_same_value<T: PartialEq + Clone, I: Iterator<Item = T>>(mut iter: I) 
     }
 }
 
+///
+/// TODO
+/// * change return type from Vec<T> into Option<Vec<T>>?
+///
+pub fn unwrap_all<T>(options: Vec<Option<T>>) -> Vec<T> {
+    options
+        .into_iter()
+        .map(|option| option.expect(""))
+        .collect()
+}
+
 //
 // tests
 //
