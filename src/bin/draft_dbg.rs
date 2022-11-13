@@ -49,7 +49,7 @@ fn main() {
         let coverage = dataset.reads().len();
         let freqs = dbg_raw.to_node_freqs() / coverage as f64;
         let (copy_nums_approx, cost) = dbg_raw
-            .min_squared_error_copy_nums_from_freqs(&freqs)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs)
             .unwrap();
         eprintln!("cost of approximate copynums = {}", cost);
         dbg_raw.set_node_copy_nums(&copy_nums_approx);

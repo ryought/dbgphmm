@@ -277,27 +277,50 @@ fn apply_residual_edges_to_flow<F: FlowRateLike>(
 }
 
 ///
+/// Simple heuristic to avoid searching meaningless cycles on ResidueGraph.
+///
+/// Prohibiting move below:
+///
+/// ```text
+///    +e
+/// v ---> w
+///   <---
+///    -e
+/// ```
+///
+fn is_meaningful_move_on_residue_graph<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    e_a: EdgeIndex,
+    e_b: EdgeIndex,
+) -> bool {
+    let ew_a = rg.edge_weight(e_a).unwrap();
+    let ew_b = rg.edge_weight(e_b).unwrap();
+    let target_is_different = ew_a.target != ew_b.target;
+    let dir_is_same = ew_a.direction == ew_b.direction;
+    target_is_different || dir_is_same
+}
+
+///
 /// list up all neighboring flows
 ///
 pub fn generate_all_neighbor_flows<F: FlowRateLike>(
     rg: &ResidueGraph<F>,
     flow: &Flow<F>,
+    max_cycle_size: Option<usize>,
 ) -> Vec<Flow<F>> {
-    // let simple_cycles = simple_cycles(rg);
-    let simple_cycles = simple_k_cycles_with_cond(rg, 100, |e_a, e_b| {
-        let ew_a = rg.edge_weight(e_a).unwrap();
-        let ew_b = rg.edge_weight(e_b).unwrap();
-        let target_is_different = ew_a.target != ew_b.target;
-        let dir_is_same = ew_a.direction == ew_b.direction;
-        target_is_different || dir_is_same
-    });
-    println!("# n_simple_cycles={}", simple_cycles.len());
+    let simple_cycles = match max_cycle_size {
+        Some(k) => simple_k_cycles_with_cond(rg, 100, |e_a, e_b| {
+            is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
+        }),
+        None => simple_cycles(rg),
+    };
+    eprintln!("# n_simple_cycles={}", simple_cycles.len());
     let flows: Vec<_> = simple_cycles
         .into_iter()
         .map(|cycle| apply_residual_edges_to_flow(flow, rg, cycle.edges()))
         .filter(|new_flow| new_flow != flow)
         .collect();
-    println!("# n_flows={}", flows.len());
+    eprintln!("# n_flows={}", flows.len());
     flows
 }
 
@@ -325,12 +348,7 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
         let path = match method {
             CycleDetectMethod::MinMeanWeightCycle => {
                 find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
-                    let ew_a = graph.edge_weight(e_a).unwrap();
-                    let ew_b = graph.edge_weight(e_b).unwrap();
-
-                    let target_is_different = ew_a.target != ew_b.target;
-                    let dir_is_same = ew_a.direction == ew_b.direction;
-                    target_is_different || dir_is_same
+                    is_meaningful_move_on_residue_graph(&graph, e_a, e_b)
                 })
             }
             CycleDetectMethod::BellmanFord => find_negative_cycle_as_edges(&graph, node),

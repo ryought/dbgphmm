@@ -33,25 +33,6 @@ fn get_null_node<K: KmerLike>(edbg: &UndirectedEdbg<K>) -> NodeIndex {
         .expect("edbg does not contain null km1mer")
 }
 
-///
-/// * undirected edge-centric dbg
-/// * CycleSpace of the graph
-///
-pub struct CopyNumsIterator<K: KmerLike> {
-    edbg: UndirectedEdbg<K>,
-    space: CycleSpace,
-    // queue: Vec<NodeCopyNums>,
-}
-impl<K: KmerLike> Iterator for CopyNumsIterator<K> {
-    type Item = NodeCopyNums;
-    fn next(&mut self) -> Option<Self::Item> {
-        // (1) pop a candidate update cycle from cycle space
-        // (2) update copy_nums using each cycle (for both +1/-1 directions)
-        // if resulting copy_nums vector is valid.
-        unimplemented!();
-    }
-}
-
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
@@ -75,15 +56,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// }
     /// ```
     ///
-    pub fn iter_neighbor_copy_nums(&self) -> CopyNumsIterator<N::Kmer> {
-        // (1) create undirected edge-centric-dbg.
-        let edbg = self.to_undirected_edbg_graph();
-        // (2) enumerate cycles in the undirected graph using CycleSpace iterator.
-        let null_node = get_null_node(&edbg);
-        let st = spanning_tree(&edbg, null_node);
-        let basis = st.cycle_basis_list(&edbg);
-        let space = CycleSpace::new(basis);
-        CopyNumsIterator { edbg, space }
+    pub fn iter_neighbor_copy_nums(&self) {
+        unimplemented!();
     }
     pub fn neighbor_copy_nums(&self) -> Vec<NodeCopyNums> {
         self.neighbor_copy_nums_and_cycles()
@@ -156,20 +130,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let rg = self.to_residue_edbg();
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num)
+        generate_all_neighbor_flows(&rg, &copy_num, None)
             .into_iter()
             .map(|flow| flow.switch_index())
             .collect()
     }
     ///
-    /// use Johnson1975 and collapse-simple-path
+    /// use Johnson1975 on Compacted Edbg
     ///
-    pub fn neighbor_copy_nums_more_fast(&self) -> Vec<NodeCopyNums> {
+    pub fn neighbor_copy_nums_fast_compact(&self) -> Vec<NodeCopyNums> {
         // convert to edbg, residue graph
         let rg = self.to_residue_edbg();
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num)
+        generate_all_neighbor_flows(&rg, &copy_num, None)
             .into_iter()
             .map(|flow| flow.switch_index())
             .collect()
