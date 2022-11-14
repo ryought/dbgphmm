@@ -44,10 +44,12 @@ fn main() {
         // let g = dbg_raw.to_compact_edbg_graph();
         // eprintln!("n_compacted_nodes={}", g.node_count());
         // eprintln!("n_compacted_edges={}", g.edge_count());
-
         eprintln!("assigning approximate copynums..");
         let coverage = dataset.reads().len();
         let freqs = dbg_raw.to_node_freqs() / coverage as f64;
+        // removing 1x nodes and deadends breaks flow constraint
+        // so initialize with all zero copy nums
+        dbg_raw.set_copy_nums_all_zero();
         let (copy_nums_approx, cost) = dbg_raw
             .min_squared_error_copy_nums_from_freqs_compacted(&freqs)
             .unwrap();

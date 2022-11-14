@@ -2,6 +2,7 @@
 //! copy number enumeration with cycle basis
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
+use super::edge_centric::compact::compacted_flow_into_original_flow;
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgNode};
 use crate::graph::cycle::{
@@ -11,7 +12,8 @@ use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
 use crate::kmer::kmer::{Kmer, KmerLike};
-use crate::min_flow::residue::enumerate_neighboring_flows_in_residue;
+use crate::min_flow::enumerate_neighboring_flows;
+use crate::min_flow::flow::FlowEdgeBase;
 use crate::prob::Prob;
 use crate::utils::all_same_value;
 use fnv::FnvHashSet as HashSet;
@@ -127,10 +129,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn neighbor_copy_nums_fast(&self) -> Vec<NodeCopyNums> {
         // convert to edbg, residue graph
-        let rg = self.to_residue_edbg();
+        let network = self.to_edbg_graph(
+            |_| (),
+            |_node, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        enumerate_neighboring_flows_in_residue(&rg, &copy_num, None)
+        enumerate_neighboring_flows(&network, &copy_num, None)
             .into_iter()
             .map(|(flow, _)| flow.switch_index())
             .collect()
@@ -140,14 +148,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn neighbor_copy_nums_fast_compact(&self) -> Vec<NodeCopyNums> {
         let graph = self.to_compact_edbg_graph();
-
-        // convert to edbg, residue graph
-        let rg = self.to_residue_edbg();
+        let network = graph.map(
+            |_, _| (),
+            |_, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        enumerate_neighboring_flows_in_residue(&rg, &copy_num, None)
+        enumerate_neighboring_flows(&network, &copy_num, None)
             .into_iter()
-            .map(|(flow, _)| flow.switch_index())
+            .map(|(flow, _)| {
+                let flow_in_original =
+                    compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
+                flow_in_original.switch_index()
+            })
             .collect()
     }
     ///

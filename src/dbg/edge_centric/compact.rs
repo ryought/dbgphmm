@@ -9,7 +9,7 @@ use crate::graph::compact::compact_simple_paths;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::flow::{Flow, FlowEdge};
 use crate::min_flow::{Cost, FlowRate, FlowRateLike};
-use crate::utils::unwrap_all;
+use crate::utils::{all_same_value, unwrap_all};
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
@@ -36,6 +36,9 @@ impl<K: KmerLike> SimpleCompactedEDbgEdge<K> {
     }
     pub fn origin_edges(&self) -> &[EdgeIndex] {
         &self.origin_edges
+    }
+    pub fn copy_num(&self) -> CopyNum {
+        self.copy_num
     }
 }
 
@@ -105,10 +108,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .map(|(_, w)| w.kmer().clone())
                     .reduce(|accum, kmer| accum.overlap(&kmer))
                     .unwrap();
-                // TODO
-                // let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
-                //     .expect("not all copynums in edge are the same");
-                let copy_num = 0;
+                let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
+                    .expect("not all copynums in edge are the same");
                 SimpleCompactedEDbgEdge::new(kmer, copy_num, edges)
             },
         )

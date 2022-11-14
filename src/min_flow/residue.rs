@@ -8,6 +8,7 @@ use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate, FlowRateLike};
 use crate::graph::bellman_ford;
+use crate::graph::cycle::CycleWithDir;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
@@ -523,22 +524,34 @@ pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
 pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
 
 ///
-/// summary of UpdateInfo
+/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
 ///
-pub type UpdateSummary = Vec<(Vec<EdgeIndex>, ResidueDirection)>;
-
-///
-/// Convert a update cycle
-///     [(1, +), (2, +), (3, +), (3, -), (2, -), (1, -)]
-///     [(2, +), (3, +), (3, -), (2, -), (1, -), (1, +)]
-/// into a normalized summary
-///     [([1,2,3], +), ([3,2,1], -)]
-///
-fn to_contiguous_direction_list(
-    updates: &[(EdgeIndex, ResidueDirection)],
-) -> Vec<(Vec<EdgeIndex>, ResidueDirection)> {
-    unimplemented!();
+pub fn to_cycle_with_dir(update_info: UpdateInfo) -> CycleWithDir {
+    CycleWithDir::new(
+        update_info
+            .into_iter()
+            .map(|(edge, dir)| (edge, dir == ResidueDirection::Up))
+            .collect(),
+    )
 }
+
+// ///
+// /// summary of UpdateInfo
+// ///
+// pub type UpdateSummary = Vec<(Vec<EdgeIndex>, ResidueDirection)>;
+//
+// ///
+// /// Convert a update cycle
+// ///     [(1, +), (2, +), (3, +), (3, -), (2, -), (1, -)]
+// ///     [(2, +), (3, +), (3, -), (2, -), (1, -), (1, +)]
+// /// into a normalized summary
+// ///     [([1,2,3], +), ([3,2,1], -)]
+// ///
+// fn to_contiguous_direction_list(
+//     updates: &[(EdgeIndex, ResidueDirection)],
+// ) -> Vec<(Vec<EdgeIndex>, ResidueDirection)> {
+//     unimplemented!();
+// }
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
