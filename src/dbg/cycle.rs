@@ -11,7 +11,7 @@ use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
 use crate::kmer::kmer::{Kmer, KmerLike};
-use crate::min_flow::residue::generate_all_neighbor_flows;
+use crate::min_flow::residue::enumerate_neighboring_flows_in_residue;
 use crate::prob::Prob;
 use crate::utils::all_same_value;
 use fnv::FnvHashSet as HashSet;
@@ -130,22 +130,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let rg = self.to_residue_edbg();
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num, None)
+        enumerate_neighboring_flows_in_residue(&rg, &copy_num, None)
             .into_iter()
-            .map(|flow| flow.switch_index())
+            .map(|(flow, _)| flow.switch_index())
             .collect()
     }
     ///
     /// use Johnson1975 on Compacted Edbg
     ///
     pub fn neighbor_copy_nums_fast_compact(&self) -> Vec<NodeCopyNums> {
+        let graph = self.to_compact_edbg_graph();
+
         // convert to edbg, residue graph
         let rg = self.to_residue_edbg();
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num, None)
+        enumerate_neighboring_flows_in_residue(&rg, &copy_num, None)
             .into_iter()
-            .map(|flow| flow.switch_index())
+            .map(|(flow, _)| flow.switch_index())
             .collect()
     }
     ///

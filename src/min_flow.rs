@@ -6,11 +6,12 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
+use crate::graph::cycle::CycleWithDir;
 use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 pub use flow::total_cost;
 use flow::{assert_valid_flow, is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
 use petgraph::graph::DiGraph;
-use residue::{improve_flow, improve_flow_convex, CycleDetectMethod};
+use residue::{flow_to_residue_convex, improve_flow, improve_flow_convex, CycleDetectMethod};
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 
@@ -263,6 +264,21 @@ where
     }
 
     flow
+}
+
+///
+/// WIP
+///
+pub fn enumerate_neighboring_flows<F, N, E>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow<F>,
+) -> Vec<(Flow<F>, CycleWithDir)>
+where
+    F: FlowRateLike,
+    E: FlowEdge<F> + ConvexCost<F>,
+{
+    let rg = flow_to_residue_convex(graph, flow);
+    unimplemented!();
 }
 
 //

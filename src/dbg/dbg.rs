@@ -922,6 +922,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// +1/-1 edges
     ///
+    /// define flow network
+    ///
     pub fn to_residue_edbg(&self) -> ResidueGraph<usize> {
         let edbg = self.to_edbg_generic(
             |_| (),

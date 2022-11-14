@@ -303,24 +303,29 @@ fn is_meaningful_move_on_residue_graph<F: FlowRateLike>(
 ///
 /// list up all neighboring flows
 ///
-pub fn generate_all_neighbor_flows<F: FlowRateLike>(
+pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
     rg: &ResidueGraph<F>,
     flow: &Flow<F>,
     max_cycle_size: Option<usize>,
-) -> Vec<Flow<F>> {
+) -> Vec<(Flow<F>, UpdateInfo)> {
     let simple_cycles = match max_cycle_size {
-        Some(k) => simple_k_cycles_with_cond(rg, 100, |e_a, e_b| {
+        Some(k) => simple_k_cycles_with_cond(rg, k, |e_a, e_b| {
             is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
         }),
         None => simple_cycles(rg),
     };
-    eprintln!("# n_simple_cycles={}", simple_cycles.len());
+    // eprintln!("# n_simple_cycles={}", simple_cycles.len());
     let flows: Vec<_> = simple_cycles
         .into_iter()
-        .map(|cycle| apply_residual_edges_to_flow(flow, rg, cycle.edges()))
-        .filter(|new_flow| new_flow != flow)
+        .map(|cycle| {
+            (
+                apply_residual_edges_to_flow(flow, rg, cycle.edges()),
+                cycle_in_residue_graph_into_update_info(rg, cycle.edges()),
+            )
+        })
+        .filter(|(new_flow, _update_info)| new_flow != flow)
         .collect();
-    eprintln!("# n_flows={}", flows.len());
+    // eprintln!("# n_flows={}", flows.len());
     flows
 }
 
