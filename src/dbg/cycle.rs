@@ -2,7 +2,7 @@
 //! copy number enumeration with cycle basis
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
-use super::edge_centric::compact::compacted_flow_into_original_flow;
+use super::edge_centric::compact::{compacted_flow_into_original_flow, into_compacted_flow};
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgNode};
 use crate::graph::cycle::{
@@ -146,8 +146,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// use Johnson1975 on Compacted Edbg
     ///
-    pub fn neighbor_copy_nums_fast_compact(&self) -> Vec<NodeCopyNums> {
+    pub fn neighbor_copy_nums_fast_compact(&self, max_depth: usize) -> Vec<NodeCopyNums> {
         let graph = self.to_compact_edbg_graph();
+        // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
         let network = graph.map(
             |_, _| (),
             |_, weight| {
@@ -155,9 +156,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
             },
         );
-        let copy_num = self.to_node_copy_nums().switch_index();
+        let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index());
         // enumerate all cycles
-        enumerate_neighboring_flows(&network, &copy_num, None)
+        enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
             .into_iter()
             .map(|(flow, _)| {
                 let flow_in_original =
@@ -295,8 +296,16 @@ mod tests {
         for copy_num in copy_nums_v2.iter() {
             println!("c2={}", copy_num);
         }
-
         assert!(is_equal_as_set(&copy_nums, &copy_nums_v2));
+        assert_eq!(copy_nums_v2.len(), copy_nums.len());
+
+        println!("c3");
+        let copy_nums_v3 = dbg.neighbor_copy_nums_fast_compact(100);
+        for copy_num in copy_nums_v3.iter() {
+            println!("c3={}", copy_num);
+        }
+        assert!(is_equal_as_set(&copy_nums, &copy_nums_v3));
+        assert_eq!(copy_nums_v3.len(), copy_nums.len());
     }
     #[test]
     fn compact_edbg_01() {

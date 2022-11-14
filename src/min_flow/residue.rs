@@ -121,6 +121,14 @@ pub fn flow_to_residue<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
 ) -> ResidueGraph<F> {
+    assert_eq!(
+        flow.len(),
+        graph.edge_count(),
+        "flow (len={}) does not match network (E={})",
+        flow.len(),
+        graph.edge_count()
+    );
+
     let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -169,6 +177,14 @@ where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
+    assert_eq!(
+        flow.len(),
+        graph.edge_count(),
+        "flow (len={}) does not match network (E={})",
+        flow.len(),
+        graph.edge_count()
+    );
+
     let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -309,12 +325,18 @@ pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
     flow: &Flow<F>,
     max_cycle_size: Option<usize>,
 ) -> Vec<(Flow<F>, UpdateInfo)> {
+    // println!("{:?}", petgraph::dot::Dot::with_config(&rg, &[]));
     let simple_cycles = match max_cycle_size {
         Some(k) => simple_k_cycles_with_cond(rg, k, |e_a, e_b| {
             is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
         }),
+        // TODO Johnson algorithm does not support parallel edges
+        // this cause problem when with compacted edbg
         None => simple_cycles(rg),
     };
+    // for cycle in simple_cycles.iter() {
+    //     println!("cycle = {}", cycle);
+    // }
     // eprintln!("# n_simple_cycles={}", simple_cycles.len());
     let flows: Vec<_> = simple_cycles
         .into_iter()

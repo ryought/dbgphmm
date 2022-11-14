@@ -82,6 +82,32 @@ where
     Flow::from_inner_vec(unwrap_all(ret))
 }
 
+///
+/// Flow in EDbg -> Flow in Compacted-EDbg (Flow is EdgeVec<DenseStorage>)
+/// single edge in compacted-edbg corresponds to multiple edges in edbg.
+///
+pub fn into_compacted_flow<N, K, F>(
+    compacted_edbg: &DiGraph<N, SimpleCompactedEDbgEdge<K>>,
+    flow: &Flow<F>,
+) -> Flow<F>
+where
+    K: KmerLike,
+    F: FlowRateLike,
+{
+    let mut ret: Vec<Option<F>> = vec![None; compacted_edbg.edge_count()];
+    for e in compacted_edbg.edge_indices() {
+        let weight = compacted_edbg.edge_weight(e).unwrap();
+        let f = all_same_value(
+            weight
+                .origin_edges()
+                .iter()
+                .map(|&origin_edge| flow[origin_edge]),
+        );
+        ret[e.index()] = f;
+    }
+    Flow::from_inner_vec(unwrap_all(ret))
+}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// create simple-path collapsed edbg
