@@ -117,4 +117,30 @@ mod tests {
         let a = Kmer::from_bases(b"nAGTAAAAA");
         assert!(a.is_starting());
     }
+    #[test]
+    fn kmer_overlap_pass() {
+        {
+            let a = Kmer::from_bases(b"ATCG");
+            let b = Kmer::from_bases(b"TCGTTA");
+            let c = a.overlap(&b, 3);
+            println!("{}", c);
+            assert_eq!(c, Kmer::from_bases(b"ATCGTTA"));
+        }
+        {
+            let a = Kmer::from_bases(b"ATCG");
+            let b = Kmer::from_bases(b"CGTTA");
+            let c = a.overlap(&b, 2);
+            println!("{}", c);
+            assert_eq!(c, Kmer::from_bases(b"ATCGTTA"));
+        }
+    }
+    #[test]
+    #[should_panic]
+    fn kmer_overlap_fail() {
+        {
+            let a = Kmer::from_bases(b"ATCG");
+            let b = Kmer::from_bases(b"TCGTTA");
+            let c = a.overlap(&b, 2);
+        }
+    }
 }

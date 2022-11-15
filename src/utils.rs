@@ -31,6 +31,21 @@ pub fn unwrap_all<T>(options: Vec<Option<T>>) -> Vec<T> {
         .collect()
 }
 
+///
+/// Given a list `xs` of (Value: T, Key: K) get breakpoints that is key of xs[i-1] and xs[i] is different.
+///
+pub fn breakpoints<T, K: PartialEq>(xs: &[(T, K)]) -> Vec<usize> {
+    let n = xs.len();
+    let mut ret = Vec::new();
+    for i in 0..n {
+        let im1 = if i == 0 { n - 1 } else { i - 1 };
+        if xs[im1].1 != xs[i].1 {
+            ret.push(i);
+        }
+    }
+    ret
+}
+
 //
 // tests
 //

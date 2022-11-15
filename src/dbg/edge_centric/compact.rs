@@ -138,7 +138,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             |_edge, weight| {
                 let edges: Vec<_> = weight.iter().map(|(e, _)| *e).collect();
                 let kmers: Vec<_> = weight.iter().map(|(_, w)| w.kmer().clone()).collect();
-                let kmer = concat_overlapping_kmers(kmers);
+                let kmer = concat_overlapping_kmers(kmers, self.k() - 1);
                 let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
                     .expect("not all copynums in edge are the same");
                 SimpleCompactedEDbgEdge::new(kmer, copy_num, edges)

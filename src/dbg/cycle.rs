@@ -70,18 +70,23 @@ impl<K: KmerLike> std::fmt::Display for CopyNumsUpdateInfo<K> {
 }
 
 ///
+/// - k: k-size of dbg
 ///
-///
-pub fn edges_to_kmer<N, E: EDbgEdgeMin>(edbg: &DiGraph<N, E>, edges: &[EdgeIndex]) -> E::Kmer {
+pub fn edges_to_kmer<N, E: EDbgEdgeMin>(
+    edbg: &DiGraph<N, E>,
+    edges: &[EdgeIndex],
+    k: usize,
+) -> E::Kmer {
     let kmers: Vec<_> = edges
         .iter()
         .map(|&edge| edbg.edge_weight(edge).unwrap().kmer().clone())
         .collect();
-    concat_overlapping_kmers(kmers)
+    concat_overlapping_kmers(kmers, k - 1)
 }
 
 impl<K: KmerLike> CopyNumsUpdateInfo<K> {
     pub fn from_uncompacted(
+        k: usize,
         graph: &DiGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>,
         update_info: &UpdateInfo,
     ) -> Self {
@@ -92,9 +97,9 @@ impl<K: KmerLike> CopyNumsUpdateInfo<K> {
             .map(|(mut edges, is_rev)| {
                 if is_rev {
                     edges.reverse();
-                    (edges_to_kmer(graph, &edges), ResidueDirection::Down)
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Down)
                 } else {
-                    (edges_to_kmer(graph, &edges), ResidueDirection::Up)
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Up)
                 }
             })
             .collect();
@@ -107,23 +112,42 @@ impl<K: KmerLike> CopyNumsUpdateInfo<K> {
         }
     }
     pub fn from_compacted(
+        k: usize,
         graph: &DiGraph<SimpleEDbgNode<K>, SimpleCompactedEDbgEdge<K>>,
         update_info: &UpdateInfo,
     ) -> Self {
         let cycle_with_dir = update_info_to_cycle_with_dir(update_info);
-        cycle_with_dir
+        let segments: Vec<_> = cycle_with_dir
             .collapse_dir()
             .into_iter()
-            .for_each(|(edges, is_rev)| {
-                println!("from_compacted edges={:?} is_rev={}", edges, is_rev);
-                edges_to_kmer(graph, &edges);
-            });
-        // TODO
+            .map(|(mut edges, is_rev)| {
+                if is_rev {
+                    edges.reverse();
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Down)
+                } else {
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Up)
+                }
+            })
+            .collect();
+        let genome_size_change = update_info
+            .iter()
+            .map(|&(edge, dir)| {
+                let n_edges_in_uncompacted = graph.edge_weight(edge).unwrap().origin_edges().len();
+                dir.int() * n_edges_in_uncompacted as i32
+            })
+            .sum();
+        let n_kmer_changed = update_info
+            .iter()
+            .map(|&(edge, _)| {
+                let n_edges_in_uncompacted = graph.edge_weight(edge).unwrap().origin_edges().len();
+                n_edges_in_uncompacted
+            })
+            .sum();
         CopyNumsUpdateInfo {
-            segments: vec![],
-            genome_size_change: 0,
-            cycle_size: 0,
-            n_kmer_changed: 0,
+            segments,
+            genome_size_change,
+            n_kmer_changed,
+            cycle_size: update_info.len(),
         }
     }
 }
@@ -253,7 +277,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .map(|(flow, update_info)| {
                 (
                     flow.switch_index(),
-                    CopyNumsUpdateInfo::from_uncompacted(&edbg.graph, &update_info),
+                    CopyNumsUpdateInfo::from_uncompacted(self.k(), &edbg.graph, &update_info),
                 )
             })
             .collect()
@@ -283,7 +307,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
                 (
                     flow_in_original.switch_index(),
-                    CopyNumsUpdateInfo::from_compacted(&graph, &update_info),
+                    CopyNumsUpdateInfo::from_compacted(self.k(), &graph, &update_info),
                 )
             })
             .collect()
@@ -448,6 +472,12 @@ mod tests {
 
         // uncompacted
         let neighbors = dbg.neighbor_copy_nums_fast_with_info();
+        for (copy_num, info) in neighbors.iter() {
+            println!("c={} info={}", copy_num, info);
+        }
+
+        // compacted
+        let neighbors = dbg.neighbor_copy_nums_fast_compact_with_info(100);
         for (copy_num, info) in neighbors.iter() {
             println!("c={} info={}", copy_num, info);
         }

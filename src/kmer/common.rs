@@ -154,11 +154,12 @@ pub trait KmerLike:
         self.extend_last(other.last())
     }
     ///
-    /// (XXXYYY, YYYZ) (two K/k mers) -> XXXYYYZ (K+1 mer)
+    /// join two kmers by overlapping k bases.
     ///
-    fn overlap(&self, other: &Self) -> Self {
-        self.extend_last(other.last())
-    }
+    /// Example when k=3
+    /// (XXXYYY, YYYZ) (two k1(=6)/k2(=4)-mers) -> XXXYYYZ (k1+k2-k(=7)-mer)
+    ///
+    fn overlap(&self, other: &Self, k: usize) -> Self;
     ///
     /// upgrade k-mer head into k+1-mer
     ///
@@ -315,10 +316,10 @@ pub fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
 ///
 /// ["ATC", "TCG", "CGT"] -> "ATCGT"
 ///
-pub fn concat_overlapping_kmers<K: KmerLike>(kmers: Vec<K>) -> K {
+pub fn concat_overlapping_kmers<K: KmerLike>(kmers: Vec<K>, k: usize) -> K {
     kmers
         .into_iter()
-        .reduce(|accum, kmer| accum.overlap(&kmer))
+        .reduce(|accum, kmer| accum.overlap(&kmer, k))
         .unwrap()
 }
 

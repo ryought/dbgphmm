@@ -51,16 +51,6 @@ impl<F: FlowRateLike> ResidueEdge<F> {
             direction,
         }
     }
-    /// create a new ResidueEdge with default values except the weight
-    pub fn only_weight(weight: Cost) -> ResidueEdge<F> {
-        ResidueEdge {
-            weight,
-            // filled by default values
-            target: EdgeIndex::new(0),
-            count: F::default(),
-            direction: ResidueDirection::Up,
-        }
-    }
 }
 
 impl<F: FlowRateLike> FloatWeight for ResidueEdge<F> {
@@ -83,7 +73,10 @@ pub enum ResidueDirection {
 }
 
 impl ResidueDirection {
-    fn int(&self) -> i32 {
+    /// Map ResidueDirection into i32
+    /// * Up   -> +1
+    /// * Down -> -1
+    pub fn int(&self) -> i32 {
         match *self {
             ResidueDirection::Up => 1,
             ResidueDirection::Down => -1,
