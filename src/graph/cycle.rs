@@ -2,6 +2,7 @@
 //! Cycle in graph
 //!
 use crate::dbg::dbg::{EdgeCopyNums, NodeCopyNums};
+use crate::utils::breakpoints;
 use fixedbitset::FixedBitSet;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
@@ -47,16 +48,7 @@ impl CycleWithDir {
     /// breakpoint is index `i` such that i-th edge and i+1-th edge have different direction.
     ///
     fn breakpoints(&self) -> Vec<usize> {
-        let n = self.0.len();
-        let mut ret = Vec::new();
-        for i in 0..n {
-            let (_e_a, dir_a) = self.0[if i == 0 { n - 1 } else { i - 1 }];
-            let (_e_b, dir_b) = self.0[i];
-            if dir_a != dir_b {
-                ret.push(i);
-            }
-        }
-        ret
+        breakpoints(&self.0)
     }
     ///
     /// collapse the adj edges with same direction

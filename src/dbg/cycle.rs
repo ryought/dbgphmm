@@ -2,21 +2,30 @@
 //! copy number enumeration with cycle basis
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
+use super::edge_centric::compact::{
+    compacted_flow_into_original_flow, into_compacted_flow, SimpleCompactedEDbgEdge,
+};
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
-use super::edge_centric::EDbgNode;
+use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
 use crate::graph::cycle::{
     apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
 };
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
+use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
-use crate::min_flow::residue::generate_all_neighbor_flows;
+use crate::min_flow::enumerate_neighboring_flows;
+use crate::min_flow::flow::FlowEdgeBase;
+use crate::min_flow::residue::{
+    total_changes, update_info_to_cycle_with_dir, ResidueDirection, UpdateInfo,
+};
 use crate::prob::Prob;
+use crate::utils::all_same_value;
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use petgraph::dot::Dot;
-use petgraph::graph::{NodeIndex, UnGraph};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
 
 pub type UndirectedEdbg<K> = UnGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>;
 
@@ -32,22 +41,114 @@ fn get_null_node<K: KmerLike>(edbg: &UndirectedEdbg<K>) -> NodeIndex {
         .expect("edbg does not contain null km1mer")
 }
 
-///
-/// * undirected edge-centric dbg
-/// * CycleSpace of the graph
-///
-pub struct CopyNumsIterator<K: KmerLike> {
-    edbg: UndirectedEdbg<K>,
-    space: CycleSpace,
-    // queue: Vec<NodeCopyNums>,
+#[derive(Clone, Debug)]
+pub struct CopyNumsUpdateInfo<K: KmerLike> {
+    /// segment info (cyclic path in residue graph as kmer and direction segments)
+    segments: Vec<(K, ResidueDirection)>,
+    ///
+    genome_size_change: i32,
+    /// size of cycle (= total number of edges in cycle) in compacted/uncompacted graph
+    cycle_size: usize,
+    /// in uncompacted graph it will be equal to `cycle_size`.
+    n_kmer_changed: usize,
 }
-impl<K: KmerLike> Iterator for CopyNumsIterator<K> {
-    type Item = NodeCopyNums;
-    fn next(&mut self) -> Option<Self::Item> {
-        // (1) pop a candidate update cycle from cycle space
-        // (2) update copy_nums using each cycle (for both +1/-1 directions)
-        // if resulting copy_nums vector is valid.
-        unimplemented!();
+
+impl<K: KmerLike> std::fmt::Display for CopyNumsUpdateInfo<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}(dG={},L={},n={})",
+            self.segments
+                .iter()
+                .map(|(kmer, dir)| format!("{}{}", kmer, dir))
+                .join(","),
+            self.genome_size_change,
+            self.cycle_size,
+            self.n_kmer_changed,
+        )
+    }
+}
+
+///
+/// - k: k-size of dbg
+///
+pub fn edges_to_kmer<N, E: EDbgEdgeMin>(
+    edbg: &DiGraph<N, E>,
+    edges: &[EdgeIndex],
+    k: usize,
+) -> E::Kmer {
+    let kmers: Vec<_> = edges
+        .iter()
+        .map(|&edge| edbg.edge_weight(edge).unwrap().kmer().clone())
+        .collect();
+    concat_overlapping_kmers(kmers, k - 1)
+}
+
+impl<K: KmerLike> CopyNumsUpdateInfo<K> {
+    pub fn from_uncompacted(
+        k: usize,
+        graph: &DiGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>,
+        update_info: &UpdateInfo,
+    ) -> Self {
+        let cycle_with_dir = update_info_to_cycle_with_dir(update_info);
+        let segments: Vec<_> = cycle_with_dir
+            .collapse_dir()
+            .into_iter()
+            .map(|(mut edges, is_rev)| {
+                if is_rev {
+                    edges.reverse();
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Down)
+                } else {
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Up)
+                }
+            })
+            .collect();
+        let genome_size_change = total_changes(update_info.iter().map(|(_, dir)| *dir));
+        CopyNumsUpdateInfo {
+            segments,
+            genome_size_change,
+            cycle_size: update_info.len(),
+            n_kmer_changed: update_info.len(),
+        }
+    }
+    pub fn from_compacted(
+        k: usize,
+        graph: &DiGraph<SimpleEDbgNode<K>, SimpleCompactedEDbgEdge<K>>,
+        update_info: &UpdateInfo,
+    ) -> Self {
+        let cycle_with_dir = update_info_to_cycle_with_dir(update_info);
+        let segments: Vec<_> = cycle_with_dir
+            .collapse_dir()
+            .into_iter()
+            .map(|(mut edges, is_rev)| {
+                if is_rev {
+                    edges.reverse();
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Down)
+                } else {
+                    (edges_to_kmer(graph, &edges, k), ResidueDirection::Up)
+                }
+            })
+            .collect();
+        let genome_size_change = update_info
+            .iter()
+            .map(|&(edge, dir)| {
+                let n_edges_in_uncompacted = graph.edge_weight(edge).unwrap().origin_edges().len();
+                dir.int() * n_edges_in_uncompacted as i32
+            })
+            .sum();
+        let n_kmer_changed = update_info
+            .iter()
+            .map(|&(edge, _)| {
+                let n_edges_in_uncompacted = graph.edge_weight(edge).unwrap().origin_edges().len();
+                n_edges_in_uncompacted
+            })
+            .sum();
+        CopyNumsUpdateInfo {
+            segments,
+            genome_size_change,
+            n_kmer_changed,
+            cycle_size: update_info.len(),
+        }
     }
 }
 
@@ -74,15 +175,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// }
     /// ```
     ///
-    pub fn iter_neighbor_copy_nums(&self) -> CopyNumsIterator<N::Kmer> {
-        // (1) create undirected edge-centric-dbg.
-        let edbg = self.to_undirected_edbg_graph();
-        // (2) enumerate cycles in the undirected graph using CycleSpace iterator.
-        let null_node = get_null_node(&edbg);
-        let st = spanning_tree(&edbg, null_node);
-        let basis = st.cycle_basis_list(&edbg);
-        let space = CycleSpace::new(basis);
-        CopyNumsIterator { edbg, space }
+    pub fn iter_neighbor_copy_nums(&self) {
+        unimplemented!();
     }
     pub fn neighbor_copy_nums(&self) -> Vec<NodeCopyNums> {
         self.neighbor_copy_nums_and_cycles()
@@ -147,30 +241,75 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 
         ret
     }
-    ///
-    /// use Johnson1975
-    ///
+    /// wrapper of `neighbor_copy_nums_fast`
     pub fn neighbor_copy_nums_fast(&self) -> Vec<NodeCopyNums> {
-        // convert to edbg, residue graph
-        let rg = self.to_residue_edbg();
-        let copy_num = self.to_node_copy_nums().switch_index();
-        // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num)
+        self.neighbor_copy_nums_fast_with_info()
             .into_iter()
-            .map(|flow| flow.switch_index())
+            .map(|(copy_nums, _)| copy_nums)
+            .collect()
+    }
+    /// wrapper of `neighbor_copy_nums_fast_compact`
+    pub fn neighbor_copy_nums_fast_compact(&self, max_depth: usize) -> Vec<NodeCopyNums> {
+        self.neighbor_copy_nums_fast_compact_with_info(max_depth)
+            .into_iter()
+            .map(|(copy_nums, _)| copy_nums)
             .collect()
     }
     ///
-    /// use Johnson1975 and collapse-simple-path
+    /// use Johnson1975
     ///
-    pub fn neighbor_copy_nums_more_fast(&self) -> Vec<NodeCopyNums> {
+    pub fn neighbor_copy_nums_fast_with_info(
+        &self,
+    ) -> Vec<(NodeCopyNums, CopyNumsUpdateInfo<N::Kmer>)> {
         // convert to edbg, residue graph
-        let rg = self.to_residue_edbg();
+        let edbg = self.to_edbg();
+        let network = edbg.graph.map(
+            |_, _| (),
+            |_, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
         let copy_num = self.to_node_copy_nums().switch_index();
         // enumerate all cycles
-        generate_all_neighbor_flows(&rg, &copy_num)
+        enumerate_neighboring_flows(&network, &copy_num, None)
             .into_iter()
-            .map(|flow| flow.switch_index())
+            .map(|(flow, update_info)| {
+                (
+                    flow.switch_index(),
+                    CopyNumsUpdateInfo::from_uncompacted(self.k(), &edbg.graph, &update_info),
+                )
+            })
+            .collect()
+    }
+    ///
+    /// use Johnson1975 on Compacted Edbg
+    ///
+    pub fn neighbor_copy_nums_fast_compact_with_info(
+        &self,
+        max_depth: usize,
+    ) -> Vec<(NodeCopyNums, CopyNumsUpdateInfo<N::Kmer>)> {
+        let graph = self.to_compact_edbg_graph();
+        // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
+        let network = graph.map(
+            |_, _| (),
+            |_, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
+        let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index());
+        // enumerate all cycles
+        enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
+            .into_iter()
+            .map(|(flow, update_info)| {
+                let flow_in_original =
+                    compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
+                (
+                    flow_in_original.switch_index(),
+                    CopyNumsUpdateInfo::from_compacted(self.k(), &graph, &update_info),
+                )
+            })
             .collect()
     }
     ///
@@ -302,7 +441,45 @@ mod tests {
         for copy_num in copy_nums_v2.iter() {
             println!("c2={}", copy_num);
         }
-
         assert!(is_equal_as_set(&copy_nums, &copy_nums_v2));
+        assert_eq!(copy_nums_v2.len(), copy_nums.len());
+
+        println!("c3");
+        let copy_nums_v3 = dbg.neighbor_copy_nums_fast_compact(100);
+        for copy_num in copy_nums_v3.iter() {
+            println!("c3={}", copy_num);
+        }
+        assert!(is_equal_as_set(&copy_nums, &copy_nums_v3));
+        assert_eq!(copy_nums_v3.len(), copy_nums.len());
+    }
+    #[test]
+    fn compact_edbg_01() {
+        {
+            let dbg = mock_simple();
+            println!("{}", Dot::with_config(&dbg.to_edbg().graph, &[]));
+            println!("{}", Dot::with_config(&dbg.to_compact_edbg_graph(), &[]));
+        }
+
+        {
+            let dbg = mock_intersection();
+            println!("{}", Dot::with_config(&dbg.to_edbg().graph, &[]));
+            println!("{}", Dot::with_config(&dbg.to_compact_edbg_graph(), &[]));
+        }
+    }
+    #[test]
+    fn neighbor_copy_nums_update_info_test() {
+        let dbg = mock_intersection_small();
+
+        // uncompacted
+        let neighbors = dbg.neighbor_copy_nums_fast_with_info();
+        for (copy_num, info) in neighbors.iter() {
+            println!("c={} info={}", copy_num, info);
+        }
+
+        // compacted
+        let neighbors = dbg.neighbor_copy_nums_fast_compact_with_info(100);
+        for (copy_num, info) in neighbors.iter() {
+            println!("c={} info={}", copy_num, info);
+        }
     }
 }

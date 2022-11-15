@@ -238,6 +238,12 @@ where
     pub fn to_inner_vec(self) -> Vec<T> {
         self.storage.to_inner_vec()
     }
+    pub fn from_inner_vec(vec: Vec<T>) -> Self {
+        Vector {
+            storage: DenseStorage::from_inner_vec(vec),
+            ty: PhantomData,
+        }
+    }
 }
 
 /// private associated functions
@@ -588,7 +594,7 @@ where
         write!(f, "[")?;
         for i in 0..self.len() {
             if i != 0 {
-                write!(f, ", ")?;
+                write!(f, ",")?;
             }
             write!(f, "{}", self[Ix::new(i)])?;
         }

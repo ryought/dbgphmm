@@ -5,7 +5,8 @@ pub use super::kmer_info::{create_kmer_infos as create_plain_kmer_infos, KmerInf
 use super::q::q_score;
 use crate::common::{CopyNum, Freq, Reads};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
-use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::dbg::draft::MAX_COPY_NUM_OF_EDGE;
+use crate::dbg::edge_centric::impls::SimpleEDbgEdgeWithAttr;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;

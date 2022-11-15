@@ -2,21 +2,12 @@
 //!
 //! Copied from https://github.com/petgraph/petgraph/blob/master/src/algo/bellman_ford.rs
 
-use petgraph::algo::{FloatMeasure, NegativeCycle};
+use crate::graph::FloatWeight;
+use petgraph::algo::NegativeCycle;
 use petgraph::prelude::*;
 use petgraph::visit::{
     IntoEdges, IntoNodeIdentifiers, NodeCount, NodeIndexable, VisitMap, Visitable,
 };
-
-pub trait HasEpsilon: FloatMeasure {
-    fn epsilon() -> Self;
-}
-
-impl HasEpsilon for f64 {
-    fn epsilon() -> Self {
-        f64::EPSILON
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Paths<NodeId, EdgeWeight> {
@@ -90,13 +81,10 @@ pub struct Paths<NodeId, EdgeWeight> {
 ///
 /// assert!(bellman_ford(&graph_with_neg_cycle, NodeIndex::new(0)).is_err());
 /// ```
-pub fn bellman_ford<G>(
-    g: G,
-    source: G::NodeId,
-) -> Result<Paths<G::NodeId, G::EdgeWeight>, NegativeCycle>
+pub fn bellman_ford<G>(g: G, source: G::NodeId) -> Result<Paths<G::NodeId, f64>, NegativeCycle>
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable,
-    G::EdgeWeight: FloatMeasure + HasEpsilon,
+    G::EdgeWeight: FloatWeight,
 {
     let ix = |i| g.to_index(i);
 
@@ -107,7 +95,7 @@ where
     for i in g.node_identifiers() {
         for edge in g.edges(i) {
             let j = edge.target();
-            let w = *edge.weight();
+            let w = edge.weight().float_weight();
             if distances[ix(i)] + w + G::EdgeWeight::epsilon() < distances[ix(j)] {
                 return Err(NegativeCycle(()));
             }
@@ -156,7 +144,7 @@ where
 pub fn find_negative_cycle<G>(g: G, source: G::NodeId) -> Option<Vec<G::NodeId>>
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable + Visitable,
-    G::EdgeWeight: FloatMeasure + HasEpsilon,
+    G::EdgeWeight: FloatWeight,
 {
     let ix = |i| g.to_index(i);
     let mut path = Vec::<G::NodeId>::new();
@@ -168,7 +156,7 @@ where
     'outer: for i in g.node_identifiers() {
         for edge in g.edges(i) {
             let j = edge.target();
-            let w = *edge.weight();
+            let w = edge.weight().float_weight();
             if distance[ix(i)] + w + G::EdgeWeight::epsilon() < distance[ix(j)] {
                 // Step 3: negative cycle found
                 let start = j;
@@ -220,19 +208,16 @@ where
 
 // Perform Step 1 and Step 2 of the Bellman-Ford algorithm.
 #[inline(always)]
-fn bellman_ford_initialize_relax<G>(
-    g: G,
-    source: G::NodeId,
-) -> (Vec<G::EdgeWeight>, Vec<Option<G::NodeId>>)
+fn bellman_ford_initialize_relax<G>(g: G, source: G::NodeId) -> (Vec<f64>, Vec<Option<G::NodeId>>)
 where
     G: NodeCount + IntoNodeIdentifiers + IntoEdges + NodeIndexable,
-    G::EdgeWeight: FloatMeasure + HasEpsilon,
+    G::EdgeWeight: FloatWeight,
 {
     // Step 1: initialize graph
     let mut predecessor = vec![None; g.node_bound()];
-    let mut distance = vec![<_>::infinite(); g.node_bound()];
+    let mut distance = vec![f64::INFINITY; g.node_bound()];
     let ix = |i| g.to_index(i);
-    distance[ix(source)] = <_>::zero();
+    distance[ix(source)] = 0.0;
 
     // Step 2: relax edges repeatedly
     for _ in 1..g.node_count() {
@@ -240,7 +225,7 @@ where
         for i in g.node_identifiers() {
             for edge in g.edges(i) {
                 let j = edge.target();
-                let w = *edge.weight();
+                let w = edge.weight().float_weight();
                 if distance[ix(i)] + w + G::EdgeWeight::epsilon() < distance[ix(j)] {
                     distance[ix(j)] = distance[ix(i)] + w;
                     predecessor[ix(j)] = Some(i);

@@ -16,6 +16,7 @@ use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::Direction;
+pub mod compact;
 pub mod impls;
 pub mod output;
 use crate::dbg::flow_intersection::{FlowIntersection, FlowIntersectionEdge, FlowIntersectionNode};
@@ -46,11 +47,14 @@ pub trait EDbgNode {
 /// Fundamental trait for edges in edge-centric dbg `EDbg`
 /// If you need copy numbers, use EDbgEdge
 ///
-pub trait EDbgEdgeBase {
+pub trait EDbgEdgeMin {
     type Kmer: KmerLike;
     ///
     /// k-mer of this edge of the EDbg
     fn kmer(&self) -> &Self::Kmer;
+}
+
+pub trait EDbgEdgeBase: EDbgEdgeMin {
     ///
     /// Index of the node in (node-centric) dbg which this edge is
     /// originated from.

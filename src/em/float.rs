@@ -16,7 +16,7 @@ use result::{EMResult, MStepResult, StepResult};
 pub mod benchmark;
 
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
-use crate::dbg::edge_centric::EDbgEdgeBase;
+use crate::dbg::edge_centric::{EDbgEdgeBase, EDbgEdgeMin};
 use crate::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use crate::graph::float_seq_graph::FloatSeqGraph;
 use crate::hist::stat;
@@ -26,7 +26,7 @@ use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
 use crate::min_flow::flow::{inspect_flow_constraint, ConstCost, Flow, FlowEdge};
 use crate::min_flow::min_cost_flow_from;
 use crate::min_flow::residue::{
-    improve_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
+    improve_residue_graph, CycleDetectMethod, ResidueDirection, ResidueEdge, ResidueGraph,
 };
 use crate::prelude::*;
 use crate::vector::{DenseStorage, NodeVec};
@@ -441,7 +441,8 @@ pub fn m_step_once<K: KmerLike>(
     // (1) convert to edge-centric dbg with each edge has a cost
     let rg = to_residue_graph(&fdbg, &edge_freqs, &init_freqs, diff);
     // (2) search for negative cycle
-    match improve_residue_graph(&rg) {
+    // this residue graph is not convex, so use mmwc
+    match improve_residue_graph(&rg, CycleDetectMethod::MinMeanWeightCycle) {
         Some(edges) => {
             apply_to_dbg(&mut fdbg, diff, &rg, &edges);
             let q_score_new = q_score_exact(&fdbg.to_phmm(params.clone()), edge_freqs, init_freqs);
@@ -474,11 +475,13 @@ impl<K: KmerLike> QDiffEdge<K> {
         }
     }
 }
-impl<K: KmerLike> EDbgEdgeBase for QDiffEdge<K> {
+impl<K: KmerLike> EDbgEdgeMin for QDiffEdge<K> {
     type Kmer = K;
     fn kmer(&self) -> &K {
         &self.kmer
     }
+}
+impl<K: KmerLike> EDbgEdgeBase for QDiffEdge<K> {
     fn origin_node(&self) -> NodeIndex {
         self.origin_node
     }
@@ -627,7 +630,7 @@ mod tests {
         let diff = 0.1;
         let rg = to_residue_graph(&fdbg, &edge_freqs, &init_freqs, diff);
         println!("{:?}", Dot::with_config(&rg, &[]));
-        let edges = improve_residue_graph(&rg).unwrap();
+        let edges = improve_residue_graph(&rg, CycleDetectMethod::MinMeanWeightCycle).unwrap();
         apply_to_dbg(&mut fdbg, diff, &rg, &edges);
         println!("{}", fdbg);
 

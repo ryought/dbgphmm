@@ -129,17 +129,8 @@ fn m_step<N: DbgNode, E: DbgEdge>(
     depth: Freq,
 ) -> (NodeCopyNums, Cost) {
     let node_freqs = node_freqs.clone() / depth;
-    let edbg = dbg.to_edbg_with_attr(Some(&node_freqs));
-    let flow = min_cost_flow_convex_fast(&edbg.graph);
-    match flow {
-        None => panic!("compression::m_step cannot find optimal flow."),
-        // an edge in edbg corresponds to a node in dbg
-        // so edgevec for edbg can be converted to nodevec for dbg.
-        Some(copy_nums) => {
-            let cost = total_cost(&edbg.graph, &copy_nums);
-            (copy_nums.switch_index(), cost)
-        }
-    }
+    dbg.min_squared_error_copy_nums_from_freqs(&node_freqs)
+        .expect("compression::m_step cannot find optimal flow.")
 }
 
 ///

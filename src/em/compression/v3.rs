@@ -11,7 +11,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::residue::{
-    improve_flow_convex_with_update_info, ResidueDirection, UpdateInfo,
+    improve_flow_convex_with_update_info, CycleDetectMethod, ResidueDirection, UpdateInfo,
 };
 use crate::min_flow::utils::clamped_log_with;
 use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
@@ -19,7 +19,8 @@ use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
-use crate::dbg::edge_centric::impls::{SimpleEDbgEdgeWithAttr, MAX_COPY_NUM_OF_EDGE};
+use crate::dbg::draft::MAX_COPY_NUM_OF_EDGE;
+use crate::dbg::edge_centric::impls::SimpleEDbgEdgeWithAttr;
 use crate::min_flow::convex::ConvexCost;
 use crate::min_flow::flow::FlowEdge;
 
@@ -287,8 +288,13 @@ fn m_step_once<N: DbgNode, E: DbgEdge>(
     // dbg.draw_plain_with_vecs(&[&infos], &[]);
 
     // (2) min-flow optimization starts from current copy nums
+    // this edbg is not convex, so use MMWC
     let original_copy_nums = dbg.to_node_copy_nums().switch_index();
-    match improve_flow_convex_with_update_info(&edbg.graph, &original_copy_nums) {
+    match improve_flow_convex_with_update_info(
+        &edbg.graph,
+        &original_copy_nums,
+        CycleDetectMethod::MinMeanWeightCycle,
+    ) {
         Some((copy_nums, update_info)) => {
             // approximated cost difference
             let cost_diff =

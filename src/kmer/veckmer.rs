@@ -131,6 +131,14 @@ impl KmerLike for VecKmer {
             panic!("cannot join")
         }
     }
+    fn overlap(&self, other: &VecKmer, k: usize) -> VecKmer {
+        assert!(self.0.len() >= k);
+        assert!(other.0.len() >= k);
+        assert_eq!(self.0[self.0.len() - k..], other.0[..k]);
+        let mut v = self.0.clone();
+        v.extend_from_slice(&other.0[k..]);
+        VecKmer(v)
+    }
     /// check if NNNNNX
     fn is_head(&self) -> bool {
         let k = self.0.len();

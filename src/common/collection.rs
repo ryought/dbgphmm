@@ -170,6 +170,10 @@ impl<S: Seq> ReadCollection<S> {
     pub fn len(&self) -> usize {
         self.reads.len()
     }
+    /// total number of bases of all reads
+    pub fn total_bases(&self) -> usize {
+        self.reads.iter().map(|read| read.as_ref().len()).sum()
+    }
 }
 
 impl<S: Seq> std::ops::Index<usize> for ReadCollection<S> {

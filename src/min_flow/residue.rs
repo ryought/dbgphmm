@@ -7,14 +7,14 @@ use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
 use super::{Cost, FlowRate, FlowRateLike};
-use crate::graph::bellman_ford::HasEpsilon;
+use crate::graph::bellman_ford;
+use crate::graph::cycle::CycleWithDir;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
     total_weight,
 };
 use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
-use crate::graph::min_mean_weight_cycle::{find_negative_cycle, find_negative_edge_cycle};
 use crate::graph::FloatWeight;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -51,16 +51,6 @@ impl<F: FlowRateLike> ResidueEdge<F> {
             direction,
         }
     }
-    /// create a new ResidueEdge with default values except the weight
-    pub fn only_weight(weight: Cost) -> ResidueEdge<F> {
-        ResidueEdge {
-            weight,
-            // filled by default values
-            target: EdgeIndex::new(0),
-            count: F::default(),
-            direction: ResidueDirection::Up,
-        }
-    }
 }
 
 impl<F: FlowRateLike> FloatWeight for ResidueEdge<F> {
@@ -82,6 +72,18 @@ pub enum ResidueDirection {
     Down,
 }
 
+impl ResidueDirection {
+    /// Map ResidueDirection into i32
+    /// * Up   -> +1
+    /// * Down -> -1
+    pub fn int(&self) -> i32 {
+        match *self {
+            ResidueDirection::Up => 1,
+            ResidueDirection::Down => -1,
+        }
+    }
+}
+
 impl std::fmt::Display for ResidueDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -89,6 +91,16 @@ impl std::fmt::Display for ResidueDirection {
             ResidueDirection::Down => write!(f, "-"),
         }
     }
+}
+
+///
+/// List of ResidueDirection (n-times "+" and m-times "-") into total changes (n-m)
+///
+pub fn total_changes<I>(directions: I) -> i32
+where
+    I: Iterator<Item = ResidueDirection>,
+{
+    directions.map(|dir| dir.int()).sum()
 }
 
 impl Default for ResidueDirection {
@@ -121,6 +133,14 @@ pub fn flow_to_residue<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
 ) -> ResidueGraph<F> {
+    assert_eq!(
+        flow.len(),
+        graph.edge_count(),
+        "flow (len={}) does not match network (E={})",
+        flow.len(),
+        graph.edge_count()
+    );
+
     let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -169,6 +189,14 @@ where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
+    assert_eq!(
+        flow.len(),
+        graph.edge_count(),
+        "flow (len={}) does not match network (E={})",
+        flow.len(),
+        graph.edge_count()
+    );
+
     let mut rg: ResidueGraph<F> = ResidueGraph::new();
 
     // create two edges (Up and Down) for each edge
@@ -278,32 +306,73 @@ fn apply_residual_edges_to_flow<F: FlowRateLike>(
 }
 
 ///
+/// Simple heuristic to avoid searching meaningless cycles on ResidueGraph.
+///
+/// Prohibiting move below:
+///
+/// ```text
+///    +e
+/// v ---> w
+///   <---
+///    -e
+/// ```
+///
+fn is_meaningful_move_on_residue_graph<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    e_a: EdgeIndex,
+    e_b: EdgeIndex,
+) -> bool {
+    let ew_a = rg.edge_weight(e_a).unwrap();
+    let ew_b = rg.edge_weight(e_b).unwrap();
+    let target_is_different = ew_a.target != ew_b.target;
+    let dir_is_same = ew_a.direction == ew_b.direction;
+    target_is_different || dir_is_same
+}
+
+///
 /// list up all neighboring flows
 ///
-pub fn generate_all_neighbor_flows<F: FlowRateLike>(
+pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
     rg: &ResidueGraph<F>,
     flow: &Flow<F>,
-) -> Vec<Flow<F>> {
-    // let simple_cycles = simple_cycles(rg);
-    let simple_cycles = simple_k_cycles_with_cond(rg, 100, |e_a, e_b| {
-        let ew_a = rg.edge_weight(e_a).unwrap();
-        let ew_b = rg.edge_weight(e_b).unwrap();
-        let target_is_different = ew_a.target != ew_b.target;
-        let dir_is_same = ew_a.direction == ew_b.direction;
-        target_is_different || dir_is_same
-    });
-    println!("# n_simple_cycles={}", simple_cycles.len());
+    max_cycle_size: Option<usize>,
+) -> Vec<(Flow<F>, UpdateInfo)> {
+    // println!("{:?}", petgraph::dot::Dot::with_config(&rg, &[]));
+    let simple_cycles = match max_cycle_size {
+        Some(k) => simple_k_cycles_with_cond(rg, k, |e_a, e_b| {
+            is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
+        }),
+        // TODO Johnson algorithm does not support parallel edges
+        // this cause problem when with compacted edbg
+        None => simple_cycles(rg),
+    };
+    // for cycle in simple_cycles.iter() {
+    //     println!("cycle = {}", cycle);
+    // }
+    // eprintln!("# n_simple_cycles={}", simple_cycles.len());
     let flows: Vec<_> = simple_cycles
         .into_iter()
-        .map(|cycle| apply_residual_edges_to_flow(flow, rg, cycle.edges()))
-        .filter(|new_flow| new_flow != flow)
+        .map(|cycle| {
+            (
+                apply_residual_edges_to_flow(flow, rg, cycle.edges()),
+                cycle_in_residue_graph_into_update_info(rg, cycle.edges()),
+            )
+        })
+        .filter(|(new_flow, _update_info)| new_flow != flow)
         .collect();
-    println!("# n_flows={}", flows.len());
+    // eprintln!("# n_flows={}", flows.len());
     flows
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum CycleDetectMethod {
+    BellmanFord,
+    MinMeanWeightCycle,
 }
 
 fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
     graph: &ResidueGraph<F>,
+    method: CycleDetectMethod,
 ) -> Option<Vec<EdgeIndex>> {
     let mut node = NodeIndex::new(0);
     let mut dfs = Dfs::new(&graph, node);
@@ -316,14 +385,14 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
         //   <--- w
         //    e2 (-1 of e)
         //
-        let path = find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
-            let ew_a = graph.edge_weight(e_a).unwrap();
-            let ew_b = graph.edge_weight(e_b).unwrap();
-
-            let target_is_different = ew_a.target != ew_b.target;
-            let dir_is_same = ew_a.direction == ew_b.direction;
-            target_is_different || dir_is_same
-        });
+        let path = match method {
+            CycleDetectMethod::MinMeanWeightCycle => {
+                find_negative_cycle_with_edge_cond(&graph, node, |e_a, e_b| {
+                    is_meaningful_move_on_residue_graph(&graph, e_a, e_b)
+                })
+            }
+            CycleDetectMethod::BellmanFord => find_negative_cycle_as_edges(&graph, node),
+        };
 
         if path.is_some() {
             return path;
@@ -348,6 +417,21 @@ fn find_negative_cycle_in_whole_graph<F: FlowRateLike>(
     return None;
 }
 
+///
+/// Find a negative cycle by using Bellman ford algorithm.
+/// Return cycle as edge list, not node list
+///
+pub fn find_negative_cycle_as_edges<N, E>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+) -> Option<Vec<EdgeIndex>>
+where
+    E: FloatWeight,
+{
+    bellman_ford::find_negative_cycle(graph, source)
+        .map(|nodes| node_list_to_edge_list(graph, &nodes))
+}
+
 fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> String {
     cycle
         .iter()
@@ -368,9 +452,12 @@ fn format_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex]) -> S
 ///
 /// Update residue graph by finding negative cycle
 ///
-pub fn improve_residue_graph<F: FlowRateLike>(rg: &ResidueGraph<F>) -> Option<Vec<EdgeIndex>> {
+pub fn improve_residue_graph<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    method: CycleDetectMethod,
+) -> Option<Vec<EdgeIndex>> {
     // find negative weight cycles
-    let path = find_negative_cycle_in_whole_graph(&rg);
+    let path = find_negative_cycle_in_whole_graph(&rg, method);
     // draw(&rg);
 
     match path {
@@ -414,8 +501,9 @@ fn is_meaningful_cycle<F: FlowRateLike>(rg: &ResidueGraph<F>, cycle: &[EdgeIndex
 fn update_flow_in_residue_graph<F: FlowRateLike>(
     flow: &Flow<F>,
     rg: &ResidueGraph<F>,
+    method: CycleDetectMethod,
 ) -> Option<(Flow<F>, Vec<EdgeIndex>)> {
-    match improve_residue_graph(rg) {
+    match improve_residue_graph(rg, method) {
         Some(cycle) => {
             // apply these changes along the cycle to current flow
             let new_flow = apply_residual_edges_to_flow(&flow, &rg, &cycle);
@@ -455,9 +543,10 @@ fn cycle_in_residue_graph_into_update_info<F: FlowRateLike>(
 pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
+    method: CycleDetectMethod,
 ) -> Option<Flow<F>> {
     let rg = flow_to_residue(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, _)) => Some(new_flow),
         None => None,
     }
@@ -469,35 +558,48 @@ pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
 pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
 
 ///
-/// summary of UpdateInfo
+/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
 ///
-pub type UpdateSummary = Vec<(Vec<EdgeIndex>, ResidueDirection)>;
-
-///
-/// Convert a update cycle
-///     [(1, +), (2, +), (3, +), (3, -), (2, -), (1, -)]
-///     [(2, +), (3, +), (3, -), (2, -), (1, -), (1, +)]
-/// into a normalized summary
-///     [([1,2,3], +), ([3,2,1], -)]
-///
-fn to_contiguous_direction_list(
-    updates: &[(EdgeIndex, ResidueDirection)],
-) -> Vec<(Vec<EdgeIndex>, ResidueDirection)> {
-    unimplemented!();
+pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
+    CycleWithDir::new(
+        update_info
+            .iter()
+            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
+            .collect(),
+    )
 }
+
+// ///
+// /// summary of UpdateInfo
+// ///
+// pub type UpdateSummary = Vec<(Vec<EdgeIndex>, ResidueDirection)>;
+//
+// ///
+// /// Convert a update cycle
+// ///     [(1, +), (2, +), (3, +), (3, -), (2, -), (1, -)]
+// ///     [(2, +), (3, +), (3, -), (2, -), (1, -), (1, +)]
+// /// into a normalized summary
+// ///     [([1,2,3], +), ([3,2,1], -)]
+// ///
+// fn to_contiguous_direction_list(
+//     updates: &[(EdgeIndex, ResidueDirection)],
+// ) -> Vec<(Vec<EdgeIndex>, ResidueDirection)> {
+//     unimplemented!();
+// }
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
 pub fn improve_flow_convex_with_update_info<F, N, E>(
     graph: &DiGraph<N, E>,
     flow: &Flow<F>,
+    method: CycleDetectMethod,
 ) -> Option<(Flow<F>, UpdateInfo)>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, cycle)) => Some((
             new_flow,
             cycle_in_residue_graph_into_update_info(&rg, &cycle),
@@ -508,13 +610,17 @@ where
 
 /// create a new improved flow from current flow
 /// by upgrading along the negative weight cycle in the residual graph
-pub fn improve_flow_convex<F, N, E>(graph: &DiGraph<N, E>, flow: &Flow<F>) -> Option<Flow<F>>
+pub fn improve_flow_convex<F, N, E>(
+    graph: &DiGraph<N, E>,
+    flow: &Flow<F>,
+    method: CycleDetectMethod,
+) -> Option<Flow<F>>
 where
     F: FlowRateLike,
     E: FlowEdge<F> + ConvexCost<F>,
 {
     let rg = flow_to_residue_convex(graph, flow);
-    match update_flow_in_residue_graph(flow, &rg) {
+    match update_flow_in_residue_graph(flow, &rg, method) {
         Some((new_flow, _)) => Some(new_flow),
         None => None,
     }
@@ -524,6 +630,26 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
+    use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+
+    #[test]
+    fn residue_direction_basic() {
+        let up = ResidueDirection::Up;
+        assert_eq!(up.to_string(), "+");
+        assert_eq!(up.int(), 1);
+
+        let down = ResidueDirection::Down;
+        assert_eq!(down.to_string(), "-");
+        assert_eq!(down.int(), -1);
+
+        let directions = vec![
+            ResidueDirection::Down,
+            ResidueDirection::Down,
+            ResidueDirection::Down,
+            ResidueDirection::Up,
+        ];
+        assert_eq!(total_changes(directions.into_iter()), -2);
+    }
 
     #[test]
     fn petgraph_negative_cycle_test() {
@@ -573,8 +699,28 @@ mod tests {
             c,
             ResidueEdge::new(1, -1.0, EdgeIndex::new(2), ResidueDirection::Up),
         );
-        let path = find_negative_cycle_in_whole_graph(&g);
-        assert_eq!(path.is_some(), true);
-        assert_eq!(path, Some(vec![ei(2)]));
+        {
+            let path =
+                find_negative_cycle_in_whole_graph(&g, CycleDetectMethod::MinMeanWeightCycle);
+            assert_eq!(path.is_some(), true);
+            assert_eq!(path, Some(vec![ei(2)]));
+        }
+
+        {
+            let path = find_negative_cycle_in_whole_graph(&g, CycleDetectMethod::BellmanFord);
+            assert_eq!(path.is_some(), true);
+            assert_eq!(path, Some(vec![ei(2)]));
+        }
+    }
+    //
+    // speed benchmarks
+    //
+    use test::Bencher;
+    #[bench]
+    fn bench_forward(b: &mut Bencher) {
+        b.iter(|| {
+            // do some test
+            println!("hoge");
+        });
     }
 }
