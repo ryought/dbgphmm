@@ -594,7 +594,7 @@ where
         write!(f, "[")?;
         for i in 0..self.len() {
             if i != 0 {
-                write!(f, ", ")?;
+                write!(f, ",")?;
             }
             write!(f, "{}", self[Ix::new(i)])?;
         }
