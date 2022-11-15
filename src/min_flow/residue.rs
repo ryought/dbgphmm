@@ -82,6 +82,15 @@ pub enum ResidueDirection {
     Down,
 }
 
+impl ResidueDirection {
+    fn int(&self) -> i32 {
+        match *self {
+            ResidueDirection::Up => 1,
+            ResidueDirection::Down => -1,
+        }
+    }
+}
+
 impl std::fmt::Display for ResidueDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -89,6 +98,16 @@ impl std::fmt::Display for ResidueDirection {
             ResidueDirection::Down => write!(f, "-"),
         }
     }
+}
+
+///
+/// List of ResidueDirection (n-times "+" and m-times "-") into total changes (n-m)
+///
+pub fn total_changes<I>(directions: I) -> i32
+where
+    I: Iterator<Item = ResidueDirection>,
+{
+    directions.map(|dir| dir.int()).sum()
 }
 
 impl Default for ResidueDirection {
@@ -548,11 +567,11 @@ pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
 ///
 /// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
 ///
-pub fn to_cycle_with_dir(update_info: UpdateInfo) -> CycleWithDir {
+pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
     CycleWithDir::new(
         update_info
-            .into_iter()
-            .map(|(edge, dir)| (edge, dir == ResidueDirection::Up))
+            .iter()
+            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
             .collect(),
     )
 }
@@ -619,6 +638,25 @@ mod tests {
     use super::*;
     use crate::common::ei;
     use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+
+    #[test]
+    fn residue_direction_basic() {
+        let up = ResidueDirection::Up;
+        assert_eq!(up.to_string(), "+");
+        assert_eq!(up.int(), 1);
+
+        let down = ResidueDirection::Down;
+        assert_eq!(down.to_string(), "-");
+        assert_eq!(down.int(), -1);
+
+        let directions = vec![
+            ResidueDirection::Down,
+            ResidueDirection::Down,
+            ResidueDirection::Down,
+            ResidueDirection::Up,
+        ];
+        assert_eq!(total_changes(directions.into_iter()), -2);
+    }
 
     #[test]
     fn petgraph_negative_cycle_test() {

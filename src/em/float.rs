@@ -16,7 +16,7 @@ use result::{EMResult, MStepResult, StepResult};
 pub mod benchmark;
 
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase};
-use crate::dbg::edge_centric::EDbgEdgeBase;
+use crate::dbg::edge_centric::{EDbgEdgeBase, EDbgEdgeMin};
 use crate::dbg::float::{q_score_diff_exact, CopyDensity, FloatDbg, FloatDbgEdge, FloatDbgNode};
 use crate::graph::float_seq_graph::FloatSeqGraph;
 use crate::hist::stat;
@@ -475,11 +475,13 @@ impl<K: KmerLike> QDiffEdge<K> {
         }
     }
 }
-impl<K: KmerLike> EDbgEdgeBase for QDiffEdge<K> {
+impl<K: KmerLike> EDbgEdgeMin for QDiffEdge<K> {
     type Kmer = K;
     fn kmer(&self) -> &K {
         &self.kmer
     }
+}
+impl<K: KmerLike> EDbgEdgeBase for QDiffEdge<K> {
     fn origin_node(&self) -> NodeIndex {
         self.origin_node
     }

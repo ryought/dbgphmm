@@ -6,17 +6,20 @@ use super::edge_centric::compact::{
     compacted_flow_into_original_flow, into_compacted_flow, SimpleCompactedEDbgEdge,
 };
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
-use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgNode};
+use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
 use crate::graph::cycle::{
     apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
 };
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{get_normalized_probs, Hist};
+use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::enumerate_neighboring_flows;
 use crate::min_flow::flow::FlowEdgeBase;
-use crate::min_flow::residue::{ResidueDirection, UpdateInfo};
+use crate::min_flow::residue::{
+    total_changes, update_info_to_cycle_with_dir, ResidueDirection, UpdateInfo,
+};
 use crate::prob::Prob;
 use crate::utils::all_same_value;
 use fnv::FnvHashSet as HashSet;
@@ -43,11 +46,38 @@ pub struct CopyNumsUpdateInfo<K: KmerLike> {
     /// segment info (cyclic path in residue graph as kmer and direction segments)
     segments: Vec<(K, ResidueDirection)>,
     ///
-    genome_size_change: usize,
+    genome_size_change: i32,
     /// size of cycle (= total number of edges in cycle) in compacted/uncompacted graph
     cycle_size: usize,
     /// in uncompacted graph it will be equal to `cycle_size`.
     n_kmer_changed: usize,
+}
+
+impl<K: KmerLike> std::fmt::Display for CopyNumsUpdateInfo<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}(dG={},L={},n={})",
+            self.segments
+                .iter()
+                .map(|(kmer, dir)| format!("{}{}", kmer, dir))
+                .join(","),
+            self.genome_size_change,
+            self.cycle_size,
+            self.n_kmer_changed,
+        )
+    }
+}
+
+///
+///
+///
+pub fn edges_to_kmer<N, E: EDbgEdgeMin>(edbg: &DiGraph<N, E>, edges: &[EdgeIndex]) -> E::Kmer {
+    let kmers: Vec<_> = edges
+        .iter()
+        .map(|&edge| edbg.edge_weight(edge).unwrap().kmer().clone())
+        .collect();
+    concat_overlapping_kmers(kmers)
 }
 
 impl<K: KmerLike> CopyNumsUpdateInfo<K> {
@@ -55,18 +85,39 @@ impl<K: KmerLike> CopyNumsUpdateInfo<K> {
         graph: &DiGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>,
         update_info: &UpdateInfo,
     ) -> Self {
-        // TODO
+        let cycle_with_dir = update_info_to_cycle_with_dir(update_info);
+        let segments: Vec<_> = cycle_with_dir
+            .collapse_dir()
+            .into_iter()
+            .map(|(mut edges, is_rev)| {
+                if is_rev {
+                    edges.reverse();
+                    (edges_to_kmer(graph, &edges), ResidueDirection::Down)
+                } else {
+                    (edges_to_kmer(graph, &edges), ResidueDirection::Up)
+                }
+            })
+            .collect();
+        let genome_size_change = total_changes(update_info.iter().map(|(_, dir)| *dir));
         CopyNumsUpdateInfo {
-            segments: vec![],
-            genome_size_change: 0,
-            cycle_size: 0,
-            n_kmer_changed: 0,
+            segments,
+            genome_size_change,
+            cycle_size: update_info.len(),
+            n_kmer_changed: update_info.len(),
         }
     }
     pub fn from_compacted(
         graph: &DiGraph<SimpleEDbgNode<K>, SimpleCompactedEDbgEdge<K>>,
         update_info: &UpdateInfo,
     ) -> Self {
+        let cycle_with_dir = update_info_to_cycle_with_dir(update_info);
+        cycle_with_dir
+            .collapse_dir()
+            .into_iter()
+            .for_each(|(edges, is_rev)| {
+                println!("from_compacted edges={:?} is_rev={}", edges, is_rev);
+                edges_to_kmer(graph, &edges);
+            });
         // TODO
         CopyNumsUpdateInfo {
             segments: vec![],
@@ -394,11 +445,11 @@ mod tests {
     #[test]
     fn neighbor_copy_nums_update_info_test() {
         let dbg = mock_intersection_small();
-        let neighbors = dbg.neighbor_copy_nums_fast_with_info();
 
-        // debug
+        // uncompacted
+        let neighbors = dbg.neighbor_copy_nums_fast_with_info();
         for (copy_num, info) in neighbors.iter() {
-            println!("c={} info={:?}", copy_num, info);
+            println!("c={} info={}", copy_num, info);
         }
     }
 }

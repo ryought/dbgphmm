@@ -2,10 +2,11 @@
 //!
 //!
 use super::impls::{SimpleEDbgEdge, SimpleEDbgNode};
-use super::{EDbgEdge, EDbgEdgeBase, EDbgNode};
+use super::{EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
 use crate::common::{CopyNum, Freq, Sequence};
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use crate::graph::compact::compact_simple_paths;
+use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::flow::{Flow, FlowEdge};
 use crate::min_flow::{Cost, FlowRate, FlowRateLike};
@@ -39,6 +40,13 @@ impl<K: KmerLike> SimpleCompactedEDbgEdge<K> {
     }
     pub fn copy_num(&self) -> CopyNum {
         self.copy_num
+    }
+}
+
+impl<K: KmerLike> EDbgEdgeMin for SimpleCompactedEDbgEdge<K> {
+    type Kmer = K;
+    fn kmer(&self) -> &K {
+        &self.kmer
     }
 }
 
@@ -129,11 +137,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             |_node, weight| weight.clone(),
             |_edge, weight| {
                 let edges: Vec<_> = weight.iter().map(|(e, _)| *e).collect();
-                let kmer = weight
-                    .iter()
-                    .map(|(_, w)| w.kmer().clone())
-                    .reduce(|accum, kmer| accum.overlap(&kmer))
-                    .unwrap();
+                let kmers: Vec<_> = weight.iter().map(|(_, w)| w.kmer().clone()).collect();
+                let kmer = concat_overlapping_kmers(kmers);
                 let copy_num = all_same_value(weight.iter().map(|(_, w)| w.copy_num()))
                     .expect("not all copynums in edge are the same");
                 SimpleCompactedEDbgEdge::new(kmer, copy_num, edges)
