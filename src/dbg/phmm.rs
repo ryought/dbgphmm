@@ -3,6 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
 use crate::common::{CopyNum, Seq};
+use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::freq::PHMMOutput;
@@ -45,6 +46,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         phmm.to_full_prob_parallel(seqs)
     }
     ///
+    ///
+    ///
+    pub fn to_prior_prob(&self, genome_size_expected: CopyNum, genome_size_sigma: CopyNum) -> Prob {
+        normal(
+            self.genome_size() as f64,
+            genome_size_expected as f64,
+            genome_size_sigma as f64,
+        )
+    }
+    pub fn to_prior_prob_by_lambda(&self, lambda: f64, genome_size_expected: CopyNum) -> Prob {
+        let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
+        Prob::from_log_prob(-lambda * size_diff.powi(2))
+    }
+    ///
     /// calculate the prior score
     ///
     /// log P(G) = - lambda |G - G0|^2
@@ -53,9 +68,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * lambda: penalty weight
     /// * G0: expected genome size
     ///
-    pub fn to_prior_score(&self, lambda: f64, genome_size_expected: CopyNum) -> f64 {
-        let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
-        -lambda * size_diff.powi(2)
+    pub fn to_prior_score_by_lambda(&self, lambda: f64, genome_size_expected: CopyNum) -> f64 {
+        self.to_prior_prob_by_lambda(lambda, genome_size_expected)
+            .to_log_value()
     }
 }
 

@@ -11,13 +11,38 @@ use crate::min_flow::{
 };
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    /// Create draft dbg from reads
     ///
-    pub fn create_draft_from_seqs<T>(k: usize, seqs: T) -> Self
+    /// 1. remove 1x-copy nodes
+    /// 2. remove deadend nodes
+    /// 3. assign approximated (flow-constraint-satisfied) copy_nums
+    ///
+    pub fn create_draft_from_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
     where
         T: IntoIterator,
         T::Item: Seq,
     {
-        unimplemented!();
+        eprintln!("[draft] constructing base");
+        let mut dbg = Self::from_seqs(k, seqs);
+        eprintln!("[draft] n_nodes0={}", dbg.n_nodes());
+        eprintln!("[draft] n_edges0={}", dbg.n_edges());
+        // 1&2
+        dbg.remove_nodes(2);
+        dbg.remove_deadend_nodes();
+        eprintln!("[draft] n_nodes={}", dbg.n_nodes());
+        eprintln!("[draft] n_edges={}", dbg.n_edges());
+        eprintln!("[draft] {:?}", dbg.copy_num_stats());
+        eprintln!("[draft] {:?}", dbg.degree_stats());
+        // 3
+        let freqs = dbg.to_node_freqs() / coverage as f64;
+        dbg.set_copy_nums_all_zero();
+        let (copy_nums_approx, cost) = dbg
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs)
+            .unwrap();
+        eprintln!("[draft] approx_cost={}", cost);
+        dbg.set_node_copy_nums(&copy_nums_approx);
+        eprintln!("[draft] {:?}", dbg.copy_num_stats());
+        dbg
     }
     ///
     /// by solving min-cost-flow
@@ -154,7 +179,9 @@ impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
 mod tests {
     use super::*;
     use crate::dbg::mocks;
+    use crate::dbg::SimpleDbg;
     use crate::e2e::generate_simple_genome_mock;
+    use crate::kmer::VecKmer;
 
     #[test]
     fn dbg_to_freqs_test() {
@@ -212,5 +239,12 @@ mod tests {
         assert_eq!(approx2.dist(&copy_nums_true), 0);
         assert_eq!(approx2, approx);
         assert!(4.7 <= cost2 && cost2 <= 4.8);
+    }
+    #[test]
+    fn dbg_create_draft_simple_genome_test() {
+        let experiment = generate_simple_genome_mock();
+        let copy_nums_true = experiment.dbg_draft_true.unwrap().to_node_copy_nums();
+        let approx = experiment.dbg_draft.unwrap().to_node_copy_nums();
+        assert_eq!(approx.dist(&copy_nums_true), 0);
     }
 }

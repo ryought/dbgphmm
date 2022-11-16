@@ -36,6 +36,7 @@ fixedbitset = "*"
 # below setting does not work in mac
 # pyo3 = { version = "0.17.1", features = ["extension-module"] }
 pyo3 = { version = "0.17.1" }
+chrono = "*"
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module

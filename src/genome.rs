@@ -7,7 +7,7 @@
 //! * `tandem_repeat_diploid`
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
-use crate::random_seq::{generate, random_mutation, tandem_repeat, MutationProfile};
+use crate::random_seq::{generate, join, random_mutation, tandem_repeat, MutationProfile};
 
 ///
 /// simple random haploid genome
@@ -87,7 +87,25 @@ pub fn tandem_repeat_haploid(
     unit_seed: u64,
     hap_seed: u64,
 ) -> (Genome, usize) {
-    let genome_size = unit_size * n_unit;
+    tandem_repeat_haploid_with_unique_ends(
+        unit_size,
+        n_unit,
+        divergence_init,
+        unit_seed,
+        hap_seed,
+        0,
+    )
+}
+
+pub fn tandem_repeat_haploid_with_unique_ends(
+    unit_size: usize,
+    n_unit: usize,
+    divergence_init: f64,
+    unit_seed: u64,
+    hap_seed: u64,
+    end_length: usize,
+) -> (Genome, usize) {
+    let genome_size = unit_size * n_unit + end_length * 2;
     let unit = generate(unit_size, unit_seed);
     let tandem_repeat = tandem_repeat(&unit, n_unit);
     let (hap_a, _) = random_mutation(
@@ -95,6 +113,9 @@ pub fn tandem_repeat_haploid(
         MutationProfile::uniform(divergence_init),
         hap_seed,
     );
+    let prefix = generate(end_length, unit_seed.wrapping_add(1));
+    let suffix = generate(end_length, unit_seed.wrapping_sub(1));
+    let hap_a = join(prefix, join(hap_a, suffix));
     (vec![StyledSequence::linear(hap_a)], genome_size)
 }
 
@@ -218,6 +239,17 @@ mod tests {
                     b"GTAAATGCGGGTAACTCTGCGGGTAAATGCGGCGTAAATGCGGGGACAATCGGG".to_vec()
                 ),
             ]
+        );
+
+        let (g, gs) = tandem_repeat_haploid_with_unique_ends(10, 5, 0.0, 0, 0, 10);
+        show_genome(&g, gs);
+        assert_eq!(gs, 70);
+        assert_eq!(g.len(), 1);
+        assert_eq!(
+            g,
+            vec![StyledSequence::linear(
+                b"TAGGACAAGCCCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACACCTCACCTCA".to_vec()
+            ),]
         );
     }
 }

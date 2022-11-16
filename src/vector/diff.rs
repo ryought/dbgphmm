@@ -11,7 +11,7 @@ where
     Ix: Indexable,
 {
     ///
-    /// sum of difference of two arrays
+    /// sum of difference of two arrays (L1 distance)
     ///
     pub fn dist<T>(&self, other: &Vector<T, Ix>) -> usize
     where

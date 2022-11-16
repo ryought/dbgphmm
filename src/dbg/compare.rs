@@ -500,7 +500,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> CompressionBenchResult<N::Kmer> {
         CompressionBenchResult {
             common_bench: self.benchmark(dataset),
-            prior: self.to_prior_score(lambda, dataset.genome_size()),
+            prior: self.to_prior_score_by_lambda(lambda, dataset.genome_size()),
             kmer_classification: self
                 .kmer_classification_result(dataset.genome(), &dataset.dbg_raw),
         }
