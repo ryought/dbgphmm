@@ -12,6 +12,7 @@ pub mod e2e;
 pub mod em;
 pub mod genome;
 pub mod graph;
+pub mod greedy;
 pub mod hist;
 pub mod hmm;
 pub mod hmmv2;

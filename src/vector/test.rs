@@ -390,4 +390,11 @@ mod tests {
         assert!(h.contains(&v1));
         assert!(h.contains(&v2));
     }
+    #[test]
+    fn sparse_vector_hashset_example() {
+        // XXX this does not compile
+        // let mut h2: HashSet<Vector<SparseStorage<u32>, usize>> = HashSet::default();
+        // let v1: Vector<SparseStorage<u32>, usize> = Vector::from_slice(&[8, 3, 4, 2], 0);
+        // h2.insert(v1);
+    }
 }
