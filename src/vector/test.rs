@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::{DenseStorage, SparseStorage, Storage, Vector};
+    use fnv::FnvHashSet as HashSet;
     use petgraph::graph::NodeIndex;
 
     #[test]
@@ -374,5 +375,19 @@ mod tests {
         assert!(&vx == &vy);
         assert!(&vx == &vx);
         assert!(&vx != &vz);
+    }
+    #[test]
+    fn dense_vector_hashset_example() {
+        let mut h: HashSet<Vector<DenseStorage<u32>, usize>> = HashSet::default();
+        let v1: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[8, 3, 4, 2], 0);
+        let v2: Vector<DenseStorage<u32>, usize> = Vector::from_slice(&[9, 2, 2, 2], 0);
+        println!("{}", v1);
+        println!("{}", v2);
+        h.insert(v1.clone());
+        assert!(h.contains(&v1));
+        assert!(!h.contains(&v2));
+        h.insert(v2.clone());
+        assert!(h.contains(&v1));
+        assert!(h.contains(&v2));
     }
 }
