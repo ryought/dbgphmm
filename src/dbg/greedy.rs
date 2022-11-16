@@ -5,10 +5,14 @@ use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums}
 use crate::common::CopyNum;
 use crate::dbg::cycle::CopyNumsUpdateInfo;
 use crate::e2e::Dataset;
-use crate::greedy::{GreedyInstance, GreedySearcher};
+use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::kmer::KmerLike;
+use crate::prob::Prob;
 
+//
+// Instance
+//
 #[derive(Clone)]
 struct DbgCopyNumsInstance<K: KmerLike> {
     copy_nums: NodeCopyNums,
@@ -26,6 +30,25 @@ impl<K: KmerLike> GreedyInstance for DbgCopyNumsInstance<K> {
     type Key = NodeCopyNums;
     fn key(&self) -> &NodeCopyNums {
         &self.copy_nums
+    }
+}
+
+//
+// Score
+//
+#[derive(Clone, Copy)]
+struct DbgCopyNumsScore {
+    p_rg: Prob,
+    p_g: Prob,
+}
+impl DbgCopyNumsScore {
+    pub fn new(p_rg: Prob, p_g: Prob) -> Self {
+        DbgCopyNumsScore { p_rg, p_g }
+    }
+}
+impl GreedyScore for DbgCopyNumsScore {
+    fn prob(&self) -> Prob {
+        self.p_rg * self.p_g
     }
 }
 
@@ -49,7 +72,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
                 let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
                 println!("P(R|G)={} P(G)={}", p_rg, p_g);
-                p_rg * p_g
+                DbgCopyNumsScore::new(p_rg, p_g)
             },
             |instance| {
                 println!("calculating neighbors...");

@@ -31,23 +31,25 @@ pub trait GreedyInstance: Clone {
     // fn score(&self) -> Prob;
 }
 
-pub trait GreedyScore {
+pub trait GreedyScore: Copy {
     fn prob(&self) -> Prob;
 }
 
 ///
 /// * pick a highest score state efficiently
 ///
-pub struct GreedySearcher<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> {
+pub struct GreedySearcher<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>> {
     to_score: F,
     to_neighbors: G,
     current_instance: I,
     // history: Vec<(I, Prob)>,
     total_prob: Prob,
-    instances: HashMap<I::Key, (I, Prob)>,
+    instances: HashMap<I::Key, (I, S)>,
 }
 
-impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I, F, G> {
+impl<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>>
+    GreedySearcher<I, S, F, G>
+{
     ///
     /// create GreedySearch from a start point initial instance.
     ///
@@ -59,14 +61,14 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
             to_score,
             to_neighbors,
             current_instance: instance_init,
-            total_prob: p,
+            total_prob: p.prob(),
             instances,
         }
     }
     ///
     /// calculate score of an instance
     ///
-    fn calc_score(&self, instance: &I) -> Prob {
+    fn calc_score(&self, instance: &I) -> S {
         (self.to_score)(instance)
     }
     ///
@@ -77,10 +79,10 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
     }
     ///
     ///
-    fn get_highest_instance(&self) -> (&I, Prob) {
+    fn get_highest_instance(&self) -> (&I, S) {
         self.instances
             .values()
-            .max_by_key(|(_, p)| *p)
+            .max_by_key(|(_, p)| p.prob())
             .map(|(instance, p)| (instance, *p))
             .unwrap()
     }
@@ -95,7 +97,7 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
             if !self.instances.contains_key(neighbor.key()) {
                 let p = self.calc_score(&neighbor);
                 self.instances.insert(neighbor.key().clone(), (neighbor, p));
-                self.total_prob += p;
+                self.total_prob += p.prob();
                 n_new_neighbors += 1;
             }
         }
