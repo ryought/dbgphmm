@@ -14,11 +14,11 @@ use std::hash::Hash;
 ///
 ///
 pub trait GreedyInstance: Clone + Eq + Hash {
-    type Key: Clone;
-    ///
-    /// generate neighboring instances
-    ///
-    fn neighbors(&self) -> Vec<Self>;
+    // ///
+    // /// generate neighboring instances
+    // ///
+    // fn neighbors(&self) -> Vec<Self>;
+    // type Key: Clone;
     // ///
     // /// a unique key of the instance
     // ///
@@ -34,24 +34,26 @@ pub trait GreedyInstance: Clone + Eq + Hash {
 ///
 /// * pick a highest score state efficiently
 ///
-pub struct GreedySearcher<I: GreedyInstance, F: Fn(&I) -> Prob> {
+pub struct GreedySearcher<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> {
     to_score: F,
+    to_neighbors: G,
     current_instance: I,
     // history: Vec<(I, Prob)>,
     total_prob: Prob,
     instances: HashMap<I, Prob>,
 }
 
-impl<I: GreedyInstance, F: Fn(&I) -> Prob> GreedySearcher<I, F> {
+impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I, F, G> {
     ///
     /// create GreedySearch from a start point initial instance.
     ///
-    pub fn new(instance_init: I, to_score: F) -> Self {
+    pub fn new(instance_init: I, to_score: F, to_neighbors: G) -> Self {
         let p = to_score(&instance_init);
         let mut instances = HashMap::default();
         instances.insert(instance_init.clone(), p);
         GreedySearcher {
             to_score,
+            to_neighbors,
             current_instance: instance_init.clone(),
             total_prob: p,
             instances,
@@ -64,6 +66,12 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob> GreedySearcher<I, F> {
         (self.to_score)(instance)
     }
     ///
+    /// calculate neighbors of an instance
+    ///
+    fn calc_neighbors(&self, instance: &I) -> Vec<I> {
+        (self.to_neighbors)(instance)
+    }
+    ///
     ///
     fn get_highest_instance(&self) -> (&I, Prob) {
         self.instances
@@ -74,9 +82,9 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob> GreedySearcher<I, F> {
     }
     ///
     ///
-    fn search_once(&mut self) -> usize {
+    pub fn search_once(&mut self) -> usize {
         // find neighbor
-        let neighbors = self.current_instance.neighbors();
+        let neighbors = self.calc_neighbors(&self.current_instance);
         let mut n_new_neighbors = 0;
         // calculate score of new neighbors
         for neighbor in neighbors.into_iter() {
@@ -88,6 +96,8 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob> GreedySearcher<I, F> {
             }
         }
         // store the highest score element in current
+        let (next_instance, _) = self.get_highest_instance();
+        self.current_instance = next_instance.clone();
 
         n_new_neighbors
     }

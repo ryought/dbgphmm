@@ -44,6 +44,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let phmm = self.to_phmm(param);
         phmm.to_full_prob_parallel(seqs)
     }
+    pub fn to_prior_prob(&self, lambda: f64, genome_size_expected: CopyNum) -> Prob {
+        let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
+        Prob::from_log_prob(-lambda * size_diff.powi(2))
+    }
     ///
     /// calculate the prior score
     ///
@@ -54,8 +58,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// * G0: expected genome size
     ///
     pub fn to_prior_score(&self, lambda: f64, genome_size_expected: CopyNum) -> f64 {
-        let size_diff = genome_size_expected as f64 - self.genome_size() as f64;
-        -lambda * size_diff.powi(2)
+        self.to_prior_prob(lambda, genome_size_expected)
+            .to_log_value()
     }
 }
 

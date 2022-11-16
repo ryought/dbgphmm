@@ -61,6 +61,9 @@ impl Dataset {
     pub fn reads(&self) -> &Reads {
         &self.reads
     }
+    pub fn params(&self) -> PHMMParams {
+        self.phmm_params
+    }
 }
 
 ///
@@ -277,6 +280,23 @@ pub fn generate_simple_genome_mock() -> Experiment {
         ReadType::FullLength,
         40,
         40,
+    )
+}
+
+///
+/// 1000bp tandem repeat example
+///
+pub fn generate_small_tandem_repeat() -> Dataset {
+    let (genome, genome_size) = genome::tandem_repeat_haploid(100, 10, 0.01, 0, 0);
+    let param = PHMMParams::uniform(0.001);
+    generate_dataset(
+        genome,
+        genome_size,
+        0,
+        10, // coverage is 20x
+        2000,
+        ReadType::FullLength,
+        param,
     )
 }
 
