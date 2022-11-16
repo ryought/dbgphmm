@@ -59,6 +59,7 @@ fn main() {
     let mut dbg = experiment.dbg_draft_true.clone().unwrap();
     let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(&genome).unwrap();
 
+    println!("# started_at={}", chrono::Local::now());
     println!("# opts={:?}", opts);
     for i in 0..genome.len() {
         println!("# genome[{}]={}", i, genome[i]);
@@ -112,4 +113,6 @@ fn main() {
         .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
         .collect();
     dbg.inspect_kmer_variance(&neighbors);
+
+    println!("# finished_at={}", chrono::Local::now());
 }
