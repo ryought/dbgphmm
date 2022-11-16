@@ -660,6 +660,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
     }
+    pub fn set_copy_nums_by_styled_seq<T>(&mut self, seqs: T)
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let (copy_nums_true, _) = self
+            .to_copy_nums_of_styled_seqs(seqs)
+            .expect("some true k-mer are not in the dbg, abort");
+        self.set_node_copy_nums(&copy_nums_true);
+    }
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {

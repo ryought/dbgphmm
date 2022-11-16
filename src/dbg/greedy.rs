@@ -2,6 +2,7 @@
 //! Greedy search of posterior probability
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
+use crate::common::CopyNum;
 use crate::e2e::Dataset;
 use crate::greedy::{GreedyInstance, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
@@ -19,7 +20,13 @@ impl DbgCopyNumsInstance {
 impl GreedyInstance for DbgCopyNumsInstance {}
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    pub fn search_posterior_once(&self, dataset: &Dataset) {
+    pub fn search_posterior_once(
+        &self,
+        dataset: &Dataset,
+        max_neighbor_depth: usize,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) {
         let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums());
         let mut searcher = GreedySearcher::new(
             instance_init,
@@ -27,11 +34,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 dbg.to_full_prob(dataset.params(), dataset.reads())
+                    + dbg.to_prior_prob(genome_size_expected, genome_size_sigma)
             },
             |instance| {
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                dbg.neighbor_copy_nums_fast_compact(100)
+                dbg.neighbor_copy_nums_fast_compact(max_neighbor_depth)
                     .into_iter()
                     .map(|copy_nums| DbgCopyNumsInstance::new(copy_nums))
                     .collect()
