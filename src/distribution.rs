@@ -1,5 +1,6 @@
 use crate::prob::Prob;
 use libm::{erf, sqrt};
+use std::f64::consts::PI;
 
 /// TODO should compute in log-space
 pub fn normal_cdf(x: u32, mu: u32, sigma: u32) -> Prob {
@@ -13,6 +14,14 @@ pub fn normal_bin(x: u32, mu: u32, sigma: u32) -> Prob {
     let p0 = normal_cdf(x + 1, mu, sigma);
     let p1 = normal_cdf(x, mu, sigma);
     Prob::from_prob(p0.to_value() - p1.to_value())
+}
+
+///
+/// calculate P(X=x) according to X ~ Normal(mu, sigma)
+///
+pub fn normal(x: f64, mu: f64, sigma: f64) -> Prob {
+    let sigma_2 = sigma.powi(2);
+    Prob::from_log_prob((-0.5 * (2.0 * PI * sigma_2).ln()) - ((x - mu).powi(2) / (2.0 * sigma_2)))
 }
 
 #[cfg(test)]
@@ -31,5 +40,19 @@ mod tests {
         // check if the sum is 1
         let s: Prob = (0..200).map(|x| normal_bin(x, 100, 10)).sum();
         println!("{}", s);
+    }
+
+    #[test]
+    fn normal_2() {
+        let mut z = Prob::zero();
+        for x in -10..10 {
+            let p = normal(x as f64, 0.0, 1.0);
+            println!("p({})={}", x, p);
+            z += p;
+        }
+        assert!((normal(0.0, 0.0, 1.0).to_value() - 0.3989).abs() < 0.0001);
+        assert!((normal(1.0, 0.0, 1.0).to_value() - 0.2420).abs() < 0.0001);
+        println!("z={}", z);
+        assert!((z.to_value() - 1.0).abs() < 0.000001);
     }
 }
