@@ -17,16 +17,24 @@ use crate::prob::Prob;
 pub struct DbgCopyNumsInstance<K: KmerLike> {
     copy_nums: NodeCopyNums,
     info: CopyNumsUpdateInfo<K>,
+    move_count: usize,
 }
 impl<K: KmerLike> DbgCopyNumsInstance<K> {
-    fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>) -> Self {
-        DbgCopyNumsInstance { copy_nums, info }
+    fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>, move_count: usize) -> Self {
+        DbgCopyNumsInstance {
+            copy_nums,
+            info,
+            move_count,
+        }
     }
     fn copy_nums(&self) -> &NodeCopyNums {
         &self.copy_nums
     }
     fn info(&self) -> &CopyNumsUpdateInfo<K> {
         &self.info
+    }
+    fn move_count(&self) -> usize {
+        self.move_count
     }
 }
 impl<K: KmerLike> GreedyInstance for DbgCopyNumsInstance<K> {
@@ -70,7 +78,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         genome_size_sigma: CopyNum,
     ) -> Posterior<N::Kmer> {
         let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty());
+            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
@@ -90,7 +98,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth)
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
-                    .map(|(copy_nums, info)| DbgCopyNumsInstance::new(copy_nums, info))
+                    .map(|(copy_nums, info)| {
+                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                    })
                     .collect();
                 eprintln!("[to_neighbors] #neighbors={}", neighbors.len());
                 neighbors
@@ -163,10 +173,11 @@ mod tests {
 
         for (p_gr, instance, score) in distribution.iter() {
             println!(
-                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {} {}",
+                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {} {} {}",
                 p_gr,
                 score.p_rg,
                 score.p_g,
+                instance.move_count(),
                 instance.info(),
                 instance.copy_nums().dist(&copy_nums_true),
                 instance.copy_nums(),
