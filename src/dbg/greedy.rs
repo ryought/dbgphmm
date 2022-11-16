@@ -14,7 +14,7 @@ use crate::prob::Prob;
 // Instance
 //
 #[derive(Clone)]
-struct DbgCopyNumsInstance<K: KmerLike> {
+pub struct DbgCopyNumsInstance<K: KmerLike> {
     copy_nums: NodeCopyNums,
     info: CopyNumsUpdateInfo<K>,
 }
@@ -24,6 +24,9 @@ impl<K: KmerLike> DbgCopyNumsInstance<K> {
     }
     fn copy_nums(&self) -> &NodeCopyNums {
         &self.copy_nums
+    }
+    fn info(&self) -> &CopyNumsUpdateInfo<K> {
+        &self.info
     }
 }
 impl<K: KmerLike> GreedyInstance for DbgCopyNumsInstance<K> {
@@ -37,9 +40,11 @@ impl<K: KmerLike> GreedyInstance for DbgCopyNumsInstance<K> {
 // Score
 //
 #[derive(Clone, Copy)]
-struct DbgCopyNumsScore {
-    p_rg: Prob,
-    p_g: Prob,
+pub struct DbgCopyNumsScore {
+    /// Likelihood P(R|G)
+    pub p_rg: Prob,
+    /// Prior P(G)
+    pub p_g: Prob,
 }
 impl DbgCopyNumsScore {
     pub fn new(p_rg: Prob, p_g: Prob) -> Self {
@@ -47,45 +52,51 @@ impl DbgCopyNumsScore {
     }
 }
 impl GreedyScore for DbgCopyNumsScore {
+    /// Unnormalized posterior P(R,G) = P(R|G)P(G)
     fn prob(&self) -> Prob {
         self.p_rg * self.p_g
     }
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
-    pub fn search_posterior_once(
+    pub fn search_posterior(
         &self,
         dataset: &Dataset,
         max_neighbor_depth: usize,
-        // max_move: usize,
+        max_move: usize,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
-    ) {
+    ) -> Vec<(Prob, DbgCopyNumsInstance<N::Kmer>, DbgCopyNumsScore)> {
         let instance_init =
             DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty());
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
-                println!("calculating prob {}", instance.copy_nums());
+                eprintln!("[to_score] calculating prob {}", instance.copy_nums());
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
                 let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
-                println!("P(R|G)={} P(G)={}", p_rg, p_g);
+                eprintln!("[to_score] P(R|G)={} P(G)={}", p_rg, p_g);
                 DbgCopyNumsScore::new(p_rg, p_g)
             },
             |instance| {
-                println!("calculating neighbors...");
+                eprintln!("[to_neighbors] calculating neighbors...");
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                dbg.neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth)
+                let neighbors: Vec<_> = dbg
+                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth)
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
                     .map(|(copy_nums, info)| DbgCopyNumsInstance::new(copy_nums, info))
-                    .collect()
+                    .collect();
+                eprintln!("[to_neighbors] #neighbors={}", neighbors.len());
+                neighbors
             },
         );
-        let n_new_neighbors = searcher.search_once();
+
+        searcher.search(max_move);
+        searcher.into_posterior_distribution()
     }
 }
 
@@ -109,21 +120,55 @@ mod tests {
         }
 
         let sigma = 10;
-        dbg_draft.search_posterior_once(experiment.dataset(), 100, experiment.genome_size(), sigma);
+        let s = dbg_draft.search_posterior(
+            experiment.dataset(),
+            100,
+            10,
+            experiment.genome_size(),
+            sigma,
+        );
+        for (p_gr, instance, score) in s.into_iter() {
+            println!(
+                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
+                p_gr,
+                score.p_rg,
+                score.p_g,
+                instance.copy_nums(),
+                instance.info(),
+            );
+        }
     }
     #[test]
     fn greedy_tandem_repeat() {
         let experiment = generate_small_tandem_repeat();
         let dbg_draft_true = experiment.dbg_draft_true.clone().unwrap();
-        let copy_nums = dbg_draft_true.neighbor_copy_nums_fast_compact(100);
+        let copy_nums = dbg_draft_true.neighbor_copy_nums_fast_compact(5);
 
         println!("n_neighbors={}", copy_nums.len());
 
-        let approx = experiment.dbg_draft.unwrap().to_node_copy_nums();
+        let approx = experiment.dbg_draft.clone().unwrap().to_node_copy_nums();
         let copy_nums_true = dbg_draft_true.to_node_copy_nums();
         println!("diff(approx, true)={}", approx.dist(&copy_nums_true));
 
-        // let sigma = 10;
-        // dbg_draft.search_posterior_once(experiment.dataset(), 100, experiment.genome_size(), sigma);
+        let sigma = 100;
+        let distribution = dbg_draft_true.search_posterior(
+            experiment.dataset(),
+            5,
+            1,
+            experiment.genome_size(),
+            sigma,
+        );
+
+        for (p_gr, instance, score) in distribution.into_iter() {
+            println!(
+                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {} {}",
+                p_gr,
+                score.p_rg,
+                score.p_g,
+                instance.info(),
+                instance.copy_nums().dist(&copy_nums_true),
+                instance.copy_nums(),
+            );
+        }
     }
 }

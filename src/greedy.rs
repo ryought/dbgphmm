@@ -8,6 +8,7 @@
 //!
 use crate::prob::Prob;
 use fnv::FnvHashMap as HashMap;
+use itertools::Itertools;
 use std::hash::Hash;
 
 ///
@@ -39,12 +40,16 @@ pub trait GreedyScore: Copy {
 /// * pick a highest score state efficiently
 ///
 pub struct GreedySearcher<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>> {
+    // TODO to_score and to_neighbors should be passed as args?
     to_score: F,
     to_neighbors: G,
     current_instance: I,
-    // history: Vec<(I, Prob)>,
+    ///
+    /// Sum of probabilities of items stored in `self.instances`
+    ///
     total_prob: Prob,
     instances: HashMap<I::Key, (I, S)>,
+    // history: Vec<(I, Prob)>,
 }
 
 impl<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>>
@@ -88,6 +93,7 @@ impl<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>>
     }
     ///
     ///
+    ///
     pub fn search_once(&mut self) -> usize {
         // find neighbor
         let neighbors = self.calc_neighbors(&self.current_instance);
@@ -106,6 +112,29 @@ impl<I: GreedyInstance, S: GreedyScore, F: Fn(&I) -> S, G: Fn(&I) -> Vec<I>>
         self.current_instance = next_instance.clone();
 
         n_new_neighbors
+    }
+    ///
+    /// run `search_once` recursively
+    ///
+    pub fn search(&mut self, max_move: usize) {
+        for i in 0..max_move {
+            let n_new_neighbors = self.search_once();
+            if n_new_neighbors == 0 {
+                break;
+            }
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn into_posterior_distribution(self) -> Vec<(Prob, I, S)> {
+        // z: normalizing constant
+        let z = self.total_prob;
+        self.instances
+            .into_iter()
+            .map(|(_, (instance, score))| (score.prob() / z, instance, score))
+            .sorted_by_key(|(p, _, _)| *p)
+            .collect()
     }
 }
 
