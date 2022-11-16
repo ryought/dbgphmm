@@ -12,7 +12,7 @@ use crate::graph::cycle::{
 };
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
-use crate::hist::{get_normalized_probs, Hist};
+use crate::hist::{DiscreteDistribution, Hist};
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::enumerate_neighboring_flows;
@@ -321,32 +321,40 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .collect()
     }
     ///
+    ///
+    pub fn to_kmer_distribution(
+        &self,
+        neighbors: &[(NodeCopyNums, Prob)],
+    ) -> Vec<DiscreteDistribution> {
+        self.nodes()
+            .map(|(node, weight)| {
+                let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
+                let hist = Hist::from(&copy_nums);
+                let copy_nums_with_prob: Vec<_> =
+                    neighbors.iter().map(|(cn, p)| (cn[node], *p)).collect();
+                DiscreteDistribution::from_occurs(&copy_nums_with_prob)
+            })
+            .collect()
+    }
+    ///
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
         let print_header = || {
             println!("#K kmer\tnode_id\tcurrent_copy_num\tprobs\tcopy_nums");
         };
-
         print_header();
+        let kmer_distributions = self.to_kmer_distribution(neighbors);
         for (node, weight) in self.nodes() {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
-
-            let copy_nums_with_prob: Vec<_> =
-                neighbors.iter().map(|(cn, p)| (cn[node], *p)).collect();
-            let normalized = get_normalized_probs(&copy_nums_with_prob);
-            let txt_normalized = normalized
-                .iter()
-                .map(|(x, p)| format!("p(x={})={:.5}", x, p.to_value()))
-                .join(",");
             println!(
                 "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
                 weight.kmer(),
                 node.index(),
                 weight.copy_num(),
                 hist,
-                txt_normalized,
+                kmer_distributions[node.index()],
                 copy_nums,
             );
         }

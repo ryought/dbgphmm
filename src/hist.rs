@@ -31,10 +31,30 @@ pub fn stat(xs: &[f64]) -> (f64, f64, f64, f64) {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct DiscreteDistribution(Vec<(usize, Prob)>);
+impl DiscreteDistribution {
+    pub fn from_occurs(probs: &[(usize, Prob)]) -> DiscreteDistribution {
+        DiscreteDistribution(get_normalized_probs(probs))
+    }
+}
+impl std::fmt::Display for DiscreteDistribution {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|(x, p)| format!("p(x={})={:.5}", x, p.to_value()))
+                .join(",")
+        )
+    }
+}
+
 ///
 /// convert a list of occurrences (x, p(x)) into {x: p(x)}
 ///
-pub fn get_normalized_probs(probs: &[(usize, Prob)]) -> Vec<(usize, Prob)> {
+fn get_normalized_probs(probs: &[(usize, Prob)]) -> Vec<(usize, Prob)> {
     let mut h = HashMap::default();
     for &(x, px) in probs {
         match h.get(&x) {

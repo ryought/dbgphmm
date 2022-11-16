@@ -58,6 +58,8 @@ impl GreedyScore for DbgCopyNumsScore {
     }
 }
 
+pub type Posterior<K> = Vec<(Prob, DbgCopyNumsInstance<K>, DbgCopyNumsScore)>;
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn search_posterior(
         &self,
@@ -66,7 +68,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         max_move: usize,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
-    ) -> Vec<(Prob, DbgCopyNumsInstance<N::Kmer>, DbgCopyNumsScore)> {
+    ) -> Posterior<N::Kmer> {
         let instance_init =
             DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty());
         let mut searcher = GreedySearcher::new(
@@ -159,7 +161,7 @@ mod tests {
             sigma,
         );
 
-        for (p_gr, instance, score) in distribution.into_iter() {
+        for (p_gr, instance, score) in distribution.iter() {
             println!(
                 "P(G|R)={} (P(R|G)={}, P(G)={}) {} {} {}",
                 p_gr,
@@ -170,5 +172,10 @@ mod tests {
                 instance.copy_nums(),
             );
         }
+        let neighbors: Vec<_> = distribution
+            .iter()
+            .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
+            .collect();
+        dbg_draft_true.to_kmer_distribution(&neighbors);
     }
 }
