@@ -19,7 +19,9 @@ struct Opts {
     unit_size: usize,
     #[clap(short = 'N', default_value = "10")]
     n_unit: usize,
-    #[clap(long = "div", default_value = "0.01")]
+    #[clap(short = 'E', default_value = "50")]
+    end_length: usize,
+    #[clap(short = 'D', default_value = "0.01")]
     unit_divergence: f64,
     #[clap(long = "sigma", default_value = "100")]
     sigma: usize,
@@ -27,18 +29,19 @@ struct Opts {
     seed: u64,
     #[clap(short = 'd', default_value = "10")]
     neighbor_depth: usize,
-    #[clap(short = 'm', default_value = "1")]
+    #[clap(short = 'm', default_value = "3")]
     max_move: usize,
 }
 
 fn main() {
     let opts: Opts = Opts::parse();
-    let (genome, genome_size) = genome::tandem_repeat_haploid(
+    let (genome, genome_size) = genome::tandem_repeat_haploid_with_unique_ends(
         opts.unit_size,
         opts.n_unit,
         opts.unit_divergence,
         opts.seed,
         opts.seed,
+        opts.end_length,
     );
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);

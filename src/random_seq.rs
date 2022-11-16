@@ -18,6 +18,13 @@ pub fn generate(length: usize, seed: u64) -> Sequence {
 }
 
 ///
+/// concatenete two sequences
+///
+pub fn join(a: Sequence, b: Sequence) -> Sequence {
+    [a, b].concat()
+}
+
+///
 /// generate tandem repeat sequence with a unit repeating n_repeat times.
 ///
 pub fn tandem_repeat(unit: &Sequence, n_repeat: usize) -> Sequence {
@@ -184,6 +191,14 @@ mod tests {
         let s = tandem_repeat(&unit, 4);
         println!("{}", sequence_to_string(&s));
         assert_eq!(s, b"ATTTATTTATTTATTT");
+    }
+    #[test]
+    fn random_seq_join() {
+        let a = b"ATTT".to_vec();
+        let b = b"GGGG".to_vec();
+        let c = join(a, b);
+        println!("{}", sequence_to_string(&c));
+        assert_eq!(c, b"ATTTGGGG");
     }
     #[test]
     fn random_seq_edit_ops() {
