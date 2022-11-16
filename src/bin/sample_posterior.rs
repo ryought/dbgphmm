@@ -31,6 +31,8 @@ struct Opts {
     neighbor_depth: usize,
     #[clap(short = 'm', default_value = "3")]
     max_move: usize,
+    #[clap(long)]
+    from_approx: bool,
 }
 
 fn main() {
@@ -56,7 +58,11 @@ fn main() {
         opts.k,
         40,
     );
-    let mut dbg = experiment.dbg_draft_true.clone().unwrap();
+    let mut dbg = if opts.from_approx {
+        experiment.dbg_draft.clone().unwrap()
+    } else {
+        experiment.dbg_draft_true.clone().unwrap()
+    };
     let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(&genome).unwrap();
 
     println!("# started_at={}", chrono::Local::now());
@@ -73,6 +79,10 @@ fn main() {
     let edbg = dbg.to_compact_edbg_graph();
     println!("# n_nodes_compacted_edbg={}", edbg.node_count());
     println!("# n_edges_compacted_edbg={}", edbg.edge_count());
+    println!(
+        "# init_dist_from_true={}",
+        dbg.to_node_copy_nums().dist(&copy_nums_true)
+    );
 
     let distribution = dbg.search_posterior(
         experiment.dataset(),
