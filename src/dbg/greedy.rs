@@ -9,6 +9,7 @@ use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
+use std::time::{Duration, Instant};
 
 //
 // Instance
@@ -20,20 +21,20 @@ pub struct DbgCopyNumsInstance<K: KmerLike> {
     move_count: usize,
 }
 impl<K: KmerLike> DbgCopyNumsInstance<K> {
-    fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>, move_count: usize) -> Self {
+    pub fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>, move_count: usize) -> Self {
         DbgCopyNumsInstance {
             copy_nums,
             info,
             move_count,
         }
     }
-    fn copy_nums(&self) -> &NodeCopyNums {
+    pub fn copy_nums(&self) -> &NodeCopyNums {
         &self.copy_nums
     }
-    fn info(&self) -> &CopyNumsUpdateInfo<K> {
+    pub fn info(&self) -> &CopyNumsUpdateInfo<K> {
         &self.info
     }
-    fn move_count(&self) -> usize {
+    pub fn move_count(&self) -> usize {
         self.move_count
     }
 }
@@ -82,17 +83,24 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
-                eprintln!("[to_score] calculating prob {}", instance.copy_nums());
+                let start = Instant::now();
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
                 let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
-                eprintln!("[to_score] P(R|G)={} P(G)={}", p_rg, p_g);
+                let duration = start.elapsed();
+                eprintln!(
+                    "[to_score/#{}] calculated score (in {} ms) P(R|G)={} P(G)={}",
+                    instance.move_count(),
+                    duration.as_millis(),
+                    p_rg,
+                    p_g
+                );
                 DbgCopyNumsScore::new(p_rg, p_g)
             },
             |instance| {
-                eprintln!("[to_neighbors] calculating neighbors...");
                 let mut dbg = self.clone();
+                let start = Instant::now();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let neighbors: Vec<_> = dbg
                     .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth)
@@ -102,7 +110,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
                     })
                     .collect();
-                eprintln!("[to_neighbors] #neighbors={}", neighbors.len());
+                let duration = start.elapsed();
+                eprintln!(
+                    "[to_neighbors/#{}] found {} neighbors (in {} ms)",
+                    instance.move_count(),
+                    neighbors.len(),
+                    duration.as_millis(),
+                );
                 neighbors
             },
         );
