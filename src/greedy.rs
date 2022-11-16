@@ -13,22 +13,26 @@ use std::hash::Hash;
 ///
 ///
 ///
-pub trait GreedyInstance: Clone + Eq + Hash {
+pub trait GreedyInstance: Clone {
+    type Key: Clone + Eq + Hash;
+    ///
+    /// a unique key of the instance
+    ///
+    fn key(&self) -> &Self::Key;
     // ///
     // /// generate neighboring instances
     // ///
     // fn neighbors(&self) -> Vec<Self>;
-    // type Key: Clone;
-    // ///
-    // /// a unique key of the instance
-    // ///
-    // fn key(&self) -> &Self::Key;
     // /// calculate unnormalized posterior probability `P(R|G)P(G)`
     // ///
     // /// TODO
     // /// * we want to pass a reference to data (which is necessary for calculating the score of the
     // /// state).
     // fn score(&self) -> Prob;
+}
+
+pub trait GreedyScore {
+    fn prob(&self) -> Prob;
 }
 
 ///
@@ -40,7 +44,7 @@ pub struct GreedySearcher<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec
     current_instance: I,
     // history: Vec<(I, Prob)>,
     total_prob: Prob,
-    instances: HashMap<I, Prob>,
+    instances: HashMap<I::Key, (I, Prob)>,
 }
 
 impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I, F, G> {
@@ -50,11 +54,11 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
     pub fn new(instance_init: I, to_score: F, to_neighbors: G) -> Self {
         let p = to_score(&instance_init);
         let mut instances = HashMap::default();
-        instances.insert(instance_init.clone(), p);
+        instances.insert(instance_init.key().clone(), (instance_init.clone(), p));
         GreedySearcher {
             to_score,
             to_neighbors,
-            current_instance: instance_init.clone(),
+            current_instance: instance_init,
             total_prob: p,
             instances,
         }
@@ -75,9 +79,9 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
     ///
     fn get_highest_instance(&self) -> (&I, Prob) {
         self.instances
-            .iter()
+            .values()
             .max_by_key(|(_, p)| *p)
-            .map(|(instance, &p)| (instance, p))
+            .map(|(instance, p)| (instance, *p))
             .unwrap()
     }
     ///
@@ -88,9 +92,9 @@ impl<I: GreedyInstance, F: Fn(&I) -> Prob, G: Fn(&I) -> Vec<I>> GreedySearcher<I
         let mut n_new_neighbors = 0;
         // calculate score of new neighbors
         for neighbor in neighbors.into_iter() {
-            if !self.instances.contains_key(&neighbor) {
+            if !self.instances.contains_key(neighbor.key()) {
                 let p = self.calc_score(&neighbor);
-                self.instances.insert(neighbor, p);
+                self.instances.insert(neighbor.key().clone(), (neighbor, p));
                 self.total_prob += p;
                 n_new_neighbors += 1;
             }

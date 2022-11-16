@@ -85,6 +85,14 @@ pub fn edges_to_kmer<N, E: EDbgEdgeMin>(
 }
 
 impl<K: KmerLike> CopyNumsUpdateInfo<K> {
+    pub fn empty() -> Self {
+        CopyNumsUpdateInfo {
+            segments: vec![],
+            genome_size_change: 0,
+            cycle_size: 0,
+            n_kmer_changed: 0,
+        }
+    }
     pub fn from_uncompacted(
         k: usize,
         graph: &DiGraph<SimpleEDbgNode<K>, SimpleEDbgEdge<K>>,

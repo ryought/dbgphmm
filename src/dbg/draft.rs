@@ -243,5 +243,8 @@ mod tests {
     #[test]
     fn dbg_create_draft_simple_genome_test() {
         let experiment = generate_simple_genome_mock();
+        let copy_nums_true = experiment.dbg_draft_true.unwrap().to_node_copy_nums();
+        let approx = experiment.dbg_draft.unwrap().to_node_copy_nums();
+        assert_eq!(approx.dist(&copy_nums_true), 0);
     }
 }

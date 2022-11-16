@@ -112,6 +112,9 @@ pub struct Experiment {
 }
 
 impl Experiment {
+    pub fn dataset(&self) -> &Dataset {
+        &self.dataset
+    }
     pub fn genome(&self) -> &Genome {
         &self.dataset.genome
     }
@@ -307,7 +310,7 @@ pub fn generate_full_length_experiment(
 pub fn generate_simple_genome_mock() -> Experiment {
     let (genome, genome_size) = genome::simple(100, 5);
     let param = PHMMParams::uniform(0.001);
-    generate_experiment(
+    generate_experiment_with_draft(
         genome,
         genome_size,
         0,
@@ -323,17 +326,19 @@ pub fn generate_simple_genome_mock() -> Experiment {
 ///
 /// 1000bp tandem repeat example
 ///
-pub fn generate_small_tandem_repeat() -> Dataset {
+pub fn generate_small_tandem_repeat() -> Experiment {
     let (genome, genome_size) = genome::tandem_repeat_haploid(100, 10, 0.01, 0, 0);
     let param = PHMMParams::uniform(0.001);
-    generate_dataset(
+    generate_experiment_with_draft(
         genome,
         genome_size,
         0,
-        10, // coverage is 20x
+        param,
+        10, // coverage
         2000,
         ReadType::FullLength,
-        param,
+        40,
+        40,
     )
 }
 
