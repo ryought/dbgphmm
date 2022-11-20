@@ -77,6 +77,13 @@ impl<I, N, E> Bipartite<I, N, E> {
         let i = self.edge_index(index_in, index_out);
         &self.edges[i]
     }
+    ///
+    /// Get an edge between in_node and out_node, specified by two indexs.
+    ///
+    pub fn edge_mut(&mut self, index_in: usize, index_out: usize) -> &mut E {
+        let i = self.edge_index(index_in, index_out);
+        &mut self.edges[i]
+    }
     /// Get an index of an edge, by (i: index of in-node, j: index of out-node).
     ///
     /// ## Implementation details
