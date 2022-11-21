@@ -337,11 +337,33 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .collect()
     }
     ///
+    /// Remove all nodes `v` such that `P(c_v=0) >= p_0` and current copy_num is 0.
+    ///
+    pub fn purge_zero_copy_with_high_prob_kmer(
+        &mut self,
+        dds: &[DiscreteDistribution],
+        p_0: Prob,
+    ) -> usize {
+        assert_eq!(dds.len(), self.n_nodes());
+        let n_before = self.graph.node_count();
+        self.graph.retain_nodes(|g, v| {
+            let is_likely_error_kmer = dds[v.index()].p_x(0) >= p_0;
+            let is_zero_copy = g.node_weight(v).unwrap().copy_num() == 0;
+            !(is_likely_error_kmer && is_zero_copy)
+        });
+        let n_after = self.graph.node_count();
+        n_before - n_after
+    }
+    ///
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
+        let k = self.k();
         let print_header = || {
-            println!("#K kmer\tnode_id\tcurrent_copy_num\tprobs\thist\tcopy_nums");
+            println!(
+                "#K k={}\tkmer\tnode_id\tcurrent_copy_num\tprobs\thist\tcopy_nums",
+                k
+            );
         };
         print_header();
         let kmer_distributions = self.to_kmer_distribution(neighbors);
@@ -351,13 +373,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
+            // let copy_nums_with_prob: Vec<_> = neighbors
+            //     .iter()
+            //     .map(|(cn, p)| (cn[node], p.to_value()))
+            //     .collect();
             println!(
-                "K\t{}\t{}\t{}\t{}\t{}",
+                // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{}",
+                k,
                 weight.kmer(),
                 node.index(),
                 weight.copy_num(),
                 kmer_distributions[node.index()],
                 hist,
+                // copy_nums_with_prob,
             );
         }
         print_header();

@@ -162,6 +162,12 @@ impl<K: KmerLike> FlowIntersection<K> {
     pub fn edge(&self, i: usize, j: usize) -> &FlowIntersectionEdge {
         self.bi.edge(i, j)
     }
+    pub fn in_node_copy_nums(&self) -> Vec<CopyNum> {
+        self.bi.in_nodes.iter().map(move |v| v.copy_num).collect()
+    }
+    pub fn out_node_copy_nums(&self) -> Vec<CopyNum> {
+        self.bi.out_nodes.iter().map(move |v| v.copy_num).collect()
+    }
 }
 
 ///
@@ -229,6 +235,33 @@ impl<K: KmerLike> FlowIntersection<K> {
     }
     pub fn all_edges_has_copy_num(&self) -> bool {
         self.iter_edges().all(|(_, _, e)| e.copy_num.is_some())
+    }
+    pub fn all_edge_copy_nums_consistent(&self) -> bool {
+        let n_in = self.n_in_nodes();
+        let n_out = self.n_out_nodes();
+        // for all in_node, check that the sum-copy-num from the in_node should be the same as
+        // copy-num of the node
+        for in_node in 0..n_in {
+            let sum_edge_copy_nums: CopyNum = (0..n_out)
+                .map(|out_node| self.edge(in_node, out_node).copy_num.unwrap())
+                .sum();
+            let in_node_copy_num = self.in_node(in_node).copy_num;
+            if sum_edge_copy_nums != in_node_copy_num {
+                return false;
+            }
+        }
+        // also for out_node
+        for out_node in 0..n_out {
+            let sum_edge_copy_nums: CopyNum = (0..n_in)
+                .map(|in_node| self.edge(in_node, out_node).copy_num.unwrap())
+                .sum();
+            let out_node_copy_num = self.out_node(out_node).copy_num;
+            if sum_edge_copy_nums != out_node_copy_num {
+                return false;
+            }
+        }
+        // if it passed all checks, the copy nums are consistent.
+        true
     }
     ///
     /// Check if the km1mer of the intersection is NNNN.
@@ -304,6 +337,45 @@ impl<K: KmerLike> FlowIntersection<K> {
 
         // check if all edges have its copy num
         assert!(opt.all_edges_has_copy_num());
+        opt
+    }
+    ///
+    ///
+    ///
+    pub fn resolve_naive(&self) -> FlowIntersection<K> {
+        let mut opt = self.clone();
+        let n_in = opt.n_in_nodes();
+        let n_out = opt.n_out_nodes();
+        // initialize with zero copy num
+        for in_node in 0..n_in {
+            for out_node in 0..n_out {
+                opt.bi.edge_mut(in_node, out_node).copy_num = Some(0);
+            }
+        }
+        let mut in_node_copy_nums = opt.in_node_copy_nums();
+        let mut out_node_copy_nums = opt.out_node_copy_nums();
+        // check if there is remaining copy_nums in node
+        let is_remaining = |in_node_copy_nums: &[usize], out_node_copy_nums: &[usize]| {
+            let in_remaining: usize = in_node_copy_nums.iter().sum();
+            let out_remaining: usize = out_node_copy_nums.iter().sum();
+            in_remaining > 0 || out_remaining > 0
+        };
+        while is_remaining(&in_node_copy_nums, &out_node_copy_nums) {
+            for in_node in 0..n_in {
+                for out_node in 0..n_out {
+                    if in_node_copy_nums[in_node] > 0 && out_node_copy_nums[out_node] > 0 {
+                        // add one to this edge
+                        let c = opt.bi.edge(in_node, out_node).copy_num.unwrap();
+                        opt.bi.edge_mut(in_node, out_node).copy_num = Some(c + 1);
+                        in_node_copy_nums[in_node] -= 1;
+                        out_node_copy_nums[out_node] -= 1;
+                    }
+                }
+            }
+        }
+        // TODO check that all copy nums on edges are consistent
+        assert!(opt.all_edges_has_copy_num());
+        assert!(opt.all_edge_copy_nums_consistent());
         opt
     }
     ///
@@ -591,5 +663,62 @@ mod tests {
         );
         let (fio2, cost) = fi.resolve();
         assert_eq!(fio.bi.edges, fio2.bi.edges);
+    }
+    #[test]
+    fn flow_intersection_convert_naive_01() {
+        // [0] multiple node case
+        let in_nodes = vec![
+            FlowIntersectionNode::new(ni(0), 5),
+            FlowIntersectionNode::new(ni(1), 3),
+        ];
+        let out_nodes = vec![
+            FlowIntersectionNode::new(ni(10), 3),
+            FlowIntersectionNode::new(ni(11), 2),
+            FlowIntersectionNode::new(ni(12), 3),
+        ];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(0), None, None),
+            FlowIntersectionEdge::new(ei(1), None, None),
+            FlowIntersectionEdge::new(ei(2), None, None),
+            FlowIntersectionEdge::new(ei(3), None, None),
+            FlowIntersectionEdge::new(ei(4), None, None),
+            FlowIntersectionEdge::new(ei(5), None, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        println!("{}", fi);
+        let fio = fi.resolve_naive();
+        println!("{}", fio);
+        assert_eq!(
+            fio.to_edge_copy_nums(),
+            vec![Some(2), Some(1), Some(2), Some(1), Some(1), Some(1)]
+        );
+    }
+    #[test]
+    fn flow_intersection_convert_naive_02() {
+        // [0] simple node case
+        let in_nodes = vec![
+            FlowIntersectionNode::new(ni(0), 1),
+            FlowIntersectionNode::new(ni(1), 1),
+        ];
+        let out_nodes = vec![
+            FlowIntersectionNode::new(ni(10), 1),
+            FlowIntersectionNode::new(ni(11), 1),
+        ];
+        let edges = vec![
+            FlowIntersectionEdge::new(ei(0), None, None),
+            FlowIntersectionEdge::new(ei(1), None, None),
+            FlowIntersectionEdge::new(ei(2), None, None),
+            FlowIntersectionEdge::new(ei(3), None, None),
+        ];
+        let kmer = VecKmer::from_bases(b"TCG");
+        let fi = FlowIntersection::new(kmer, in_nodes, out_nodes, edges);
+        println!("{}", fi);
+        let fio = fi.resolve_naive();
+        println!("{}", fio);
+        assert_eq!(
+            fio.to_edge_copy_nums(),
+            vec![Some(1), Some(0), Some(0), Some(1)]
+        );
     }
 }

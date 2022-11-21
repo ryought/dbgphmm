@@ -7,7 +7,11 @@
 //! * `tandem_repeat_diploid`
 //!
 use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
-use crate::random_seq::{generate, join, random_mutation, tandem_repeat, MutationProfile};
+use crate::random_seq::{
+    generate, join, random_mutation, random_mutation_with_rng, tandem_repeat, MutationProfile,
+};
+use rand::prelude::*;
+use rand_xoshiro::Xoshiro256PlusPlus;
 
 ///
 /// simple random haploid genome
@@ -141,6 +145,46 @@ pub fn tandem_repeat_diploid(
     (vec![hap_a, hap_b], genome_size)
 }
 
+pub fn tandem_repeat_polyploid_with_unique_ends(
+    unit_size: usize,
+    n_unit: usize,
+    divergence_init: f64,
+    unit_seed: u64,
+    hap_seed: u64,
+    end_length: usize,
+    n_haplotypes: usize,
+    divergence_between_haplotypes: f64,
+    div_seed: u64,
+) -> (Genome, usize) {
+    let (mut hap, hap_genome_size) = tandem_repeat_haploid_with_unique_ends(
+        unit_size,
+        n_unit,
+        divergence_init,
+        unit_seed,
+        hap_seed,
+        end_length,
+    );
+    let mut genome = Vec::new();
+    let mut genome_size = 0;
+    let hap_a = hap.remove(0);
+    genome_size += hap_a.len();
+    // assert_eq!(hap_a.len(), hap_genome_size);
+    genome.push(hap_a.clone());
+
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
+    for _ in 1..n_haplotypes {
+        let (hap_b_seq, ops) = random_mutation_with_rng(
+            &hap_a.seq(),
+            MutationProfile::uniform(divergence_between_haplotypes),
+            &mut rng,
+        );
+        let hap_b = StyledSequence::linear(hap_b_seq);
+        genome_size += hap_b.len();
+        genome.push(hap_b);
+    }
+    (genome, genome_size)
+}
+
 //
 // tests
 //
@@ -250,6 +294,41 @@ mod tests {
             vec![StyledSequence::linear(
                 b"TAGGACAAGCCCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACACCTCACCTCA".to_vec()
             ),]
+        );
+    }
+    #[test]
+    fn genome_tandem_repeat_polyploid() {
+        // ploidy=1
+        let (g, gs) = tandem_repeat_polyploid_with_unique_ends(10, 5, 0.0, 0, 0, 0, 1, 0.01, 0);
+        show_genome(&g, gs);
+        println!("{}", gs);
+        assert_eq!(
+            g,
+            vec![StyledSequence::linear(
+                b"CCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACA".to_vec()
+            ),]
+        );
+
+        // ploidy=4
+        let (g, gs) = tandem_repeat_polyploid_with_unique_ends(10, 5, 0.0, 0, 0, 0, 4, 0.01, 0);
+        show_genome(&g, gs);
+        println!("{}", gs);
+        assert_eq!(
+            g,
+            vec![
+                StyledSequence::linear(
+                    b"CCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACA".to_vec()
+                ),
+                StyledSequence::linear(
+                    b"CCAATTCACACCAATTGACACCAATTCACACCAATTCACACCAATTCACA".to_vec()
+                ),
+                StyledSequence::linear(
+                    b"CCAATTCACACCAATTCACACCAATCACACCAATTCACACCAATTCACA".to_vec()
+                ),
+                StyledSequence::linear(
+                    b"CCAATTCACACCAAATCACACCAATTCACACCAATTCACACCAATTCACA".to_vec()
+                ),
+            ]
         );
     }
 }

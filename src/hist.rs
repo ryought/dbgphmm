@@ -31,11 +31,43 @@ pub fn stat(xs: &[f64]) -> (f64, f64, f64, f64) {
     }
 }
 
+///
+/// Represents (normalized) discrete probability distribution `P(X), X \in {0,1,2,...}`
+///
 #[derive(Clone, Debug)]
-pub struct DiscreteDistribution(Vec<(usize, Prob)>);
+pub struct DiscreteDistribution {
+    z: Prob,
+    hashmap: HashMap<usize, Vec<Prob>>,
+}
+
 impl DiscreteDistribution {
+    ///
+    /// construct normalized distribution from unnormalized occurrences list
+    /// convert a list of occurrences (x, p(x)) into {x: p(x)}
+    ///
     pub fn from_occurs(probs: &[(usize, Prob)]) -> DiscreteDistribution {
-        DiscreteDistribution(get_normalized_probs(probs))
+        let mut h = HashMap::default();
+        let mut z = Prob::zero();
+        for &(x, p_x) in probs {
+            h.entry(x).or_insert_with(|| Vec::new()).push(p_x);
+            z += p_x;
+        }
+        DiscreteDistribution { hashmap: h, z }
+    }
+    pub fn to_normalized(&self) -> Vec<(usize, Prob)> {
+        self.hashmap.keys().map(|&x| (x, self.p_x(x))).collect()
+    }
+    ///
+    /// Get P(X=x)
+    ///
+    pub fn p_x(&self, x: usize) -> Prob {
+        match self.hashmap.get(&x) {
+            Some(probs) => {
+                let p: Prob = probs.iter().sum();
+                p / self.z
+            }
+            None => Prob::zero(),
+        }
     }
 }
 impl std::fmt::Display for DiscreteDistribution {
@@ -43,37 +75,13 @@ impl std::fmt::Display for DiscreteDistribution {
         write!(
             f,
             "{}",
-            self.0
-                .iter()
-                .map(|(x, p)| format!("p(x={})={:.5}", x, p.to_value()))
+            self.hashmap
+                .keys()
+                .sorted()
+                .map(|&x| format!("p(x={})={:.5}", x, self.p_x(x)))
                 .join(",")
         )
     }
-}
-
-///
-/// convert a list of occurrences (x, p(x)) into {x: p(x)}
-///
-fn get_normalized_probs(probs: &[(usize, Prob)]) -> Vec<(usize, Prob)> {
-    let mut h = HashMap::default();
-    for &(x, px) in probs {
-        match h.get(&x) {
-            Some(&p0x) => {
-                h.insert(x, p0x + px);
-            }
-            None => {
-                h.insert(x, px);
-            }
-        }
-    }
-    // total probability
-    let z: Prob = h.values().sum();
-    let mut pxs: Vec<_> = h.into_iter().map(|(x, px)| (x, px / z)).collect();
-    pxs.sort();
-    pxs
-
-    // not normalized
-    // h.into_iter().collect()
 }
 
 ///
@@ -209,14 +217,20 @@ mod tests {
     }
     #[test]
     fn hist_get_normalized() {
-        let pxs = get_normalized_probs(&[(0, p(0.5)), (0, p(0.2)), (1, p(0.2)), (0, p(0.1))]);
-        assert_abs_diff_eq!(pxs[0].1, p(0.8));
-        assert_abs_diff_eq!(pxs[0].0, 0);
-        assert_abs_diff_eq!(pxs[1].1, p(0.2));
-        assert_abs_diff_eq!(pxs[1].0, 1);
+        let d = DiscreteDistribution::from_occurs(&[
+            (0, p(0.5)),
+            (0, p(0.2)),
+            (1, p(0.2)),
+            (0, p(0.1)),
+        ]);
+        assert_abs_diff_eq!(d.p_x(0), p(0.8));
+        assert_abs_diff_eq!(d.p_x(1), p(0.2));
 
-        let pxs = get_normalized_probs(&[(0, p(0.5)), (0, p(0.2))]);
-        assert_abs_diff_eq!(pxs[0].1, p(1.0));
-        assert_abs_diff_eq!(pxs[0].0, 0);
+        let d = DiscreteDistribution::from_occurs(&[(0, p(0.5)), (0, p(0.2))]);
+        assert_abs_diff_eq!(d.p_x(0), p(1.0));
+
+        let d = DiscreteDistribution::from_occurs(&[(0, p(0.3)), (1, p(0.1)), (1, p(0.1))]);
+        assert_abs_diff_eq!(d.p_x(0), p(0.6));
+        assert_abs_diff_eq!(d.p_x(1), p(0.4), epsilon = 0.000001);
     }
 }
