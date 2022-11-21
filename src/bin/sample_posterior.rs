@@ -23,6 +23,10 @@ struct Opts {
     end_length: usize,
     #[clap(short = 'D', default_value = "0.01")]
     unit_divergence: f64,
+    #[clap(short = 'H', default_value = "0.01")]
+    hap_divergence: f64,
+    #[clap(short = 'P', default_value = "1")]
+    n_haplotypes: usize,
     #[clap(long = "sigma", default_value = "100")]
     sigma: usize,
     #[clap(short = 's', default_value = "0")]
@@ -37,13 +41,16 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
-    let (genome, genome_size) = genome::tandem_repeat_haploid_with_unique_ends(
+    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
         opts.unit_size,
         opts.n_unit,
         opts.unit_divergence,
         opts.seed,
         opts.seed,
         opts.end_length,
+        opts.n_haplotypes,
+        opts.hap_divergence,
+        opts.seed,
     );
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
