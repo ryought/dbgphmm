@@ -929,6 +929,40 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         )
     }
     ///
+    /// Assign naive copynums to all edges by naive resolving of intersections
+    /// Returns the number of ambiguous intersections.
+    ///
+    pub fn assign_naive_edge_copy_nums(&mut self) -> usize {
+        let default_value = 0;
+        let mut n_ambiguous = 0;
+        let mut ecn = EdgeCopyNums::new(self.n_edges(), default_value);
+        for fi in self.iter_intersections() {
+            if fi.is_ambiguous() {
+                n_ambiguous += 1;
+            }
+            if !fi.is_tip_intersection() {
+                let fio = fi.resolve_naive();
+                assert!(fio.has_valid_node_copy_nums());
+                assert!(fio.all_edge_copy_nums_consistent());
+                assert!(fio.is_resolved());
+                for (_, _, e) in fio.iter_edges() {
+                    assert!(ecn[e.index] == default_value);
+                    ecn[e.index] = e.copy_num.unwrap();
+                }
+            }
+        }
+        self.set_edge_copy_nums(Some(&ecn));
+        n_ambiguous
+    }
+    ///
+    /// extend to k+1 dbg by using naive resolving
+    ///
+    pub fn to_kp1_dbg_naive(&self) -> (Dbg<N, E>, usize) {
+        let mut dbg = self.clone();
+        let n_ambiguous = dbg.assign_naive_edge_copy_nums();
+        (dbg.to_kp1_dbg(), n_ambiguous)
+    }
+    ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
     /// consistently assigned.
     ///
@@ -1500,5 +1534,43 @@ mod tests {
             v,
             vec![(1, vec![0, 1, 2, 3, 6, 7, 8, 9, 10, 11]), (2, vec![4, 5])]
         )
+    }
+    #[test]
+    fn dbg_kp1_naive() {
+        {
+            let dbg0 = mock_base();
+            let (dbg1, n) = dbg0.to_kp1_dbg_naive();
+            println!("{}", dbg0.to_dot());
+            println!("{}", dbg1.to_dot());
+            println!("{}", n);
+            assert_eq!(
+                dbg0.to_styled_seqs(),
+                vec![StyledSequence::linear(b"ATCGGCT".to_vec())]
+            );
+            assert_eq!(dbg0.k(), 4);
+            assert_eq!(
+                dbg1.to_styled_seqs(),
+                vec![StyledSequence::linear(b"ATCGGCT".to_vec())]
+            );
+            assert_eq!(dbg1.k(), 5);
+            assert_eq!(n, 0);
+        }
+
+        {
+            let dbg0 = mock_intersection();
+            let (dbg1, n) = dbg0.to_kp1_dbg_naive();
+            println!("{}", dbg0.to_dot());
+            println!("{}", dbg1.to_dot());
+            println!("{}", n);
+            assert!(dbg1.is_valid());
+            let kmer_copynum = |kmer: &VecKmer| {
+                dbg1.node(dbg1.find_node_from_kmer(kmer).unwrap())
+                    .copy_num()
+            };
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"GTAGC")), 0);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"GTAGG")), 1);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGC")), 1);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGG")), 0);
+        }
     }
 }
