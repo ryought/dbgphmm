@@ -147,6 +147,9 @@ fn main() {
 
         // upgrade
         dbg = dbg.to_k_max_dbg_naive(opts.k_final);
+        if k == dbg.k() {
+            break;
+        }
         k = dbg.k();
     }
 
