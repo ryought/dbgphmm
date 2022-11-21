@@ -79,8 +79,9 @@ fn main() {
     for i in 0..genome.len() {
         println!("# genome[{}]={}", i, genome[i]);
     }
+    let mut k = dbg.k();
 
-    for k in opts.k_init..opts.k_final {
+    while k <= opts.k_final {
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(&genome).unwrap();
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
@@ -139,9 +140,8 @@ fn main() {
         dbg.inspect_kmer_variance(&neighbors);
 
         // upgrade
-        let (dbg_tmp, n_ambiguous) = dbg.to_kp1_dbg_naive();
-        println!("# n_ambiguous={}", n_ambiguous);
-        dbg = dbg_tmp;
+        dbg = dbg.to_k_max_dbg_naive(opts.k_final);
+        k = dbg.k();
     }
 
     println!("# finished_at={}", chrono::Local::now());

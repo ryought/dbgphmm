@@ -968,6 +968,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let n_ambiguous = dbg.assign_naive_edge_copy_nums();
         (dbg.to_kp1_dbg(), n_ambiguous)
     }
+    pub fn to_k_max_dbg_naive(&self, k_max: usize) -> Dbg<N, E> {
+        let mut dbg = self.clone();
+        let mut k = dbg.k();
+        while k < k_max {
+            let n_ambiguous = dbg.assign_naive_edge_copy_nums();
+            dbg = dbg.to_kp1_dbg();
+            k = dbg.k();
+            if k == k_max {
+                break;
+            }
+            if n_ambiguous > 0 {
+                break;
+            }
+        }
+        dbg
+    }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
     /// consistently assigned.
@@ -1560,6 +1576,10 @@ mod tests {
             );
             assert_eq!(dbg1.k(), 5);
             assert_eq!(n, 0);
+
+            let dbgf = dbg0.to_k_max_dbg_naive(20);
+            println!("{}", dbgf.to_dot());
+            assert_eq!(dbgf.k(), 20);
         }
 
         {
@@ -1577,6 +1597,11 @@ mod tests {
             assert_eq!(kmer_copynum(&VecKmer::from_bases(b"GTAGG")), 1);
             assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGC")), 1);
             assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGG")), 0);
+            assert_eq!(n, 1);
+
+            let dbgf = dbg0.to_k_max_dbg_naive(20);
+            println!("dbgf {}", dbgf.to_dot());
+            assert_eq!(dbgf.k(), 5);
         }
     }
 }
