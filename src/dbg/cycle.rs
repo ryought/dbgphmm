@@ -351,13 +351,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
+            // let copy_nums_with_prob: Vec<_> = neighbors
+            //     .iter()
+            //     .map(|(cn, p)| (cn[node], p.to_value()))
+            //     .collect();
             println!(
+                // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
                 "K\t{}\t{}\t{}\t{}\t{}",
                 weight.kmer(),
                 node.index(),
                 weight.copy_num(),
                 kmer_distributions[node.index()],
                 hist,
+                // copy_nums_with_prob,
             );
         }
         print_header();
