@@ -377,7 +377,7 @@ impl GenomeGraph {
             }
         }
         */
-        println!("{:?}", coverages);
+        eprintln!("{:?}", coverages);
     }
     pub fn collect_coverage_info(&self, reads: &PositionedReads) -> Vec<Vec<usize>> {
         let mut coverages: Vec<Vec<usize>> = self

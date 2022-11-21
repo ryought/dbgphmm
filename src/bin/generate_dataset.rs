@@ -31,7 +31,7 @@ fn main() {
         0,
         coverage,
         genome_size * 2,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         param,
     );
     let json = serde_json::to_string_pretty(&dataset).unwrap();

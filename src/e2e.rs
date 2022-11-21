@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 /// Read types
 ///
 pub enum ReadType {
+    FullLengthForHaploid,
     FullLength,
     FixedSizeFragment,
     Fragment,
@@ -165,10 +166,20 @@ pub fn generate_dataset(
             },
             phmm_params: phmm_params.clone(),
         },
-        ReadType::FullLength => ReadProfile {
+        ReadType::FullLengthForHaploid => ReadProfile {
             has_revcomp: false,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::Count(coverage),
+                seed: read_seed,
+                length: ReadLength::StateCount(read_length),
+                start_points: StartPoints::AllStartPoints,
+            },
+            phmm_params: phmm_params.clone(),
+        },
+        ReadType::FullLength => ReadProfile {
+            has_revcomp: false,
+            sample_profile: SampleProfile {
+                read_amount: ReadAmount::TotalBases(genome_size * coverage),
                 seed: read_seed,
                 length: ReadLength::StateCount(read_length),
                 start_points: StartPoints::AllStartPoints,
@@ -317,7 +328,7 @@ pub fn generate_simple_genome_mock() -> Experiment {
         param,
         20, // coverage is 20x
         2000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         40,
         40,
     )
@@ -336,7 +347,7 @@ pub fn generate_small_tandem_repeat() -> Experiment {
         param,
         10, // coverage
         2000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         40,
         40,
     )

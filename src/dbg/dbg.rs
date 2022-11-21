@@ -13,6 +13,7 @@ use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::remove_deadends;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use crate::kmer::common::kmers_to_string;
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::min_flow::flow::{Flow, FlowEdgeBase};
@@ -665,9 +666,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
     {
-        let (copy_nums_true, _) = self
-            .to_copy_nums_of_styled_seqs(seqs)
-            .expect("some true k-mer are not in the dbg, abort");
+        let (copy_nums_true, _) =
+            self.to_copy_nums_of_styled_seqs(seqs)
+                .unwrap_or_else(|missing_kmers| {
+                    panic!(
+                        "some true k-mers ({}) are not in the dbg",
+                        kmers_to_string(&missing_kmers)
+                    )
+                });
         self.set_node_copy_nums(&copy_nums_true);
     }
 }

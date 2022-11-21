@@ -19,7 +19,7 @@ fn main() {
         param,
         coverage,
         5000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         40,
         40,
     );

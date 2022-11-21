@@ -168,7 +168,7 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     let mut genome_size = 0;
     let hap_a = hap.remove(0);
     genome_size += hap_a.len();
-    assert_eq!(hap_a.len(), hap_genome_size);
+    // assert_eq!(hap_a.len(), hap_genome_size);
     genome.push(hap_a.clone());
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
