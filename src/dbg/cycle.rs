@@ -340,8 +340,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
+        let k = self.k();
         let print_header = || {
-            println!("#K kmer\tnode_id\tcurrent_copy_num\tprobs\thist\tcopy_nums");
+            println!(
+                "#K k={}\tkmer\tnode_id\tcurrent_copy_num\tprobs\thist\tcopy_nums",
+                k
+            );
         };
         print_header();
         let kmer_distributions = self.to_kmer_distribution(neighbors);
@@ -357,7 +361,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             //     .collect();
             println!(
                 // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
-                "K\t{}\t{}\t{}\t{}\t{}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{}",
+                k,
                 weight.kmer(),
                 node.index(),
                 weight.copy_num(),

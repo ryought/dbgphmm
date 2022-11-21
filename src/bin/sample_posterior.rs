@@ -1,4 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
+use dbgphmm::dbg::greedy::get_max_posterior_instance;
 use dbgphmm::e2e::{generate_experiment_with_draft, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
@@ -107,7 +108,6 @@ fn main() {
         );
 
         println!(
-            // "#N genome_size\tcopy_nums_diff\tp\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
             "#N k\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
         );
         for (p_gr, instance, score) in distribution.iter() {
@@ -132,7 +132,8 @@ fn main() {
             );
         }
 
-        dbg.set_node_copy_nums(&copy_nums_true);
+        // set to max instance copy_nums in distribution
+        dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
         let neighbors: Vec<_> = distribution
             .iter()
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
