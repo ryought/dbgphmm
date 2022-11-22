@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 pub enum ReadType {
     FullLength,
     FixedSizeFragment,
-    Fragment,
+    FragmentWithRevComp,
     FullLengthWithRevComp,
 }
 
@@ -70,6 +70,14 @@ impl Dataset {
     ///
     pub fn coverage(&self) -> f64 {
         self.reads().total_bases() as f64 / self.genome_size() as f64
+    }
+    ///
+    /// show reads
+    ///
+    pub fn show_reads(&self) {
+        for (i, read) in self.reads().iter().enumerate() {
+            println!("read#{}\t{}", i, read.to_str());
+        }
     }
 }
 
@@ -125,12 +133,10 @@ impl Experiment {
         &self.dataset.reads
     }
     ///
-    /// show reads
+    /// show reads alias
     ///
     pub fn show_reads(&self) {
-        for (i, read) in self.reads().iter().enumerate() {
-            println!("read#{}\t{}", i, read.to_str());
-        }
+        self.dataset.show_reads()
     }
 }
 
@@ -145,7 +151,7 @@ pub fn generate_dataset(
 ) -> Dataset {
     let g = GenomeGraph::from_styled_seqs(&genome);
     let profile = match read_type {
-        ReadType::Fragment => ReadProfile {
+        ReadType::FragmentWithRevComp => ReadProfile {
             has_revcomp: true,
             sample_profile: SampleProfile {
                 read_amount: ReadAmount::TotalBases(genome_size * coverage),
@@ -190,7 +196,7 @@ pub fn generate_dataset(
     // for read in pos_reads.iter() {
     //     println!("{}", read);
     // }
-    // g.show_coverage(&pos_reads);
+    g.show_coverage(&pos_reads);
     let reads = pos_reads.to_reads(true);
 
     Dataset {
@@ -320,6 +326,27 @@ pub fn generate_simple_genome_mock() -> Experiment {
         ReadType::FullLength,
         40,
         40,
+    )
+}
+
+///
+/// Easy toy example
+/// * 200bp simple genome
+/// * p=0.1% 20x fragment reads 50bp fixed length reads
+///
+pub fn generate_simple_genome_fragment_mock() -> Experiment {
+    let (genome, genome_size) = genome::simple(200, 5);
+    let param = PHMMParams::uniform(0.001);
+    generate_experiment_with_draft(
+        genome,
+        genome_size,
+        0,
+        param,
+        20,                          // coverage (20x)
+        50,                          // length (50bp)
+        ReadType::FixedSizeFragment, // without revcomp
+        16,
+        16,
     )
 }
 

@@ -30,15 +30,15 @@ mod tests {
         let coverage = 10;
         let read_length = 50;
         generate_experiment(
-            genome,                //
-            genome_size,           //
-            11,                    // read_seed
-            PHMMParams::default(), //
-            coverage,              //
-            read_length,           //
-            ReadType::Fragment,    //
-            8,                     // k_init
-            read_length,           // k_target
+            genome,                        //
+            genome_size,                   //
+            11,                            // read_seed
+            PHMMParams::default(),         //
+            coverage,                      //
+            read_length,                   //
+            ReadType::FragmentWithRevComp, //
+            8,                             // k_init
+            read_length,                   // k_target
         )
     }
 

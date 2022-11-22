@@ -180,7 +180,7 @@ mod tests {
     use super::*;
     use crate::dbg::mocks;
     use crate::dbg::SimpleDbg;
-    use crate::e2e::generate_simple_genome_mock;
+    use crate::e2e::{generate_simple_genome_fragment_mock, generate_simple_genome_mock};
     use crate::kmer::VecKmer;
 
     #[test]
@@ -246,5 +246,10 @@ mod tests {
         let copy_nums_true = experiment.dbg_draft_true.unwrap().to_node_copy_nums();
         let approx = experiment.dbg_draft.unwrap().to_node_copy_nums();
         assert_eq!(approx.dist(&copy_nums_true), 0);
+    }
+    #[test]
+    fn dbg_create_draft_fragment_test() {
+        let experiment = generate_simple_genome_fragment_mock();
+        experiment.show_reads();
     }
 }
