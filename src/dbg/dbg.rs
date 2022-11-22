@@ -13,6 +13,7 @@ use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::remove_deadends;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use crate::kmer::common::kmers_to_string;
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
 use crate::min_flow::flow::{Flow, FlowEdgeBase};
@@ -547,7 +548,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
     /// as a sequence with SeqStyle::Linear.
     ///
-    fn to_nodes_of_seq(&self, seq: &[u8]) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
+    fn to_nodes_of_seq(&self, seq: &[u8]) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_nodes_of_styled_seq(&styled_sequence)
     }
@@ -557,7 +558,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// If the sequence cannot be emitted using a path in the dbg, returns None.
     ///
-    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
+    fn to_nodes_of_styled_seq(
+        &self,
+        seq: &StyledSequence,
+    ) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
         let mut missing_kmers = Vec::new();
@@ -571,7 +575,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         if missing_kmers.is_empty() {
             Ok(nodes)
         } else {
-            Err(missing_kmers)
+            Err(KmerNotFoundError::new(missing_kmers))
         }
     }
     ///
@@ -580,7 +584,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_seq(
         &self,
         seq: &[u8],
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_copy_nums_of_styled_seq(&styled_sequence)
     }
@@ -593,7 +597,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_styled_seqs<T>(
         &self,
         seqs: T,
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>>
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
@@ -609,14 +613,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     nc_ret += &nc;
                     ec_ret += &ec;
                 }
-                Err(mut missings) => missing_kmers.append(&mut missings),
+                Err(mut missings) => missing_kmers.append(missings.missing_kmers_mut()),
             }
         }
 
         if missing_kmers.is_empty() {
             Ok((nc_ret, ec_ret))
         } else {
-            Err(missing_kmers)
+            Err(KmerNotFoundError::new(missing_kmers))
         }
     }
     ///
@@ -625,13 +629,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_styled_seq(
         &self,
         seq: &StyledSequence,
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
 
         match self.to_nodes_of_styled_seq(seq) {
-            Err(missings) => Err(missings),
+            Err(err) => Err(err),
             Ok(nodes) => {
                 // add node counts
                 for &node in nodes.iter() {
@@ -669,6 +673,29 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .to_copy_nums_of_styled_seqs(seqs)
             .expect("some true k-mer are not in the dbg, abort");
         self.set_node_copy_nums(&copy_nums_true);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct KmerNotFoundError<K: KmerLike>(Vec<K>);
+impl<K: KmerLike> KmerNotFoundError<K> {
+    pub fn new(missing_kmers: Vec<K>) -> Self {
+        KmerNotFoundError(missing_kmers)
+    }
+    pub fn missing_kmers(&self) -> &[K] {
+        &self.0
+    }
+    pub fn missing_kmers_mut(&mut self) -> &mut Vec<K> {
+        &mut self.0
+    }
+}
+impl<K: KmerLike> std::fmt::Display for KmerNotFoundError<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "some kmers ({}) are missing",
+            kmers_to_string(self.missing_kmers())
+        )
     }
 }
 
