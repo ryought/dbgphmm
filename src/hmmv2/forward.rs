@@ -3,6 +3,7 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::hint::Hint;
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
@@ -38,6 +39,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 r.tables.push(table);
                 r
             })
+    }
+    /// WIP
+    ///
+    /// use hint (= node list that can emits the each emission)
+    ///
+    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResult {
+        unimplemented!();
     }
     ///
     /// Run Forward algorithm to the emissions, with sparse calculation
