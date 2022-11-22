@@ -4,7 +4,9 @@
 //! * generate genome
 //! * generate reads
 //!
-use crate::common::{sequence_to_string, Genome, Reads, Seq, Sequence, StyledSequence};
+use crate::common::{
+    sequence_to_string, Genome, PositionedReads, Reads, Seq, Sequence, StyledSequence,
+};
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
@@ -342,9 +344,9 @@ pub fn generate_simple_genome_fragment_mock() -> Experiment {
         genome_size,
         0,
         param,
-        20,                          // coverage (20x)
-        50,                          // length (50bp)
-        ReadType::FixedSizeFragment, // without revcomp
+        20, // coverage (20x)
+        50, // length (50bp)
+        ReadType::FragmentWithRevComp,
         16,
         16,
     )
