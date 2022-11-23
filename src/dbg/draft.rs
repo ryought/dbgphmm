@@ -61,8 +61,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let kmer_coverage = kmer_coverage(k, ave_read_length, base_coverage, p_error);
         eprintln!(
-            "[draft_frag] base_coverage={} kmer_coverage={}",
-            base_coverage, kmer_coverage
+            "[draft_frag] k={} ave_read_length={} p_error={} base_coverage={} kmer_coverage={}",
+            k, ave_read_length, p_error, base_coverage, kmer_coverage
         );
         Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage)
     }

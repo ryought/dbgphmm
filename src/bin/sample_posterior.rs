@@ -1,28 +1,37 @@
 use clap::{AppSettings, ArgEnum, Clap};
 use dbgphmm::dbg::greedy::get_max_posterior_instance;
-use dbgphmm::e2e::{generate_experiment_with_draft, Experiment, ReadType};
+use dbgphmm::dbg::{Dbg, SimpleDbg};
+use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string;
+use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 #[derive(Clap, Debug)]
 struct Opts {
-    #[clap(long, default_value = "40")]
+    // dbg settings
+    #[clap(long)]
     k_init: usize,
-    #[clap(long, default_value = "50")]
+    #[clap(long)]
     k_final: usize,
-    #[clap(short = 'c', default_value = "20")]
+    // read related
+    #[clap(short = 'c')]
     coverage: usize,
     #[clap(short = 'p', default_value = "0.001")]
     p_error: f64,
-    #[clap(short = 'U', default_value = "100")]
+    #[clap(short = 'l')]
+    read_length: usize,
+    #[clap(long)]
+    use_fragment_read: bool,
+    // genome related
+    #[clap(short = 'U')]
     unit_size: usize,
-    #[clap(short = 'N', default_value = "10")]
+    #[clap(short = 'N')]
     n_unit: usize,
-    #[clap(short = 'E', default_value = "50")]
+    #[clap(short = 'E')]
     end_length: usize,
     #[clap(short = 'D', default_value = "0.01")]
     unit_divergence: f64,
@@ -30,6 +39,7 @@ struct Opts {
     hap_divergence: f64,
     #[clap(short = 'P', default_value = "1")]
     n_haplotypes: usize,
+    // search related
     #[clap(long = "sigma", default_value = "100")]
     sigma: usize,
     #[clap(short = 's', default_value = "0")]
@@ -57,30 +67,55 @@ fn main() {
     );
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
-    let experiment = generate_experiment_with_draft(
-        genome.clone(),
-        genome_size,
-        0, // read seed
-        param,
-        coverage,
-        genome_size * 2,
-        ReadType::FullLength,
-        opts.k_init,
-        40, // XXX this argument is to be removed
-    );
-    let mut dbg = if opts.from_approx {
-        experiment.dbg_draft.clone().unwrap()
+    let (dataset, mut dbg) = if opts.use_fragment_read {
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0, // read seed
+            coverage,
+            opts.read_length,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                opts.k_init,
+                dataset.reads(),
+                dataset.coverage(),
+                dataset.reads().average_length(),
+                dataset.params().p_error().to_value(),
+            );
+        (dataset, dbg)
     } else {
-        experiment.dbg_draft_true.clone().unwrap()
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0, // read seed
+            coverage,
+            genome_size * 2,
+            ReadType::FullLength,
+            param,
+        );
+        let dbg =
+            SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage());
+        (dataset, dbg)
     };
+    // let mut dbg = if opts.from_approx {
+    //     experiment.dbg_draft.clone().unwrap()
+    // } else {
+    //     experiment.dbg_draft_true.clone().unwrap()
+    // };
 
     println!("# started_at={}", chrono::Local::now());
     println!("# opts={:?}", opts);
-    experiment.show_genome();
+    dataset.show_genome();
+    dataset.show_reads();
     let mut k = dbg.k();
 
     while k <= opts.k_final {
-        let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(&genome).unwrap();
+        let (copy_nums_true, _) = dbg
+            .to_copy_nums_of_styled_seqs(&genome)
+            .unwrap_or_else(|err| panic!("{}", err));
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
         println!("# n_dead_nodes={}", dbg.n_dead_nodes());
@@ -97,10 +132,10 @@ fn main() {
         );
 
         let distribution = dbg.search_posterior(
-            experiment.dataset(),
+            &dataset,
             opts.neighbor_depth,
             opts.max_move,
-            experiment.genome_size(),
+            dataset.genome_size(),
             opts.sigma,
         );
 

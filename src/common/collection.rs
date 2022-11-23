@@ -180,6 +180,10 @@ impl<S: Seq> ReadCollection<S> {
     pub fn total_bases(&self) -> usize {
         self.reads.iter().map(|read| read.as_ref().len()).sum()
     }
+    /// average length
+    pub fn average_length(&self) -> usize {
+        self.total_bases() / self.len()
+    }
     /// show reads
     ///
     /// ```text
@@ -189,7 +193,7 @@ impl<S: Seq> ReadCollection<S> {
     ///
     pub fn show_reads(&self) {
         for (i, read) in self.iter().enumerate() {
-            println!("read#{}\t{}", i, read.to_str());
+            println!("# read#{}\t{}", i, read.to_str());
         }
     }
 }

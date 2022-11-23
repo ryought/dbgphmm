@@ -118,6 +118,12 @@ impl PHMMParams {
     pub fn zero_error() -> PHMMParams {
         PHMMParams::uniform(0.0)
     }
+    ///
+    /// p_error = p_mut + p_ins + p_del
+    ///
+    pub fn p_error(&self) -> Prob {
+        self.p_MI + self.p_MD + self.p_mismatch
+    }
 }
 
 #[pymethods]
