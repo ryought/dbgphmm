@@ -46,7 +46,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
     /// Create draft dbg from fragment reads
     ///
-    /// WIP
+    /// 1. construct dbg without considering starting/ending kmers (= use
+    ///    `Dbg::from_fragment_seqs`)
+    /// 2. remove 0x and 1x nodes
+    /// 3. add starts/ends to all deadend nodes
+    /// 4. assign approximate (flow consistent) copy nums by `min_squared_error`.
     ///
     pub fn create_draft_from_fragment_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
     where
@@ -201,7 +205,10 @@ mod tests {
     use super::*;
     use crate::dbg::mocks;
     use crate::dbg::SimpleDbg;
-    use crate::e2e::{generate_simple_genome_fragment_dataset, generate_simple_genome_mock};
+    use crate::e2e::{
+        generate_simple_genome_fragment_dataset, generate_simple_genome_mock,
+        generate_tandem_repeat_fragment_dataset,
+    };
     use crate::io::write_string;
     use crate::kmer::VecKmer;
 
@@ -270,7 +277,7 @@ mod tests {
         assert_eq!(approx.dist(&copy_nums_true), 0);
     }
     #[test]
-    fn dbg_create_draft_fragment_test() {
+    fn dbg_create_draft_fragment_test_simple() {
         let dataset = generate_simple_genome_fragment_dataset();
         dataset.show_genome();
         dataset.show_reads();
@@ -278,6 +285,17 @@ mod tests {
         let dbg: SimpleDbg<VecKmer> =
             SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
         let json = dbg.to_cytoscape();
-        write_string("draft_from_fragment.json", &json).unwrap();
+        write_string("draft_from_fragment_simple.json", &json).unwrap();
+    }
+    #[test]
+    fn dbg_create_draft_fragment_test_tandem_repeat() {
+        let dataset = generate_tandem_repeat_fragment_dataset();
+        dataset.show_genome();
+        dataset.show_reads();
+        println!("coverage={}", dataset.coverage());
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
+        let json = dbg.to_cytoscape();
+        write_string("draft_from_fragment_tandem_repeat.json", &json).unwrap();
     }
 }

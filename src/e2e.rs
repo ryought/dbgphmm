@@ -359,6 +359,26 @@ pub fn generate_simple_genome_fragment_dataset() -> Dataset {
 }
 
 ///
+/// Easy toy example
+/// * 200bp tandem repeat (20bp-unique-prefix + 40bp x 4 + 20bp-unique-suffix) genome
+/// * p=0.1% 20x fragment reads 50bp fixed length reads
+///
+pub fn generate_tandem_repeat_fragment_dataset() -> Dataset {
+    let (genome, genome_size) =
+        genome::tandem_repeat_haploid_with_unique_ends(40, 4, 0.01, 0, 0, 20);
+    let param = PHMMParams::uniform(0.001);
+    generate_dataset(
+        genome,
+        genome_size,
+        0,
+        20, // coverage (20x)
+        50, // length (50bp)
+        ReadType::FragmentWithRevComp,
+        param,
+    )
+}
+
+///
 /// 1000bp tandem repeat example
 ///
 pub fn generate_small_tandem_repeat() -> Experiment {
