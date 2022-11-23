@@ -840,6 +840,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let hd = HashDbg::from_seqs(k, seqs);
         Self::from_hashdbg(&hd)
     }
+    /// Construct Dbg from Fragment Reads
+    /// via converting HashDbg into Dbg.
+    ///
+    /// **Note** the resulting Dbg can break the flow consistency of node copy numbers.
+    pub fn from_fragment_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let hd = HashDbg::from_fragment_seqs(k, seqs);
+        Self::from_hashdbg(&hd)
+    }
     /// Construct Dbg from styled Reads
     /// via converting HashDbg into Dbg.
     pub fn from_styled_seqs<T>(k: usize, seqs: T) -> Self
@@ -1120,6 +1132,7 @@ mod tests {
     use crate::common::sequence_to_string;
     use crate::dbg::edge_centric::EDbgEdge;
     use crate::kmer::veckmer::VecKmer;
+    use crate::utils::is_equal_as_set;
 
     #[test]
     fn dbg_new() {
@@ -1527,5 +1540,40 @@ mod tests {
             v,
             vec![(1, vec![0, 1, 2, 3, 6, 7, 8, 9, 10, 11]), (2, vec![4, 5])]
         )
+    }
+    #[test]
+    fn dbg_from_fragment_seqs() {
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::from_fragment_seqs(4, &vec![b"ATTCGAC".to_vec(), b"TCGACCA".to_vec()]);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.has_no_duplicated_node());
+        assert!(dbg.has_no_parallel_edge());
+        assert!(dbg.is_graph_valid());
+        let kmers: Vec<VecKmer> = dbg.nodes().map(|(_, w)| w.kmer().clone()).collect();
+        let kmers_true = vec![
+            VecKmer::from_bases(b"ATTC"),
+            VecKmer::from_bases(b"TTCG"),
+            VecKmer::from_bases(b"TCGA"),
+            VecKmer::from_bases(b"CGAC"),
+            VecKmer::from_bases(b"GACC"),
+            VecKmer::from_bases(b"ACCA"),
+        ];
+        assert!(is_equal_as_set(&kmers, &kmers_true));
+        assert_eq!(
+            dbg.node(
+                dbg.find_node_from_kmer(&VecKmer::from_bases(b"TCGA"))
+                    .unwrap()
+            )
+            .copy_num(),
+            2
+        );
+        assert_eq!(
+            dbg.node(
+                dbg.find_node_from_kmer(&VecKmer::from_bases(b"CGAC"))
+                    .unwrap()
+            )
+            .copy_num(),
+            2
+        );
     }
 }
