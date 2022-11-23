@@ -623,4 +623,22 @@ mod tests {
             ]
         );
     }
+    #[test]
+    fn genome_graph_sampling_and_serialize() {
+        let seqs = vec![b"ATCGATTCGAT".to_vec(), b"CTCTTCTTCTCT".to_vec()];
+        let graph = GenomeGraph::from_seqs(&seqs);
+        let reads = graph.sample_positioned_reads(&ReadProfile {
+            has_revcomp: true,
+            sample_profile: SampleProfile {
+                read_amount: ReadAmount::Count(15),
+                seed: 0,
+                length: ReadLength::StateCount(1000),
+                start_points: StartPoints::AllStartPoints,
+            },
+            phmm_params: PHMMParams::high_error(),
+        });
+        for read in reads.iter() {
+            println!("{}", read);
+        }
+    }
 }

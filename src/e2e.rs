@@ -77,9 +77,7 @@ impl Dataset {
     /// show reads
     ///
     pub fn show_reads(&self) {
-        for (i, read) in self.reads().iter().enumerate() {
-            println!("read#{}\t{}", i, read.to_str());
-        }
+        self.reads().show_reads()
     }
 }
 

@@ -180,6 +180,18 @@ impl<S: Seq> ReadCollection<S> {
     pub fn total_bases(&self) -> usize {
         self.reads.iter().map(|read| read.as_ref().len()).sum()
     }
+    /// show reads
+    ///
+    /// ```text
+    /// read#1   ATCGTAGCT
+    /// read#2   ATCGTA
+    /// ```
+    ///
+    pub fn show_reads(&self) {
+        for (i, read) in self.iter().enumerate() {
+            println!("read#{}\t{}", i, read.to_str());
+        }
+    }
 }
 
 impl<S: Seq> std::ops::Index<usize> for ReadCollection<S> {
@@ -451,9 +463,11 @@ impl PositionedSequence {
     }
     /// Make seq reverse complement
     pub fn revcomp(self) -> Self {
+        let mut origins = self.origins;
+        origins.reverse();
         PositionedSequence {
             seq: self.seq.to_revcomp(),
-            origins: self.origins,
+            origins,
             is_revcomp: !self.is_revcomp,
         }
     }
@@ -470,7 +484,7 @@ impl std::fmt::Display for PositionedSequence {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} (revcomp={}, origins={})",
+            "{}({}origins={})",
             self.seq.to_str(),
             self.is_revcomp(),
             self.origins
