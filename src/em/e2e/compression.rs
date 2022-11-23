@@ -72,7 +72,7 @@ mod tests {
         let lambda = 0.01;
         let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &dataset.phmm_params,
             genome_size,
             lambda,
@@ -118,7 +118,7 @@ mod tests {
         let lambda = 0.0005;
         let (new_dbg, logs) = compression(
             &dataset.dbg_raw,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &dataset.phmm_params,
             genome_size,
             lambda,
@@ -160,7 +160,7 @@ mod tests {
         let lambda = 0.0005;
         let (new_dbg, logs) = compression(
             &dataset.dbg_true_init,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &dataset.phmm_params,
             genome_size,
             lambda,

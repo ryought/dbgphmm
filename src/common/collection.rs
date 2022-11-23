@@ -209,24 +209,14 @@ impl PositionedReads {
     ///     if true, align all reads in forward strand
     ///     by revcomping backward reads.
     ///
-    pub fn to_reads(self, justify_strand: bool) -> Reads {
-        let reads: Vec<Sequence> = self
-            .reads
-            .into_iter()
-            .map(|pos_seq| {
-                if justify_strand && pos_seq.is_revcomp() {
-                    pos_seq.seq.to_revcomp()
-                } else {
-                    pos_seq.seq
-                }
-            })
-            .collect();
+    pub fn to_reads(self) -> Reads {
+        let reads: Vec<Sequence> = self.reads.into_iter().map(|pos_seq| pos_seq.seq).collect();
         Reads::from(reads)
     }
     ///
     /// make reads' strands same
     ///
-    pub fn justify_reads(self) -> PositionedReads {
+    pub fn justify_strand(self) -> PositionedReads {
         let reads: Vec<_> = self
             .reads
             .into_iter()
@@ -479,14 +469,13 @@ impl AsRef<Bases> for PositionedSequence {
     }
 }
 
-// TODO
 impl std::fmt::Display for PositionedSequence {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}({}origins={})",
+            "{}:{}:{}",
             self.seq.to_str(),
-            self.is_revcomp(),
+            if self.is_revcomp() { '-' } else { '+' },
             self.origins
                 .iter()
                 .map(|origin| origin.to_string())
@@ -494,10 +483,36 @@ impl std::fmt::Display for PositionedSequence {
         )
     }
 }
+#[derive(Clone, Debug)]
+pub struct PositionedSequenceParseError;
+impl std::fmt::Display for PositionedSequenceParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "PositionedSequenceParseError")
+    }
+}
 impl FromStr for PositionedSequence {
-    type Err = StyledSequenceParseError;
+    type Err = PositionedSequenceParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        unimplemented!();
+        let segments: Vec<&str> = s.split(':').collect();
+        if segments.len() == 3 {
+            let seq = segments[0].as_bytes().to_vec();
+            let is_revcomp = if segments[1] == "+" {
+                false
+            } else if segments[1] == "-" {
+                true
+            } else {
+                return Err(PositionedSequenceParseError);
+            };
+            let origins: Vec<GenomeGraphPos> =
+                segments[2].split(',').map(|o| o.parse().unwrap()).collect();
+            Ok(PositionedSequence {
+                seq,
+                origins,
+                is_revcomp,
+            })
+        } else {
+            Err(PositionedSequenceParseError)
+        }
     }
 }
 
@@ -517,6 +532,7 @@ impl StoreableTypeTrait for PositionedSequence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     #[test]
     fn seq_style() {
         let s = SeqStyle::Linear;
@@ -582,5 +598,21 @@ mod tests {
         assert_eq!(json, "[\"C:ATCGAT\",\"L:GGGC\"]");
         let xs: Vec<StyledSequence> = serde_json::from_str(&json).unwrap();
         assert_eq!(xs, xs0);
+    }
+    #[test]
+    fn positioned_seq_serialize() {
+        let s1 = PositionedSequence::new(
+            b"ATCG".to_vec(),
+            vec![
+                GenomeGraphPos::new(ni(0), 0),
+                GenomeGraphPos::new(ni(0), 1),
+                GenomeGraphPos::new(ni(0), 2),
+                GenomeGraphPos::new(ni(0), 3),
+            ],
+            true,
+        );
+        println!("{}", s1);
+        let s1b = PositionedSequence::from_str(&s1.to_string()).unwrap();
+        assert_eq!(s1, s1b);
     }
 }

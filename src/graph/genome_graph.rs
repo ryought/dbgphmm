@@ -92,7 +92,26 @@ impl GenomeGraphPos {
 
 impl std::fmt::Display for GenomeGraphPos {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({},{})", self.node.index(), self.pos)
+        write!(f, "{}-{}", self.node.index(), self.pos)
+    }
+}
+#[derive(Clone, Debug)]
+pub struct GenomeGraphPosParseError;
+impl std::fmt::Display for GenomeGraphPosParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "GenomeGraphPosParseError")
+    }
+}
+impl std::str::FromStr for GenomeGraphPos {
+    type Err = GenomeGraphPosParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let segments: Vec<_> = s.split('-').collect();
+        let node: usize = segments[0].parse().unwrap();
+        let pos: usize = segments[1].parse().unwrap();
+        Ok(GenomeGraphPos {
+            node: NodeIndex::new(node),
+            pos,
+        })
     }
 }
 
@@ -343,7 +362,7 @@ impl GenomeGraph {
     }
     /// Sample reads from the genome graph.
     pub fn sample_reads(&self, prof: &ReadProfile) -> Reads {
-        self.sample_positioned_reads(prof).to_reads(false)
+        self.sample_positioned_reads(prof).to_reads()
     }
     ///
     /// Sample positioned reads
@@ -600,7 +619,7 @@ mod tests {
         );
 
         // convert to read (with justifying)
-        let justified_reads = reads.to_reads(true);
+        let justified_reads = reads.justify_strand().to_reads();
         let s: Vec<_> = justified_reads.iter().map(|read| read.to_str()).collect();
         assert_eq!(
             s,

@@ -57,7 +57,7 @@ mod tests {
         */
         let (dbg, logs) = compression(
             &dataset.dbg_raw,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &PHMMParams::default(),
             1.0,
             10,

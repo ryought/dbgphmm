@@ -46,7 +46,7 @@ pub fn benchmark(
     let genome_size = dataset.genome_size();
     let (dbg_infer, logs) = infer(
         &dataset.dbg_raw,
-        &dataset.reads(),
+        &dataset.reads().clone().to_reads(),
         &dataset.phmm_params,
         &scheduler,
         genome_size,

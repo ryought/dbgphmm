@@ -57,7 +57,7 @@ fn run(output_dir: &Path) {
             // v3
             let (new_dbg_v3, logs_v3) = v3::compression(
                 &dataset.dbg_raw,
-                dataset.reads(),
+                &dataset.reads().clone().to_reads(),
                 &dataset.phmm_params,
                 dataset.genome_size(),
                 lambda,
@@ -72,7 +72,7 @@ fn run(output_dir: &Path) {
             // v1
             let (new_dbg_v1, logs_v1) = compression_with_depths(
                 &dataset.dbg_raw,
-                dataset.reads(),
+                &dataset.reads().clone().to_reads(),
                 &dataset.phmm_params,
                 &[1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
             );

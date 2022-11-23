@@ -5,7 +5,8 @@
 //! * generate reads
 //!
 use crate::common::{
-    sequence_to_string, Genome, PositionedReads, Reads, Seq, Sequence, StyledSequence,
+    sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
+    StyledSequence,
 };
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::genome;
@@ -43,7 +44,7 @@ pub struct Dataset {
     ///
     /// sampled reads
     ///
-    reads: Reads,
+    reads: PositionedReads,
     ///
     /// Profile HMM parameters used in read sampling
     ///
@@ -61,7 +62,7 @@ impl Dataset {
     pub fn genome_size(&self) -> usize {
         self.genome_size
     }
-    pub fn reads(&self) -> &Reads {
+    pub fn reads(&self) -> &PositionedReads {
         &self.reads
     }
     pub fn params(&self) -> PHMMParams {
@@ -129,7 +130,7 @@ impl Experiment {
     pub fn genome_size(&self) -> usize {
         self.dataset.genome_size
     }
-    pub fn reads(&self) -> &Reads {
+    pub fn reads(&self) -> &PositionedReads {
         &self.dataset.reads
     }
     ///
@@ -197,7 +198,9 @@ pub fn generate_dataset(
     //     println!("{}", read);
     // }
     g.show_coverage(&pos_reads);
-    let reads = pos_reads.to_reads(true);
+    // TODO
+    // use strand justified read only currently
+    let reads = pos_reads.justify_strand();
 
     Dataset {
         genome,
@@ -376,13 +379,38 @@ pub fn generate_small_tandem_repeat() -> Experiment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
+    use crate::graph::genome_graph::GenomeGraphPos;
 
     #[test]
     fn e2e_dataset_serialize_test() {
         let d = Dataset {
             genome: vec![StyledSequence::linear(b"ATCGTTCTTC".to_vec())],
             genome_size: 10,
-            reads: Reads::from(vec![b"ATCGT".to_vec(), b"TTTCG".to_vec()]),
+            reads: PositionedReads::from(vec![
+                PositionedSequence::new(
+                    b"ATCGT".to_vec(),
+                    vec![
+                        GenomeGraphPos::new(ni(0), 0),
+                        GenomeGraphPos::new(ni(0), 1),
+                        GenomeGraphPos::new(ni(0), 2),
+                        GenomeGraphPos::new(ni(0), 3),
+                        GenomeGraphPos::new(ni(0), 3),
+                    ],
+                    false,
+                ),
+                PositionedSequence::new(
+                    b"TTTCG".to_vec(),
+                    vec![
+                        GenomeGraphPos::new(ni(1), 10),
+                        GenomeGraphPos::new(ni(1), 9),
+                        GenomeGraphPos::new(ni(1), 8),
+                        GenomeGraphPos::new(ni(1), 6),
+                        GenomeGraphPos::new(ni(1), 5),
+                    ],
+                    true,
+                ),
+            ]),
             phmm_params: PHMMParams::default(),
         };
         let json = serde_json::to_string(&d).unwrap();
