@@ -57,7 +57,7 @@ pub fn complement(base: u8) -> u8 {
 /// * `to_str`
 /// * `to_revcomp`
 ///
-pub trait Seq: AsRef<Bases> {
+pub trait Seq: AsRef<Bases> + Sync {
     ///
     /// convert bases into &str for displaying
     ///
@@ -75,7 +75,7 @@ pub trait Seq: AsRef<Bases> {
             .collect()
     }
 }
-impl<T: AsRef<Bases>> Seq for T {}
+impl<T: AsRef<Bases> + Sync> Seq for T {}
 // TODO
 // impl<T: Seq> std::fmt::Display for T {
 //     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -99,47 +99,53 @@ pub fn genome_size(genome: &Genome) -> usize {
     genome.iter().map(|seq| seq.len()).sum()
 }
 
+///
 /// Struct for storing multiple emissions, reads.
+///
+/// Read type S in ReadCollection<S> can be
+/// * Vec<u8>
+/// * PositionedSequence
+/// * (TODO StyledSequence)
 ///
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(bound = "S: BaseTypeTrait")]
+#[serde(bound = "S: StoreableTypeTrait")]
 pub struct ReadCollection<S: Seq> {
-    #[serde_as(as = "Vec<BaseType>")]
+    #[serde_as(as = "Vec<StoreableType>")]
     pub reads: Vec<S>,
 }
 
 //
 // support serialize/deserialize of Vec<u8> as Bases
 //
-trait BaseTypeTrait {
-    fn to_string(&self) -> &str;
-    fn from_str(s: &str) -> Self;
+trait StoreableTypeTrait {
+    fn to_store_string(&self) -> String;
+    fn from_store_str(s: &str) -> Self;
 }
-impl BaseTypeTrait for Vec<u8> {
-    fn to_string(&self) -> &str {
-        std::str::from_utf8(self.as_ref()).unwrap()
+impl StoreableTypeTrait for Vec<u8> {
+    fn to_store_string(&self) -> String {
+        self.to_str().to_owned()
     }
-    fn from_str(s: &str) -> Vec<u8> {
+    fn from_store_str(s: &str) -> Vec<u8> {
         s.to_string().into_bytes()
     }
 }
-pub struct BaseType;
-impl<T: BaseTypeTrait> SerializeAs<T> for BaseType {
+pub struct StoreableType;
+impl<T: StoreableTypeTrait> SerializeAs<T> for StoreableType {
     fn serialize_as<S>(source: &T, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(source.to_string())
+        serializer.serialize_str(&source.to_store_string())
     }
 }
-impl<'de, T: BaseTypeTrait> DeserializeAs<'de, T> for BaseType {
+impl<'de, T: StoreableTypeTrait> DeserializeAs<'de, T> for StoreableType {
     fn deserialize_as<D>(deserializer: D) -> Result<T, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        Ok(T::from_str(&s))
+        Ok(T::from_store_str(&s))
     }
 }
 
@@ -174,6 +180,18 @@ impl<S: Seq> ReadCollection<S> {
     pub fn total_bases(&self) -> usize {
         self.reads.iter().map(|read| read.as_ref().len()).sum()
     }
+    /// show reads
+    ///
+    /// ```text
+    /// read#1   ATCGTAGCT
+    /// read#2   ATCGTA
+    /// ```
+    ///
+    pub fn show_reads(&self) {
+        for (i, read) in self.iter().enumerate() {
+            println!("read#{}\t{}", i, read.to_str());
+        }
+    }
 }
 
 impl<S: Seq> std::ops::Index<usize> for ReadCollection<S> {
@@ -191,34 +209,41 @@ impl PositionedReads {
     ///     if true, align all reads in forward strand
     ///     by revcomping backward reads.
     ///
-    pub fn to_reads(self, justify_strand: bool) -> Reads {
-        let reads: Vec<Sequence> = self
+    pub fn to_reads(self) -> Reads {
+        let reads: Vec<Sequence> = self.reads.into_iter().map(|pos_seq| pos_seq.seq).collect();
+        Reads::from(reads)
+    }
+    ///
+    /// make reads' strands same
+    ///
+    pub fn justify_strand(self) -> PositionedReads {
+        let reads: Vec<_> = self
             .reads
             .into_iter()
             .map(|pos_seq| {
-                if justify_strand && pos_seq.is_revcomp() {
-                    pos_seq.seq.to_revcomp()
+                if pos_seq.is_revcomp() {
+                    pos_seq.revcomp()
                 } else {
-                    pos_seq.seq
+                    pos_seq
                 }
             })
             .collect();
-        Reads::from(reads)
+        PositionedReads::from(reads)
     }
 }
 
-impl<'a> IntoIterator for &'a Reads {
-    type Item = &'a Sequence;
-    type IntoIter = std::slice::Iter<'a, Sequence>;
-    fn into_iter(self) -> std::slice::Iter<'a, Sequence> {
+impl<'a, S: Seq> IntoIterator for &'a ReadCollection<S> {
+    type Item = &'a S;
+    type IntoIter = std::slice::Iter<'a, S>;
+    fn into_iter(self) -> std::slice::Iter<'a, S> {
         self.reads.iter()
     }
 }
 
-impl<'a> IntoParallelIterator for &'a Reads {
-    type Item = &'a Sequence;
-    type Iter = rayon::slice::Iter<'a, Sequence>;
-    fn into_par_iter(self) -> rayon::slice::Iter<'a, Sequence> {
+impl<'a, S: Seq> IntoParallelIterator for &'a ReadCollection<S> {
+    type Item = &'a S;
+    type Iter = rayon::slice::Iter<'a, S>;
+    fn into_par_iter(self) -> rayon::slice::Iter<'a, S> {
         self.reads.par_iter()
     }
 }
@@ -387,7 +412,13 @@ impl AsRef<StyledSequence> for StyledSequence {
 ///
 /// PositionedSequence
 ///
-#[derive(Clone, Debug)]
+/// supported traits
+/// * Display, FromStr
+/// * ScoreableTypeTrait (using Display and FromStr)
+/// * serde::Serialize, Deserialize (using ScoreableTypeTrait)
+/// * AsRef<Bases>, Seq (by ignoring position information)
+///
+#[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct PositionedSequence {
     /// sequence (bases) of the read
     seq: Sequence,
@@ -420,6 +451,16 @@ impl PositionedSequence {
     pub fn is_revcomp(&self) -> bool {
         self.is_revcomp
     }
+    /// Make seq reverse complement
+    pub fn revcomp(self) -> Self {
+        let mut origins = self.origins;
+        origins.reverse();
+        PositionedSequence {
+            seq: self.seq.to_revcomp(),
+            origins,
+            is_revcomp: !self.is_revcomp,
+        }
+    }
 }
 
 impl AsRef<Bases> for PositionedSequence {
@@ -432,14 +473,55 @@ impl std::fmt::Display for PositionedSequence {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} (revcomp={}, origins={})",
+            "{}:{}:{}",
             self.seq.to_str(),
-            self.is_revcomp(),
+            if self.is_revcomp() { '-' } else { '+' },
             self.origins
                 .iter()
                 .map(|origin| origin.to_string())
                 .join(","),
         )
+    }
+}
+#[derive(Clone, Debug)]
+pub struct PositionedSequenceParseError;
+impl std::fmt::Display for PositionedSequenceParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "PositionedSequenceParseError")
+    }
+}
+impl FromStr for PositionedSequence {
+    type Err = PositionedSequenceParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let segments: Vec<&str> = s.split(':').collect();
+        if segments.len() == 3 {
+            let seq = segments[0].as_bytes().to_vec();
+            let is_revcomp = if segments[1] == "+" {
+                false
+            } else if segments[1] == "-" {
+                true
+            } else {
+                return Err(PositionedSequenceParseError);
+            };
+            let origins: Vec<GenomeGraphPos> =
+                segments[2].split(',').map(|o| o.parse().unwrap()).collect();
+            Ok(PositionedSequence {
+                seq,
+                origins,
+                is_revcomp,
+            })
+        } else {
+            Err(PositionedSequenceParseError)
+        }
+    }
+}
+
+impl StoreableTypeTrait for PositionedSequence {
+    fn to_store_string(&self) -> String {
+        self.to_string()
+    }
+    fn from_store_str(s: &str) -> Self {
+        s.parse().unwrap()
     }
 }
 
@@ -450,6 +532,7 @@ impl std::fmt::Display for PositionedSequence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ni;
     #[test]
     fn seq_style() {
         let s = SeqStyle::Linear;
@@ -515,5 +598,21 @@ mod tests {
         assert_eq!(json, "[\"C:ATCGAT\",\"L:GGGC\"]");
         let xs: Vec<StyledSequence> = serde_json::from_str(&json).unwrap();
         assert_eq!(xs, xs0);
+    }
+    #[test]
+    fn positioned_seq_serialize() {
+        let s1 = PositionedSequence::new(
+            b"ATCG".to_vec(),
+            vec![
+                GenomeGraphPos::new(ni(0), 0),
+                GenomeGraphPos::new(ni(0), 1),
+                GenomeGraphPos::new(ni(0), 2),
+                GenomeGraphPos::new(ni(0), 3),
+            ],
+            true,
+        );
+        println!("{}", s1);
+        let s1b = PositionedSequence::from_str(&s1.to_string()).unwrap();
+        assert_eq!(s1, s1b);
     }
 }

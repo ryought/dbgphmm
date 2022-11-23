@@ -2,7 +2,6 @@
 //! Dbg serialization
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use crate::common::collection::BaseType;
 use crate::common::{CopyNum, Seq, Sequence};
 use crate::kmer::{KmerLike, NullableKmer};
 use petgraph::graph::{DiGraph, NodeIndex};

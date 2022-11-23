@@ -2,7 +2,9 @@
 //! HashDbg
 //!
 use crate::common::{CopyNum, Reads, Seq, StyledSequence};
-use crate::kmer::kmer::{sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike};
+use crate::kmer::kmer::{
+    linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
+};
 use fnv::FnvHashMap as HashMap;
 use std::iter::Iterator;
 
@@ -97,6 +99,14 @@ impl<K: KmerLike> HashDbg<K> {
         }
     }
     ///
+    /// add all kmers in linear fragment seq (without NNN kmers)
+    ///
+    pub fn add_fragment_seq(&mut self, seq: &[u8]) {
+        for kmer in linear_fragment_sequence_to_kmers(seq, self.k()) {
+            self.add(kmer, 1);
+        }
+    }
+    ///
     /// add all kmers in styled sequence
     ///
     pub fn add_styled_sequence(&mut self, s: &StyledSequence) {
@@ -147,6 +157,23 @@ impl<K: KmerLike> HashDbg<K> {
             // ignore read if it is shorter than k
             if seq.len() >= k {
                 d.add_seq(seq);
+            }
+        }
+        d
+    }
+    /// Construct HashDbg from seqs regarding as Fragments
+    /// Ignoring heads and tails (like nnnA and Gnnn).
+    ///
+    pub fn from_fragment_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let mut d = HashDbg::new(k);
+        for seq in seqs {
+            let seq = seq.as_ref();
+            if seq.len() >= k {
+                d.add_fragment_seq(seq);
             }
         }
         d

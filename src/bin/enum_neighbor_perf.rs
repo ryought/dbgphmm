@@ -29,7 +29,7 @@ fn main() {
     dbg_true.remove_zero_copy_node();
     let (copy_nums_true, _) = dbg_true
         .to_copy_nums_of_styled_seqs(&genome)
-        .unwrap_or_else(|err| panic!("true kmers {} is missing", kmers_to_string(&err)));
+        .unwrap_or_else(|err| panic!("{}", err));
     dbg_true.set_node_copy_nums(&copy_nums_true);
 
     println!("# genome={}", genome[0]);

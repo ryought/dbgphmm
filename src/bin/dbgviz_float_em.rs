@@ -66,7 +66,7 @@ fn run_simple() {
 
         let result = em(
             &fdbg,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &param,
             genome_size as CopyDensity,
             0.001,
@@ -149,7 +149,7 @@ fn run_upgrade() {
 
     run(
         &fdbg,
-        dataset.reads(),
+        &dataset.reads().clone().to_reads(),
         &param,
         genome_size as CopyDensity,
         0.001,
@@ -209,7 +209,7 @@ fn run_frag() {
         // upgrade
         run(
             &fdbg,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &param,
             genome_size as CopyDensity,
             0.001,
@@ -227,7 +227,7 @@ fn run_frag() {
         // single
         let result = em(
             &fdbg,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &param,
             genome_size as CopyDensity,
             0.001,

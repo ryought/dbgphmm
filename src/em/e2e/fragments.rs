@@ -30,15 +30,15 @@ mod tests {
         let coverage = 10;
         let read_length = 50;
         generate_experiment(
-            genome,                //
-            genome_size,           //
-            11,                    // read_seed
-            PHMMParams::default(), //
-            coverage,              //
-            read_length,           //
-            ReadType::Fragment,    //
-            8,                     // k_init
-            read_length,           // k_target
+            genome,                        //
+            genome_size,                   //
+            11,                            // read_seed
+            PHMMParams::default(),         //
+            coverage,                      //
+            read_length,                   //
+            ReadType::FragmentWithRevComp, //
+            8,                             // k_init
+            read_length,                   // k_target
         )
     }
 
@@ -57,7 +57,7 @@ mod tests {
         */
         let (dbg, logs) = compression(
             &dataset.dbg_raw,
-            dataset.reads(),
+            &dataset.reads().clone().to_reads(),
             &PHMMParams::default(),
             1.0,
             10,

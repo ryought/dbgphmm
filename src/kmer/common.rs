@@ -70,6 +70,13 @@ pub trait KmerLike:
     ///
     /// XYYYY -> [YYYYA, YYYYC, YYYYG, YYYYT]
     ///
+    /// # Examples
+    ///
+    /// ACGT -> CGTA, CGTC, CGTG, CGTT, CGTn
+    /// nnnA -> nnAA, nnAC, nnAG, nnAT
+    /// Cnnn -> nnnA, nnnC, nnnG
+    /// ACnn -> Cnnn
+    ///
     fn childs(&self) -> Vec<Self>;
     ///
     /// YYYYZ -> [AYYYY, CYYYY, GYYYY, TYYYY]
@@ -92,6 +99,30 @@ pub trait KmerLike:
         let parents = self.parents();
         childs.extend(parents);
         childs
+    }
+    /// ATCG -> [nATC, nnAT, nnnA]
+    fn starting_kmers(&self) -> Vec<Self> {
+        assert!(!self.has_null());
+        let mut ret = Vec::new();
+        let mut prefix = self.prefix();
+        for _ in 0..(self.k() - 1) {
+            let kmer = prefix.extend_first(NULL_BASE);
+            prefix = kmer.prefix();
+            ret.push(kmer);
+        }
+        ret
+    }
+    /// ATCG -> [TCGn, CGnn, Gnnn]
+    fn ending_kmers(&self) -> Vec<Self> {
+        assert!(!self.has_null());
+        let mut ret = Vec::new();
+        let mut suffix = self.suffix();
+        for _ in 0..(self.k() - 1) {
+            let kmer = suffix.extend_last(NULL_BASE);
+            suffix = kmer.suffix();
+            ret.push(kmer);
+        }
+        ret
     }
     ///
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
@@ -133,8 +164,18 @@ pub trait KmerLike:
     /// first base is N
     /// TODO check that the rest is not N
     ///
-    fn is_starting(&self) -> bool {
+    fn is_starting(&self) -> bool;
+    ///
+    /// check if nXXX or nnXX or nnnX
+    ///
+    fn is_left_end(&self) -> bool {
         self.first() == NULL_BASE
+    }
+    ///
+    /// check if XXXn or XXnn or Xnnn
+    ///
+    fn is_right_end(&self) -> bool {
+        self.last() == NULL_BASE
     }
     ///
     /// (YYY, X) -> XYYY
@@ -459,17 +500,37 @@ mod tests {
     }
     #[test]
     fn kmer_null() {
-        let a = VecKmer::from_bases(b"nnnn");
-        assert!(a.is_null());
-        assert!(a.has_null());
+        {
+            let a = VecKmer::from_bases(b"nnnn");
+            assert!(a.is_null());
+            assert!(a.has_null());
+            println!("{}", kmers_to_string(&a.childs()));
+            println!("{}", kmers_to_string(&a.parents()));
+        }
 
-        let b = VecKmer::from_bases(b"nnnT");
-        assert!(!b.is_null());
-        assert!(b.has_null());
+        {
+            let b = VecKmer::from_bases(b"nnnT");
+            assert!(!b.is_null());
+            assert!(b.has_null());
+            println!("{}", kmers_to_string(&b.childs()));
+            println!("{}", kmers_to_string(&b.parents()));
+        }
 
-        let c = VecKmer::from_bases(b"TGAC");
-        assert!(!c.is_null());
-        assert!(!c.has_null());
+        {
+            let c = VecKmer::from_bases(b"TGAC");
+            assert!(!c.is_null());
+            assert!(!c.has_null());
+            println!("{}", kmers_to_string(&c.childs()));
+            println!("{}", kmers_to_string(&c.parents()));
+        }
+
+        {
+            let d = VecKmer::from_bases(b"Tnnn");
+            assert!(!d.is_null());
+            assert!(d.has_null());
+            println!("{}", kmers_to_string(&d.childs()));
+            println!("{}", kmers_to_string(&d.parents()));
+        }
     }
     #[test]
     fn kmer_order() {
@@ -492,6 +553,31 @@ mod tests {
                 VecKmer::from_bases(b"CTAG"),
                 VecKmer::from_bases(b"TTTT"),
                 VecKmer::from_bases(b"nnnn"),
+            ]
+        );
+    }
+    #[test]
+    fn kmer_starting_ending() {
+        let kmer = VecKmer::from_bases(b"ATCG");
+        let starting = kmer.starting_kmers();
+        println!("{}", kmers_to_string(&starting));
+        assert_eq!(
+            starting,
+            vec![
+                VecKmer::from_bases(b"nATC"),
+                VecKmer::from_bases(b"nnAT"),
+                VecKmer::from_bases(b"nnnA"),
+            ]
+        );
+
+        let ending = kmer.ending_kmers();
+        println!("{}", kmers_to_string(&ending));
+        assert_eq!(
+            ending,
+            vec![
+                VecKmer::from_bases(b"TCGn"),
+                VecKmer::from_bases(b"CGnn"),
+                VecKmer::from_bases(b"Gnnn"),
             ]
         );
     }

@@ -191,6 +191,11 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     pub fn is_emittable(&self, node: NodeIndex) -> bool {
         self.graph.node_weight(node).unwrap().is_emittable()
     }
+    /// determine if the node is emittable or not
+    pub fn is_starting_or_ending(&self, node: NodeIndex) -> bool {
+        let kmer = self.kmer(node);
+        kmer.is_left_end() || kmer.is_right_end()
+    }
     /// check if two nodes `a, b: NodeIndex` is connected or not
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
@@ -228,6 +233,20 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
         self.edges()
             .find(|(_, v, w, _)| self.kmer(*v) == &prefix && self.kmer(*w) == &suffix)
             .map(|(e, _, _, _)| e)
+    }
+    /// List up source nodes (= nodes with no incoming edges)
+    pub fn get_sources(&self) -> Vec<NodeIndex> {
+        self.graph
+            .node_indices()
+            .filter(|&node| self.graph.edges_directed(node, Direction::Incoming).count() == 0)
+            .collect()
+    }
+    /// List up sink nodes (= nodes with no outgoing edges)
+    pub fn get_sinks(&self) -> Vec<NodeIndex> {
+        self.graph
+            .node_indices()
+            .filter(|&node| self.graph.edges_directed(node, Direction::Outgoing).count() == 0)
+            .collect()
     }
 }
 impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
@@ -432,6 +451,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         h
     }
+    ///
+    /// Get copy_num of the node
+    ///
+    pub fn copy_num(&self, node: NodeIndex) -> CopyNum {
+        self.node(node).copy_num()
+    }
 }
 
 ///
@@ -548,7 +573,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Calculate a path (= a list of nodes) that gives the sequence as a emission along the path
     /// as a sequence with SeqStyle::Linear.
     ///
-    fn to_nodes_of_seq(&self, seq: &[u8]) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
+    fn to_nodes_of_seq(&self, seq: &[u8]) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_nodes_of_styled_seq(&styled_sequence)
     }
@@ -558,7 +583,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// If the sequence cannot be emitted using a path in the dbg, returns None.
     ///
-    fn to_nodes_of_styled_seq(&self, seq: &StyledSequence) -> Result<Vec<NodeIndex>, Vec<N::Kmer>> {
+    fn to_nodes_of_styled_seq(
+        &self,
+        seq: &StyledSequence,
+    ) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
         let m = self.to_kmer_map();
         let mut nodes: Vec<NodeIndex> = Vec::new();
         let mut missing_kmers = Vec::new();
@@ -572,7 +600,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         if missing_kmers.is_empty() {
             Ok(nodes)
         } else {
-            Err(missing_kmers)
+            Err(KmerNotFoundError::new(missing_kmers))
         }
     }
     ///
@@ -581,7 +609,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_seq(
         &self,
         seq: &[u8],
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>> {
         let styled_sequence = StyledSequence::new(seq.to_vec(), SeqStyle::Linear);
         self.to_copy_nums_of_styled_seq(&styled_sequence)
     }
@@ -594,7 +622,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_styled_seqs<T>(
         &self,
         seqs: T,
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>>
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
@@ -610,14 +638,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     nc_ret += &nc;
                     ec_ret += &ec;
                 }
-                Err(mut missings) => missing_kmers.append(&mut missings),
+                Err(mut missings) => missing_kmers.append(missings.missing_kmers_mut()),
             }
         }
 
         if missing_kmers.is_empty() {
             Ok((nc_ret, ec_ret))
         } else {
-            Err(missing_kmers)
+            Err(KmerNotFoundError::new(missing_kmers))
         }
     }
     ///
@@ -626,13 +654,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_copy_nums_of_styled_seq(
         &self,
         seq: &StyledSequence,
-    ) -> Result<(NodeCopyNums, EdgeCopyNums), Vec<N::Kmer>> {
+    ) -> Result<(NodeCopyNums, EdgeCopyNums), KmerNotFoundError<N::Kmer>> {
         // vectors to be returned
         let mut nc: NodeCopyNums = NodeCopyNums::new(self.n_nodes(), 0);
         let mut ec: EdgeCopyNums = EdgeCopyNums::new(self.n_edges(), 0);
 
         match self.to_nodes_of_styled_seq(seq) {
-            Err(missings) => Err(missings),
+            Err(err) => Err(err),
             Ok(nodes) => {
                 // add node counts
                 for &node in nodes.iter() {
@@ -666,15 +694,33 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
     {
-        let (copy_nums_true, _) =
-            self.to_copy_nums_of_styled_seqs(seqs)
-                .unwrap_or_else(|missing_kmers| {
-                    panic!(
-                        "some true k-mers ({}) are not in the dbg",
-                        kmers_to_string(&missing_kmers)
-                    )
-                });
+        let (copy_nums_true, _) = self
+            .to_copy_nums_of_styled_seqs(seqs)
+            .unwrap_or_else(|missing_kmers| panic!("{}", missing_kmers));
         self.set_node_copy_nums(&copy_nums_true);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct KmerNotFoundError<K: KmerLike>(Vec<K>);
+impl<K: KmerLike> KmerNotFoundError<K> {
+    pub fn new(missing_kmers: Vec<K>) -> Self {
+        KmerNotFoundError(missing_kmers)
+    }
+    pub fn missing_kmers(&self) -> &[K] {
+        &self.0
+    }
+    pub fn missing_kmers_mut(&mut self) -> &mut Vec<K> {
+        &mut self.0
+    }
+}
+impl<K: KmerLike> std::fmt::Display for KmerNotFoundError<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "some kmers ({}) are missing",
+            kmers_to_string(self.missing_kmers())
+        )
     }
 }
 
@@ -729,25 +775,76 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
 ///
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
-    /// WIP
+    /// Add kmer to the de bruijn graph
+    /// if kmer already exists in the graph, update the copy_num
     ///
-    /// add kmer to the de bruijn graph, if not exists.
+    /// It does not works Dbg with edge-copy-nums.
     ///
-    /// # TODOs
-    ///
-    /// * determine the correct behaviour when the same kmer exists?
-    /// * after this addition, the copy-number consistency will be broken.
-    ///
-    pub fn add_kmer(&mut self, kmer: N::Kmer, copy_num: CopyNum) -> Option<NodeIndex> {
+    pub fn add_kmer(&mut self, kmer: N::Kmer, copy_num: CopyNum) -> NodeIndex {
         match self.get_kmer(&kmer) {
             Some(node) => {
-                panic!("kmer {} is already exists as node {:?}", kmer, node);
+                // update the exising node
+                let current_copy_num = self.graph.node_weight(node).unwrap().copy_num();
+                self.graph
+                    .node_weight_mut(node)
+                    .unwrap()
+                    .set_copy_num(current_copy_num + copy_num);
+                node
             }
             None => {
-                let node = self.graph.add_node(N::new(kmer, copy_num));
-                // TODO add edges between parents/childs
-                Some(node)
+                // add a new node
+                let node = self.graph.add_node(N::new(kmer.clone(), copy_num));
+
+                // add edges between parents/childs
+                for parent_kmer in kmer.parents() {
+                    if let Some(parent) = self.get_kmer(&parent_kmer) {
+                        // add edge parent_kmer -> kmer
+                        self.graph.add_edge(parent, node, E::new(None));
+                    }
+                }
+                for child_kmer in kmer.childs() {
+                    if let Some(child) = self.get_kmer(&child_kmer) {
+                        // add edge child_kmer -> kmer
+                        self.graph.add_edge(node, child, E::new(None));
+                    }
+                }
+                node
             }
+        }
+    }
+    ///
+    /// For source node (= no incoming edges), add all starting kmers of the node.
+    ///
+    /// Example: AGCT (source) -> add nACG, nnAC, nnnA
+    ///
+    pub fn add_starting_kmers(&mut self, source_node: NodeIndex) {
+        let copy_num = self.copy_num(source_node);
+        for starting_kmer in self.kmer(source_node).starting_kmers() {
+            self.add_kmer(starting_kmer, copy_num);
+        }
+    }
+    ///
+    /// For sink node (= no outgoing edges), add all ending kmers of the node.
+    ///
+    /// Example: AGCT (sink) -> add GCTn, CTnn, Tnn
+    ///
+    pub fn add_ending_kmers(&mut self, sink_node: NodeIndex) {
+        let copy_num = self.copy_num(sink_node);
+        for ending_kmer in self.kmer(sink_node).ending_kmers() {
+            self.add_kmer(ending_kmer, copy_num);
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn augment_sources_and_sinks(&mut self) {
+        let sources = self.get_sources();
+        let sinks = self.get_sinks();
+        for source in sources {
+            self.add_starting_kmers(source);
+        }
+        for sink in sinks {
+            self.add_ending_kmers(sink);
         }
     }
 }
@@ -817,6 +914,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T::Item: Seq,
     {
         let hd = HashDbg::from_seqs(k, seqs);
+        Self::from_hashdbg(&hd)
+    }
+    /// Construct Dbg from Fragment Reads
+    /// via converting HashDbg into Dbg.
+    ///
+    /// **Note** the resulting Dbg can break the flow consistency of node copy numbers.
+    pub fn from_fragment_seqs<T>(k: usize, seqs: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let hd = HashDbg::from_fragment_seqs(k, seqs);
         Self::from_hashdbg(&hd)
     }
     /// Construct Dbg from styled Reads
@@ -1149,6 +1258,7 @@ mod tests {
     use crate::common::sequence_to_string;
     use crate::dbg::edge_centric::EDbgEdge;
     use crate::kmer::veckmer::VecKmer;
+    use crate::utils::is_equal_as_set;
 
     #[test]
     fn dbg_new() {
@@ -1558,6 +1668,132 @@ mod tests {
         )
     }
     #[test]
+    fn dbg_node_add() {
+        let mut dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(4, &vec![b"CATTCGAC".to_vec()]);
+        println!("N={} E={}", dbg.n_nodes(), dbg.n_edges());
+        println!("{}", dbg.to_dot());
+        assert_eq!(dbg.n_nodes(), 11);
+        assert_eq!(dbg.n_edges(), 11);
+
+        // 1 node (TTCA) and 1 edge (ATTC -> *) will be added
+        dbg.add_kmer(VecKmer::from_bases(b"TTCA"), 1);
+        println!("N={} E={}", dbg.n_nodes(), dbg.n_edges());
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_graph_valid());
+        assert_eq!(dbg.n_nodes(), 12);
+        assert_eq!(dbg.n_edges(), 12);
+
+        // 1 node (TCAT) and 2 edge (* -> CATT and TTCA -> *)  will be added
+        dbg.add_kmer(VecKmer::from_bases(b"TCAT"), 1);
+        println!("N={} E={}", dbg.n_nodes(), dbg.n_edges());
+        println!("{}", dbg.to_dot());
+        assert!(dbg.is_graph_valid());
+        assert_eq!(dbg.n_nodes(), 13);
+        assert_eq!(dbg.n_edges(), 14);
+
+        // 0 node and 0 edge will be added. copy_num of TCAT will be 2.
+        dbg.add_kmer(VecKmer::from_bases(b"TCAT"), 1);
+        println!("{}", dbg.to_dot());
+        assert_eq!(dbg.n_nodes(), 13);
+        assert_eq!(dbg.n_edges(), 14);
+        assert_eq!(
+            dbg.node(
+                dbg.find_node_from_kmer(&VecKmer::from_bases(b"TCAT"))
+                    .unwrap()
+            )
+            .copy_num(),
+            2
+        );
+    }
+    #[test]
+    fn dbg_from_fragment_seqs() {
+        // construction
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::from_fragment_seqs(4, &vec![b"ATTCGAC".to_vec(), b"TCGACCA".to_vec()]);
+        println!("{}", dbg.to_dot());
+        assert!(dbg.has_no_duplicated_node());
+        assert!(dbg.has_no_parallel_edge());
+        assert!(dbg.is_graph_valid());
+        let kmers: Vec<VecKmer> = dbg.nodes().map(|(_, w)| w.kmer().clone()).collect();
+        let kmers_true = vec![
+            VecKmer::from_bases(b"ATTC"),
+            VecKmer::from_bases(b"TTCG"),
+            VecKmer::from_bases(b"TCGA"),
+            VecKmer::from_bases(b"CGAC"),
+            VecKmer::from_bases(b"GACC"),
+            VecKmer::from_bases(b"ACCA"),
+        ];
+        assert!(is_equal_as_set(&kmers, &kmers_true));
+        assert_eq!(
+            dbg.node(
+                dbg.find_node_from_kmer(&VecKmer::from_bases(b"TCGA"))
+                    .unwrap()
+            )
+            .copy_num(),
+            2
+        );
+        assert_eq!(
+            dbg.node(
+                dbg.find_node_from_kmer(&VecKmer::from_bases(b"CGAC"))
+                    .unwrap()
+            )
+            .copy_num(),
+            2
+        );
+
+        // adding tips
+        let sources = dbg.get_sources();
+        println!("{:?}", sources);
+        assert_eq!(
+            sources,
+            vec![dbg
+                .find_node_from_kmer(&VecKmer::from_bases(b"ATTC"))
+                .unwrap()]
+        );
+        let sinks = dbg.get_sinks();
+        println!("{:?}", sinks);
+        assert_eq!(
+            sinks,
+            vec![dbg
+                .find_node_from_kmer(&VecKmer::from_bases(b"ACCA"))
+                .unwrap()]
+        );
+
+        let kmers_true = vec![
+            VecKmer::from_bases(b"nnnA"),
+            VecKmer::from_bases(b"nnAT"),
+            VecKmer::from_bases(b"nATT"),
+            VecKmer::from_bases(b"ATTC"),
+            VecKmer::from_bases(b"TTCG"),
+            VecKmer::from_bases(b"TCGA"),
+            VecKmer::from_bases(b"CGAC"),
+            VecKmer::from_bases(b"GACC"),
+            VecKmer::from_bases(b"ACCA"),
+            VecKmer::from_bases(b"CCAn"),
+            VecKmer::from_bases(b"CAnn"),
+            VecKmer::from_bases(b"Annn"),
+        ];
+        {
+            let mut dbg_new = dbg.clone();
+            dbg_new.add_starting_kmers(sources[0]);
+            println!("{}", dbg_new.to_dot());
+            dbg_new.add_ending_kmers(sinks[0]);
+            println!("{}", dbg_new.to_dot());
+            assert!(dbg_new.is_graph_valid());
+            assert!(dbg_new.has_no_duplicated_node());
+            let kmers: Vec<VecKmer> = dbg_new.nodes().map(|(_, w)| w.kmer().clone()).collect();
+            assert!(is_equal_as_set(&kmers, &kmers_true));
+        }
+        {
+            let mut dbg_new = dbg.clone();
+            dbg_new.augment_sources_and_sinks();
+            println!("{}", dbg_new.to_dot());
+            assert!(dbg_new.is_graph_valid());
+            assert!(dbg_new.has_no_duplicated_node());
+            let kmers: Vec<VecKmer> = dbg_new.nodes().map(|(_, w)| w.kmer().clone()).collect();
+            assert!(is_equal_as_set(&kmers, &kmers_true));
+        }
+    }
     fn dbg_kp1_naive() {
         {
             let dbg0 = mock_base();

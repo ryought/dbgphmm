@@ -76,10 +76,7 @@ fn main() {
 
     println!("# started_at={}", chrono::Local::now());
     println!("# opts={:?}", opts);
-    println!("# n_hap={}", genome.len());
-    for i in 0..genome.len() {
-        println!("# genome[{}]={}", i, genome[i]);
-    }
+    experiment.show_genome();
     let mut k = dbg.k();
 
     while k <= opts.k_final {
