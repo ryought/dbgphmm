@@ -801,6 +801,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             }
         }
     }
+    ///
+    /// For source node (= no incoming edges)
+    ///
+    pub fn add_starting_kmers(&mut self, source_node: NodeIndex) {
+        unimplemented!();
+    }
 }
 
 ///
