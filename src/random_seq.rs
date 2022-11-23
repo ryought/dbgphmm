@@ -148,13 +148,24 @@ pub fn random_mutation(
     seed: u64,
 ) -> (Sequence, Vec<EditOperation>) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+    random_mutation_with_rng(seq, profile, &mut rng)
+}
+
+///
+/// Mutate randomly with MutationProfile
+///
+pub fn random_mutation_with_rng<R: Rng>(
+    seq: &Sequence,
+    profile: MutationProfile,
+    rng: &mut R,
+) -> (Sequence, Vec<EditOperation>) {
     let n_mutations = (seq.len() as f64 * profile.divergence_rate)
         .round()
         .max(0.0) as usize;
 
     // create operations
     let ops: Vec<_> = (0..n_mutations)
-        .map(|_| pick_operation(&mut rng, seq, profile))
+        .map(|_| pick_operation(rng, seq, profile))
         .collect();
 
     // apply the operations to copied seq

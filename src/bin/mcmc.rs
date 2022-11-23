@@ -34,7 +34,7 @@ fn run_mcmc() {
         param,
         coverage,
         2000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         opts.k,
         40,
     );

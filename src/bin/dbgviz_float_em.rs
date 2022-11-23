@@ -39,7 +39,7 @@ fn run_simple() {
         param.clone(),
         coverage,
         2000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         8,
         64,
     );
@@ -128,7 +128,7 @@ fn run_upgrade() {
         param.clone(),
         coverage,
         2000,
-        ReadType::FullLength,
+        ReadType::FullLengthForHaploid,
         8,
         64,
     );

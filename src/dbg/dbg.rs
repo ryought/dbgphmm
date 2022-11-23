@@ -696,7 +696,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let (copy_nums_true, _) = self
             .to_copy_nums_of_styled_seqs(seqs)
-            .expect("some true k-mer are not in the dbg, abort");
+            .unwrap_or_else(|missing_kmers| panic!("{}", missing_kmers));
         self.set_node_copy_nums(&copy_nums_true);
     }
 }
@@ -1042,6 +1042,56 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 SimpleEDbgEdgeWithAttr::new_with_attr(kmer, copy_num, node, attr)
             },
         )
+    }
+    ///
+    /// Assign naive copynums to all edges by naive resolving of intersections
+    /// Returns the number of ambiguous intersections.
+    ///
+    pub fn assign_naive_edge_copy_nums(&mut self) -> usize {
+        let default_value = 0;
+        let mut n_ambiguous = 0;
+        let mut ecn = EdgeCopyNums::new(self.n_edges(), default_value);
+        for fi in self.iter_intersections() {
+            if fi.is_ambiguous() {
+                n_ambiguous += 1;
+            }
+            if !fi.is_tip_intersection() {
+                let fio = fi.resolve_naive();
+                assert!(fio.has_valid_node_copy_nums());
+                assert!(fio.all_edge_copy_nums_consistent());
+                assert!(fio.is_resolved());
+                for (_, _, e) in fio.iter_edges() {
+                    assert!(ecn[e.index] == default_value);
+                    ecn[e.index] = e.copy_num.unwrap();
+                }
+            }
+        }
+        self.set_edge_copy_nums(Some(&ecn));
+        n_ambiguous
+    }
+    ///
+    /// extend to k+1 dbg by using naive resolving
+    ///
+    pub fn to_kp1_dbg_naive(&self) -> (Dbg<N, E>, usize) {
+        let mut dbg = self.clone();
+        let n_ambiguous = dbg.assign_naive_edge_copy_nums();
+        (dbg.to_kp1_dbg(), n_ambiguous)
+    }
+    pub fn to_k_max_dbg_naive(&self, k_max: usize) -> Dbg<N, E> {
+        let mut dbg = self.clone();
+        let mut k = dbg.k();
+        while k < k_max {
+            let n_ambiguous = dbg.assign_naive_edge_copy_nums();
+            dbg = dbg.to_kp1_dbg();
+            k = dbg.k();
+            if k == k_max {
+                break;
+            }
+            if n_ambiguous > 0 {
+                break;
+            }
+        }
+        dbg
     }
     ///
     /// Create a `k+1` dbg from the `k` dbg whose edge copy numbers are
@@ -1742,6 +1792,52 @@ mod tests {
             assert!(dbg_new.has_no_duplicated_node());
             let kmers: Vec<VecKmer> = dbg_new.nodes().map(|(_, w)| w.kmer().clone()).collect();
             assert!(is_equal_as_set(&kmers, &kmers_true));
+        }
+    }
+    fn dbg_kp1_naive() {
+        {
+            let dbg0 = mock_base();
+            let (dbg1, n) = dbg0.to_kp1_dbg_naive();
+            println!("{}", dbg0.to_dot());
+            println!("{}", dbg1.to_dot());
+            println!("{}", n);
+            assert_eq!(
+                dbg0.to_styled_seqs(),
+                vec![StyledSequence::linear(b"ATCGGCT".to_vec())]
+            );
+            assert_eq!(dbg0.k(), 4);
+            assert_eq!(
+                dbg1.to_styled_seqs(),
+                vec![StyledSequence::linear(b"ATCGGCT".to_vec())]
+            );
+            assert_eq!(dbg1.k(), 5);
+            assert_eq!(n, 0);
+
+            let dbgf = dbg0.to_k_max_dbg_naive(20);
+            println!("{}", dbgf.to_dot());
+            assert_eq!(dbgf.k(), 20);
+        }
+
+        {
+            let dbg0 = mock_intersection();
+            let (dbg1, n) = dbg0.to_kp1_dbg_naive();
+            println!("{}", dbg0.to_dot());
+            println!("{}", dbg1.to_dot());
+            println!("{}", n);
+            assert!(dbg1.is_valid());
+            let kmer_copynum = |kmer: &VecKmer| {
+                dbg1.node(dbg1.find_node_from_kmer(kmer).unwrap())
+                    .copy_num()
+            };
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"GTAGC")), 0);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"GTAGG")), 1);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGC")), 1);
+            assert_eq!(kmer_copynum(&VecKmer::from_bases(b"CTAGG")), 0);
+            assert_eq!(n, 1);
+
+            let dbgf = dbg0.to_k_max_dbg_naive(20);
+            println!("dbgf {}", dbgf.to_dot());
+            assert_eq!(dbgf.k(), 5);
         }
     }
 }

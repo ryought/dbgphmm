@@ -69,6 +69,16 @@ impl GreedyScore for DbgCopyNumsScore {
 
 pub type Posterior<K> = Vec<(Prob, DbgCopyNumsInstance<K>, DbgCopyNumsScore)>;
 
+pub fn get_max_posterior_instance<K: KmerLike>(
+    posterior: &Posterior<K>,
+) -> &DbgCopyNumsInstance<K> {
+    posterior
+        .iter()
+        .max_by_key(|(p, _, _)| *p)
+        .map(|(_, instance, _)| instance)
+        .unwrap()
+}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn search_posterior(
         &self,

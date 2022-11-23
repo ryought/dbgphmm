@@ -49,7 +49,7 @@ fn run(output_dir: &Path) {
                 PHMMParams::uniform(error_rate),
                 coverage,
                 2000,
-                ReadType::FullLength,
+                ReadType::FullLengthForHaploid,
                 k_init,
                 32,
             );

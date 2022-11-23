@@ -59,7 +59,7 @@ mod tests {
             PHMMParams::default(),
             10, // coverage
             2000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             32,
         );
@@ -105,7 +105,7 @@ mod tests {
             PHMMParams::default(),
             10, // coverage
             2000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             32,
         );
@@ -151,7 +151,7 @@ mod tests {
             PHMMParams::default(),
             10, // coverage
             2000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             32,
         );

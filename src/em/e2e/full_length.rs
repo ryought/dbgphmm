@@ -52,7 +52,7 @@ mod tests {
             PHMMParams::default(),
             count,
             1000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             k_target,
         )

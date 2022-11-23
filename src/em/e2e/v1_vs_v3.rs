@@ -23,7 +23,7 @@ mod tests {
             PHMMParams::uniform(0.01),
             coverage,
             2000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             32,
         );
@@ -73,7 +73,7 @@ mod tests {
             PHMMParams::uniform(0.003),
             coverage,
             2000,
-            ReadType::FullLength,
+            ReadType::FullLengthForHaploid,
             8,
             32,
         );
