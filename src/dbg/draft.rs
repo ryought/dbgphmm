@@ -4,6 +4,7 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
 use crate::common::{ei, ni, CopyNum, Freq, Seq};
 use crate::dbg::edge_centric::compact::compacted_flow_into_original_flow;
+use crate::distribution::kmer_coverage;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{
@@ -44,6 +45,27 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
         dbg
     }
+    ///
+    ///
+    ///
+    pub fn create_draft_from_fragment_seqs_with_adjusted_coverage<T>(
+        k: usize,
+        seqs: T,
+        base_coverage: f64,
+        ave_read_length: usize,
+        p_error: f64,
+    ) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let kmer_coverage = kmer_coverage(k, ave_read_length, base_coverage, p_error);
+        eprintln!(
+            "[draft_frag] base_coverage={} kmer_coverage={}",
+            base_coverage, kmer_coverage
+        );
+        Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage)
+    }
     /// Create draft dbg from fragment reads
     ///
     /// 1. construct dbg without considering starting/ending kmers (= use
@@ -73,14 +95,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         eprintln!("[draft_frag] n_edges={}", dbg.n_edges());
         dbg.augment_sources_and_sinks();
         // 3
-        // let freqs = dbg.to_node_freqs() / coverage as f64;
-        // dbg.set_copy_nums_all_zero();
-        // let (copy_nums_approx, cost) = dbg
-        //     .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true)
-        //     .unwrap();
-        // eprintln!("[draft] approx_cost={}", cost);
-        // dbg.set_node_copy_nums(&copy_nums_approx);
-        // eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
+        let freqs = dbg.to_node_freqs() / coverage as f64;
+        dbg.set_copy_nums_all_zero();
+        let (copy_nums_approx, cost) = dbg
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true)
+            .unwrap();
+        eprintln!("[draft] approx_cost={}", cost);
+        dbg.set_node_copy_nums(&copy_nums_approx);
+        eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
         dbg
     }
     ///
@@ -305,8 +327,15 @@ mod tests {
             dataset.show_genome();
             dataset.show_reads();
             println!("coverage={}", dataset.coverage());
+            // SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
             let dbg: SimpleDbg<VecKmer> =
-                SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
+                SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                    32,
+                    dataset.reads(),
+                    dataset.coverage(),
+                    50,     // 50bp read
+                    0.00_1, // 0.1% error
+                );
             // to check with cytoscape
             let check_with_cytoscape = false;
             if check_with_cytoscape {

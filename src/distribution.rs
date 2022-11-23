@@ -24,6 +24,16 @@ pub fn normal(x: f64, mu: f64, sigma: f64) -> Prob {
     Prob::from_log_prob((-0.5 * (2.0 * PI * sigma_2).ln()) - ((x - mu).powi(2) / (2.0 * sigma_2)))
 }
 
+/// Convert base-coverage into kmer-coverage
+///
+/// Given base-coverage=C read-length=L error-rate=p, kmer-coverage is `C * (L-k)/L * (1-p)^k`
+///
+pub fn kmer_coverage(k: usize, read_length: usize, base_coverage: f64, p_error: f64) -> f64 {
+    let ratio_length = (read_length - k) as f64 / read_length as f64;
+    let ratio_error = (1.0 - p_error).powi(k as i32);
+    base_coverage * ratio_length * ratio_error
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,5 +64,13 @@ mod tests {
         assert!((normal(1.0, 0.0, 1.0).to_value() - 0.2420).abs() < 0.0001);
         println!("z={}", z);
         assert!((z.to_value() - 1.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn kmer_coverage_test() {
+        println!("{}", kmer_coverage(16, 100, 10.0, 0.0));
+        println!("{}", kmer_coverage(16, 10_000, 10.0, 0.0));
+        println!("{}", kmer_coverage(40, 10_000, 10.0, 0.00_1)); // 0.1% 10k read
+        println!("{}", kmer_coverage(32, 50, 20.0, 0.00_1)); // small example
     }
 }
