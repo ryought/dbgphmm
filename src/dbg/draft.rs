@@ -37,7 +37,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
         let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false)
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
@@ -52,6 +52,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// 3. add starts/ends to all deadend nodes
     /// 4. assign approximate (flow consistent) copy nums by `min_squared_error`.
     ///
+    /// ## Known problems
+    /// * from fragmented reads, coverage can be overestimated (due to edge effects and k-mer-size
+    /// effects)
+    ///
     pub fn create_draft_from_fragment_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
     where
         T: IntoIterator,
@@ -65,8 +69,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         eprintln!("[draft_frag] copy_num_stats_raw={:?}", dbg.copy_num_stats());
         eprintln!("[draft_frag] degree_stats_raw={:?}", dbg.degree_stats());
         dbg.remove_nodes(2);
-        eprintln!("[draft_frag] n_nodes_raw={}", dbg.n_nodes());
-        eprintln!("[draft_frag] n_edges_raw={}", dbg.n_edges());
+        eprintln!("[draft_frag] n_nodes={}", dbg.n_nodes());
+        eprintln!("[draft_frag] n_edges={}", dbg.n_edges());
+        dbg.augment_sources_and_sinks();
+        // 3
+        // let freqs = dbg.to_node_freqs() / coverage as f64;
+        // dbg.set_copy_nums_all_zero();
+        // let (copy_nums_approx, cost) = dbg
+        //     .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true)
+        //     .unwrap();
+        // eprintln!("[draft] approx_cost={}", cost);
+        // dbg.set_node_copy_nums(&copy_nums_approx);
+        // eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
         dbg
     }
     ///
@@ -94,6 +108,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn min_squared_error_copy_nums_from_freqs_compacted(
         &self,
         freqs: &NodeFreqs,
+        ignore_startings_and_endings: bool,
     ) -> Option<(NodeCopyNums, Cost)> {
         let graph = self.to_compact_edbg_graph();
         // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
@@ -105,7 +120,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .iter()
                     .map(|&edge| {
                         let node = ni(edge.index());
-                        (self.is_emittable(node), freqs[node])
+                        let is_target = if ignore_startings_and_endings {
+                            self.is_emittable(node) && !self.is_starting_or_ending(node)
+                        } else {
+                            self.is_emittable(node)
+                        };
+                        (is_target, freqs[node])
                     })
                     .collect();
                 MinSquaredErrorCopyNumAndFreq::new(freqs)
@@ -152,7 +172,7 @@ struct MinSquaredErrorCopyNumAndFreq {
 
 impl MinSquaredErrorCopyNumAndFreq {
     ///
-    /// constructor
+    /// constructor from Vec<(is_target: bool, freq: Freeq)>
     ///
     pub fn new(freqs: Vec<(bool, Freq)>) -> Self {
         MinSquaredErrorCopyNumAndFreq { freqs }
@@ -263,7 +283,7 @@ mod tests {
 
         // (2) compact
         let (approx2, cost2) = dbg_raw
-            .min_squared_error_copy_nums_from_freqs_compacted(&freq)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freq, false)
             .unwrap();
         assert_eq!(approx2.dist(&copy_nums_true), 0);
         assert_eq!(approx2, approx);
@@ -277,25 +297,24 @@ mod tests {
         assert_eq!(approx.dist(&copy_nums_true), 0);
     }
     #[test]
-    fn dbg_create_draft_fragment_test_simple() {
-        let dataset = generate_simple_genome_fragment_dataset();
-        dataset.show_genome();
-        dataset.show_reads();
-        println!("coverage={}", dataset.coverage());
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
-        let json = dbg.to_cytoscape();
-        write_string("draft_from_fragment_simple.json", &json).unwrap();
-    }
-    #[test]
-    fn dbg_create_draft_fragment_test_tandem_repeat() {
-        let dataset = generate_tandem_repeat_fragment_dataset();
-        dataset.show_genome();
-        dataset.show_reads();
-        println!("coverage={}", dataset.coverage());
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
-        let json = dbg.to_cytoscape();
-        write_string("draft_from_fragment_tandem_repeat.json", &json).unwrap();
+    fn dbg_create_draft_fragment_test() {
+        for (label, dataset) in &[
+            ("simple", generate_simple_genome_fragment_dataset()),
+            ("tandem_repeat", generate_tandem_repeat_fragment_dataset()),
+        ] {
+            dataset.show_genome();
+            dataset.show_reads();
+            println!("coverage={}", dataset.coverage());
+            let dbg: SimpleDbg<VecKmer> =
+                SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
+            // to check with cytoscape
+            let check_with_cytoscape = false;
+            if check_with_cytoscape {
+                let json = dbg.to_cytoscape();
+                write_string(&format!("draft_from_fragment_{}.json", label), &json).unwrap();
+            }
+            // check if all the true kmers are in the graph
+            assert!(dbg.to_copy_nums_of_styled_seqs(dataset.genome()).is_ok());
+        }
     }
 }

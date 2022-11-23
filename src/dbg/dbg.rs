@@ -191,6 +191,11 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     pub fn is_emittable(&self, node: NodeIndex) -> bool {
         self.graph.node_weight(node).unwrap().is_emittable()
     }
+    /// determine if the node is emittable or not
+    pub fn is_starting_or_ending(&self, node: NodeIndex) -> bool {
+        let kmer = self.kmer(node);
+        kmer.is_left_end() || kmer.is_right_end()
+    }
     /// check if two nodes `a, b: NodeIndex` is connected or not
     pub fn contains_edge(&self, a: NodeIndex, b: NodeIndex) -> bool {
         self.graph.contains_edge(a, b)
@@ -445,6 +450,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             *h.entry(weight.copy_num()).or_insert(0) += 1;
         }
         h
+    }
+    ///
+    /// Get copy_num of the node
+    ///
+    pub fn copy_num(&self, node: NodeIndex) -> CopyNum {
+        self.node(node).copy_num()
     }
 }
 
@@ -802,10 +813,39 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
     }
     ///
-    /// For source node (= no incoming edges)
+    /// For source node (= no incoming edges), add all starting kmers of the node.
+    ///
+    /// Example: AGCT (source) -> add nACG, nnAC, nnnA
     ///
     pub fn add_starting_kmers(&mut self, source_node: NodeIndex) {
-        unimplemented!();
+        let copy_num = self.copy_num(source_node);
+        for starting_kmer in self.kmer(source_node).starting_kmers() {
+            self.add_kmer(starting_kmer, copy_num);
+        }
+    }
+    ///
+    /// For sink node (= no outgoing edges), add all ending kmers of the node.
+    ///
+    /// Example: AGCT (sink) -> add GCTn, CTnn, Tnn
+    ///
+    pub fn add_ending_kmers(&mut self, sink_node: NodeIndex) {
+        let copy_num = self.copy_num(sink_node);
+        for ending_kmer in self.kmer(sink_node).ending_kmers() {
+            self.add_kmer(ending_kmer, copy_num);
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn augment_sources_and_sinks(&mut self) {
+        let sources = self.get_sources();
+        let sinks = self.get_sinks();
+        for source in sources {
+            self.add_starting_kmers(source);
+        }
+        for sink in sinks {
+            self.add_ending_kmers(sink);
+        }
     }
 }
 
@@ -1668,5 +1708,40 @@ mod tests {
                 .find_node_from_kmer(&VecKmer::from_bases(b"ACCA"))
                 .unwrap()]
         );
+
+        let kmers_true = vec![
+            VecKmer::from_bases(b"nnnA"),
+            VecKmer::from_bases(b"nnAT"),
+            VecKmer::from_bases(b"nATT"),
+            VecKmer::from_bases(b"ATTC"),
+            VecKmer::from_bases(b"TTCG"),
+            VecKmer::from_bases(b"TCGA"),
+            VecKmer::from_bases(b"CGAC"),
+            VecKmer::from_bases(b"GACC"),
+            VecKmer::from_bases(b"ACCA"),
+            VecKmer::from_bases(b"CCAn"),
+            VecKmer::from_bases(b"CAnn"),
+            VecKmer::from_bases(b"Annn"),
+        ];
+        {
+            let mut dbg_new = dbg.clone();
+            dbg_new.add_starting_kmers(sources[0]);
+            println!("{}", dbg_new.to_dot());
+            dbg_new.add_ending_kmers(sinks[0]);
+            println!("{}", dbg_new.to_dot());
+            assert!(dbg_new.is_graph_valid());
+            assert!(dbg_new.has_no_duplicated_node());
+            let kmers: Vec<VecKmer> = dbg_new.nodes().map(|(_, w)| w.kmer().clone()).collect();
+            assert!(is_equal_as_set(&kmers, &kmers_true));
+        }
+        {
+            let mut dbg_new = dbg.clone();
+            dbg_new.augment_sources_and_sinks();
+            println!("{}", dbg_new.to_dot());
+            assert!(dbg_new.is_graph_valid());
+            assert!(dbg_new.has_no_duplicated_node());
+            let kmers: Vec<VecKmer> = dbg_new.nodes().map(|(_, w)| w.kmer().clone()).collect();
+            assert!(is_equal_as_set(&kmers, &kmers_true));
+        }
     }
 }
