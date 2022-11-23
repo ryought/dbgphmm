@@ -67,9 +67,7 @@ fn main() {
 
     println!("# started_at={}", chrono::Local::now());
     println!("# opts={:?}", opts);
-    for i in 0..genome.len() {
-        println!("# genome[{}]={}", i, genome[i]);
-    }
+    experiment.show_genome();
     println!("# k={}", dbg.k());
     println!("# n_dead_nodes={}", dbg.n_dead_nodes());
     println!("# n_nodes={}", dbg.n_nodes());

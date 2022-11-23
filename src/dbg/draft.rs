@@ -31,8 +31,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg.remove_deadend_nodes();
         eprintln!("[draft] n_nodes={}", dbg.n_nodes());
         eprintln!("[draft] n_edges={}", dbg.n_edges());
-        eprintln!("[draft] {:?}", dbg.copy_num_stats());
-        eprintln!("[draft] {:?}", dbg.degree_stats());
+        eprintln!("[draft] copy_num_stats_raw={:?}", dbg.copy_num_stats());
+        eprintln!("[draft] degree_stats={:?}", dbg.degree_stats());
         // 3
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
@@ -41,7 +41,28 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
-        eprintln!("[draft] {:?}", dbg.copy_num_stats());
+        eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
+        dbg
+    }
+    /// Create draft dbg from fragment reads
+    ///
+    /// WIP
+    ///
+    pub fn create_draft_from_fragment_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        eprintln!("[draft_frag] constructing raw dbg");
+        let mut dbg = Self::from_fragment_seqs(k, seqs);
+        assert!(dbg.has_no_duplicated_node());
+        eprintln!("[draft_frag] n_nodes_raw={}", dbg.n_nodes());
+        eprintln!("[draft_frag] n_edges_raw={}", dbg.n_edges());
+        eprintln!("[draft_frag] copy_num_stats_raw={:?}", dbg.copy_num_stats());
+        eprintln!("[draft_frag] degree_stats_raw={:?}", dbg.degree_stats());
+        dbg.remove_nodes(2);
+        eprintln!("[draft_frag] n_nodes_raw={}", dbg.n_nodes());
+        eprintln!("[draft_frag] n_edges_raw={}", dbg.n_edges());
         dbg
     }
     ///
@@ -180,7 +201,8 @@ mod tests {
     use super::*;
     use crate::dbg::mocks;
     use crate::dbg::SimpleDbg;
-    use crate::e2e::{generate_simple_genome_fragment_mock, generate_simple_genome_mock};
+    use crate::e2e::{generate_simple_genome_fragment_dataset, generate_simple_genome_mock};
+    use crate::io::write_string;
     use crate::kmer::VecKmer;
 
     #[test]
@@ -249,7 +271,13 @@ mod tests {
     }
     #[test]
     fn dbg_create_draft_fragment_test() {
-        let experiment = generate_simple_genome_fragment_mock();
-        experiment.show_reads();
+        let dataset = generate_simple_genome_fragment_dataset();
+        dataset.show_genome();
+        dataset.show_reads();
+        println!("coverage={}", dataset.coverage());
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs(32, dataset.reads(), dataset.coverage());
+        let json = dbg.to_cytoscape();
+        write_string("draft_from_fragment.json", &json).unwrap();
     }
 }

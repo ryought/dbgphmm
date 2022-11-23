@@ -80,6 +80,11 @@ impl Dataset {
     pub fn show_reads(&self) {
         self.reads().show_reads()
     }
+    pub fn show_genome(&self) {
+        for i in 0..self.genome().len() {
+            println!("# genome[{}]={}", i, self.genome()[i]);
+        }
+    }
 }
 
 ///
@@ -133,11 +138,13 @@ impl Experiment {
     pub fn reads(&self) -> &PositionedReads {
         &self.dataset.reads
     }
-    ///
-    /// show reads alias
-    ///
+    /// Alias of Experiment.dataset.show_reads
     pub fn show_reads(&self) {
         self.dataset.show_reads()
+    }
+    /// Alias of Experiment.dataset.show_genome
+    pub fn show_genome(&self) {
+        self.dataset.show_genome()
     }
 }
 
@@ -337,19 +344,17 @@ pub fn generate_simple_genome_mock() -> Experiment {
 /// * 200bp simple genome
 /// * p=0.1% 20x fragment reads 50bp fixed length reads
 ///
-pub fn generate_simple_genome_fragment_mock() -> Experiment {
+pub fn generate_simple_genome_fragment_dataset() -> Dataset {
     let (genome, genome_size) = genome::simple(200, 5);
     let param = PHMMParams::uniform(0.001);
-    generate_experiment_with_draft(
+    generate_dataset(
         genome,
         genome_size,
         0,
-        param,
         20, // coverage (20x)
         50, // length (50bp)
         ReadType::FragmentWithRevComp,
-        16,
-        16,
+        param,
     )
 }
 
