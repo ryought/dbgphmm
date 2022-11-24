@@ -371,10 +371,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         };
         print_header();
         let kmer_distributions = self.to_kmer_distribution(neighbors);
-        for (node, weight) in self
-            .nodes()
-            .sorted_by_key(|(_node, weight)| weight.copy_num())
-        {
+        for (node, weight) in self.nodes().sorted_by_key(|(node, _)| copy_nums_true[node]) {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
             // let copy_nums_with_prob: Vec<_> = neighbors
@@ -389,8 +386,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 weight.kmer(),
                 node.index(),
                 copy_num_true,
-                kmer_distributions[node.index()].p_x(copy_num_true),
                 kmer_distributions[node.index()],
+                kmer_distributions[node.index()].p_x(copy_num_true),
                 hist,
                 // copy_nums_with_prob,
             );
