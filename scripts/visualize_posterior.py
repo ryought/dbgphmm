@@ -87,7 +87,7 @@ def main():
 
     # visualize
     h = 3
-    w = 2
+    w = 3
     fig, ax = plt.subplots(h, w, sharex="all", figsize=(20, 10))
     ks_for_tick = list(n_nodes_of_k.keys())
     plt.xticks(ks_for_tick, fontsize=8)
@@ -101,8 +101,13 @@ def main():
         ax.plot(ks, n_edges, label='n_edges', marker='o')
         ks = list(n_purged_of_k.keys())
         n_purged = list(n_purged_of_k.values())
-        ax.plot(ks, n_purged, label='n_purged', marker='o')
+        ax.plot(ks, n_purged, label='n_purged', marker='x', color='black')
+        twin1 = ax.twinx()
+        twin1.bar(ks, n_purged, color='black', alpha=0.5)
+        twin1.set_ylim(0, 10)
+        twin1.set_ylabel('n_purged')
         ax.set_ylabel('graph props')
+        ax.set_ylim(0, None)
         ax.legend()
     draw_graph_structure(ax[0, 0])
 
@@ -147,7 +152,7 @@ def main():
                     ks_true.append(k)
                     lls_true.append(ll)
         pcm = ax.scatter(ks, lls, c=gs, marker='o', alpha=0.3)
-        fig.colorbar(pcm, ax=ax, location='bottom')
+        fig.colorbar(pcm, ax=ax, location='bottom', label='genome_size')
         ax.plot(ks_true, lls_true, c='red', marker='*', alpha=0.5)
         ax.set_ylabel('log P(R|G)')
     draw_log_likelihood(ax[2, 0])
@@ -186,6 +191,15 @@ def main():
         ax.set_ylabel('P(c[v]=0) v: c_true[v]=0')
         set_yaxis_as_prob_distribution(ax)
     draw_copy_num_posterior_non_0x(ax[2, 1])
+
+    # (6) n_sampled_copy_nums
+    def draw_search_history(ax):
+        ks = [k for k, kmer_post in post_of_k.items()]
+        ns = [len(kmer_post) for k, kmer_post in post_of_k.items()]
+        ax.scatter(ks, ns, label='n_samples')
+        ax.set_ylabel('n_samples')
+        ax.set_ylim(0, None)
+    draw_search_history(ax[0, 2])
 
     plt.suptitle(opts, wrap=True)
     # plt.show()
