@@ -95,7 +95,7 @@ fn run_mcmc() {
         .into_iter()
         .map(|(copy_nums, _, _, p)| (copy_nums, p))
         .collect();
-    dbg_true.inspect_kmer_variance(&neighbors);
+    dbg_true.inspect_kmer_variance(&neighbors, &copy_nums_true);
 }
 
 fn main() {

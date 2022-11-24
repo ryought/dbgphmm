@@ -171,7 +171,7 @@ fn main() {
             .iter()
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
             .collect();
-        dbg.inspect_kmer_variance(&neighbors);
+        dbg.inspect_kmer_variance(&neighbors, &copy_nums_true);
         let n_purged = dbg.purge_zero_copy_with_high_prob_kmer(
             &dbg.to_kmer_distribution(&neighbors),
             Prob::from_prob(0.8),
