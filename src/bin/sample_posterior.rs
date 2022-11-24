@@ -118,16 +118,17 @@ fn main() {
             .unwrap_or_else(|err| panic!("{}", err));
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
-        println!("# n_dead_nodes={}", dbg.n_dead_nodes());
-        println!("# n_nodes={}", dbg.n_nodes());
-        println!("# n_edges={}", dbg.n_edges());
-        println!("# copy_num_stats={:?}", dbg.copy_num_stats());
-        println!("# degree_stats={:?}", dbg.degree_stats());
+        println!("# k={} n_dead_nodes={}", k, dbg.n_dead_nodes());
+        println!("# k={} n_nodes={}", k, dbg.n_nodes());
+        println!("# k={} n_edges={}", k, dbg.n_edges());
+        println!("# k={} copy_num_stats={:?}", k, dbg.copy_num_stats());
+        println!("# k={} degree_stats={:?}", k, dbg.degree_stats());
         let edbg = dbg.to_compact_edbg_graph();
-        println!("# n_nodes_compacted_edbg={}", edbg.node_count());
-        println!("# n_edges_compacted_edbg={}", edbg.edge_count());
+        println!("# k={} n_nodes_compacted_edbg={}", k, edbg.node_count());
+        println!("# k={} n_edges_compacted_edbg={}", k, edbg.edge_count());
         println!(
-            "# init_dist_from_true={}",
+            "# k={} init_dist_from_true={}",
+            k,
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
 

@@ -79,7 +79,33 @@ pub fn get_max_posterior_instance<K: KmerLike>(
         .unwrap()
 }
 
+//
+// Posterior
+//
+#[derive(Clone)]
+pub struct DbgCopyNumsPosterior<N: DbgNode, E: DbgEdge> {
+    dbg: Dbg<N, E>,
+    copy_nums: Vec<(Prob, DbgCopyNumsInstance<N::Kmer>, DbgCopyNumsScore)>,
+}
+impl<N: DbgNode, E: DbgEdge> DbgCopyNumsPosterior<N, E> {}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    ///
+    /// search copy_nums with extending k
+    ///
+    pub fn search_posterior_with_extension(
+        &self,
+        dataset: &Dataset,
+        max_neighbor_depth: usize,
+        max_move: usize,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> Posterior<N::Kmer> {
+        unimplemented!();
+    }
+    ///
+    ///
+    ///
     pub fn search_posterior(
         &self,
         dataset: &Dataset,
