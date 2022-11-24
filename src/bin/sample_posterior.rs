@@ -52,7 +52,7 @@ struct Opts {
     #[clap(short = 'm', default_value = "3")]
     max_move: usize,
     #[clap(long)]
-    from_approx: bool,
+    start_from_true: bool,
 }
 
 fn main() {
@@ -108,11 +108,13 @@ fn main() {
             SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage());
         (dataset, dbg)
     };
-    // let mut dbg = if opts.from_approx {
-    //     experiment.dbg_draft.clone().unwrap()
-    // } else {
-    //     experiment.dbg_draft_true.clone().unwrap()
-    // };
+
+    if opts.start_from_true {
+        let (copy_nums_true, _) = dbg
+            .to_copy_nums_of_styled_seqs(&genome)
+            .unwrap_or_else(|err| panic!("{}", err));
+        dbg.set_node_copy_nums(&copy_nums_true);
+    }
 
     dataset.show_genome();
     dataset.show_reads();
