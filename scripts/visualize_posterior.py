@@ -41,7 +41,7 @@ def main():
     n_nodes_of_k = dict()
     n_edges_of_k = dict()
     n_purged_of_k = dict()
-    kmer_post_of_k = defaultdict(list)
+    kmer_post_of_k = defaultdict(lambda: defaultdict(list))
     post_of_k = defaultdict(list)
     with open(args.log_filename) as f:
         reader = csv.reader(f, delimiter='\t')
@@ -50,7 +50,7 @@ def main():
                 k = int(row[1])
                 copy_num_true = int(row[4])
                 post = parse_post(row[5])
-                kmer_post_of_k[k].append((copy_num_true, post[copy_num_true]))
+                kmer_post_of_k[copy_num_true][k].append(post[copy_num_true])
             elif row[0].startswith('N'):
                 k = int(row[1])
                 lp, p = parse_prob(row[2])
@@ -83,61 +83,94 @@ def main():
     print(n_purged_of_k)
 
     # visualize
+    h = 3
+    w = 2
+    fig, ax = plt.subplots(h, w, sharex="all", figsize=(20, 10))
+    ks_for_tick = list(n_nodes_of_k.keys())
+    plt.xticks(ks_for_tick, fontsize=8)
     # (1) graph structure
-    plt.figure(figsize=(20, 10))
-    plt.subplot(4, 1, 1)
-    ks = list(n_nodes_of_k.keys())
-    n_nodes = list(n_nodes_of_k.values())
-    plt.plot(ks, n_nodes, label='n_nodes', marker='o')
-    ks = list(n_edges_of_k.keys())
-    n_edges = list(n_edges_of_k.values())
-    plt.plot(ks, n_edges, label='n_edges', marker='o')
-    ks = list(n_purged_of_k.keys())
-    n_purged = list(n_purged_of_k.values())
-    plt.plot(ks, n_purged, label='n_purged', marker='o')
-    plt.xticks(ks, fontsize=8)
-    plt.ylabel('graph props')
-    plt.legend()
+    def draw_graph_structure(ax):
+        ks = list(n_nodes_of_k.keys())
+        n_nodes = list(n_nodes_of_k.values())
+        ax.plot(ks, n_nodes, label='n_nodes', marker='o')
+        ks = list(n_edges_of_k.keys())
+        n_edges = list(n_edges_of_k.values())
+        ax.plot(ks, n_edges, label='n_edges', marker='o')
+        ks = list(n_purged_of_k.keys())
+        n_purged = list(n_purged_of_k.values())
+        ax.plot(ks, n_purged, label='n_purged', marker='o')
+        ax.set_ylabel('graph props')
+        ax.legend()
+    draw_graph_structure(ax[0, 0])
+
+    def set_yaxis_as_prob_distribution(ax):
+        ax.set_ylim(0-0.1, 1+0.1)
+        ax.grid(axis='both')
 
     # (2) posterior distribution
-    plt.subplot(4, 1, 2)
-    ks_true = []
-    ps_true = []
-    for k, post in post_of_k.items():
-        ps = [p for (p, g, d, ll) in post if d != 0]
-        ks = [k for (p, g, d, ll) in post if d != 0]
-        plt.scatter(ks, ps, c='blue', marker='x', alpha=0.5)
+    def draw_posterior_distribution(ax):
+        ks_true = []
+        ps_true = []
+        for k, post in post_of_k.items():
+            ps = [p for (p, g, d, ll) in post if d != 0]
+            ks = [k for (p, g, d, ll) in post if d != 0]
+            ax.scatter(ks, ps, c='blue', marker='x', alpha=0.5)
 
-        for (p, g, d, ll) in post:
-            if d == 0:
-                ks_true.append(k)
-                ps_true.append(p)
+            for (p, g, d, ll) in post:
+                if d == 0:
+                    ks_true.append(k)
+                    ps_true.append(p)
 
-    print(len(ks_true), len(ps_true))
-    plt.plot(ks_true, ps_true, c='red', marker='o', alpha=0.5)
-    plt.xticks(ks_true, fontsize=8)
-    plt.ylabel('P(G|R)')
+        print(len(ks_true), len(ps_true))
+        ax.plot(ks_true, ps_true, c='red', marker='o', alpha=0.5)
+        set_yaxis_as_prob_distribution(ax)
+        ax.set_ylabel('P(G|R)')
+    draw_posterior_distribution(ax[1, 0])
 
     # (3) log likelihood
-    plt.subplot(4, 1, 3)
-    ks_true = []
-    lls_true = []
-    for k, post in post_of_k.items():
-        lls = [ll for (p, g, d, ll) in post if d != 0]
-        ks = [k for (p, g, d, ll) in post if d != 0]
-        plt.scatter(ks, lls, c='blue', marker='x', alpha=0.5)
-        for (p, g, d, ll) in post:
-            if d == 0:
-                ks_true.append(k)
-                lls_true.append(ll)
-    plt.plot(ks_true, lls_true, c='red', marker='o', alpha=0.5)
-    plt.xticks(ks_true, fontsize=8)
-    plt.ylabel('log P(R|G)')
+    def draw_log_likelihood(ax):
+        ks = []
+        lls = []
+        gs = []
+        ks_true = []
+        lls_true = []
+        for k, post in post_of_k.items():
+            lls = lls + [ll for (p, g, d, ll) in post if d != 0]
+            ks = ks + [k for (p, g, d, ll) in post if d != 0]
+            gs = gs + [g for (p, g, d, ll) in post if d != 0]
+            # ax.scatter(ks, lls, s=gs, c='blue', marker='o', alpha=0.5)
+            for (p, g, d, ll) in post:
+                if d == 0:
+                    ks_true.append(k)
+                    lls_true.append(ll)
+        pcm = ax.scatter(ks, lls, c=gs, marker='o', alpha=0.3)
+        fig.colorbar(pcm, ax=ax, location='bottom')
+        ax.plot(ks_true, lls_true, c='red', marker='*', alpha=0.5)
+        ax.set_ylabel('log P(R|G)')
+    draw_log_likelihood(ax[2, 0])
 
     # (4) copy_num posterior
-    plt.subplot(4, 1, 4)
-    plt.ylabel('P(c[v] = c_true[v])')
-    plt.xlabel('k')
+    def draw_copy_num_posterior(ax):
+        for copy_num_true, post_of_k in kmer_post_of_k.items():
+            ks = [k for k, kmer_post in post_of_k.items() for _ in kmer_post]
+            ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
+            ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
+        ax.legend()
+        ax.set_ylabel('P(c[v] = c_true[v])')
+        set_yaxis_as_prob_distribution(ax)
+    draw_copy_num_posterior(ax[0, 1])
+
+    # (5) copy_num posterior of 0x nodes
+    def draw_copy_num_posterior_0x(ax):
+        copy_num_true = 0
+        post_of_k = kmer_post_of_k[copy_num_true]
+        ks = [k for k, kmer_post in post_of_k.items() for _ in kmer_post]
+        ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
+        ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
+        ax.legend()
+        ax.set_ylabel('P(c[v] = c_true[v])')
+        set_yaxis_as_prob_distribution(ax)
+    draw_copy_num_posterior_0x(ax[1, 1])
 
     plt.suptitle(opts, wrap=True)
     plt.show()
