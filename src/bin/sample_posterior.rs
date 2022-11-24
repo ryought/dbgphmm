@@ -7,8 +7,11 @@ use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
+use git_version::git_version;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
+
+const GIT_VERSION: &str = git_version!();
 
 #[derive(Clap, Debug)]
 struct Opts {
@@ -54,6 +57,11 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
+
+    println!("# started_at={}", chrono::Local::now());
+    println!("# version={}", GIT_VERSION);
+    println!("# opts={:?}", opts);
+
     let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
         opts.unit_size,
         opts.n_unit,
@@ -106,8 +114,6 @@ fn main() {
     //     experiment.dbg_draft_true.clone().unwrap()
     // };
 
-    println!("# started_at={}", chrono::Local::now());
-    println!("# opts={:?}", opts);
     dataset.show_genome();
     dataset.show_reads();
     let mut k = dbg.k();
