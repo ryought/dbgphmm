@@ -42,6 +42,7 @@ def main():
     n_edges_of_k = dict()
     n_purged_of_k = dict()
     kmer_post_of_k = defaultdict(lambda: defaultdict(list))
+    non_zero_kmer_post_of_k = defaultdict(lambda: defaultdict(list))
     post_of_k = defaultdict(list)
     with open(args.log_filename) as f:
         reader = csv.reader(f, delimiter='\t')
@@ -51,6 +52,8 @@ def main():
                 copy_num_true = int(row[4])
                 post = parse_post(row[5])
                 kmer_post_of_k[copy_num_true][k].append(post[copy_num_true])
+                if copy_num_true > 0:
+                    non_zero_kmer_post_of_k[copy_num_true][k].append(post[0])
             elif row[0].startswith('N'):
                 k = int(row[1])
                 lp, p = parse_prob(row[2])
@@ -156,7 +159,7 @@ def main():
             ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
             ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
         ax.legend()
-        ax.set_ylabel('P(c[v] = c_true[v])')
+        ax.set_ylabel('P(c[v]=c_true[v])')
         set_yaxis_as_prob_distribution(ax)
     draw_copy_num_posterior(ax[0, 1])
 
@@ -168,12 +171,25 @@ def main():
         ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
         ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
         ax.legend()
-        ax.set_ylabel('P(c[v] = c_true[v])')
+        ax.set_ylabel('P(c[v]=c_true[v])')
         set_yaxis_as_prob_distribution(ax)
     draw_copy_num_posterior_0x(ax[1, 1])
 
+    # (5) copy_num posterior of >0x nodes
+    def draw_copy_num_posterior_non_0x(ax):
+        for copy_num_true, post_of_k in non_zero_kmer_post_of_k.items():
+            assert(copy_num_true != 0)
+            ks = [k for k, kmer_post in post_of_k.items() for _ in kmer_post]
+            ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
+            ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
+        ax.legend()
+        ax.set_ylabel('P(c[v]=0) v: c_true[v]=0')
+        set_yaxis_as_prob_distribution(ax)
+    draw_copy_num_posterior_non_0x(ax[2, 1])
+
     plt.suptitle(opts, wrap=True)
-    plt.show()
+    # plt.show()
+    plt.savefig(args.log_filename + '.summary.pdf')
 
 if __name__ == '__main__':
     main()
