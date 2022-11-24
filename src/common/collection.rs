@@ -14,13 +14,15 @@
 //!
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use itertools::Itertools;
-use pyo3::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_with::{
     serde_as, DeserializeAs, DeserializeFromStr, DisplayFromStr, SerializeAs, SerializeDisplay,
 };
 use std::str::FromStr;
+
+#[cfg(python)]
+use pyo3::prelude::*;
 
 //
 // Single Sequence
