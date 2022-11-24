@@ -11,7 +11,7 @@ where
     Ix: Indexable,
 {
     ///
-    /// sum of difference of two arrays (L1 distance)
+    /// sum of difference of two arrays (L1 distance) `sum_i |x[i] - y[i]|`
     ///
     pub fn dist<T>(&self, other: &Vector<T, Ix>) -> usize
     where
@@ -23,6 +23,19 @@ where
             ret += self[Ix::new(i)].abs_diff(other[Ix::new(i)]);
         }
         ret
+    }
+    ///
+    /// max abs_diff of elements `max_i |x[i] - y[i]|`
+    ///
+    pub fn max_abs_diff<T>(&self, other: &Vector<T, Ix>) -> usize
+    where
+        T: Storage<Item = usize>,
+    {
+        assert_eq!(self.len(), other.len());
+        (0..self.len())
+            .map(|i| self[Ix::new(i)].abs_diff(other[Ix::new(i)]))
+            .max()
+            .unwrap()
     }
 }
 
@@ -248,9 +261,11 @@ mod tests {
         let w1: Vector<SparseStorage<usize>, usize> = Vector::from_slice(&[0, 1, 2, 3, 4], 0);
         println!("{}", v.dist(&w1));
         assert_eq!(v.dist(&w1), 0);
+        assert_eq!(v.max_abs_diff(&w1), 0);
 
         let w2: Vector<SparseStorage<usize>, usize> = Vector::from_slice(&[0, 1, 2, 2, 6], 0);
         println!("{}", v.dist(&w2));
         assert_eq!(v.dist(&w2), 3);
+        assert_eq!(v.max_abs_diff(&w2), 2);
     }
 }

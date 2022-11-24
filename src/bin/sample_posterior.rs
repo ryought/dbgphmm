@@ -51,6 +51,9 @@ struct Opts {
     neighbor_depth: usize,
     #[clap(short = 'm', default_value = "3")]
     max_move: usize,
+    /// purge threshold
+    #[clap(long = "p0", default_value = "0.8")]
+    p_0: f64,
     #[clap(long)]
     start_from_true: bool,
 }
@@ -149,13 +152,13 @@ fn main() {
         );
 
         println!(
-            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
+            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
         );
         for (p_gr, instance, score) in distribution.iter() {
             dbg.set_node_copy_nums(instance.copy_nums());
             let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 p_gr,
                 score.p_rg,
@@ -163,6 +166,7 @@ fn main() {
                 dbg.genome_size(),
                 instance.move_count(),
                 instance.copy_nums().dist(&copy_nums_true),
+                instance.copy_nums().max_abs_diff(&copy_nums_true),
                 format!(
                     "({:<3}{:<3}),({:<3}{:<3})",
                     n_missing, n_missing_null, n_error, n_error_null,
@@ -182,7 +186,7 @@ fn main() {
         dbg.inspect_kmer_variance(&neighbors, &copy_nums_true);
         let n_purged = dbg.purge_zero_copy_with_high_prob_kmer(
             &dbg.to_kmer_distribution(&neighbors),
-            Prob::from_prob(0.8),
+            Prob::from_prob(opts.p_0),
         );
         println!("# k={} n_purged={}", dbg.k(), n_purged);
 
