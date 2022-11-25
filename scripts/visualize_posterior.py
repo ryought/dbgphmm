@@ -188,7 +188,7 @@ def main():
             ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
             ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
         ax.legend()
-        ax.set_ylabel('P(c[v]=0) v: c_true[v]=0')
+        ax.set_ylabel('P(c[v]=0) v: c_true[v]!=0')
         set_yaxis_as_prob_distribution(ax)
     draw_copy_num_posterior_non_0x(ax[2, 1])
 
