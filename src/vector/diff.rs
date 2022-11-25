@@ -3,6 +3,7 @@
 //!
 use super::{Indexable, Storage, Vector};
 use crate::prob::Prob;
+use fnv::FnvHashMap as HashMap;
 use itertools::{chain, izip, Itertools};
 
 impl<S, Ix> Vector<S, Ix>
@@ -36,6 +37,23 @@ where
             .map(|i| self[Ix::new(i)].abs_diff(other[Ix::new(i)]))
             .max()
             .unwrap()
+    }
+    ///
+    /// Generate hashmap H such that
+    /// H[(x in self, y in other)] = count
+    ///
+    pub fn diff_element_counts<T>(&self, other: &Vector<T, Ix>) -> HashMap<(usize, usize), usize>
+    where
+        T: Storage<Item = usize>,
+    {
+        assert_eq!(self.len(), other.len());
+        let mut hm = HashMap::default();
+        for i in 0..self.len() {
+            let x = self[Ix::new(i)];
+            let y = other[Ix::new(i)];
+            *hm.entry((x, y)).or_insert(0) += 1;
+        }
+        hm
     }
 }
 

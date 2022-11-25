@@ -369,6 +369,7 @@ mod tests {
         );
         println!("{}", copy_nums_true);
         println!("{}", copy_nums_draft);
+        println!("{:?}", copy_nums_draft.diff_element_counts(&copy_nums_true));
         let check_with_cytoscape = false;
         dbg.set_node_copy_nums(&copy_nums_true);
         if check_with_cytoscape {
