@@ -9,6 +9,7 @@ from parse import *
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+from dataclasses import dataclass
 
 def parse_post(s):
     """
@@ -30,6 +31,21 @@ def parse_prob(s):
     log_p_x = float(log_p_x)
     p_x = math.exp(log_p_x)
     return (log_p_x, p_x)
+
+@dataclass
+class Sample:
+    # posterior probability P(G|R)
+    p: float
+    # log posterior probability logP(G|R)
+    lp: float
+    # log likelihood logP(R|G)
+    ll: float
+    # genome size
+    g: int
+    # iteration id
+    i: int
+    # dist from true copy nums
+    d: int
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -59,8 +75,16 @@ def main():
                 lp, p = parse_prob(row[2])
                 ll, l = parse_prob(row[3])
                 g = int(row[5])
+                i = int(row[6])  # iteration id
                 d = int(row[7])
-                post_of_k[k].append((p, g, d, ll))
+                post_of_k[k].append(Sample(
+                    lp=lp,
+                    p=p,
+                    ll=ll,
+                    g=g,
+                    i=i,
+                    d=d,
+                ))
                 pass
             elif row[0].startswith('# opts='):
                 opts = row[0]
@@ -120,14 +144,14 @@ def main():
         ks_true = []
         ps_true = []
         for k, post in post_of_k.items():
-            ps = [p for (p, g, d, ll) in post if d != 0]
-            ks = [k for (p, g, d, ll) in post if d != 0]
+            ps = [s.p for s in post if s.d != 0]
+            ks = [k for s in post if s.d != 0]
             ax.scatter(ks, ps, c='blue', marker='x', alpha=0.5)
 
-            for (p, g, d, ll) in post:
-                if d == 0:
+            for s in post:
+                if s.d == 0:
                     ks_true.append(k)
-                    ps_true.append(p)
+                    ps_true.append(s.p)
 
         print(len(ks_true), len(ps_true))
         ax.plot(ks_true, ps_true, c='red', marker='o', alpha=0.5)
@@ -143,14 +167,14 @@ def main():
         ks_true = []
         lls_true = []
         for k, post in post_of_k.items():
-            lls = lls + [ll for (p, g, d, ll) in post if d != 0]
-            ks = ks + [k for (p, g, d, ll) in post if d != 0]
-            gs = gs + [g for (p, g, d, ll) in post if d != 0]
+            lls = lls + [s.ll for s in post if s.d != 0]
+            ks = ks + [k for s in post if s.d != 0]
+            gs = gs + [s.g for s in post if s.d != 0]
             # ax.scatter(ks, lls, s=gs, c='blue', marker='o', alpha=0.5)
-            for (p, g, d, ll) in post:
-                if d == 0:
+            for s in post:
+                if s.d == 0:
                     ks_true.append(k)
-                    lls_true.append(ll)
+                    lls_true.append(s.ll)
         pcm = ax.scatter(ks, lls, c=gs, marker='o', alpha=0.3)
         fig.colorbar(pcm, ax=ax, location='bottom', label='genome_size')
         ax.plot(ks_true, lls_true, c='red', marker='*', alpha=0.5)
@@ -193,13 +217,28 @@ def main():
     draw_copy_num_posterior_non_0x(ax[2, 1])
 
     # (6) n_sampled_copy_nums
-    def draw_search_history(ax):
+    def draw_n_samples(ax):
         ks = [k for k, kmer_post in post_of_k.items()]
         ns = [len(kmer_post) for k, kmer_post in post_of_k.items()]
         ax.scatter(ks, ns, label='n_samples')
         ax.set_ylabel('n_samples')
         ax.set_ylim(0, None)
-    draw_search_history(ax[0, 2])
+    draw_n_samples(ax[0, 2])
+
+    # (6) n_sampled_copy_nums
+    def draw_search_history(ax):
+        ks = []
+        lps = []
+        Is = []
+        for k, post in post_of_k.items():
+            lps = lps + [s.lp for s in post]
+            ks = ks + [k for s in post]
+            Is = Is + [s.i for s in post]
+        pcm = ax.scatter(ks, lps, c=Is, marker='o', alpha=0.2)
+        fig.colorbar(pcm, ax=ax, location='bottom', label='iteration id')
+        ax.set_ylabel('log P(G|R)')
+        ax.grid(axis='x')
+    draw_search_history(ax[1, 2])
 
     plt.suptitle(opts, wrap=True)
     # plt.show()
