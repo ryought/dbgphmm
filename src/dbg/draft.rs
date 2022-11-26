@@ -248,9 +248,11 @@ mod tests {
     use crate::dbg::mocks;
     use crate::dbg::SimpleDbg;
     use crate::e2e::{
-        generate_simple_genome_fragment_dataset, generate_simple_genome_mock,
-        generate_tandem_repeat_fragment_dataset,
+        generate_difficult_diploid_tandem_repeat_dataset, generate_simple_genome_fragment_dataset,
+        generate_simple_genome_mock, generate_tandem_repeat_fragment_dataset,
     };
+    use crate::genome;
+    use crate::io::cytoscape::NodeAttrVec;
     use crate::io::write_string;
     use crate::kmer::VecKmer;
 
@@ -344,6 +346,39 @@ mod tests {
             }
             // check if all the true kmers are in the graph
             assert!(dbg.to_copy_nums_of_styled_seqs(dataset.genome()).is_ok());
+        }
+    }
+    #[test]
+    fn dbg_create_draft_fragment_bad_approximation_inspection() {
+        // "-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read";;
+        let dataset = generate_difficult_diploid_tandem_repeat_dataset();
+        let mut dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                12,
+                dataset.reads(),
+                dataset.coverage(),
+                dataset.reads().average_length(),
+                dataset.params().p_error().to_value(),
+            );
+        let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
+        let copy_nums_draft = dbg.to_node_copy_nums();
+        println!("dist={}", copy_nums_draft.dist(&copy_nums_true));
+        println!(
+            "max_abs_diff={}",
+            copy_nums_draft.max_abs_diff(&copy_nums_true)
+        );
+        println!("{}", copy_nums_true);
+        println!("{}", copy_nums_draft);
+        println!("{:?}", copy_nums_draft.diff_element_counts(&copy_nums_true));
+        let check_with_cytoscape = false;
+        dbg.set_node_copy_nums(&copy_nums_true);
+        if check_with_cytoscape {
+            let json = dbg.to_cytoscape_with_attrs(&[NodeAttrVec::CopyNum(copy_nums_draft)], &[]);
+            write_string(
+                &format!("draft_from_fragment_diploid_tandem_repeat.json"),
+                &json,
+            )
+            .unwrap();
         }
     }
 }

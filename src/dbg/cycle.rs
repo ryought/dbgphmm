@@ -357,11 +357,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// check the variance of copy_num of each kmer
     ///
-    pub fn inspect_kmer_variance(&self, neighbors: &[(NodeCopyNums, Prob)]) {
+    pub fn inspect_kmer_variance(
+        &self,
+        neighbors: &[(NodeCopyNums, Prob)],
+        copy_nums_true: &NodeCopyNums,
+    ) {
         let k = self.k();
         let print_header = || {
             println!(
-                "#K k={}\tkmer\tnode_id\tcurrent_copy_num\tprobs\thist\tcopy_nums",
+                "#K k={}\tkmer\tnode_id\ttrue_copy_num\tprobs\tp(copy_num=copy_num_true)\thist\tcopy_nums",
                 k
             );
         };
@@ -369,7 +373,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let kmer_distributions = self.to_kmer_distribution(neighbors);
         for (node, weight) in self
             .nodes()
-            .sorted_by_key(|(_node, weight)| weight.copy_num())
+            .sorted_by_key(|&(node, _)| copy_nums_true[node])
         {
             let copy_nums: Vec<_> = neighbors.iter().map(|(cn, p)| cn[node]).collect();
             let hist = Hist::from(&copy_nums);
@@ -377,14 +381,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             //     .iter()
             //     .map(|(cn, p)| (cn[node], p.to_value()))
             //     .collect();
+            let copy_num_true = copy_nums_true[node];
             println!(
                 // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
-                "K\t{}\t{}\t{}\t{}\t{}\t{}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 weight.kmer(),
                 node.index(),
-                weight.copy_num(),
+                copy_num_true,
                 kmer_distributions[node.index()],
+                kmer_distributions[node.index()].p_x(copy_num_true),
                 hist,
                 // copy_nums_with_prob,
             );

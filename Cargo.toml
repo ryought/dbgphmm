@@ -37,6 +37,7 @@ fixedbitset = "*"
 # pyo3 = { version = "0.17.1", features = ["extension-module"] }
 pyo3 = { version = "0.17.1" }
 chrono = "*"
+git-version = "*"
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module

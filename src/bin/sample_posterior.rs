@@ -7,8 +7,11 @@ use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
+use git_version::git_version;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
+
+const GIT_VERSION: &str = git_version!();
 
 #[derive(Clap, Debug)]
 struct Opts {
@@ -48,12 +51,20 @@ struct Opts {
     neighbor_depth: usize,
     #[clap(short = 'm', default_value = "3")]
     max_move: usize,
+    /// purge threshold
+    #[clap(long = "p0", default_value = "0.8")]
+    p_0: f64,
     #[clap(long)]
-    from_approx: bool,
+    start_from_true: bool,
 }
 
 fn main() {
     let opts: Opts = Opts::parse();
+
+    println!("# started_at={}", chrono::Local::now());
+    println!("# version={}", GIT_VERSION);
+    println!("# opts={:?}", opts);
+
     let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
         opts.unit_size,
         opts.n_unit,
@@ -100,14 +111,14 @@ fn main() {
             SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage());
         (dataset, dbg)
     };
-    // let mut dbg = if opts.from_approx {
-    //     experiment.dbg_draft.clone().unwrap()
-    // } else {
-    //     experiment.dbg_draft_true.clone().unwrap()
-    // };
 
-    println!("# started_at={}", chrono::Local::now());
-    println!("# opts={:?}", opts);
+    if opts.start_from_true {
+        let (copy_nums_true, _) = dbg
+            .to_copy_nums_of_styled_seqs(&genome)
+            .unwrap_or_else(|err| panic!("{}", err));
+        dbg.set_node_copy_nums(&copy_nums_true);
+    }
+
     dataset.show_genome();
     dataset.show_reads();
     let mut k = dbg.k();
@@ -118,16 +129,17 @@ fn main() {
             .unwrap_or_else(|err| panic!("{}", err));
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
-        println!("# n_dead_nodes={}", dbg.n_dead_nodes());
-        println!("# n_nodes={}", dbg.n_nodes());
-        println!("# n_edges={}", dbg.n_edges());
-        println!("# copy_num_stats={:?}", dbg.copy_num_stats());
-        println!("# degree_stats={:?}", dbg.degree_stats());
+        println!("# k={} n_dead_nodes={}", k, dbg.n_dead_nodes());
+        println!("# k={} n_nodes={}", k, dbg.n_nodes());
+        println!("# k={} n_edges={}", k, dbg.n_edges());
+        println!("# k={} copy_num_stats={:?}", k, dbg.copy_num_stats());
+        println!("# k={} degree_stats={:?}", k, dbg.degree_stats());
         let edbg = dbg.to_compact_edbg_graph();
-        println!("# n_nodes_compacted_edbg={}", edbg.node_count());
-        println!("# n_edges_compacted_edbg={}", edbg.edge_count());
+        println!("# k={} n_nodes_compacted_edbg={}", k, edbg.node_count());
+        println!("# k={} n_edges_compacted_edbg={}", k, edbg.edge_count());
         println!(
-            "# init_dist_from_true={}",
+            "# k={} init_dist_from_true={}",
+            k,
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
 
@@ -140,13 +152,13 @@ fn main() {
         );
 
         println!(
-            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
+            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
         );
         for (p_gr, instance, score) in distribution.iter() {
             dbg.set_node_copy_nums(instance.copy_nums());
             let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 p_gr,
                 score.p_rg,
@@ -154,6 +166,7 @@ fn main() {
                 dbg.genome_size(),
                 instance.move_count(),
                 instance.copy_nums().dist(&copy_nums_true),
+                instance.copy_nums().max_abs_diff(&copy_nums_true),
                 format!(
                     "({:<3}{:<3}),({:<3}{:<3})",
                     n_missing, n_missing_null, n_error, n_error_null,
@@ -170,10 +183,10 @@ fn main() {
             .iter()
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
             .collect();
-        dbg.inspect_kmer_variance(&neighbors);
+        dbg.inspect_kmer_variance(&neighbors, &copy_nums_true);
         let n_purged = dbg.purge_zero_copy_with_high_prob_kmer(
             &dbg.to_kmer_distribution(&neighbors),
-            Prob::from_prob(0.8),
+            Prob::from_prob(opts.p_0),
         );
         println!("# k={} n_purged={}", dbg.k(), n_purged);
 
