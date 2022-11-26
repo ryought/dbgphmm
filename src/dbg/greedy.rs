@@ -3,7 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use crate::common::CopyNum;
-use crate::dbg::cycle::CopyNumsUpdateInfo;
+use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::e2e::Dataset;
 use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
