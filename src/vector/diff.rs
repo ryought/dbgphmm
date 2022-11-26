@@ -55,6 +55,20 @@ where
         }
         hm
     }
+    ///
+    /// zero_one(x)[i] = 1 (if x[i] > 0)
+    ///                  0 (otherwise)
+    ///
+    pub fn zero_one(&self) -> Self {
+        let mut ret = Vector::new(self.len(), 0);
+        for i in 0..self.len() {
+            let idx = Ix::new(i);
+            if self[idx] >= 1 {
+                ret[idx] = 1
+            }
+        }
+        ret
+    }
 }
 
 impl<S, Ix> Vector<S, Ix>
