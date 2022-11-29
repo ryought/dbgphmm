@@ -117,7 +117,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             prev_table.active_nodes.to_childs(self)
         };
 
-        let mut table = PHMMTable::new_with_active_nodes(
+        let mut table = PHMMTable::new(
             self.n_nodes(),
             p(0.0),
             p(0.0),
@@ -125,17 +125,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             p(0.0),
             p(0.0),
             p(0.0),
-            active_nodes,
         );
 
         // normal state first
-        self.fm(&mut table, prev_table, emission);
-        self.fi(&mut table, prev_table, emission);
-        self.fmb(&mut table, prev_table, emission);
-        self.fib(&mut table, prev_table, emission);
+        self.fm(&mut table, prev_table, emission, &active_nodes);
+        self.fi(&mut table, prev_table, emission, &active_nodes);
+        self.fmb(&mut table, prev_table, emission, &active_nodes);
+        self.fib(&mut table, prev_table, emission, &active_nodes);
         // silent state next
-        self.fd(&mut table, prev_table, emission);
-        self.fe(&mut table, prev_table, emission);
+        self.fd(&mut table, prev_table, emission, &active_nodes);
+        self.fe(&mut table, prev_table, emission, &active_nodes);
 
         table
     }
@@ -169,12 +168,17 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// be calculated.
     ///
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fm<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, emission: u8)
-    where
+    fn fm<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        t1: &PHMMTable<S>,
+        emission: u8,
+        active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, kw) in self.active_nodes(&t0.active_nodes) {
+        for (k, kw) in self.active_nodes(active_nodes) {
             // emission prob
             let p_emit = self.p_match_emit(k, emission);
 
@@ -211,12 +215,17 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// (Here `x[:i+1] = x[0],...,x[i]`)
     ///
     /// calculate `t0.i` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fi<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
-    where
+    fn fi<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        t1: &PHMMTable<S>,
+        _emission: u8,
+        active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        for (k, _) in self.active_nodes(&t0.active_nodes) {
+        for (k, _) in self.active_nodes(active_nodes) {
             // emission prob
             let p_emit = self.p_ins_emit();
 
@@ -259,15 +268,34 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// calculate t0.d from t0.m and t0.i
-    fn fd<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
-    where
+    fn fd<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        _t1: &PHMMTable<S>,
+        _emission: u8,
+        active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let mut fdt0 = self.fd0(t0);
+
+        // run t=0
+        let mut active_nodes_t = if S::is_dense() {
+            ActiveNodes::All
+        } else {
+            active_nodes.to_childs(self)
+        };
+        let mut fdt0 = self.fd0(t0, &active_nodes);
         t0.d += &fdt0.d;
+
         for _t in 0..param.n_max_gaps {
-            fdt0 = self.fdt(&fdt0);
+            // run t+1
+            active_nodes_t = if S::is_dense() {
+                ActiveNodes::All
+            } else {
+                active_nodes_t.to_childs(self)
+            };
+            fdt0 = self.fdt(&fdt0, &active_nodes_t);
             t0.d += &fdt0.d;
         }
     }
@@ -284,18 +312,13 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// active_nodes will be determined by the childs of t0
     ///
-    fn fd0<S>(&self, t0: &PHMMTable<S>) -> PHMMTable<S>
+    fn fd0<S>(&self, t0: &PHMMTable<S>, active_nodes: &ActiveNodes) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let active_nodes = if S::is_dense() {
-            ActiveNodes::All
-        } else {
-            t0.active_nodes.to_childs(self)
-        };
-        let mut fd0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
-        for (k, kw) in self.active_nodes(&fd0.active_nodes) {
+        let mut fd0 = PHMMTable::zero(self.n_nodes());
+        for (k, kw) in self.active_nodes(active_nodes) {
             // (1) from normal node
             let from_normal: Prob = self
                 .parents(k)
@@ -321,18 +344,13 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fd_i(t)[k]
     /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     /// ```
-    fn fdt<S>(&self, fdt1: &PHMMTable<S>) -> PHMMTable<S>
+    fn fdt<S>(&self, fdt1: &PHMMTable<S>, active_nodes: &ActiveNodes) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
-        let active_nodes = if S::is_dense() {
-            ActiveNodes::All
-        } else {
-            fdt1.active_nodes.to_childs(self)
-        };
-        let mut fdt0 = PHMMTable::zero_with_active_nodes(self.n_nodes(), active_nodes);
-        for (k, _) in self.active_nodes(&fdt0.active_nodes) {
+        let mut fdt0 = PHMMTable::zero(self.n_nodes());
+        for (k, _) in self.active_nodes(active_nodes) {
             fdt0.d[k] = self
                 .parents(k)
                 .map(|(_, l, ew)| {
@@ -350,8 +368,13 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fm_i[b] = 1 (if i==-1)
     ///           0 (otherwise)
     /// ```
-    fn fmb<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
-    where
+    fn fmb<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        _t1: &PHMMTable<S>,
+        _emission: u8,
+        _active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         t0.mb = Prob::from_prob(0.0);
@@ -363,8 +386,13 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// =   (from_self_m) p_mi e(x[i]) fm_i-1[b]
     ///   + (from_self_i) p_ii e(x[i]) fi_i-1[b]
     /// ```
-    fn fib<S>(&self, t0: &mut PHMMTable<S>, t1: &PHMMTable<S>, _emission: u8)
-    where
+    fn fib<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        t1: &PHMMTable<S>,
+        _emission: u8,
+        _active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
@@ -379,13 +407,18 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///   + (from_all_i) \sum_{k} p_e fi_i[k]
     ///   + (from_all_d) \sum_{k} p_e fd_i[k]
     /// ```
-    fn fe<S>(&self, t0: &mut PHMMTable<S>, _t1: &PHMMTable<S>, _emission: u8)
-    where
+    fn fe<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        _t1: &PHMMTable<S>,
+        _emission: u8,
+        active_nodes: &ActiveNodes,
+    ) where
         S: Storage<Item = Prob>,
     {
         let param = &self.param;
         let p_normal: Prob = self
-            .active_nodes(&t0.active_nodes)
+            .active_nodes(active_nodes)
             .map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k])
             .sum();
         t0.e = param.p_end * p_normal
