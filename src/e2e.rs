@@ -409,7 +409,7 @@ pub fn generate_small_tandem_repeat() -> Experiment {
 }
 
 ///
-///
+/// "-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read";;
 ///
 pub fn generate_difficult_diploid_tandem_repeat_dataset() -> Dataset {
     let (genome, genome_size) =

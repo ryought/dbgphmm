@@ -160,6 +160,17 @@ impl<K: KmerLike> CopyNumsUpdateInfo<K> {
     }
 }
 
+fn have_zero_one_change(a: &EdgeCopyNums, b: &EdgeCopyNums) -> bool {
+    assert_eq!(a.len(), b.len());
+    for i in 0..(a.len()) {
+        let v = EdgeIndex::new(i);
+        if (a[v] == 0 && b[v] > 0) || (a[v] > 0 && b[v] == 0) {
+            return true;
+        }
+    }
+    false
+}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
@@ -258,7 +269,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
     /// wrapper of `neighbor_copy_nums_fast_compact`
     pub fn neighbor_copy_nums_fast_compact(&self, max_depth: usize) -> Vec<NodeCopyNums> {
-        self.neighbor_copy_nums_fast_compact_with_info(max_depth)
+        self.neighbor_copy_nums_fast_compact_with_info(max_depth, false)
             .into_iter()
             .map(|(copy_nums, _)| copy_nums)
             .collect()
@@ -293,9 +304,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// use Johnson1975 on Compacted Edbg
     ///
+    /// * If ignore_high_copys is true, only new copy numbers that have 1x->0x or 0x->1x change is
+    /// returned.
+    ///
     pub fn neighbor_copy_nums_fast_compact_with_info(
         &self,
         max_depth: usize,
+        ignore_high_copys: bool,
     ) -> Vec<(NodeCopyNums, CopyNumsUpdateInfo<N::Kmer>)> {
         let graph = self.to_compact_edbg_graph();
         // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
@@ -310,6 +325,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // enumerate all cycles
         enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
             .into_iter()
+            .filter(|(new_copy_num, _)| {
+                if ignore_high_copys {
+                    have_zero_one_change(&copy_num, new_copy_num)
+                } else {
+                    true
+                }
+            })
             .map(|(flow, update_info)| {
                 let flow_in_original =
                     compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
@@ -530,7 +552,7 @@ mod tests {
         }
 
         // compacted
-        let neighbors = dbg.neighbor_copy_nums_fast_compact_with_info(100);
+        let neighbors = dbg.neighbor_copy_nums_fast_compact_with_info(100, false);
         for (copy_num, info) in neighbors.iter() {
             println!("c={} info={}", copy_num, info);
         }

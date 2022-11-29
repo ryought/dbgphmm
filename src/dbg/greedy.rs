@@ -3,12 +3,14 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use crate::common::CopyNum;
-use crate::dbg::cycle::CopyNumsUpdateInfo;
+use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::e2e::Dataset;
 use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
+use fnv::FnvHashSet as HashSet;
+use itertools::Itertools;
 use std::time::{Duration, Instant};
 
 //
@@ -139,9 +141,80 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let start = Instant::now();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let neighbors: Vec<_> = dbg
-                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth)
+                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, false)
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
+                    .map(|(copy_nums, info)| {
+                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                    })
+                    .collect();
+                let duration = start.elapsed();
+                eprintln!(
+                    "[to_neighbors/#{}] found {} neighbors (in {} ms)",
+                    instance.move_count(),
+                    neighbors.len(),
+                    duration.as_millis(),
+                );
+                neighbors
+            },
+        );
+
+        searcher.search(max_move);
+        searcher.into_posterior_distribution()
+    }
+    ///
+    ///
+    ///
+    pub fn search_posterior_with_restriction(
+        &self,
+        dataset: &Dataset,
+        max_neighbor_depth: usize,
+        max_move: usize,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> Posterior<N::Kmer> {
+        let instance_init =
+            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let mut searcher = GreedySearcher::new(
+            instance_init,
+            |instance| {
+                let start = Instant::now();
+                let mut dbg = self.clone();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
+                let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
+                let duration = start.elapsed();
+                eprintln!(
+                    "[to_score/#{}] calculated score (in {} ms) P(R|G)={} P(G)={}",
+                    instance.move_count(),
+                    duration.as_millis(),
+                    p_rg,
+                    p_g
+                );
+                DbgCopyNumsScore::new(p_rg, p_g)
+            },
+            |instance| {
+                let mut dbg = self.clone();
+                let start = Instant::now();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                let neighbors_raw: Vec<_> = dbg
+                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, true)
+                    .into_iter()
+                    .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
+                    .collect();
+
+                let mut zero_one_neighbors = HashSet::default();
+                let mut neighbors = Vec::new();
+                for (neighbor, info) in neighbors_raw.into_iter() {
+                    let zero_one = neighbor.zero_one();
+                    if !zero_one_neighbors.contains(&zero_one) {
+                        zero_one_neighbors.insert(zero_one);
+                        neighbors.push((neighbor, info));
+                    }
+                }
+
+                let neighbors: Vec<_> = neighbors
+                    .into_iter()
                     .map(|(copy_nums, info)| {
                         DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
                     })
@@ -169,7 +242,12 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::e2e::{generate_simple_genome_mock, generate_small_tandem_repeat};
+    use crate::dbg::SimpleDbg;
+    use crate::e2e::{
+        generate_difficult_diploid_tandem_repeat_dataset, generate_simple_genome_mock,
+        generate_small_tandem_repeat,
+    };
+    use crate::kmer::VecKmer;
 
     #[test]
     fn greedy_simple_genome() {
@@ -238,5 +316,32 @@ mod tests {
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
             .collect();
         dbg_draft_true.to_kmer_distribution(&neighbors);
+    }
+    #[test]
+    fn dbg_sample_posterior_for_difficult_tandem_repeat() {
+        let dataset = generate_difficult_diploid_tandem_repeat_dataset();
+        let mut dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                12,
+                dataset.reads(),
+                dataset.coverage(),
+                dataset.reads().average_length(),
+                dataset.params().p_error().to_value(),
+            );
+        let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
+        let copy_nums_draft = dbg.to_node_copy_nums();
+        let distribution =
+            dbg.search_posterior_with_restriction(&dataset, 5, 10, dataset.genome_size(), 100);
+
+        for (p_gr, instance, score) in distribution.iter().sorted_by_key(|(p, _, _)| *p) {
+            println!(
+                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
+                p_gr,
+                score.p_rg,
+                score.p_g,
+                instance.move_count(),
+                instance.copy_nums().dist(&copy_nums_true),
+            );
+        }
     }
 }
