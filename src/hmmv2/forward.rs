@@ -512,6 +512,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
+    use crate::e2e;
     use crate::hmmv2::mocks::*;
     use crate::hmmv2::params::PHMMParams;
     use crate::prob::lp;
@@ -596,5 +597,28 @@ mod tests {
         println!("p(dense)={}", p1);
         println!("p(hint)={}", p2);
         assert!(p1.diff(p2) < 0.1);
+    }
+    #[test]
+    fn hmm_forward_with_hint_tandem_repeat() {
+        let exp = e2e::generate_small_tandem_repeat();
+        let dbg = exp.dbg_raw.clone();
+        let phmm = dbg.to_phmm(exp.phmm_params);
+        println!("n_reads={}", exp.reads().len());
+        // create hint
+        let hints: Vec<_> = exp
+            .reads()
+            .iter()
+            .map(|read| phmm.run(read.as_ref()).to_hint(10))
+            .collect();
+
+        // run
+        for (i, read) in exp.reads().iter().enumerate() {
+            let r1 = phmm.forward(read.as_ref());
+            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
+            let p1 = r1.full_prob();
+            let p2 = r2.full_prob();
+            println!("p(dense)={} p(hint)={}", p1, p2);
+            assert!(p1.diff(p2) < 0.1);
+        }
     }
 }
