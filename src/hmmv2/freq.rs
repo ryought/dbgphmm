@@ -5,17 +5,24 @@
 //! - **Emit prob** (for each state and each emission)
 //!     The probability of emitting the single base from the hidden state
 //!
+//!     EmitProb[i, M/I/D, v] = Pr(x[i] is emitted from state M/I/D of node v)
+//!
 //! - **State probs** (for each state)
 //!     The expected value (the sum of probabilities) of the usage frequency
 //!     of each hidden state, that is the sum of emit prob, while emitting
 //!     the set of emissions.
+//!
+//!     StateProb[M/I/D, v] = Pr(the expected usage of state M/I/D of node v)
 //!
 //! - **Node freq** (for each node)
 //!     The expected value of the usage frequency of each node.
 //!     There are three hidden states for a single node in PHMM, and a node freq
 //!     is the sum of three state freqs for `Match/Ins/Del`.
 //!
+//!     NodeFreq[v] = Pr(the expected usage of node v)
+//!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::hint::Hint;
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
@@ -318,6 +325,17 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             f[node] = p.to_value();
         }
         f
+    }
+    ///
+    /// Create hint (ActiveNodes list for each bases)
+    ///
+    pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
+        let ret = self
+            .iter_emit_probs()
+            .skip(1)
+            .map(|state_probs| state_probs.active_nodes_from_prob(n_active_nodes))
+            .collect();
+        Hint::new(ret)
     }
 }
 

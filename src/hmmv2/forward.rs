@@ -3,6 +3,7 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::hint::Hint;
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
@@ -34,6 +35,33 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     self.f_step(i, emission, &r.init_table)
                 } else {
                     self.f_step(i, emission, r.tables.last().unwrap())
+                };
+                r.tables.push(table);
+                r
+            })
+    }
+    ///
+    /// Run Forward algorithm to the emissions using hint information
+    ///
+    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResult {
+        let r0 = PHMMResult {
+            init_table: self.f_init(),
+            tables: Vec::new(),
+            is_forward: true,
+        };
+        emissions
+            .iter()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                let table = if i == 0 {
+                    self.f_step_with_active_nodes(i, emission, &r.init_table, hint.active_nodes(i))
+                } else {
+                    self.f_step_with_active_nodes(
+                        i,
+                        emission,
+                        r.tables.last().unwrap(),
+                        hint.active_nodes(i),
+                    )
                 };
                 r.tables.push(table);
                 r
@@ -135,6 +163,43 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         // silent state next
         self.fd(&mut table, prev_table, emission, &active_nodes);
         self.fe(&mut table, prev_table, emission, &active_nodes);
+
+        table
+    }
+    ///
+    /// Calculate the table from the previous table
+    /// for Forward algorithm
+    ///
+    /// If `prev_table.active_nodes` is set (i.e. `ActiveNodes::Only`),
+    ///
+    fn f_step_with_active_nodes<S>(
+        &self,
+        _i: usize,
+        emission: u8,
+        prev_table: &PHMMTable<S>,
+        active_nodes: &ActiveNodes,
+    ) -> PHMMTable<S>
+    where
+        S: Storage<Item = Prob>,
+    {
+        let mut table = PHMMTable::new(
+            self.n_nodes(),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+        );
+
+        // normal state first
+        self.fm(&mut table, prev_table, emission, active_nodes);
+        self.fi(&mut table, prev_table, emission, active_nodes);
+        self.fmb(&mut table, prev_table, emission, active_nodes);
+        self.fib(&mut table, prev_table, emission, active_nodes);
+        // silent state next
+        self.fd_with_active_nodes(&mut table, prev_table, emission, active_nodes);
+        self.fe(&mut table, prev_table, emission, active_nodes);
 
         table
     }
@@ -280,22 +345,38 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
 
         // run t=0
-        let mut active_nodes_t = if S::is_dense() {
-            ActiveNodes::All
-        } else {
-            active_nodes.to_childs(self)
-        };
+        let mut active_nodes_t = active_nodes.to_childs(self);
         let mut fdt0 = self.fd0(t0, &active_nodes);
         t0.d += &fdt0.d;
 
         for _t in 0..param.n_max_gaps {
             // run t+1
-            active_nodes_t = if S::is_dense() {
-                ActiveNodes::All
-            } else {
-                active_nodes_t.to_childs(self)
-            };
+            active_nodes_t = active_nodes_t.to_childs(self);
             fdt0 = self.fdt(&fdt0, &active_nodes_t);
+            t0.d += &fdt0.d;
+        }
+    }
+    ///
+    /// `fd` with fixed active nodes (not growing)
+    ///
+    fn fd_with_active_nodes<S>(
+        &self,
+        t0: &mut PHMMTable<S>,
+        _t1: &PHMMTable<S>,
+        _emission: u8,
+        active_nodes: &ActiveNodes,
+    ) where
+        S: Storage<Item = Prob>,
+    {
+        let param = &self.param;
+
+        // run t=0
+        let mut fdt0 = self.fd0(t0, &active_nodes);
+        t0.d += &fdt0.d;
+
+        for _t in 0..param.n_max_gaps {
+            // run t+1
+            fdt0 = self.fdt(&fdt0, &active_nodes);
             t0.d += &fdt0.d;
         }
     }
@@ -497,5 +578,20 @@ mod tests {
             println!("{}", d);
             assert!(d < 0.000000001);
         }
+    }
+    #[test]
+    fn hmm_forward_with_hint_mock_linear_high_error() {
+        let phmm = mock_linear_phmm(PHMMParams::high_error());
+        // read1
+        let read1 = b"CGATC";
+        let o = phmm.run(read1);
+        let hint = o.to_hint(5);
+        println!("{:?}", hint);
+        println!("{:?}", hint.len());
+
+        let r1 = phmm.forward(read1);
+        let r2 = phmm.forward_with_hint(read1, &hint);
+        println!("{}", r1.last_table());
+        println!("{}", r2.last_table());
     }
 }
