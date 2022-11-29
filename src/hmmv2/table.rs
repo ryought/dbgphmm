@@ -207,6 +207,8 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
     ///
     /// Measureing difference between two phmm tables
     ///
+    /// TODO add mb,ib,e?
+    ///
     pub fn diff<T: Storage<Item = Prob>>(&self, other: &PHMMTable<T>) -> f64 {
         self.m.diff(&other.m) + self.i.diff(&other.i) + self.d.diff(&other.d)
     }

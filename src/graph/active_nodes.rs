@@ -13,3 +13,12 @@ pub enum ActiveNodes {
     /// Only nodes specified are active
     Only(Vec<NodeIndex>),
 }
+
+impl ActiveNodes {
+    pub fn is_only(&self) -> bool {
+        match self {
+            ActiveNodes::Only(_) => true,
+            ActiveNodes::All => false,
+        }
+    }
+}

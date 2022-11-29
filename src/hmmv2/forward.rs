@@ -170,8 +170,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Forward algorithm
     ///
-    /// If `prev_table.active_nodes` is set (i.e. `ActiveNodes::Only`),
-    ///
     fn f_step_with_active_nodes<S>(
         &self,
         _i: usize,
