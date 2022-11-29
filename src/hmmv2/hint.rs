@@ -3,7 +3,7 @@
 //!
 use crate::graph::active_nodes::ActiveNodes;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Hint(Vec<ActiveNodes>);
 
 impl Hint {

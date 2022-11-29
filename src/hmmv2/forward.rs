@@ -512,9 +512,11 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
+    use crate::dbg::SimpleDbg;
     use crate::e2e;
     use crate::hmmv2::mocks::*;
     use crate::hmmv2::params::PHMMParams;
+    use crate::kmer::VecKmer;
     use crate::prob::lp;
     use crate::vector::DenseStorage;
     #[test]
@@ -584,9 +586,19 @@ mod tests {
         // read1
         let read1 = b"CGATC";
         let o = phmm.run(read1);
-        let hint = o.to_hint(5);
+        let hint = o.to_hint(3);
         println!("{:?}", hint);
         println!("{:?}", hint.len());
+        assert_eq!(
+            hint,
+            Hint::new(vec![
+                ActiveNodes::Only(vec![ni(3), ni(2), ni(4)]),
+                ActiveNodes::Only(vec![ni(4), ni(3), ni(5)]),
+                ActiveNodes::Only(vec![ni(5), ni(6), ni(4)]),
+                ActiveNodes::Only(vec![ni(6), ni(7), ni(5)]),
+                ActiveNodes::Only(vec![ni(7), ni(8), ni(6)]),
+            ])
+        );
 
         let r1 = phmm.forward(read1);
         let r2 = phmm.forward_with_hint(read1, &hint);
@@ -619,6 +631,36 @@ mod tests {
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={}", p1, p2);
             assert!(p1.diff(p2) < 0.1);
+        }
+    }
+    #[test]
+    fn hmm_forward_with_hint_difficult_tandem_repeat() {
+        let dataset = e2e::generate_difficult_diploid_tandem_repeat_dataset();
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                12,
+                dataset.reads(),
+                dataset.coverage(),
+                100,
+                0.01,
+            );
+        let phmm = dbg.to_phmm(dataset.params());
+        println!("n_reads={}", dataset.reads().len());
+        // create hint
+        let hints: Vec<_> = dataset
+            .reads()
+            .iter()
+            .map(|read| phmm.run(read.as_ref()).to_hint(10))
+            .collect();
+
+        // run
+        for (i, read) in dataset.reads().iter().enumerate() {
+            let r1 = phmm.forward(read.as_ref());
+            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
+            let p1 = r1.full_prob();
+            let p2 = r2.full_prob();
+            println!("p(dense)={} p(hint)={}", p1, p2);
+            assert!(p1.diff(p2) < 0.5);
         }
     }
 }
