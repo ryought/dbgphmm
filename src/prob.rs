@@ -60,6 +60,12 @@ impl Prob {
     pub fn one() -> Prob {
         Prob(0.0)
     }
+    ///
+    /// abs diff of two log probs (as log value) `= |log p_a - log p_b|`
+    ///
+    pub fn diff(&self, other: Prob) -> f64 {
+        (self.to_value() - other.to_value()).abs()
+    }
 }
 
 /// p=0 (Prob(-inf)) as a default value

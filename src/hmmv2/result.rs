@@ -56,6 +56,18 @@ pub trait PHMMResultLike {
             }
         }
     }
+    /// Full probability from forward/backward
+    ///
+    /// * Forward: End state of last table (that emits x[n-1])
+    /// * Backward: MatchBegin state of first table (that emits x[0])
+    ///
+    fn full_prob(&self) -> Prob {
+        if self.is_forward() {
+            self.last_table().e()
+        } else {
+            self.first_table().mb()
+        }
+    }
 }
 
 /// Struct that stores Forward/Backward algorithm result

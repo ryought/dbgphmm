@@ -660,7 +660,12 @@ mod tests {
 
         let r1 = phmm.backward(read1);
         let r2 = phmm.backward_with_hint(read1, &hint);
-        println!("{}", r1.last_table());
-        println!("{}", r2.last_table());
+        println!("{}", r1.first_table());
+        println!("{}", r2.first_table());
+        let p1 = r1.full_prob();
+        let p2 = r2.full_prob();
+        println!("p(dense)={}", p1);
+        println!("p(hint)={}", p2);
+        assert!(p1.diff(p2) < 0.1);
     }
 }

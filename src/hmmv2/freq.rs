@@ -220,10 +220,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// ```
     ///
     pub fn to_full_prob_forward(&self) -> Prob {
-        match self.forward.last_table() {
-            PHMMTableRef::Dense(t) => t.e,
-            PHMMTableRef::Sparse(t) => t.e,
-        }
+        self.forward.full_prob()
     }
     /// Calculate the full probability `P(x)` of the given emission `x`
     /// from **backward** result.
@@ -233,10 +230,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// ```
     ///
     pub fn to_full_prob_backward(&self) -> Prob {
-        match self.backward.first_table() {
-            PHMMTableRef::Dense(t) => t.mb,
-            PHMMTableRef::Sparse(t) => t.mb,
-        }
+        self.backward.full_prob()
     }
 }
 

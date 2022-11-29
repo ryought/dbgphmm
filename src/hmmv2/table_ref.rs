@@ -59,6 +59,13 @@ impl<'a> PHMMTableRef<'a> {
             PHMMTableRef::Sparse(t) => t.ib,
         }
     }
+    /// Get a value from `PHMMTable.e`, End state
+    pub fn e(&self) -> Prob {
+        match self {
+            PHMMTableRef::Dense(t) => t.e,
+            PHMMTableRef::Sparse(t) => t.e,
+        }
+    }
     /// check if backend is dense or sparse?
     pub fn is_dense(&self) -> bool {
         match self {

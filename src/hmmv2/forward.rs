@@ -591,5 +591,10 @@ mod tests {
         let r2 = phmm.forward_with_hint(read1, &hint);
         println!("{}", r1.last_table());
         println!("{}", r2.last_table());
+        let p1 = r1.full_prob();
+        let p2 = r2.full_prob();
+        println!("p(dense)={}", p1);
+        println!("p(hint)={}", p2);
+        assert!(p1.diff(p2) < 0.1);
     }
 }
