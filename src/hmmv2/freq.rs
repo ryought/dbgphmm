@@ -186,9 +186,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.
     ///
-    /// ## TODO
-    ///
-    /// * do not run backward. Running forward is enough.
+    /// ## Note (TODO)
+    /// This function does not run backward. Running forward is enough to calculate the full
+    /// probability P(R|G).
     ///
     pub fn to_full_prob_parallel<T>(&self, seqs: T) -> Prob
     where
