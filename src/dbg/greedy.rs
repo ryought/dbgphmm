@@ -318,6 +318,7 @@ mod tests {
         dbg_draft_true.to_kmer_distribution(&neighbors);
     }
     #[test]
+    #[ignore = "takes long time (~1 hour)"]
     fn dbg_sample_posterior_for_difficult_tandem_repeat() {
         let dataset = generate_difficult_diploid_tandem_repeat_dataset();
         let mut dbg: SimpleDbg<VecKmer> =
