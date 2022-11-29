@@ -62,61 +62,57 @@ mod tests {
         generate_full_length_experiment(genome, genome_size, read_seed, PHMMParams::default(), 10)
     }
 
-    #[ignore]
-    #[test]
-    fn e2e_tandem_repeat_haploid_error_2() {
-        let dataset =
-            generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::mid_error_2(), 10);
-        let (_, r, s) = benchmark(&dataset, 10.0);
-        assert_eq!(r.n_true, 248);
-        assert_eq!(r.n_error, 249);
-        for (i, result) in s[0].0.iter().enumerate() {
-            if i <= 221 {
-                assert!(result.is_correct());
-            } else if i <= 470 {
-                assert!(!result.is_correct());
-            } else {
-                assert!(result.is_correct());
-            }
-        }
-    }
-
-    #[ignore]
-    #[test]
-    fn e2e_tandem_repeat_haploid_error_1() {
-        let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 10);
-        let (_, r, s) = benchmark(&dataset, 10.0);
-        assert_eq!(r.n_true, 408);
-        assert_eq!(r.n_error, 89);
-        for (i, result) in s[0].0.iter().enumerate() {
-            if i <= 397 {
-                assert!(result.is_correct());
-            }
-        }
-    }
-
-    #[ignore]
-    #[test]
-    fn e2e_tandem_repeat_haploid_error_v2_1() {
-        let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
-        let (_, r, s) = benchmark(&dataset, 15.0);
-        assert_eq!(r.n_true, 362);
-        assert_eq!(r.n_error, 135);
-    }
-
-    #[ignore]
-    #[test]
-    fn e2e_tandem_repeat_diploid() {
-        let dataset = generate_dataset_diploid(10, 0, 2, 111);
-        let (_, r, _) = benchmark(&dataset, 10.0);
-        assert_eq!(r.n_true, 732);
-        assert_eq!(r.n_error, 0);
-    }
-
-    #[ignore]
-    #[test]
-    fn e2e_tandem_repeat_haploid_error_inspection() {
-        let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
-        benchmark(&dataset, 15.0);
-    }
+    // #[ignore]
+    // #[test]
+    // fn e2e_tandem_repeat_haploid_error_2() {
+    //     let dataset =
+    //         generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::mid_error_2(), 10);
+    //     let (_, r, s) = benchmark(&dataset, 10.0);
+    //     assert_eq!(r.n_true, 248);
+    //     assert_eq!(r.n_error, 249);
+    //     for (i, result) in s[0].0.iter().enumerate() {
+    //         if i <= 221 {
+    //             assert!(result.is_correct());
+    //         } else if i <= 470 {
+    //             assert!(!result.is_correct());
+    //         } else {
+    //             assert!(result.is_correct());
+    //         }
+    //     }
+    // }
+    // #[ignore]
+    // #[test]
+    // fn e2e_tandem_repeat_haploid_error_1() {
+    //     let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 10);
+    //     let (_, r, s) = benchmark(&dataset, 10.0);
+    //     assert_eq!(r.n_true, 408);
+    //     assert_eq!(r.n_error, 89);
+    //     for (i, result) in s[0].0.iter().enumerate() {
+    //         if i <= 397 {
+    //             assert!(result.is_correct());
+    //         }
+    //     }
+    // }
+    // #[ignore]
+    // #[test]
+    // fn e2e_tandem_repeat_haploid_error_v2_1() {
+    //     let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
+    //     let (_, r, s) = benchmark(&dataset, 15.0);
+    //     assert_eq!(r.n_true, 362);
+    //     assert_eq!(r.n_error, 135);
+    // }
+    // #[ignore]
+    // #[test]
+    // fn e2e_tandem_repeat_diploid() {
+    //     let dataset = generate_dataset_diploid(10, 0, 2, 111);
+    //     let (_, r, _) = benchmark(&dataset, 10.0);
+    //     assert_eq!(r.n_true, 732);
+    //     assert_eq!(r.n_error, 0);
+    // }
+    // #[ignore]
+    // #[test]
+    // fn e2e_tandem_repeat_haploid_error_inspection() {
+    //     let dataset = generate_dataset_haploid(20, 20, 0.1, 10, 0, 111, PHMMParams::default(), 15);
+    //     benchmark(&dataset, 15.0);
+    // }
 }

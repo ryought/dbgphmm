@@ -122,7 +122,6 @@ fn check_node_freq_similarity(phmm: &PModel, h: &History) {
 }
 
 #[test]
-#[ignore]
 fn hmmv2_linear_long_node_freq_similarity() {
     let mut param = PHMMParams::default();
     param.n_warmup = 40;
@@ -140,7 +139,6 @@ fn hmmv2_linear_long_node_freq_similarity() {
 }
 
 #[test]
-#[ignore]
 fn hmmv2_forward_dense_and_sparse() {
     let n_read_bases = 100;
     let n_genome_bases = 1000;
@@ -172,12 +170,12 @@ fn hmmv2_forward_dense_and_sparse() {
                 "n_w={} n_a={} seed={} d={}",
                 n_warmup, n_active_nodes, seed, d
             );
+            assert!(d < 0.000001);
         }
     }
 }
 
 #[test]
-#[ignore]
 fn hmmv2_backward_dense_and_sparse() {
     let n_read_bases = 100;
     let n_genome_bases = 1000;
@@ -209,6 +207,7 @@ fn hmmv2_backward_dense_and_sparse() {
                 "n_w={} n_a={} seed={} d={}",
                 n_warmup, n_active_nodes, seed, d
             );
+            assert!(d < 0.000001);
         }
     }
 }
