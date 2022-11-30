@@ -17,6 +17,7 @@ pub mod genome_graph;
 pub mod iterators;
 pub mod min_mean_weight_cycle;
 pub mod mocks;
+pub mod node_mapping;
 pub mod seq_graph;
 pub mod shortest_cycle;
 pub mod spanning_tree;
