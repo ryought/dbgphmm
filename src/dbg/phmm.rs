@@ -7,6 +7,7 @@ use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::freq::PHMMOutput;
+use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::result::PHMMResultLike;
 use crate::hmmv2::sample::State;
@@ -44,6 +45,17 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let phmm = self.to_phmm(param);
         phmm.to_full_prob_parallel(seqs)
+    }
+    ///
+    /// Convert dbg into phmm and calculate full probability
+    /// (Likelihood)
+    ///
+    pub fn to_full_prob_with_hint<S>(&self, param: PHMMParams, seqs_and_hints: &[(S, Hint)]) -> Prob
+    where
+        S: Seq,
+    {
+        let phmm = self.to_phmm(param);
+        phmm.to_full_prob_par_with_hint(seqs_and_hints)
     }
     ///
     ///

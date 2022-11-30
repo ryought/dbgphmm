@@ -208,10 +208,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// This function does not run backward. Running forward is enough to calculate the full
     /// probability P(R|G).
     ///
-    pub fn to_full_prob_par_with_hint<'a, T, S>(&'a self, seqs_and_hints: T) -> Prob
+    pub fn to_full_prob_par_with_hint<S>(&self, seqs_and_hints: &[(S, Hint)]) -> Prob
     where
         S: Seq,
-        T: IntoParallelIterator<Item = (S, &'a Hint)>,
     {
         seqs_and_hints
             .into_par_iter()

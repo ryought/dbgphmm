@@ -118,13 +118,15 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> Posterior<N::Kmer> {
         let instance_init =
             DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        eprintln!("creating hint");
+        let reads_with_hints = self.generate_hints(dataset.reads(), dataset.params());
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
                 let start = Instant::now();
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
+                let p_rg = dbg.to_full_prob_with_hint(dataset.params(), &reads_with_hints);
                 let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
                 let duration = start.elapsed();
                 eprintln!(

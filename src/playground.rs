@@ -101,3 +101,19 @@ impl<E: DbgEdge> PHMMLikeEdge for E {
     }
 }
 */
+
+fn p<I>(i: I)
+where
+    I: IntoIterator,
+    I::Item: AsRef<(usize, u8)>,
+{
+    for item in i {
+        let (x, y) = item.as_ref();
+        println!("x={} y={}", x, y);
+    }
+}
+fn f() {
+    let v: Vec<(usize, u8)> = vec![(10, 2), (11, 5)];
+    // this does not compile
+    // p(&v);
+}

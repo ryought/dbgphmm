@@ -57,7 +57,7 @@ pub fn complement(base: u8) -> u8 {
 /// * `to_str`
 /// * `to_revcomp`
 ///
-pub trait Seq: AsRef<Bases> + Sync {
+pub trait Seq: AsRef<Bases> + Sync + Clone {
     ///
     /// convert bases into &str for displaying
     ///
@@ -75,7 +75,7 @@ pub trait Seq: AsRef<Bases> + Sync {
             .collect()
     }
 }
-impl<T: AsRef<Bases> + Sync> Seq for T {}
+impl<T: AsRef<Bases> + Sync + Clone> Seq for T {}
 // TODO
 // impl<T: Seq> std::fmt::Display for T {
 //     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

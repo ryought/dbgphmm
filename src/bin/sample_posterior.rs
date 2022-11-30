@@ -143,7 +143,7 @@ fn main() {
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
 
-        let distribution = dbg.search_posterior_with_restriction(
+        let distribution = dbg.search_posterior(
             &dataset,
             opts.neighbor_depth,
             opts.max_move,

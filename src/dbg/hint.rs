@@ -37,13 +37,13 @@ impl ConstCost for Uniform {
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
-    ///
+    /// TODO should not clone read! return reference to reads
     ///
     pub fn generate_hints<'a, S: Seq>(
         &self,
-        reads: &'a ReadCollection<S>,
+        reads: &ReadCollection<S>,
         params: PHMMParams,
-    ) -> Vec<(&'a S, Hint)> {
+    ) -> Vec<(S, Hint)> {
         let mut dbg = self.clone();
         let copy_nums = dbg.uniform_copy_nums();
         dbg.set_node_copy_nums(&copy_nums);
@@ -53,7 +53,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .iter()
             .map(|read| {
                 let hint = phmm.run(read.as_ref()).to_hint(params.n_active_nodes);
-                (read, hint)
+                (read.clone(), hint)
             })
             .collect()
     }
@@ -87,6 +87,7 @@ mod tests {
     use crate::dbg::mocks;
     use crate::e2e;
     use crate::hmmv2::result::PHMMResultLike;
+    use crate::utils::timer;
 
     #[test]
     fn uniform_copy_nums_intersection_small() {
@@ -106,15 +107,27 @@ mod tests {
 
         let reads_with_hints = dbg.generate_hints(exp.reads(), param);
 
-        // run
+        // run for each reads manually
         let phmm = dbg.to_phmm(param);
-        for (read, hint) in reads_with_hints {
+        for (read, hint) in reads_with_hints.iter() {
             let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hint);
+            let r2 = phmm.forward_with_hint(read.as_ref(), hint);
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={} diff={}", p1, p2, p1.log_diff(p2));
             assert!(p1.log_diff(p2) < 1.0);
         }
+
+        // run for all reads
+        let (p1, t1) = timer(|| dbg.to_full_prob(param, exp.reads()));
+        let (p2, t2) = timer(|| dbg.to_full_prob_with_hint(param, &reads_with_hints));
+        println!(
+            "p_tot(dense)={} p_tot(hint)={} diff={}",
+            p1,
+            p2,
+            p1.log_diff(p2)
+        );
+        println!("t1={} t2={}", t1, t2);
+        assert!(p1.log_diff(p2) < 0.1);
     }
 }
