@@ -37,7 +37,10 @@ impl ConstCost for Uniform {
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
-    /// TODO should not clone read! return reference to reads
+    /// Generate hints
+    ///
+    /// ## TODO
+    /// * Cloning reads is redundant. It should return Vec<(&S, Hint)>.
     ///
     pub fn generate_hints<'a, S: Seq>(
         &self,
@@ -48,7 +51,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let copy_nums = dbg.uniform_copy_nums();
         dbg.set_node_copy_nums(&copy_nums);
         let phmm = dbg.to_phmm(params);
-        eprintln!("n_warmup={}", params.n_warmup);
 
         let hints = phmm.to_hints_parallel(reads);
         hints
@@ -63,6 +65,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// Solves MinCostFlow on compacted edge-centric dbg with each edge have `Uniform` edge
     /// ([l,u]=[1,MAX], c=1).
+    ///
+    /// ## TODO
+    /// * all-one copy_nums is also ok? Flow-constraint will be broken, but it seems not to cause
+    /// any problems.
     ///
     fn uniform_copy_nums(&self) -> NodeCopyNums {
         let graph = self.to_compact_edbg_graph();
