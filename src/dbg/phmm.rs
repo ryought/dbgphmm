@@ -12,6 +12,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::result::PHMMResultLike;
 use crate::hmmv2::sample::State;
 use crate::prob::Prob;
+use crate::utils::timer;
 use rayon::prelude::*;
 
 impl<N: DbgNode> SeqNode for N {
@@ -26,6 +27,63 @@ impl<N: DbgNode> SeqNode for N {
 impl<E: DbgEdge> SeqEdge for E {
     fn copy_num(&self) -> Option<CopyNum> {
         self.copy_num()
+    }
+}
+
+//
+// EvalResult
+//
+#[derive(Clone, Copy)]
+pub struct EvalResult {
+    /// Likelihood `P(R|G)`
+    p_rg: Prob,
+    /// Prior `P(G)`
+    p_g: Prob,
+    /// Genome size `|G|`
+    genome_size: CopyNum,
+    /// Computation time of likelihood
+    time: u128,
+}
+impl EvalResult {
+    ///
+    /// Constructor of EvalResult
+    ///
+    /// (used in Dbg::evaluate)
+    ///
+    fn new(p_rg: Prob, p_g: Prob, genome_size: CopyNum, time: u128) -> Self {
+        EvalResult {
+            p_rg,
+            p_g,
+            genome_size,
+            time,
+        }
+    }
+    ///
+    /// Unnormalized posterior P(R,G) = P(R|G)P(G)
+    ///
+    pub fn posterior(&self) -> Prob {
+        self.p_rg * self.p_g
+    }
+    /// compuation time
+    pub fn time(&self) -> u128 {
+        self.time
+    }
+    /// Likelihood P(R|G)
+    pub fn p_rg(&self) -> Prob {
+        self.p_rg
+    }
+    /// Prior P(G)
+    pub fn p_g(&self) -> Prob {
+        self.p_g
+    }
+}
+impl std::fmt::Display for EvalResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "P(R|G)={} P(G={})={} T={}",
+            self.p_rg, self.genome_size, self.p_g, self.time,
+        )
     }
 }
 
@@ -83,6 +141,38 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn to_prior_score_by_lambda(&self, lambda: f64, genome_size_expected: CopyNum) -> f64 {
         self.to_prior_prob_by_lambda(lambda, genome_size_expected)
             .to_log_value()
+    }
+    ///
+    ///
+    ///
+    pub fn evaluate<T>(
+        &self,
+        param: PHMMParams,
+        seqs: T,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> EvalResult
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        let (p_rg, time) = timer(|| self.to_full_prob(param, seqs));
+        let p_g = self.to_prior_prob(genome_size_expected, genome_size_sigma);
+        EvalResult::new(p_rg, p_g, self.genome_size(), time)
+    }
+    ///
+    ///
+    ///
+    pub fn evaluate_with_hint<S: Seq>(
+        &self,
+        param: PHMMParams,
+        seqs_and_hints: &[(S, Hint)],
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> EvalResult {
+        let (p_rg, time) = timer(|| self.to_full_prob_with_hint(param, seqs_and_hints));
+        let p_g = self.to_prior_prob(genome_size_expected, genome_size_sigma);
+        EvalResult::new(p_rg, p_g, self.genome_size(), time)
     }
 }
 

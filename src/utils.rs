@@ -52,7 +52,7 @@ use std::time::{Duration, Instant};
 ///
 pub fn timer<F, T>(f: F) -> (T, u128)
 where
-    F: Fn() -> T,
+    F: FnOnce() -> T,
 {
     let start = Instant::now();
     let ret = f();
