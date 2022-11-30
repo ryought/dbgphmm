@@ -48,6 +48,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let copy_nums = dbg.uniform_copy_nums();
         dbg.set_node_copy_nums(&copy_nums);
         let phmm = dbg.to_phmm(params);
+        eprintln!("n_warmup={}", params.n_warmup);
 
         reads
             .iter()
