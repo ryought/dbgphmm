@@ -27,7 +27,7 @@ use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
-use crate::common::{Freq, Reads, Seq, Sequence};
+use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -219,6 +219,21 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 forward.full_prob()
             })
             .product()
+    }
+    ///
+    /// Append hint information in parallel
+    ///
+    pub fn to_hints_parallel<T>(&self, seqs: T) -> Vec<Hint>
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        seqs.into_par_iter()
+            .map(|seq| {
+                let hint = self.run(seq.as_ref()).to_hint(self.param.n_active_nodes);
+                hint
+            })
+            .collect()
     }
 }
 

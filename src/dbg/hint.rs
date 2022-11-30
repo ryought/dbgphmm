@@ -50,12 +50,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let phmm = dbg.to_phmm(params);
         eprintln!("n_warmup={}", params.n_warmup);
 
-        reads
-            .iter()
-            .map(|read| {
-                let hint = phmm.run(read.as_ref()).to_hint(params.n_active_nodes);
-                (read.clone(), hint)
-            })
+        let hints = phmm.to_hints_parallel(reads);
+        hints
+            .into_iter()
+            .enumerate()
+            .map(|(i, hint)| (reads[i].clone(), hint))
             .collect()
     }
     ///
