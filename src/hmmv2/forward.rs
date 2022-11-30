@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
-use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
+use super::result::{PHMMResult, PHMMResultFullSparse, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use crate::graph::active_nodes::ActiveNodes;
@@ -43,11 +43,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions using hint information
     ///
-    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResultSparse {
-        let r0 = PHMMResultSparse {
-            init_table: self.f_init(), // not used TODO remove this..
-            tables_warmup: Vec::new(), // not used
-            tables_sparse: Vec::new(),
+    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResultFullSparse {
+        let r0 = PHMMResultFullSparse {
+            init_table: self.f_init(),
+            tables: Vec::new(),
             is_forward: true,
         };
         emissions
@@ -55,17 +54,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 let table = if i == 0 {
-                    let init_table = self.f_init();
-                    self.f_step_with_active_nodes(i, emission, &init_table, hint.active_nodes(i))
+                    self.f_step_with_active_nodes(i, emission, &r.init_table, hint.active_nodes(i))
                 } else {
                     self.f_step_with_active_nodes(
                         i,
                         emission,
-                        r.tables_sparse.last().unwrap(),
+                        r.tables.last().unwrap(),
                         hint.active_nodes(i),
                     )
                 };
-                r.tables_sparse.push(table);
+                r.tables.push(table);
                 r
             })
     }

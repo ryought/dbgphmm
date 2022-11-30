@@ -97,6 +97,30 @@ impl PHMMResultLike for PHMMResult {
     }
 }
 
+/// TODO use generics for PHMMResult and PHMMResultFullSparse
+///
+#[derive(Debug, Clone)]
+pub struct PHMMResultFullSparse {
+    pub init_table: PHMMTable<SparseStorage<Prob>>,
+    pub tables: Vec<PHMMTable<SparseStorage<Prob>>>,
+    pub is_forward: bool,
+}
+
+impl PHMMResultLike for PHMMResultFullSparse {
+    fn is_forward(&self) -> bool {
+        self.is_forward
+    }
+    fn n_emissions(&self) -> usize {
+        self.tables.len()
+    }
+    fn init_table(&self) -> PHMMTableRef {
+        PHMMTableRef::Sparse(&self.init_table)
+    }
+    fn table(&self, index: usize) -> PHMMTableRef {
+        PHMMTableRef::Sparse(&self.tables[index])
+    }
+}
+
 ///
 /// PHMMResult for sparse calculation
 ///
