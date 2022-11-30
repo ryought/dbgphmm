@@ -4,6 +4,7 @@ pub mod bench;
 pub mod common;
 pub mod forward;
 pub mod freq;
+pub mod hint;
 pub mod mocks;
 pub mod new;
 pub mod params;

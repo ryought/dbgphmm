@@ -56,6 +56,18 @@ pub trait PHMMResultLike {
             }
         }
     }
+    /// Full probability from forward/backward
+    ///
+    /// * Forward: End state of last table (that emits x[n-1])
+    /// * Backward: MatchBegin state of first table (that emits x[0])
+    ///
+    fn full_prob(&self) -> Prob {
+        if self.is_forward() {
+            self.last_table().e()
+        } else {
+            self.first_table().mb()
+        }
+    }
 }
 
 /// Struct that stores Forward/Backward algorithm result
@@ -82,6 +94,30 @@ impl PHMMResultLike for PHMMResult {
     }
     fn table(&self, index: usize) -> PHMMTableRef {
         PHMMTableRef::Dense(&self.tables[index])
+    }
+}
+
+/// TODO use generics for PHMMResult and PHMMResultFullSparse
+///
+#[derive(Debug, Clone)]
+pub struct PHMMResultFullSparse {
+    pub init_table: PHMMTable<SparseStorage<Prob>>,
+    pub tables: Vec<PHMMTable<SparseStorage<Prob>>>,
+    pub is_forward: bool,
+}
+
+impl PHMMResultLike for PHMMResultFullSparse {
+    fn is_forward(&self) -> bool {
+        self.is_forward
+    }
+    fn n_emissions(&self) -> usize {
+        self.tables.len()
+    }
+    fn init_table(&self) -> PHMMTableRef {
+        PHMMTableRef::Sparse(&self.init_table)
+    }
+    fn table(&self, index: usize) -> PHMMTableRef {
+        PHMMTableRef::Sparse(&self.tables[index])
     }
 }
 

@@ -1105,6 +1105,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// ## TODOs
     ///
+    /// * return node mapping as well
     /// * zero-copy-number nodes should be purged. (not required)
     ///
     pub fn to_kp1_dbg(&self) -> Dbg<N, E> {

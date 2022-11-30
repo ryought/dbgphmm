@@ -176,7 +176,7 @@ where
         chain!(self.iter().map(|(i, _)| i), other.iter().map(|(i, _)| i))
             .unique()
             .map(move |i| {
-                let diff = (self[i].to_value() - other[i].to_value()).abs();
+                let diff = self[i].diff(other[i]);
                 (i, diff)
             })
     }
@@ -193,7 +193,7 @@ where
         assert_eq!(self.len(), other.len());
         (0..self.len()).map(move |i| {
             let index = Ix::new(i);
-            let diff = (self[index].to_value() - other[index].to_value()).abs();
+            let diff = self[index].diff(other[index]);
             (index, diff)
         })
     }

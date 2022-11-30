@@ -205,10 +205,23 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
 //
 impl<S: Storage<Item = Prob>> PHMMTable<S> {
     ///
-    /// Measureing difference between two phmm tables
+    /// Measureing difference between two phmm tables (M/I/D)
+    ///
+    /// If differences in MB/IB/E matters, please use `diff_all`
     ///
     pub fn diff<T: Storage<Item = Prob>>(&self, other: &PHMMTable<T>) -> f64 {
         self.m.diff(&other.m) + self.i.diff(&other.i) + self.d.diff(&other.d)
+    }
+    ///
+    /// Measureing difference between two phmm tables (M/I/D/MB/MI/E)
+    ///
+    pub fn diff_all<T: Storage<Item = Prob>>(&self, other: &PHMMTable<T>) -> f64 {
+        self.m.diff(&other.m)
+            + self.i.diff(&other.i)
+            + self.d.diff(&other.d)
+            + self.mb.diff(other.mb)
+            + self.ib.diff(other.ib)
+            + self.e.diff(other.e)
     }
 }
 

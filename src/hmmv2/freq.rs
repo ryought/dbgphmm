@@ -5,22 +5,29 @@
 //! - **Emit prob** (for each state and each emission)
 //!     The probability of emitting the single base from the hidden state
 //!
+//!     EmitProb[i, M/I/D, v] = Pr(x[i] is emitted from state M/I/D of node v)
+//!
 //! - **State probs** (for each state)
 //!     The expected value (the sum of probabilities) of the usage frequency
 //!     of each hidden state, that is the sum of emit prob, while emitting
 //!     the set of emissions.
+//!
+//!     StateProb[M/I/D, v] = Pr(the expected usage of state M/I/D of node v)
 //!
 //! - **Node freq** (for each node)
 //!     The expected value of the usage frequency of each node.
 //!     There are three hidden states for a single node in PHMM, and a node freq
 //!     is the sum of three state freqs for `Match/Ins/Del`.
 //!
+//!     NodeFreq[v] = Pr(the expected usage of node v)
+//!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::hint::Hint;
 use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
 use super::table::PHMMTable;
 use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
-use crate::common::{Freq, Reads, Seq, Sequence};
+use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -179,10 +186,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.
     ///
-    /// ## TODO
-    ///
-    /// * do not run backward. Running forward is enough.
-    ///
     pub fn to_full_prob_parallel<T>(&self, seqs: T) -> Prob
     where
         T: IntoParallelIterator,
@@ -197,6 +200,40 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 o.to_full_prob_forward()
             })
             .product()
+    }
+    ///
+    /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
+    /// (active nodes)
+    ///
+    /// This function does not run backward. Running forward is enough to calculate the full
+    /// probability P(R|G).
+    ///
+    pub fn to_full_prob_par_with_hint<S>(&self, seqs_and_hints: &[(S, Hint)]) -> Prob
+    where
+        S: Seq,
+    {
+        seqs_and_hints
+            .into_par_iter()
+            .map(|(seq, hint)| {
+                let forward = self.forward_with_hint(seq.as_ref(), hint);
+                forward.full_prob()
+            })
+            .product()
+    }
+    ///
+    /// Append hint information in parallel
+    ///
+    pub fn to_hints_parallel<T>(&self, seqs: T) -> Vec<Hint>
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        seqs.into_par_iter()
+            .map(|seq| {
+                let hint = self.run(seq.as_ref()).to_hint(self.param.n_active_nodes);
+                hint
+            })
+            .collect()
     }
 }
 
@@ -213,10 +250,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// ```
     ///
     pub fn to_full_prob_forward(&self) -> Prob {
-        match self.forward.last_table() {
-            PHMMTableRef::Dense(t) => t.e,
-            PHMMTableRef::Sparse(t) => t.e,
-        }
+        self.forward.full_prob()
     }
     /// Calculate the full probability `P(x)` of the given emission `x`
     /// from **backward** result.
@@ -226,10 +260,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// ```
     ///
     pub fn to_full_prob_backward(&self) -> Prob {
-        match self.backward.first_table() {
-            PHMMTableRef::Dense(t) => t.mb,
-            PHMMTableRef::Sparse(t) => t.mb,
-        }
+        self.backward.full_prob()
     }
 }
 
@@ -318,6 +349,17 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             f[node] = p.to_value();
         }
         f
+    }
+    ///
+    /// Create hint (ActiveNodes list for each bases)
+    ///
+    pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
+        let ret = self
+            .iter_emit_probs()
+            .skip(1)
+            .map(|state_probs| state_probs.active_nodes_from_prob(n_active_nodes))
+            .collect();
+        Hint::new(ret)
     }
 }
 

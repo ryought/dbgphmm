@@ -4,6 +4,7 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use crate::common::CopyNum;
 use crate::dbg::neighbor::CopyNumsUpdateInfo;
+use crate::dbg::phmm::EvalResult;
 use crate::e2e::Dataset;
 use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
@@ -47,29 +48,13 @@ impl<K: KmerLike> GreedyInstance for DbgCopyNumsInstance<K> {
     }
 }
 
-//
-// Score
-//
-#[derive(Clone, Copy)]
-pub struct DbgCopyNumsScore {
-    /// Likelihood P(R|G)
-    pub p_rg: Prob,
-    /// Prior P(G)
-    pub p_g: Prob,
-}
-impl DbgCopyNumsScore {
-    pub fn new(p_rg: Prob, p_g: Prob) -> Self {
-        DbgCopyNumsScore { p_rg, p_g }
-    }
-}
-impl GreedyScore for DbgCopyNumsScore {
-    /// Unnormalized posterior P(R,G) = P(R|G)P(G)
+impl GreedyScore for EvalResult {
     fn prob(&self) -> Prob {
-        self.p_rg * self.p_g
+        self.posterior()
     }
 }
 
-pub type Posterior<K> = Vec<(Prob, DbgCopyNumsInstance<K>, DbgCopyNumsScore)>;
+pub type Posterior<K> = Vec<(Prob, DbgCopyNumsInstance<K>, EvalResult)>;
 
 pub fn get_max_posterior_instance<K: KmerLike>(
     posterior: &Posterior<K>,
@@ -87,7 +72,7 @@ pub fn get_max_posterior_instance<K: KmerLike>(
 #[derive(Clone)]
 pub struct DbgCopyNumsPosterior<N: DbgNode, E: DbgEdge> {
     dbg: Dbg<N, E>,
-    copy_nums: Vec<(Prob, DbgCopyNumsInstance<N::Kmer>, DbgCopyNumsScore)>,
+    copy_nums: Vec<(Prob, DbgCopyNumsInstance<N::Kmer>, EvalResult)>,
 }
 impl<N: DbgNode, E: DbgEdge> DbgCopyNumsPosterior<N, E> {}
 
@@ -118,23 +103,21 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> Posterior<N::Kmer> {
         let instance_init =
             DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        eprintln!("creating hint");
+        let reads_with_hints = self.generate_hints(dataset.reads(), dataset.params());
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
-                let start = Instant::now();
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
-                let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
-                let duration = start.elapsed();
-                eprintln!(
-                    "[to_score/#{}] calculated score (in {} ms) P(R|G)={} P(G)={}",
-                    instance.move_count(),
-                    duration.as_millis(),
-                    p_rg,
-                    p_g
+                let r = dbg.evaluate_with_hint(
+                    dataset.params(),
+                    &reads_with_hints,
+                    genome_size_expected,
+                    genome_size_sigma,
                 );
-                DbgCopyNumsScore::new(p_rg, p_g)
+                eprintln!("[to_score/#{}] {}", instance.move_count(), r);
+                r
             },
             |instance| {
                 let mut dbg = self.clone();
@@ -178,20 +161,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
-                let start = Instant::now();
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                let p_rg = dbg.to_full_prob(dataset.params(), dataset.reads());
-                let p_g = dbg.to_prior_prob(genome_size_expected, genome_size_sigma);
-                let duration = start.elapsed();
-                eprintln!(
-                    "[to_score/#{}] calculated score (in {} ms) P(R|G)={} P(G)={}",
-                    instance.move_count(),
-                    duration.as_millis(),
-                    p_rg,
-                    p_g
+                let r = dbg.evaluate(
+                    dataset.params(),
+                    dataset.reads(),
+                    genome_size_expected,
+                    genome_size_sigma,
                 );
-                DbgCopyNumsScore::new(p_rg, p_g)
+                eprintln!("[to_score/#{}] {}", instance.move_count(), r);
+                r
             },
             |instance| {
                 let mut dbg = self.clone();
@@ -271,8 +250,8 @@ mod tests {
             println!(
                 "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
                 p_gr,
-                score.p_rg,
-                score.p_g,
+                score.p_rg(),
+                score.p_g(),
                 instance.copy_nums(),
                 instance.info(),
             );
@@ -303,8 +282,8 @@ mod tests {
             println!(
                 "P(G|R)={} (P(R|G)={}, P(G)={}) {} {} {} {}",
                 p_gr,
-                score.p_rg,
-                score.p_g,
+                score.p_rg(),
+                score.p_g(),
                 instance.move_count(),
                 instance.info(),
                 instance.copy_nums().dist(&copy_nums_true),
@@ -318,6 +297,7 @@ mod tests {
         dbg_draft_true.to_kmer_distribution(&neighbors);
     }
     #[test]
+    #[ignore = "takes long time (~1 hour)"]
     fn dbg_sample_posterior_for_difficult_tandem_repeat() {
         let dataset = generate_difficult_diploid_tandem_repeat_dataset();
         let mut dbg: SimpleDbg<VecKmer> =
@@ -337,8 +317,8 @@ mod tests {
             println!(
                 "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
                 p_gr,
-                score.p_rg,
-                score.p_g,
+                score.p_rg(),
+                score.p_g(),
                 instance.move_count(),
                 instance.copy_nums().dist(&copy_nums_true),
             );

@@ -143,7 +143,7 @@ fn main() {
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
 
-        let distribution = dbg.search_posterior_with_restriction(
+        let distribution = dbg.search_posterior(
             &dataset,
             opts.neighbor_depth,
             opts.max_move,
@@ -161,8 +161,8 @@ fn main() {
                 "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 p_gr,
-                score.p_rg,
-                score.p_g,
+                score.p_rg(),
+                score.p_g(),
                 dbg.genome_size(),
                 instance.move_count(),
                 instance.copy_nums().dist(&copy_nums_true),
