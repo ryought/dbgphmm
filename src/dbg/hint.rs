@@ -113,8 +113,8 @@ mod tests {
             let r2 = phmm.forward_with_hint(read.as_ref(), &hint);
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
-            println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.diff(p2) < 0.5);
+            println!("p(dense)={} p(hint)={} diff={}", p1, p2, p1.log_diff(p2));
+            assert!(p1.log_diff(p2) < 1.0);
         }
     }
 }

@@ -43,10 +43,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions using hint information
     ///
-    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResult {
-        let r0 = PHMMResult {
-            init_table: self.f_init(),
-            tables: Vec::new(),
+    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResultSparse {
+        let r0 = PHMMResultSparse {
+            init_table: self.f_init(), // not used TODO remove this..
+            tables_warmup: Vec::new(), // not used
+            tables_sparse: Vec::new(),
             is_forward: true,
         };
         emissions
@@ -54,16 +55,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 let table = if i == 0 {
-                    self.f_step_with_active_nodes(i, emission, &r.init_table, hint.active_nodes(i))
+                    let init_table = self.f_init();
+                    self.f_step_with_active_nodes(i, emission, &init_table, hint.active_nodes(i))
                 } else {
                     self.f_step_with_active_nodes(
                         i,
                         emission,
-                        r.tables.last().unwrap(),
+                        r.tables_sparse.last().unwrap(),
                         hint.active_nodes(i),
                     )
                 };
-                r.tables.push(table);
+                r.tables_sparse.push(table);
                 r
             })
     }
@@ -608,7 +610,7 @@ mod tests {
         let p2 = r2.full_prob();
         println!("p(dense)={}", p1);
         println!("p(hint)={}", p2);
-        assert!(p1.diff(p2) < 0.1);
+        assert!(p1.log_diff(p2) < 0.1);
     }
     #[test]
     fn hmm_forward_with_hint_tandem_repeat() {
@@ -630,7 +632,7 @@ mod tests {
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.diff(p2) < 0.1);
+            assert!(p1.log_diff(p2) < 0.1);
         }
     }
     #[test]
@@ -660,7 +662,7 @@ mod tests {
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.diff(p2) < 0.5);
+            assert!(p1.log_diff(p2) < 1.0);
         }
     }
 }

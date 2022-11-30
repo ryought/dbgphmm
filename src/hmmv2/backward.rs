@@ -666,6 +666,6 @@ mod tests {
         let p2 = r2.full_prob();
         println!("p(dense)={}", p1);
         println!("p(hint)={}", p2);
-        assert!(p1.diff(p2) < 0.1);
+        assert!(p1.log_diff(p2) < 0.1);
     }
 }
