@@ -186,10 +186,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.
     ///
-    /// ## Note (TODO)
-    /// This function does not run backward. Running forward is enough to calculate the full
-    /// probability P(R|G).
-    ///
     pub fn to_full_prob_parallel<T>(&self, seqs: T) -> Prob
     where
         T: IntoParallelIterator,
@@ -202,6 +198,26 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
                 o.to_full_prob_forward()
+            })
+            .product()
+    }
+    ///
+    /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
+    /// (active nodes)
+    ///
+    /// This function does not run backward. Running forward is enough to calculate the full
+    /// probability P(R|G).
+    ///
+    pub fn to_full_prob_par_with_hint<'a, T, S>(&'a self, seqs_and_hints: T) -> Prob
+    where
+        S: Seq,
+        T: IntoParallelIterator<Item = (S, &'a Hint)>,
+    {
+        seqs_and_hints
+            .into_par_iter()
+            .map(|(seq, hint)| {
+                let forward = self.forward_with_hint(seq.as_ref(), hint);
+                forward.full_prob()
             })
             .product()
     }
