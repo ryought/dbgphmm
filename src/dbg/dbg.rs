@@ -457,6 +457,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn copy_num(&self, node: NodeIndex) -> CopyNum {
         self.node(node).copy_num()
     }
+    ///
+    /// the number of nXXXX
+    ///
+    pub fn n_starting_kmers(&self) -> usize {
+        self.nodes()
+            .filter(|(_, w)| w.kmer().is_starting() && w.copy_num() > 0)
+            .count()
+    }
 }
 
 ///

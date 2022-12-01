@@ -161,18 +161,19 @@ fn main() {
         );
 
         println!(
-            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
+            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tn_haps\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
         );
         for (p_gr, instance, score) in distribution.iter() {
             dbg.set_node_copy_nums(instance.copy_nums());
             let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 p_gr,
                 score.p_rg(),
                 score.p_g(),
                 dbg.genome_size(),
+                dbg.n_starting_kmers(),
                 instance.move_count(),
                 instance.copy_nums().dist(&copy_nums_true),
                 instance.copy_nums().max_abs_diff(&copy_nums_true),
