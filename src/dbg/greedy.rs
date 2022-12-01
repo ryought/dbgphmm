@@ -3,6 +3,7 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
 use crate::common::CopyNum;
+use crate::dbg::draft::EndNodeInference;
 use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::dbg::phmm::EvalResult;
 use crate::e2e::Dataset;
@@ -314,6 +315,7 @@ mod tests {
                 dataset.coverage(),
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
+                &EndNodeInference::Auto,
             );
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
         let copy_nums_draft = dbg.to_node_copy_nums();

@@ -13,6 +13,7 @@
 //! * `Reads`: read collections
 //!
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
+use crate::kmer::kmer::KmerLike;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -97,6 +98,20 @@ pub type Genome = Vec<StyledSequence>;
 ///
 pub fn genome_size(genome: &Genome) -> usize {
     genome.iter().map(|seq| seq.len()).sum()
+}
+
+///
+///
+///
+pub fn starts_and_ends_of_genome<K: KmerLike>(genome: &Genome, k: usize) -> (Vec<K>, Vec<K>) {
+    let mut starts = Vec::new();
+    let mut ends = Vec::new();
+    for hap in genome {
+        let (mut starts_hap, mut ends_hap) = hap.start_and_end_kmer(k);
+        starts.append(&mut starts_hap);
+        ends.append(&mut ends_hap);
+    }
+    (starts, ends)
 }
 
 ///
@@ -359,6 +374,18 @@ impl StyledSequence {
     pub fn len(&self) -> usize {
         self.seq.len()
     }
+    pub fn start_and_end_kmer<K: KmerLike>(&self, k: usize) -> (Vec<K>, Vec<K>) {
+        match self.style() {
+            SeqStyle::Linear => {
+                let n = self.len();
+                (
+                    vec![K::from_bases(&self.seq[0..k])],
+                    vec![K::from_bases(&self.seq[n - k..n])],
+                )
+            }
+            _ => (Vec::new(), Vec::new()),
+        }
+    }
 }
 
 #[pymethods]
@@ -537,6 +564,8 @@ impl StoreableTypeTrait for PositionedSequence {
 mod tests {
     use super::*;
     use crate::common::ni;
+    use crate::kmer::common::kmers_to_string;
+    use crate::kmer::VecKmer;
     #[test]
     fn seq_style() {
         let s = SeqStyle::Linear;
@@ -618,5 +647,24 @@ mod tests {
         println!("{}", s1);
         let s1b = PositionedSequence::from_str(&s1.to_string()).unwrap();
         assert_eq!(s1, s1b);
+    }
+    #[test]
+    fn starts_and_ends() {
+        let genome = vec![
+            StyledSequence::new(b"ATCGATTTAGC".to_vec(), SeqStyle::Linear),
+            StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Linear),
+            StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Circular),
+        ];
+        let (starts, ends) = starts_and_ends_of_genome::<VecKmer>(&genome, 4);
+        println!("{}", kmers_to_string(&starts));
+        println!("{}", kmers_to_string(&ends));
+        assert_eq!(
+            starts,
+            vec![VecKmer::from_bases(b"ATCG"), VecKmer::from_bases(b"GGGC")],
+        );
+        assert_eq!(
+            ends,
+            vec![VecKmer::from_bases(b"TAGC"), VecKmer::from_bases(b"GCTG")],
+        );
     }
 }

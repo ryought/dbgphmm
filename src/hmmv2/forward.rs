@@ -512,6 +512,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
+    use crate::dbg::draft::EndNodeInference;
     use crate::dbg::SimpleDbg;
     use crate::e2e;
     use crate::hmmv2::mocks::*;
@@ -643,6 +644,7 @@ mod tests {
                 dataset.coverage(),
                 100,
                 0.01,
+                &EndNodeInference::Auto,
             );
         let phmm = dbg.to_phmm(dataset.params());
         println!("n_reads={}", dataset.reads().len());

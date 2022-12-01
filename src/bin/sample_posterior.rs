@@ -1,4 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
+use dbgphmm::common::collection::starts_and_ends_of_genome;
 use dbgphmm::dbg::draft::EndNodeInference;
 use dbgphmm::dbg::greedy::get_max_posterior_instance;
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
@@ -63,6 +64,8 @@ struct Opts {
     start_from_true: bool,
     #[clap(long)]
     dbgviz_output: Option<PathBuf>,
+    #[clap(long)]
+    use_true_end_nodes: bool,
 }
 
 fn main() {
@@ -95,6 +98,11 @@ fn main() {
             ReadType::FragmentWithRevComp,
             param,
         );
+        let end_node = if opts.use_true_end_nodes {
+            EndNodeInference::Custom(starts_and_ends_of_genome(&genome, opts.k_init))
+        } else {
+            EndNodeInference::Auto
+        };
         let dbg: SimpleDbg<VecKmer> =
             SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
                 opts.k_init,
@@ -102,7 +110,7 @@ fn main() {
                 dataset.coverage(),
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
-                &EndNodeInference::Auto,
+                &end_node,
             );
         (dataset, dbg)
     } else {

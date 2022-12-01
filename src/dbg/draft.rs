@@ -22,7 +22,7 @@ pub enum EndNodeInference<K: KmerLike> {
     ///
     /// specify the end nodes
     ///
-    Custom(Vec<K>, Vec<K>),
+    Custom((Vec<K>, Vec<K>)),
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
@@ -117,7 +117,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             EndNodeInference::Auto => {
                 dbg.augment_sources_and_sinks();
             }
-            EndNodeInference::Custom(starts, ends) => {
+            EndNodeInference::Custom((starts, ends)) => {
                 for start in starts {
                     dbg.add_starting_kmers(dbg.find_node_from_kmer(start).unwrap());
                 }
