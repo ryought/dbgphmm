@@ -1,4 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
+use dbgphmm::dbg::draft::EndNodeInference;
 use dbgphmm::dbg::greedy::get_max_posterior_instance;
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::{Dbg, SimpleDbg};
@@ -101,6 +102,7 @@ fn main() {
                 dataset.coverage(),
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
+                &EndNodeInference::Auto,
             );
         (dataset, dbg)
     } else {

@@ -843,7 +843,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
     }
     ///
-    ///
+    /// TODO
+    /// * add `min_copy_num`
+    /// * support hint for tandem repeat assembly
     ///
     pub fn augment_sources_and_sinks(&mut self) {
         let sources = self.get_sources();

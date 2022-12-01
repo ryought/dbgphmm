@@ -11,6 +11,20 @@ use crate::min_flow::{
     convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
 };
 
+///
+///
+///
+pub enum EndNodeInference<K: KmerLike> {
+    ///
+    /// End node (source and sink) is automatically infered from reads
+    ///
+    Auto,
+    ///
+    /// specify the end nodes
+    ///
+    Custom(Vec<K>, Vec<K>),
+}
+
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create draft dbg from reads
     ///
@@ -54,6 +68,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         base_coverage: f64,
         ave_read_length: usize,
         p_error: f64,
+        end_node_inference: &EndNodeInference<N::Kmer>,
     ) -> Self
     where
         T: IntoIterator,
@@ -64,21 +79,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             "[draft_frag] k={} ave_read_length={} p_error={} base_coverage={} kmer_coverage={}",
             k, ave_read_length, p_error, base_coverage, kmer_coverage
         );
-        Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage)
+        Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage, end_node_inference)
     }
     /// Create draft dbg from fragment reads
     ///
     /// 1. construct dbg without considering starting/ending kmers (= use
     ///    `Dbg::from_fragment_seqs`)
     /// 2. remove 0x and 1x nodes
-    /// 3. add starts/ends to all deadend nodes
+    /// 3. add starts/ends to all deadend nodes (if Auto) or specified nodes (if Custom)
     /// 4. assign approximate (flow consistent) copy nums by `min_squared_error`.
     ///
     /// ## Known problems
     /// * from fragmented reads, coverage can be overestimated (due to edge effects and k-mer-size
     /// effects)
     ///
-    pub fn create_draft_from_fragment_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
+    pub fn create_draft_from_fragment_seqs<T>(
+        k: usize,
+        seqs: T,
+        coverage: f64,
+        end_node_inference: &EndNodeInference<N::Kmer>,
+    ) -> Self
     where
         T: IntoIterator,
         T::Item: Seq,
@@ -93,7 +113,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg.remove_nodes(2);
         eprintln!("[draft_frag] n_nodes={}", dbg.n_nodes());
         eprintln!("[draft_frag] n_edges={}", dbg.n_edges());
-        dbg.augment_sources_and_sinks();
+        match end_node_inference {
+            EndNodeInference::Auto => {
+                dbg.augment_sources_and_sinks();
+            }
+            EndNodeInference::Custom(starts, ends) => {
+                for start in starts {
+                    dbg.add_starting_kmers(dbg.find_node_from_kmer(start).unwrap());
+                }
+                for end in ends {
+                    dbg.add_ending_kmers(dbg.find_node_from_kmer(end).unwrap());
+                }
+            }
+        }
         // 3
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
@@ -337,6 +369,7 @@ mod tests {
                     dataset.coverage(),
                     50,     // 50bp read
                     0.00_1, // 0.1% error
+                    &EndNodeInference::Auto,
                 );
             // to check with cytoscape
             let check_with_cytoscape = false;
@@ -359,6 +392,7 @@ mod tests {
                 dataset.coverage(),
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
+                &EndNodeInference::Auto,
             );
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
         let copy_nums_draft = dbg.to_node_copy_nums();
