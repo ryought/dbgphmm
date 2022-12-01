@@ -199,7 +199,7 @@ fn main() {
             let dist = dbg.to_kmer_distribution(&neighbors);
             let json =
                 dbg_true.to_cytoscape_with_info(|node| Some(format!("{}", dist[node.index()])));
-            let mut file = File::create(path).unwrap();
+            let mut file = File::create(path.with_extension(format!(".k{}.json", k))).unwrap();
             writeln!(file, "{}", json).unwrap();
         }
 
