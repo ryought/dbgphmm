@@ -330,6 +330,17 @@ fn is_meaningful_move_on_residue_graph<F: FlowRateLike>(
 }
 
 ///
+///
+///
+pub fn flow_diff_to_residue<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
+    graph: &DiGraph<N, E>,
+    flow_from: &Flow<F>,
+    flow_to: &Flow<F>,
+) -> ResidueGraph<F> {
+    unimplemented!();
+}
+
+///
 /// list up all neighboring flows
 ///
 pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
