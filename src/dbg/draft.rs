@@ -124,6 +124,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 for end in ends {
                     dbg.add_ending_kmers(dbg.find_node_from_kmer(end).unwrap());
                 }
+                dbg.remove_deadend_nodes();
             }
         }
         // 3
