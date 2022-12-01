@@ -149,6 +149,9 @@ fn main() {
             opts.max_move,
             dataset.genome_size(),
             opts.sigma,
+            |instance| {
+                println!("G\t{}\t{}", instance.info(), instance.move_count());
+            },
         );
 
         println!(
