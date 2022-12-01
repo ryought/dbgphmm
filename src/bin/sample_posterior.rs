@@ -9,6 +9,9 @@ use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
 use git_version::git_version;
 use rayon::prelude::*;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 const GIT_VERSION: &str = git_version!();
@@ -56,6 +59,8 @@ struct Opts {
     p_0: f64,
     #[clap(long)]
     start_from_true: bool,
+    #[clap(long)]
+    dbgviz_output: Option<PathBuf>,
 }
 
 fn main() {
@@ -187,6 +192,17 @@ fn main() {
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
             .collect();
         dbg.inspect_kmer_variance(&neighbors, &copy_nums_true);
+
+        if let Some(path) = &opts.dbgviz_output {
+            let mut dbg_true = dbg.clone();
+            dbg_true.set_node_copy_nums(&copy_nums_true);
+            let dist = dbg.to_kmer_distribution(&neighbors);
+            let json =
+                dbg_true.to_cytoscape_with_info(|node| Some(format!("{}", dist[node.index()])));
+            let mut file = File::create(path).unwrap();
+            writeln!(file, "{}", json).unwrap();
+        }
+
         let n_purged = dbg.purge_zero_copy_with_high_prob_kmer(
             &dbg.to_kmer_distribution(&neighbors),
             Prob::from_prob(opts.p_0),
