@@ -1,5 +1,6 @@
 use clap::{AppSettings, ArgEnum, Clap};
 use dbgphmm::dbg::greedy::get_max_posterior_instance;
+use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::{Dbg, SimpleDbg};
 use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
 use dbgphmm::genome;
@@ -191,7 +192,8 @@ fn main() {
             .iter()
             .map(|(p_gr, instance, _score)| (instance.copy_nums().clone(), *p_gr))
             .collect();
-        dbg.inspect_kmer_variance(&neighbors, &copy_nums_true);
+        let read_count = HashDbg::from_seqs(k, dataset.reads());
+        dbg.inspect_kmer_variance(&neighbors, &copy_nums_true, &read_count);
 
         if let Some(path) = &opts.dbgviz_output {
             let mut dbg_true = dbg.clone();

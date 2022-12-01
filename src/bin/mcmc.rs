@@ -1,4 +1,5 @@
 use clap::{AppSettings, ArgEnum, Clap};
+use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::e2e::{generate_experiment, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
@@ -91,11 +92,12 @@ fn run_mcmc() {
     });
 
     // (a)
+    let read_count = HashDbg::from_seqs(opts.k, dataset.reads());
     let neighbors: Vec<_> = neighbors
         .into_iter()
         .map(|(copy_nums, _, _, p)| (copy_nums, p))
         .collect();
-    dbg_true.inspect_kmer_variance(&neighbors, &copy_nums_true);
+    dbg_true.inspect_kmer_variance(&neighbors, &copy_nums_true, &read_count);
 }
 
 fn main() {
