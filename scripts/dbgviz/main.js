@@ -7,6 +7,7 @@ var global_state = {
   max_depth: 20,
   // synced states
   show_node_label: true,
+  show_node_info: true,
   show_edge_label: true,
   edge_label_key: -1,
   edge_color_key: -1,
@@ -204,7 +205,7 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const copy_num = e.data('copy_num')
-              const info = e.data('info')
+              const info = e.scratch('show_info') ? e.data('info') : ''
               const label = `${e.data('label')} (x${copy_num})` || ''
               const use_history = e.scratch('use_history')
               const time = e.scratch('time')
@@ -306,6 +307,7 @@ function init_cytoscape(elements) {
 
 function sync_states() {
   cy.nodes().scratch('show_label', global_state.show_node_label)
+  cy.nodes().scratch('show_info', global_state.show_node_info)
   cy.edges().scratch('show_label', global_state.show_edge_label)
   cy.edges().scratch('label_attr_key', global_state.edge_label_key)
   cy.edges().scratch('color_attr_key', global_state.edge_color_key)
@@ -345,6 +347,8 @@ function init_controls(history_labels) {
   attr.closed = false
   attr.add(global_state, 'show_node_label')
     .onChange((value) => cy.nodes().scratch('show_label', value))
+  attr.add(global_state, 'show_node_info')
+    .onChange((value) => cy.nodes().scratch('show_info', value))
   attr.add(global_state, 'show_edge_label')
     .onChange((value) => cy.edges().scratch('show_label', value))
   // edges
