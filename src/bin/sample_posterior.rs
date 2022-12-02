@@ -7,7 +7,7 @@ use dbgphmm::dbg::{Dbg, SimpleDbg};
 use dbgphmm::e2e::{generate_dataset, Experiment, ReadType};
 use dbgphmm::genome;
 use dbgphmm::graph::cycle::CycleWithDir;
-use dbgphmm::kmer::common::kmers_to_string;
+use dbgphmm::kmer::common::kmers_to_string_pretty;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
 use git_version::git_version;
@@ -167,13 +167,14 @@ fn main() {
         );
 
         println!(
-            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tn_haps\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tmissing_and_error_kmers\tcycle_summary\tdbg\tcopy_nums"
+            "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tn_haps\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tcount_missing_and_error_kmers\tcycle_summary\tmissings\terrors\tdbg"
         );
         for (p_gr, instance, score) in distribution.iter() {
             dbg.set_node_copy_nums(instance.copy_nums());
             let ((n_missing, n_missing_null), (n_error, n_error_null)) = dbg.inspect_kmers(&genome);
+            let (missings, errors) = dbg.missing_error_kmers(&genome);
             println!(
-                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "N\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 p_gr,
                 score.p_rg(),
@@ -188,8 +189,9 @@ fn main() {
                     n_missing, n_missing_null, n_error, n_error_null,
                 ),
                 instance.info(),
+                kmers_to_string_pretty(&missings),
+                kmers_to_string_pretty(&errors),
                 dbg,
-                instance.copy_nums(),
             );
         }
 

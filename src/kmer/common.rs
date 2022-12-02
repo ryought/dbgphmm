@@ -355,6 +355,13 @@ pub fn kmers_to_string<K: KmerLike>(kmers: &[K]) -> String {
 }
 
 ///
+/// `&[Kmer(ATCG), Kmer(TCGT)] -> String("[ATCG,TCGT]")`
+///
+pub fn kmers_to_string_pretty<K: KmerLike>(kmers: &[K]) -> String {
+    format!("[{}]", kmers.iter().join(","))
+}
+
+///
 /// ["ATC", "TCG", "CGT"] -> "ATCGT"
 ///
 pub fn concat_overlapping_kmers<K: KmerLike>(kmers: Vec<K>, k: usize) -> K {
