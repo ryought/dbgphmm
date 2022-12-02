@@ -206,6 +206,7 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const copy_num = e.data('copy_num')
+              const id = e.id()
               const info = e.scratch('show_info') ? e.data('info') : ''
               const label = `${e.data('label')} (x${copy_num})` || ''
               const use_history = e.scratch('use_history')
@@ -214,9 +215,9 @@ function init_cytoscape(elements) {
               if (key != -1) {
                 const attrs = e.data('attrs')
                 const time = e.scratch('time')
-                return `${label} (${get_attr(attrs, key, time)}) ${history} ${info}`
+                return `${id}:${label} (${get_attr(attrs, key, time)}) ${history} ${info}`
               } else {
-                return `${label} ${history} ${info}`
+                return `${id}:${label} ${history} ${info}`
               }
             } else {
               return ''
