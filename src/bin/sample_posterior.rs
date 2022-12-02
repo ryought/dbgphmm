@@ -128,13 +128,6 @@ fn main() {
         (dataset, dbg)
     };
 
-    if opts.start_from_true {
-        let (copy_nums_true, _) = dbg
-            .to_copy_nums_of_styled_seqs(&genome)
-            .unwrap_or_else(|err| panic!("{}", err));
-        dbg.set_node_copy_nums(&copy_nums_true);
-    }
-
     dataset.show_genome();
     dataset.show_reads();
     let mut k = dbg.k();
@@ -143,6 +136,9 @@ fn main() {
         let (copy_nums_true, _) = dbg
             .to_copy_nums_of_styled_seqs(&genome)
             .unwrap_or_else(|err| panic!("{}", err));
+        if opts.start_from_true {
+            dbg.set_node_copy_nums(&copy_nums_true);
+        }
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
         println!("# k={} n_dead_nodes={}", k, dbg.n_dead_nodes());
