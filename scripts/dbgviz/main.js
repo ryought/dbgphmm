@@ -229,7 +229,12 @@ function init_cytoscape(elements) {
           'border-color': (e) => {
             // const copy_num = e.data('copy_num')
             // return color(copy_num + 1, 0, 5)
-            return 'red'
+            const kmer = e.data('label')
+            if (kmer.includes('n')) {
+              return 'green'
+            } else {
+              return 'red'
+            }
           },
           'background-color': (e) => {
             const attrs = e.data('attrs')
