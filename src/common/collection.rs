@@ -12,8 +12,10 @@
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
+use crate::common::CopyNum;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use crate::kmer::kmer::KmerLike;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -103,15 +105,24 @@ pub fn genome_size(genome: &Genome) -> usize {
 ///
 ///
 ///
-pub fn starts_and_ends_of_genome<K: KmerLike>(genome: &Genome, k: usize) -> (Vec<K>, Vec<K>) {
-    let mut starts = Vec::new();
-    let mut ends = Vec::new();
+pub fn starts_and_ends_of_genome<K: KmerLike>(
+    genome: &Genome,
+    k: usize,
+) -> (Vec<(K, CopyNum)>, Vec<(K, CopyNum)>) {
+    // mapping from kmer to copynum
+    let mut starts: HashMap<K, CopyNum> = HashMap::default();
+    let mut ends: HashMap<K, CopyNum> = HashMap::default();
     for hap in genome {
-        let (mut starts_hap, mut ends_hap) = hap.start_and_end_kmer(k);
-        starts.append(&mut starts_hap);
-        ends.append(&mut ends_hap);
+        let (starts_hap, ends_hap) = hap.start_and_end_kmer::<K>(k);
+        for start in starts_hap.into_iter() {
+            *starts.entry(start).or_insert(0) += 1;
+        }
+        for end in ends_hap.into_iter() {
+            *ends.entry(end).or_insert(0) += 1;
+        }
     }
-    (starts, ends)
+    // convert HashMap<K, CopyNum> into Vec<(K, CopyNum)> (key value list)
+    (starts.into_iter().collect(), ends.into_iter().collect())
 }
 
 ///
@@ -651,20 +662,38 @@ mod tests {
     #[test]
     fn starts_and_ends() {
         let genome = vec![
+            // hap0
             StyledSequence::new(b"ATCGATTTAGC".to_vec(), SeqStyle::Linear),
+            // hap1
             StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Linear),
+            // hap2
+            // start kmer of hap1 and hap2 are same (GGGC).
+            StyledSequence::new(b"GGGCGGCTGCTGC".to_vec(), SeqStyle::Linear),
+            // hap3
+            // circular does not have start/end
             StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Circular),
         ];
         let (starts, ends) = starts_and_ends_of_genome::<VecKmer>(&genome, 4);
-        println!("{}", kmers_to_string(&starts));
-        println!("{}", kmers_to_string(&ends));
+        for (kmer, copy_num) in starts.iter() {
+            println!("start {} x{}", kmer, copy_num);
+        }
+        for (kmer, copy_num) in ends.iter() {
+            println!("end {} x{}", kmer, copy_num);
+        }
         assert_eq!(
             starts,
-            vec![VecKmer::from_bases(b"ATCG"), VecKmer::from_bases(b"GGGC")],
+            vec![
+                (VecKmer::from_bases(b"GGGC"), 2),
+                (VecKmer::from_bases(b"ATCG"), 1),
+            ],
         );
         assert_eq!(
             ends,
-            vec![VecKmer::from_bases(b"TAGC"), VecKmer::from_bases(b"GCTG")],
+            vec![
+                (VecKmer::from_bases(b"TAGC"), 1),
+                (VecKmer::from_bases(b"CTGC"), 1),
+                (VecKmer::from_bases(b"GCTG"), 1),
+            ],
         );
     }
 }
