@@ -131,8 +131,9 @@ function select_node(root_node, max_depth) {
       },
       directed: false,
     })
-    cy.nodes().style('display', 'none');
+    cy.nodes().style('display', 'none').style('text-background-opacity', 0.0);
     cy.nodes().filter((v) => depth[v.id()] < max_depth).neighborhood().style('display', '');
+    elem.style('text-background-opacity', 0.5).style('text-background-color', 'green');
   }
 }
 function unselect_node() {
