@@ -10,6 +10,8 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{
     convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
 };
+use fnv::FnvHashMap as HashMap;
+use petgraph::graph::NodeIndex;
 
 ///
 ///
@@ -22,7 +24,7 @@ pub enum EndNodeInference<K: KmerLike> {
     ///
     /// specify the end nodes
     ///
-    Custom((Vec<K>, Vec<K>)),
+    Custom((Vec<(K, CopyNum)>, Vec<(K, CopyNum)>)),
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
@@ -52,7 +54,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
         let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false, &[])
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
@@ -118,11 +120,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 dbg.augment_sources_and_sinks();
             }
             EndNodeInference::Custom((starts, ends)) => {
-                for start in starts {
-                    dbg.add_starting_kmers(dbg.find_node_from_kmer(start).unwrap());
+                for (start_kmer, _copy_num) in starts.iter() {
+                    dbg.add_starting_kmers(dbg.find_node_from_kmer(start_kmer).unwrap());
                 }
-                for end in ends {
-                    dbg.add_ending_kmers(dbg.find_node_from_kmer(end).unwrap());
+                for (end_kmer, _copy_num) in ends.iter() {
+                    dbg.add_ending_kmers(dbg.find_node_from_kmer(end_kmer).unwrap());
                 }
                 dbg.remove_deadend_nodes();
             }
@@ -130,8 +132,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // 3
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
+        let fixed_copy_nums = dbg.to_fixed_copy_nums(end_node_inference);
+        // debug output
+        for (node, copy_num) in fixed_copy_nums.iter() {
+            eprintln!("fixed_copy_nums=({}, x{})", node.index(), copy_num);
+        }
         let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true, &fixed_copy_nums)
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
@@ -166,6 +173,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         &self,
         freqs: &NodeFreqs,
         ignore_startings_and_endings: bool,
+        fixed_copy_nums: &[(NodeIndex, CopyNum)],
     ) -> Option<(NodeCopyNums, Cost)> {
         let graph = self.to_compact_edbg_graph();
         // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
@@ -185,7 +193,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         (is_target, freqs[node])
                     })
                     .collect();
-                MinSquaredErrorCopyNumAndFreq::new(freqs, None)
+                // TODO assert that all copy nums specified is consistent?
+                let fixed_copy_num = weight.origin_edges().iter().find_map(|edge| {
+                    // original node have fixed copy_num?
+                    let origin_node = NodeIndex::new(edge.index());
+                    fixed_copy_nums
+                        .iter()
+                        .find(|(node, _)| *node == origin_node)
+                        .map(|(_, copy_num)| *copy_num)
+                });
+                MinSquaredErrorCopyNumAndFreq::new(freqs, fixed_copy_num)
             },
         );
         min_cost_flow_convex_fast(&flow_network).map(|flow| {
@@ -209,6 +226,33 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 .map(|copy_num| copy_num as Freq)
                 .collect(),
         )
+    }
+    ///
+    /// generate `fixed_copy_nums (Vec<(NodeIndex, CopyNum)>)` from `EndNodeInference`.
+    ///
+    pub fn to_fixed_copy_nums(
+        &self,
+        end_nodes: &EndNodeInference<N::Kmer>,
+    ) -> Vec<(NodeIndex, CopyNum)> {
+        match end_nodes {
+            EndNodeInference::Auto => Vec::new(),
+            EndNodeInference::Custom((starts, ends)) => {
+                let mut copy_nums: HashMap<NodeIndex, CopyNum> = HashMap::default();
+                for (start, copy_num) in starts {
+                    let node = self
+                        .find_node_from_kmer(start)
+                        .expect("start kmer specified not found!");
+                    *copy_nums.entry(node).or_insert(0) += copy_num;
+                }
+                for (end, copy_num) in ends {
+                    let node = self
+                        .find_node_from_kmer(end)
+                        .expect("end kmer specified not found!");
+                    *copy_nums.entry(node).or_insert(0) += copy_num;
+                }
+                copy_nums.into_iter().collect()
+            }
+        }
     }
 }
 
@@ -361,7 +405,7 @@ mod tests {
 
         // (2) compact
         let (approx2, cost2) = dbg_raw
-            .min_squared_error_copy_nums_from_freqs_compacted(&freq, false)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freq, false, &[])
             .unwrap();
         assert_eq!(approx2.dist(&copy_nums_true), 0);
         assert_eq!(approx2, approx);

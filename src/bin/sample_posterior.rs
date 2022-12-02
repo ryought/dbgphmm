@@ -99,10 +99,7 @@ fn main() {
             param,
         );
         let end_node = if opts.use_true_end_nodes {
-            let (starts, ends) = starts_and_ends_of_genome(&genome, opts.k_init);
-            let start_kmers = starts.into_iter().map(|(kmer, _)| kmer).collect();
-            let end_kmers = ends.into_iter().map(|(kmer, _)| kmer).collect();
-            EndNodeInference::Custom((start_kmers, end_kmers))
+            EndNodeInference::Custom(starts_and_ends_of_genome(&genome, opts.k_init))
         } else {
             EndNodeInference::Auto
         };
