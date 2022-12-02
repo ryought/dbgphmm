@@ -10,14 +10,17 @@ case $1 in
   "case2t")
     # good
     ARG="-c 20 -l 100 -p 0.01 --k-init 16 --k-final 100 -U 200 -N 5 -E 50 -P 1 -D 0.01 -H 0.01 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+  "case3k8")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 8 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k8.json --use-true-end-nodes";;
   "case3k12")
     # fail in k=12
     # use in sampling test stopped local minimum
     # ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 5 -m 40 --use-fragment-read";;
-    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12.json";;
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12.json --use-true-end-nodes";;
   "case3k12t")
     # fail in k=13
-    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+    # ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12t.json --use-true-end-nodes --start-from-true";;
   # k=16
   # missing kmer
   "case3k16")
