@@ -147,7 +147,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> Option<(NodeCopyNums, Cost)> {
         let graph = self.to_edbg_graph(
             |_| (),
-            |v, weight| MinSquaredErrorCopyNumAndFreq::new(vec![(weight.is_emittable(), freqs[v])]),
+            |v, weight| {
+                MinSquaredErrorCopyNumAndFreq::new(vec![(weight.is_emittable(), freqs[v])], None)
+            },
         );
         min_cost_flow_convex_fast(&graph).map(|flow| {
             let cost = total_cost(&graph, &flow);
@@ -183,7 +185,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         (is_target, freqs[node])
                     })
                     .collect();
-                MinSquaredErrorCopyNumAndFreq::new(freqs)
+                MinSquaredErrorCopyNumAndFreq::new(freqs, None)
             },
         );
         min_cost_flow_convex_fast(&flow_network).map(|flow| {
@@ -214,6 +216,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 /// Edge attribute for min_squared_error_copy_nums_from_freqs
 ///
 /// FlowEdge
+/// If this node has fixed_copy_num,
+/// * demand = fixed_copy_num
+/// * capacity = fixed_copy_num
+///
+/// Otherwise,
 /// * demand = 0
 /// * capacity = +inf
 ///
@@ -222,15 +229,23 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 ///
 #[derive(Clone, Debug)]
 struct MinSquaredErrorCopyNumAndFreq {
+    ///
+    ///
     freqs: Vec<(bool, Freq)>,
+    ///
+    ///
+    fixed_copy_num: Option<CopyNum>,
 }
 
 impl MinSquaredErrorCopyNumAndFreq {
     ///
-    /// constructor from Vec<(is_target: bool, freq: Freeq)>
+    /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
     ///
-    pub fn new(freqs: Vec<(bool, Freq)>) -> Self {
-        MinSquaredErrorCopyNumAndFreq { freqs }
+    pub fn new(freqs: Vec<(bool, Freq)>, fixed_copy_num: Option<CopyNum>) -> Self {
+        MinSquaredErrorCopyNumAndFreq {
+            freqs,
+            fixed_copy_num,
+        }
     }
 }
 
@@ -243,10 +258,16 @@ pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
 impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
     fn demand(&self) -> usize {
-        0
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => 0,
+        }
     }
     fn capacity(&self) -> usize {
-        MAX_COPY_NUM_OF_EDGE
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => MAX_COPY_NUM_OF_EDGE,
+        }
     }
 }
 
