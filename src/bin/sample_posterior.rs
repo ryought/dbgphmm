@@ -208,8 +208,11 @@ fn main() {
             let mut dbg_true = dbg.clone();
             dbg_true.set_node_copy_nums(&copy_nums_true);
             let dist = dbg.to_kmer_distribution(&neighbors);
-            let json =
-                dbg_true.to_cytoscape_with_info(|node| Some(format!("{}", dist[node.index()])));
+            let copy_num_expected = dbg_true.to_copy_num_expected_vector(&dist);
+            let json = dbg_true.to_cytoscape_with_info(
+                |node| Some(format!("{}", dist[node.index()])),
+                Some(&copy_num_expected),
+            );
             let mut file = File::create(path.with_extension(format!("k{}.json", k))).unwrap();
             writeln!(file, "{}", json).unwrap();
         }

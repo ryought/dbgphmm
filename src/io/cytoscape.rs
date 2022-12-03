@@ -94,6 +94,9 @@ pub enum ElementV2<K: KmerLike> {
         attrs: Vec<NodeAttr>,
         history: Vec<f64>,
         copy_num: CopyNum,
+        /// Node expected copy num
+        #[serde(skip_serializing_if = "Option::is_none")]
+        copy_num_expected: Option<f64>,
     },
     #[serde(rename = "edges")]
     /// Edge element of cytoscape
@@ -176,6 +179,7 @@ mod tests {
             attrs: vec![NodeAttr::CopyNum(10)],
             history: vec![],
             copy_num: 10,
+            copy_num_expected: None,
         });
         elements.push(ElementV2::Edge {
             id: EdgeIndex::new(0),

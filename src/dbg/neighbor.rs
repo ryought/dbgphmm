@@ -23,6 +23,7 @@ use crate::min_flow::residue::{
 };
 use crate::prob::Prob;
 use crate::utils::all_same_value;
+use crate::vector::{DenseStorage, NodeVec};
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use petgraph::dot::Dot;
@@ -376,6 +377,19 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         });
         let n_after = self.graph.node_count();
         n_before - n_after
+    }
+    ///
+    ///
+    pub fn to_copy_num_expected_vector(
+        &self,
+        dds: &[DiscreteDistribution],
+    ) -> NodeVec<DenseStorage<f64>> {
+        assert_eq!(dds.len(), self.n_nodes());
+        let mut ret = NodeVec::new(self.n_nodes(), 0.0);
+        for (node, _) in self.nodes() {
+            ret[node] = dds[node.index()].mean();
+        }
+        ret
     }
     ///
     /// check the variance of copy_num of each kmer

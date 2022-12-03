@@ -87,6 +87,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         edge_attrs: &[EdgeAttrVec],
         node_historys: &[(String, NodeVec<DenseStorage<T>>)],
         node_info: F,
+        node_copy_num_expected: Option<&NodeVec<DenseStorage<f64>>>,
     ) -> Vec<ElementV2<N::Kmer>>
     where
         T: Into<f64> + Copy + PartialEq + Default,
@@ -125,6 +126,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 attrs,
                 history,
                 copy_num: weight.copy_num(),
+                copy_num_expected: node_copy_num_expected.map(|v| v[node]),
             });
         }
 
@@ -153,15 +155,20 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
         elements
     }
-    pub fn to_cytoscape_with_info<F>(&self, node_info: F) -> String
+    pub fn to_cytoscape_with_info<F>(
+        &self,
+        node_info: F,
+        node_copy_num_expected: Option<&NodeVec<DenseStorage<f64>>>,
+    ) -> String
     where
         F: Fn(NodeIndex) -> Option<String>,
     {
-        let elements = self.to_cytoscape_elements_with_attrs_and_historys_and_info::<f64, F>(
+        let elements = self.to_cytoscape_elements_with_attrs_and_historys_and_info::<f64, _>(
             &[],
             &[],
             &[],
             node_info,
+            node_copy_num_expected,
         );
         serde_json::to_string(&elements).unwrap()
     }
@@ -179,6 +186,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             edge_attrs,
             node_historys,
             |_| None,
+            None,
         )
     }
     /// Convert de bruijn graph into
