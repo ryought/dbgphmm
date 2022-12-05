@@ -87,6 +87,23 @@ function color(x, x_min, x_max) {
   return `rgb(0, ${z}, ${z})`
 }
 
+/**
+ * definition of contrasting color mapping x \in [-x_max, x_max].
+ *
+ * [-x_max, 0] will be blue
+ * [0, x_max] will be red
+ */
+function red_blue_color(x, x_max) {
+  const y = (x / x_max) * 255
+  if (y < 0) {
+    const z = Math.max(0, Math.min(-y, 255))
+    return `rgb(0, 0, ${z})`
+  } else {
+    const z = Math.max(0, Math.min(y, 255))
+    return `rgb(${z}, 0, 0)`
+  }
+}
+
 
 
 /*
@@ -206,9 +223,10 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const copy_num = e.data('copy_num')
+              const copy_num_expected = e.data('copy_num_expected') || ''
               const id = e.id()
               const info = e.scratch('show_info') ? e.data('info') : ''
-              const label = `${e.data('label')} (x${copy_num})` || ''
+              const label = `${e.data('label')} (x${copy_num},x${copy_num_expected.toFixed(2)})` || ''
               const use_history = e.scratch('use_history')
               const time = e.scratch('time')
               const history = use_history ? e.data('history')[time] : ''
@@ -251,7 +269,14 @@ function init_cytoscape(elements) {
               if (x != null)  {
                 return color(x, 0, x_max)
               } else {
-                return '#000'
+                const copy_num_expected = e.data('copy_num_expected')
+                const copy_num = e.data('copy_num')
+                if (copy_num_expected) {
+                  const d = copy_num_expected - copy_num;
+                  return red_blue_color(d, 1)
+                } else {
+                  return '#000'
+                }
               }
             }
           }
