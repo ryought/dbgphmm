@@ -138,7 +138,8 @@ fn main() {
             .to_copy_nums_of_styled_seqs(&genome)
             .unwrap_or_else(|err| panic!("{}", err));
         if opts.start_from_true {
-            dbg.set_node_copy_nums(&copy_nums_true);
+            let c = copy_nums_true.clone() * 3;
+            dbg.set_node_copy_nums(&c);
         }
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
