@@ -14,6 +14,8 @@ use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+use crate::utils::spaces;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 ///
@@ -84,6 +86,37 @@ impl Dataset {
     pub fn show_genome(&self) {
         for i in 0..self.genome().len() {
             println!("# genome[{}]={}", i, self.genome()[i]);
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn show_reads_with_genome(&self) {
+        let n = self.reads().len();
+        let n_hap = self.genome().len();
+        let mut pos: Vec<Vec<usize>> = vec![vec![]; n_hap];
+        for read_id in 0..(self.reads().len()) {
+            // haplotype id that generated the read
+            let hap_id = self.reads()[read_id].origin_node().index();
+            pos[hap_id].push(read_id);
+        }
+        for hap_id in 0..n_hap {
+            pos[hap_id].sort_by_key(|&read_id| self.reads()[read_id].origin_pos())
+        }
+        println!("{:?}", pos);
+
+        for hap_id in 0..n_hap {
+            println!("g[{}]\n{}", hap_id, self.genome()[hap_id]);
+            for &read_id in pos[hap_id].iter() {
+                let read = &self.reads()[read_id];
+                let offset = 2 + read.origin_pos();
+                let spaces = spaces(offset);
+                let aligned = read.to_aligned_str();
+                println!(
+                    "{}r[{}]\n{}{}\n{}{}",
+                    spaces, read_id, spaces, aligned[0], spaces, aligned[1],
+                );
+            }
         }
     }
 }
@@ -445,22 +478,22 @@ mod tests {
                 PositionedSequence::new(
                     b"ATCGT".to_vec(),
                     vec![
-                        GenomeGraphPos::new(ni(0), 0),
-                        GenomeGraphPos::new(ni(0), 1),
-                        GenomeGraphPos::new(ni(0), 2),
-                        GenomeGraphPos::new(ni(0), 3),
-                        GenomeGraphPos::new(ni(0), 3),
+                        GenomeGraphPos::new_match(ni(0), 0),
+                        GenomeGraphPos::new_match(ni(0), 1),
+                        GenomeGraphPos::new_match(ni(0), 2),
+                        GenomeGraphPos::new_match(ni(0), 3),
+                        GenomeGraphPos::new_match(ni(0), 3),
                     ],
                     false,
                 ),
                 PositionedSequence::new(
                     b"TTTCG".to_vec(),
                     vec![
-                        GenomeGraphPos::new(ni(1), 10),
-                        GenomeGraphPos::new(ni(1), 9),
-                        GenomeGraphPos::new(ni(1), 8),
-                        GenomeGraphPos::new(ni(1), 6),
-                        GenomeGraphPos::new(ni(1), 5),
+                        GenomeGraphPos::new_match(ni(1), 10),
+                        GenomeGraphPos::new_match(ni(1), 9),
+                        GenomeGraphPos::new_match(ni(1), 8),
+                        GenomeGraphPos::new_match(ni(1), 6),
+                        GenomeGraphPos::new_match(ni(1), 5),
                     ],
                     true,
                 ),
@@ -470,5 +503,21 @@ mod tests {
         let json = serde_json::to_string(&d).unwrap();
         println!("{}", json);
         assert_eq!(d, serde_json::from_str(&json).unwrap());
+    }
+    #[test]
+    fn e2e_dataset_read_with_genome_visualization_test() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_ends(50, 4, 0.05, 0, 0, 50, 2, 0.05, 0);
+        let param = PHMMParams::uniform(0.03);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,  // read seed
+            20, // coverage
+            100,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
     }
 }

@@ -12,7 +12,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::result::PHMMResultLike;
 use crate::hmmv2::sample::State;
 use crate::prob::Prob;
-use crate::utils::timer;
+use crate::utils::{spaces, timer};
 use rayon::prelude::*;
 
 impl<N: DbgNode> SeqNode for N {
@@ -205,16 +205,6 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
             }
         }
     }
-}
-
-///
-/// get strings with repeated n-times space (' ').
-///
-fn spaces(n: usize) -> String {
-    // old rust
-    // std::iter::repeat(" ").take(n).collect::<String>()
-    // new rust 1.16
-    " ".repeat(n)
 }
 
 #[cfg(test)]

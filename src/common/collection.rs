@@ -17,6 +17,7 @@ use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use crate::kmer::kmer::KmerLike;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
+use petgraph::graph::NodeIndex;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -473,11 +474,15 @@ pub struct PositionedSequence {
 impl PositionedSequence {
     /// Constructor of positioned sequence.
     pub fn new(seq: Sequence, origins: GenomeGraphPosVec, is_revcomp: bool) -> Self {
+        assert_eq!(seq.len(), origins.len());
         PositionedSequence {
             seq,
             origins,
             is_revcomp,
         }
+    }
+    pub fn len(&self) -> usize {
+        self.seq.len()
     }
     pub fn origins(&self) -> &GenomeGraphPosVec {
         &self.origins
@@ -485,6 +490,27 @@ impl PositionedSequence {
     /// origin position of first base
     pub fn head_origin(&self) -> GenomeGraphPos {
         *self.origins.first().unwrap()
+    }
+    pub fn first_match_origin(&self) -> GenomeGraphPos {
+        *self
+            .origins
+            .iter()
+            .find(|origin| origin.is_match())
+            .expect("sequence has no valid origin info")
+    }
+    ///
+    /// origin node (NodeIndex) of this positioned sequence.
+    /// Determined by the first (Match) origin of the read.
+    ///
+    pub fn origin_node(&self) -> NodeIndex {
+        self.first_match_origin().node().unwrap()
+    }
+    ///
+    /// origin position (location of bases; usize) of this positioned sequence.
+    /// Determined by the first (Match) origin of the read.
+    ///
+    pub fn origin_pos(&self) -> usize {
+        self.first_match_origin().pos().unwrap()
     }
     /// origin position of last base
     pub fn tail_origin(&self) -> GenomeGraphPos {
@@ -502,6 +528,23 @@ impl PositionedSequence {
             origins,
             is_revcomp: !self.is_revcomp,
         }
+    }
+    ///
+    /// To aligned two-row string representation
+    ///
+    /// ```text
+    /// ATGCGA-CGTGG
+    ///   G     C
+    /// ```
+    ///
+    /// Deletion: `-` in 1st-row
+    /// Insertion: `X` in 2nd-row
+    ///
+    pub fn to_aligned_str(&self) -> [String; 2] {
+        let row1 = String::new();
+        let row2 = String::new();
+        for i in 0..self.len() {}
+        ["ATCGATCGT".to_owned(), "   G     ".to_owned()]
     }
 }
 
@@ -646,12 +689,13 @@ mod tests {
     #[test]
     fn positioned_seq_serialize() {
         let s1 = PositionedSequence::new(
-            b"ATCG".to_vec(),
+            b"ATCGT".to_vec(),
             vec![
-                GenomeGraphPos::new(ni(0), 0),
-                GenomeGraphPos::new(ni(0), 1),
-                GenomeGraphPos::new(ni(0), 2),
-                GenomeGraphPos::new(ni(0), 3),
+                GenomeGraphPos::new_match(ni(0), 0),
+                GenomeGraphPos::new_match(ni(0), 1),
+                GenomeGraphPos::new_match(ni(0), 2),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(0), 3),
             ],
             true,
         );
@@ -695,5 +739,24 @@ mod tests {
                 (VecKmer::from_bases(b"GCTG"), 1),
             ],
         );
+    }
+    #[test]
+    fn positioned_seq_aligned_str() {
+        let s1 = PositionedSequence::new(
+            b"ATCGTTCG".to_vec(),
+            vec![
+                GenomeGraphPos::new_match(ni(0), 0),
+                GenomeGraphPos::new_match(ni(0), 1),
+                GenomeGraphPos::new_match(ni(0), 3),
+                GenomeGraphPos::new_match(ni(0), 4),
+                GenomeGraphPos::new_match(ni(0), 5),
+                GenomeGraphPos::new_match(ni(0), 5),
+                GenomeGraphPos::new_match(ni(0), 6),
+                GenomeGraphPos::new_match(ni(0), 7),
+            ],
+            false,
+        );
+        let aligned = s1.to_aligned_str();
+        println!("{}\n{}", aligned[0], aligned[1]);
     }
 }
