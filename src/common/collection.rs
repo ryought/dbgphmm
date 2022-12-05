@@ -487,6 +487,9 @@ impl PositionedSequence {
     pub fn origins(&self) -> &GenomeGraphPosVec {
         &self.origins
     }
+    pub fn seq(&self) -> &Sequence {
+        &self.seq
+    }
     /// origin position of first base
     pub fn head_origin(&self) -> GenomeGraphPos {
         *self.origins.first().unwrap()
@@ -541,10 +544,20 @@ impl PositionedSequence {
     /// Insertion: `X` in 2nd-row
     ///
     pub fn to_aligned_str(&self) -> [String; 2] {
-        let row1 = String::new();
-        let row2 = String::new();
-        for i in 0..self.len() {}
-        ["ATCGATCGT".to_owned(), "   G     ".to_owned()]
+        // // let n = self.origins.iter().filter(|origin| origin.is_match())
+        // let mut row1 = String::new();
+        // let mut row2 = String::new();
+        // for i in 0..self.len() {
+        //     if self.origins[i].is_match() {
+        //         row1.push(self.seq[i] as char);
+        //         row2.push(' ');
+        //     } else {
+        //         // row1.push(self.seq[i] as char);
+        //         row2.push(self.seq[i] as char);
+        //     }
+        // }
+        // [row1, row2]
+        unimplemented!();
     }
 }
 

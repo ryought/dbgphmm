@@ -128,8 +128,9 @@ fn main() {
         (dataset, dbg)
     };
 
-    dataset.show_genome();
-    dataset.show_reads();
+    // dataset.show_genome();
+    // dataset.show_reads();
+    dataset.show_reads_with_genome();
     let mut k = dbg.k();
 
     while k <= opts.k_final {

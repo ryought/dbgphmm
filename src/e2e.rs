@@ -103,19 +103,21 @@ impl Dataset {
         for hap_id in 0..n_hap {
             pos[hap_id].sort_by_key(|&read_id| self.reads()[read_id].origin_pos())
         }
-        println!("{:?}", pos);
 
         for hap_id in 0..n_hap {
-            println!("g[{}]\n{}", hap_id, self.genome()[hap_id]);
-            for &read_id in pos[hap_id].iter() {
+            for (i, &read_id) in pos[hap_id].iter().enumerate() {
+                if i % 10 == 0 {
+                    println!("# g[{}]\n# {}", hap_id, self.genome()[hap_id]);
+                }
                 let read = &self.reads()[read_id];
                 let offset = 2 + read.origin_pos();
                 let spaces = spaces(offset);
-                let aligned = read.to_aligned_str();
-                println!(
-                    "{}r[{}]\n{}{}\n{}{}",
-                    spaces, read_id, spaces, aligned[0], spaces, aligned[1],
-                );
+                // let aligned = read.to_aligned_str();
+                // println!(
+                //     "{}r[{}]\n{}{}\n{}{}",
+                //     spaces, read_id, spaces, aligned[0], spaces, aligned[1],
+                // );
+                println!("# {}{} r[{}]", spaces, read.seq().to_str(), read_id);
             }
         }
     }
@@ -508,7 +510,7 @@ mod tests {
     fn e2e_dataset_read_with_genome_visualization_test() {
         let (genome, genome_size) =
             genome::tandem_repeat_polyploid_with_unique_ends(50, 4, 0.05, 0, 0, 50, 2, 0.05, 0);
-        let param = PHMMParams::uniform(0.03);
+        let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
             genome.clone(),
             genome_size,

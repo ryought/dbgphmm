@@ -106,7 +106,8 @@ impl History {
             let (state, emission) = self.0[i];
             if emission.is_base() {
                 let pos = match state {
-                    State::Match(node) | State::Ins(node) => sg.node_weight(node).unwrap().source(),
+                    State::Match(node) => sg.node_weight(node).unwrap().source(),
+                    State::Ins(_) => GenomeGraphPos::new_ins(),
                     State::InsBegin => GenomeGraphPos::new_ins(),
                     _ => unreachable!(),
                 };
