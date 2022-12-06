@@ -86,6 +86,7 @@ fn main() {
         opts.hap_divergence,
         opts.seed,
     );
+    let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, mut dbg) = if opts.use_fragment_read {

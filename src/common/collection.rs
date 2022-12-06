@@ -352,7 +352,7 @@ impl FromStr for SeqStyle {
 #[pyclass]
 #[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct StyledSequence {
-    seq: Sequence,
+    pub seq: Sequence,
     style: SeqStyle,
 }
 

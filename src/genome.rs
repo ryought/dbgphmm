@@ -185,6 +185,20 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     (genome, genome_size)
 }
 
+pub fn tandem_repeat_diploid_example_mut() -> (Genome, usize) {
+    let (mut genome, genome_size) =
+        tandem_repeat_polyploid_with_unique_ends(50, 20, 0.00, 0, 0, 50, 2, 0.00, 0);
+    genome[1].seq[75] = b'A';
+    (genome, genome_size)
+}
+
+pub fn tandem_repeat_diploid_example_ins() -> (Genome, usize) {
+    let (mut genome, genome_size) =
+        tandem_repeat_polyploid_with_unique_ends(50, 20, 0.00, 0, 0, 50, 2, 0.00, 0);
+    genome[1].seq.insert(75, b'C');
+    (genome, genome_size)
+}
+
 //
 // tests
 //
@@ -330,5 +344,15 @@ mod tests {
                 ),
             ]
         );
+    }
+    #[test]
+    fn genome_tandem_repeat_example_manual_mutation() {
+        let (g, gs) = tandem_repeat_diploid_example_mut();
+        show_genome(&g, gs);
+        assert!(g[0] != g[1]);
+
+        let (g, gs) = tandem_repeat_diploid_example_ins();
+        show_genome(&g, gs);
+        assert!(g[0] != g[1]);
     }
 }
