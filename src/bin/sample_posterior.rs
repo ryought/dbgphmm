@@ -66,6 +66,10 @@ struct Opts {
     dbgviz_output: Option<PathBuf>,
     #[clap(long)]
     use_true_end_nodes: bool,
+    #[clap(long)]
+    use_true_dbg: bool,
+    #[clap(long, default_value = "1")]
+    copy_num_multiplicity: usize,
 }
 
 fn main() {
@@ -129,6 +133,10 @@ fn main() {
         (dataset, dbg)
     };
 
+    if opts.use_true_dbg {
+        dbg = SimpleDbg::from_styled_seqs(opts.k_init, dataset.genome());
+    }
+
     // dataset.show_genome();
     // dataset.show_reads();
     dataset.show_reads_with_genome();
@@ -139,7 +147,7 @@ fn main() {
             .to_copy_nums_of_styled_seqs(&genome)
             .unwrap_or_else(|err| panic!("{}", err));
         if opts.start_from_true {
-            let c = copy_nums_true.clone() * 3;
+            let c = copy_nums_true.clone() * opts.copy_num_multiplicity;
             dbg.set_node_copy_nums(&c);
         }
         println!("# k={}", dbg.k());
