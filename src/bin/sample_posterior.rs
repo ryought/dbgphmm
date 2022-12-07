@@ -139,15 +139,15 @@ fn main() {
     let mut k = dbg.k();
 
     while k <= opts.k_final {
+        if opts.use_true_dbg {
+            dbg = SimpleDbg::from_styled_seqs(k, dataset.genome());
+        }
         let (copy_nums_true, _) = dbg
             .to_copy_nums_of_styled_seqs(&genome)
             .unwrap_or_else(|err| panic!("{}", err));
         if opts.start_from_true {
             let c = copy_nums_true.clone() * opts.copy_num_multiplicity;
             dbg.set_node_copy_nums(&c);
-        }
-        if opts.use_true_dbg {
-            dbg = SimpleDbg::from_styled_seqs(k, dataset.genome());
         }
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
