@@ -90,7 +90,7 @@ fn main() {
         opts.hap_divergence,
         opts.seed,
     );
-    let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
+    // let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, mut dbg) = if opts.use_fragment_read {
@@ -133,10 +133,6 @@ fn main() {
         (dataset, dbg)
     };
 
-    if opts.use_true_dbg {
-        dbg = SimpleDbg::from_styled_seqs(opts.k_init, dataset.genome());
-    }
-
     // dataset.show_genome();
     // dataset.show_reads();
     dataset.show_reads_with_genome();
@@ -149,6 +145,9 @@ fn main() {
         if opts.start_from_true {
             let c = copy_nums_true.clone() * opts.copy_num_multiplicity;
             dbg.set_node_copy_nums(&c);
+        }
+        if opts.use_true_dbg {
+            dbg = SimpleDbg::from_styled_seqs(k, dataset.genome());
         }
         println!("# k={}", dbg.k());
         assert_eq!(dbg.k(), k);
