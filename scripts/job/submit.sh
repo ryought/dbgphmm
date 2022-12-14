@@ -23,8 +23,8 @@ case $1 in
     ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12td10.json --use-true-end-nodes --start-from-true";;
   "case3k12c30td10")
     ARG="-c 30 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12c30td10.json --use-true-end-nodes --start-from-true";;
-  "case3k12c20ttd10-2")
-    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 50 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12c30ttd10-2.json --use-true-end-nodes --start-from-true --use-true-dbg";;
+  "case3")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 50 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3.json --use-true-end-nodes --start-from-true --use-true-dbg";;
   "case3k12td14")
     ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 14 -m 50 --use-fragment-read --dbgviz-output case3k12td14.json --use-true-end-nodes --start-from-true";;
   "case3k12td20")
