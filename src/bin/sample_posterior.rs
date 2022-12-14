@@ -66,6 +66,10 @@ struct Opts {
     dbgviz_output: Option<PathBuf>,
     #[clap(long)]
     use_true_end_nodes: bool,
+    #[clap(long)]
+    use_true_dbg: bool,
+    #[clap(long, default_value = "1")]
+    copy_num_multiplicity: usize,
 }
 
 fn main() {
@@ -86,7 +90,7 @@ fn main() {
         opts.hap_divergence,
         opts.seed,
     );
-    let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
+    // let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, mut dbg) = if opts.use_fragment_read {
@@ -135,11 +139,14 @@ fn main() {
     let mut k = dbg.k();
 
     while k <= opts.k_final {
+        if opts.use_true_dbg {
+            dbg = SimpleDbg::from_styled_seqs(k, dataset.genome());
+        }
         let (copy_nums_true, _) = dbg
             .to_copy_nums_of_styled_seqs(&genome)
             .unwrap_or_else(|err| panic!("{}", err));
         if opts.start_from_true {
-            let c = copy_nums_true.clone() * 3;
+            let c = copy_nums_true.clone() * opts.copy_num_multiplicity;
             dbg.set_node_copy_nums(&c);
         }
         println!("# k={}", dbg.k());
