@@ -429,8 +429,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 copy_num_true,
                 read_count.get(weight.kmer()),
                 kmer_distributions[node.index()],
-                kmer_distributions[node.index()].p_x(copy_num_true),
-                kmer_distributions[node.index()].p_x(0),
+                kmer_distributions[node.index()]
+                    .p_x(copy_num_true)
+                    .to_value(),
+                kmer_distributions[node.index()].p_x(0).to_value(),
                 format!("({},{})", self.in_degree(node), self.out_degree(node)),
                 hist,
                 // copy_nums_with_prob,
