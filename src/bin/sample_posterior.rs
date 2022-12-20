@@ -97,7 +97,7 @@ fn main() {
         let dataset = generate_dataset(
             genome.clone(),
             genome_size,
-            0, // read seed
+            opts.seed, // read seed
             coverage,
             opts.read_length,
             ReadType::FragmentWithRevComp,
@@ -122,7 +122,7 @@ fn main() {
         let dataset = generate_dataset(
             genome.clone(),
             genome_size,
-            0, // read seed
+            opts.seed, // read seed
             coverage,
             genome_size * 2,
             ReadType::FullLength,
