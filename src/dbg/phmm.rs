@@ -187,22 +187,24 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
         output: &PHMMOutput<R>,
     ) {
         let k = self.k();
+        let header = || {
+            println!("{}{}", spaces(k + 7), emissions.to_str());
+        };
         for (i, state_probs) in output.iter_emit_probs().skip(1).enumerate() {
-            println!("{}{}", spaces(k + 1), emissions.to_str());
-            println!("{}*{}", spaces(k + 1 + i), i);
-            for (state, p) in state_probs.to_states().into_iter().take(5) {
-                let ep = p.to_value();
-                let s_state = match state {
-                    State::Match(v) => format!("M {}", self.kmer(v)),
-                    State::Ins(v) => format!("I {}", self.kmer(v)),
-                    State::Del(v) => format!("D {}", self.kmer(v)),
-                    State::MatchBegin => format!("MB"),
-                    State::InsBegin => format!("IB"),
-                    State::End => format!("E"),
-                };
-                let s_p = format!("{}", ep);
-                println!("{}{} {}", spaces(i), s_state, s_p);
+            // print header
+            if i % 10 == 0 {
+                header();
             }
+            println!(
+                "{}i={:<5} {}",
+                spaces(i),
+                i,
+                state_probs.to_summary_string(|v| self.kmer(v).to_string())
+            );
+            let p = output.forward.table_merged(i + 1).e().to_log_value();
+            let p_prev = output.forward.table_merged(i).e().to_log_value();
+            let dp = p - p_prev;
+            println!("{}{}({})", spaces(i + 2), p, dp);
         }
     }
 }
@@ -215,7 +217,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let phmm = self.to_phmm(param);
         for (i, read) in reads.into_iter().enumerate() {
             let output = phmm.run(read.as_ref());
-            println!("#{} {}", i, read.as_ref().to_str());
+            println!("r[{}] {}", i, read.as_ref().to_str());
             self.show_mapping_summary(read.as_ref(), &output);
         }
     }
@@ -236,7 +238,7 @@ mod tests {
     #[test]
     fn dbg_phmm_show_mapping_summary() {
         let dbg = mock_simple();
-        let read = b"CTTGA";
+        let read = b"CTTGCTT";
         let phmm = dbg.to_phmm(PHMMParams::default());
         let output = phmm.run(read);
         dbg.show_mapping_summary(read, &output);

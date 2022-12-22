@@ -264,9 +264,9 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             .take(10)
             .map(|(state, prob)| {
                 if let Some(node) = state.to_node_index() {
-                    format!("{}{}({:.5})", state, node_info(node), prob.to_value())
+                    format!("{}:{}{:.5}", node_info(node), state, prob.to_value())
                 } else {
-                    format!("{}({:.5})", state, prob.to_value())
+                    format!("{}{:.5}", state, prob.to_value())
                 }
             })
             .join(",")

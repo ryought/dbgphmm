@@ -48,9 +48,9 @@ impl State {
 impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            State::Match(node) => write!(f, "M({})", node.index()),
-            State::Ins(node) => write!(f, "I({})", node.index()),
-            State::Del(node) => write!(f, "D({})", node.index()),
+            State::Match(node) => write!(f, "M(n{})", node.index()),
+            State::Ins(node) => write!(f, "I(n{})", node.index()),
+            State::Del(node) => write!(f, "D(n{})", node.index()),
             State::MatchBegin => write!(f, "MB"),
             State::InsBegin => write!(f, "IB"),
             State::End => write!(f, "E"),
