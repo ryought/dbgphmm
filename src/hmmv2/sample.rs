@@ -48,12 +48,12 @@ impl State {
 impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            State::Match(node) => write!(f, "Match({})", node.index()),
-            State::Ins(node) => write!(f, "Ins({})", node.index()),
-            State::Del(node) => write!(f, "Del({})", node.index()),
-            State::MatchBegin => write!(f, "MatchBegin"),
-            State::InsBegin => write!(f, "InsBegin"),
-            State::End => write!(f, "End"),
+            State::Match(node) => write!(f, "M({})", node.index()),
+            State::Ins(node) => write!(f, "I({})", node.index()),
+            State::Del(node) => write!(f, "D({})", node.index()),
+            State::MatchBegin => write!(f, "MB"),
+            State::InsBegin => write!(f, "IB"),
+            State::End => write!(f, "E"),
         }
     }
 }
