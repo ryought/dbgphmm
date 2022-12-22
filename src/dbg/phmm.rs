@@ -190,7 +190,7 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
         for (i, state_probs) in output.iter_emit_probs().skip(1).enumerate() {
             println!("{}{}", spaces(k + 1), emissions.to_str());
             println!("{}*{}", spaces(k + 1 + i), i);
-            for (state, p) in state_probs.to_states().into_iter().take(10) {
+            for (state, p) in state_probs.to_states().into_iter().take(5) {
                 let ep = p.to_value();
                 let s_state = match state {
                     State::Match(v) => format!("M {}", self.kmer(v)),
@@ -206,6 +206,20 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
         }
     }
 }
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
+    pub fn show_mapping_summary_for_reads<T>(&self, param: PHMMParams, reads: T)
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let phmm = self.to_phmm(param);
+        for (i, read) in reads.into_iter().enumerate() {
+            let output = phmm.run(read.as_ref());
+            println!("#{} {}", i, read.as_ref().to_str());
+            self.show_mapping_summary(read.as_ref(), &output);
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -218,5 +232,13 @@ mod tests {
         println!("c={}", c);
         let phmm = dbg.to_phmm(PHMMParams::default());
         println!("{}", phmm);
+    }
+    #[test]
+    fn dbg_phmm_show_mapping_summary() {
+        let dbg = mock_simple();
+        let read = b"CTTGA";
+        let phmm = dbg.to_phmm(PHMMParams::default());
+        let output = phmm.run(read);
+        dbg.show_mapping_summary(read, &output);
     }
 }
