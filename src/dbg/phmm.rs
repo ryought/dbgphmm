@@ -176,7 +176,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
-impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// show mapping of a sequence of emissions in cli.
     /// list the nodes which emits emissons[i] with high probability.
@@ -199,7 +199,11 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
                 "{}i={:<5} {}",
                 spaces(i),
                 i,
-                state_probs.to_summary_string(|v| self.kmer(v).to_string())
+                state_probs.to_summary_string(|v| format!(
+                    "{}x{}",
+                    self.kmer(v).to_string(),
+                    self.copy_num(v)
+                ))
             );
             let p = output.forward.table_merged(i + 1).e().to_log_value();
             let p_prev = output.forward.table_merged(i).e().to_log_value();
@@ -207,8 +211,6 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
             println!("{}{}({})", spaces(i + 2), p, dp);
         }
     }
-}
-impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn show_mapping_summary_for_reads<T>(&self, param: PHMMParams, reads: T)
     where
         T: IntoIterator,
