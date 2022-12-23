@@ -461,6 +461,24 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset() -> Dataset {
     )
 }
 
+///
+///
+///
+pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset {
+    let (genome, genome_size) =
+        genome::tandem_repeat_polyploid_with_unique_ends(50, 20, 0.05, 0, 0, 50, 2, 0.05, 0);
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,  // read seed
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
 //
 // tests
 //

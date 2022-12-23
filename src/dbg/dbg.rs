@@ -591,7 +591,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// If the sequence cannot be emitted using a path in the dbg, returns None.
     ///
-    fn to_nodes_of_styled_seq(
+    pub fn to_nodes_of_styled_seq(
         &self,
         seq: &StyledSequence,
     ) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
