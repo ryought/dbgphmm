@@ -2,17 +2,19 @@
 //! dbg as a seqgraph and phmm
 //!
 use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
-use crate::common::{CopyNum, Seq};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, Seq};
+use crate::dbg::dbg::NodeCopyNums;
 use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::freq::PHMMOutput;
 use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::result::PHMMResultLike;
+use crate::hmmv2::result::{PHMMResult, PHMMResultLike};
 use crate::hmmv2::sample::State;
 use crate::prob::Prob;
 use crate::utils::{spaces, timer};
+use itertools::Itertools;
 use rayon::prelude::*;
 
 impl<N: DbgNode> SeqNode for N {
@@ -221,6 +223,80 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let output = phmm.run(read.as_ref());
             println!("r[{}] {}", i, read.as_ref().to_str());
             self.show_mapping_summary(read.as_ref(), &output);
+        }
+    }
+    pub fn compare_mappings(
+        &self,
+        param: PHMMParams,
+        reads: &PositionedReads,
+        copy_nums_a: &NodeCopyNums,
+        copy_nums_b: &NodeCopyNums,
+    ) {
+        let mut dbg_a = self.clone();
+        dbg_a.set_node_copy_nums(copy_nums_a);
+        let phmm_a = dbg_a.to_phmm(param);
+
+        let mut dbg_b = self.clone();
+        dbg_b.set_node_copy_nums(copy_nums_b);
+        let phmm_b = dbg_b.to_phmm(param);
+
+        let summary = |output: &PHMMOutput<PHMMResult>, copy_nums: &NodeCopyNums, x: usize| {
+            let node_info = |v| format!("{}x{}", self.kmer(v).to_string(), copy_nums[v]);
+            output.forward.tables[x]
+                .to_states()
+                .into_iter()
+                .take(5)
+                .map(|(state, prob)| {
+                    if let Some(node) = state.to_node_index() {
+                        format!("{}:{}{:.5}", node_info(node), state, prob.to_log_value())
+                    } else {
+                        format!("{}{:.5}", state, prob.to_log_value())
+                    }
+                })
+                .join(",")
+        };
+
+        for (i, read) in reads.into_iter().enumerate() {
+            let emissions = read.seq();
+            let output_a = phmm_a.run(emissions);
+            let output_b = phmm_b.run(emissions);
+            let pa = output_a.to_full_prob_forward().to_log_value();
+            let pb = output_b.to_full_prob_forward().to_log_value();
+            println!(
+                "r[{}]\tsummary\t{}\t{}\t{}\t{}",
+                i,
+                read.origin_node().index(),
+                pa,
+                pb,
+                pa - pb,
+            );
+
+            for x in 0..emissions.len() {
+                let pa = output_a.forward.table_merged(x + 1).e().to_log_value();
+                let pa_prev = output_a.forward.table_merged(x).e().to_log_value();
+                let dpa = pa - pa_prev;
+                let sa = summary(&output_a, &copy_nums_a, x);
+
+                let pb = output_b.forward.table_merged(x + 1).e().to_log_value();
+                let pb_prev = output_b.forward.table_merged(x).e().to_log_value();
+                let dpb = pb - pb_prev;
+                let sb = summary(&output_b, &copy_nums_b, x);
+
+                println!(
+                    "r[{}]\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    i,
+                    x,
+                    emissions[x] as char,
+                    pa,
+                    pb,
+                    dpa,
+                    dpb,
+                    dpa - dpb,
+                    sa,
+                    sb
+                );
+            }
+            // self.show_mapping_summary(read.as_ref(), &output);
         }
     }
 }

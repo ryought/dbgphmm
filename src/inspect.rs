@@ -71,4 +71,26 @@ mod tests {
         println!("p_opt={}", p_opt);
         assert!((p_opt.to_log_value() - (-17121.0)).abs() < 1.0);
     }
+
+    #[ignore]
+    #[test]
+    fn e2e_difficult_tandem_repeat_show_reads() {
+        let (dataset, dbg_true, dbg_opt) = generate_case3();
+        dataset.show_reads_with_genome();
+    }
+
+    #[ignore]
+    #[test]
+    fn e2e_difficult_tandem_repeat_compare_mapping() {
+        let (dataset, dbg_true, dbg_opt) = generate_case3();
+        let copy_nums_true = dbg_true.to_node_copy_nums();
+        let copy_nums_opt = dbg_opt.to_node_copy_nums();
+
+        dbg_true.compare_mappings(
+            dataset.params(),
+            dataset.reads(),
+            &copy_nums_true,
+            &copy_nums_opt,
+        );
+    }
 }
