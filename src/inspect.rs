@@ -9,13 +9,20 @@ use crate::common::{
 };
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::e2e::{generate_difficult_diploid_tandem_repeat_dataset_full_length, Dataset};
+use crate::hmmv2::common::{PHMMEdge, PHMMNode};
 use crate::kmer::veckmer::kmer;
 use crate::kmer::VecKmer;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 
 ///
 ///
 ///
-pub fn generate_case3() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
+pub fn generate_case3() -> (
+    Dataset,
+    SimpleDbg<VecKmer>,
+    SimpleDbg<VecKmer>,
+    Vec<EdgeIndex>,
+) {
     let dataset = generate_difficult_diploid_tandem_repeat_dataset_full_length();
     let k = 12;
 
@@ -43,7 +50,41 @@ pub fn generate_case3() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
     let mut dbg_opt = dbg_true.clone();
     dbg_opt.set_node_copy_nums(&copy_nums_opt);
 
-    (dataset, dbg_true, dbg_opt)
+    // edges
+    let mut edges = Vec::new();
+    // check trans_prob difference
+    let phmm_true = dbg_true.to_phmm(dataset.params());
+    let phmm_opt = dbg_opt.to_phmm(dataset.params());
+    // init_prob of almost all nodes will be changed
+    // because the total genome_size was changed.
+    // for (node, _) in dbg_true.nodes() {
+    //     let pi_t = phmm_true.node(node).init_prob();
+    //     let pi_o = phmm_opt.node(node).init_prob();
+    //     if pi_t != pi_o {
+    //         println!("n{} {} {}", node.index(), pi_t, pi_o);
+    //     }
+    // }
+    for (edge, s, t, _) in dbg_true.edges() {
+        let pt_t = phmm_true.edge(edge).trans_prob();
+        let pt_o = phmm_opt.edge(edge).trans_prob();
+        if pt_t != pt_o {
+            println!(
+                "e{} {}(x{},x{}) -> {}(x{},x{}) {} {}",
+                edge.index(),
+                dbg_true.kmer(s),
+                dbg_true.copy_num(s),
+                dbg_opt.copy_num(s),
+                dbg_true.kmer(t),
+                dbg_true.copy_num(t),
+                dbg_opt.copy_num(t),
+                pt_t,
+                pt_o
+            );
+            edges.push(edge);
+        }
+    }
+
+    (dataset, dbg_true, dbg_opt, edges)
 }
 
 //
@@ -56,7 +97,7 @@ mod tests {
 
     #[test]
     fn e2e_difficult_tandem_repeat_generation() {
-        let (dataset, dbg_true, dbg_opt) = generate_case3();
+        let (dataset, dbg_true, dbg_opt, _) = generate_case3();
         assert_eq!(dbg_true.genome_size(), 2209);
         assert_eq!(dbg_opt.genome_size(), 2208);
 
@@ -75,14 +116,14 @@ mod tests {
     #[ignore]
     #[test]
     fn e2e_difficult_tandem_repeat_show_reads() {
-        let (dataset, dbg_true, dbg_opt) = generate_case3();
+        let (dataset, dbg_true, dbg_opt, _) = generate_case3();
         dataset.show_reads_with_genome();
     }
 
     #[ignore]
     #[test]
     fn e2e_difficult_tandem_repeat_compare_mapping() {
-        let (dataset, dbg_true, dbg_opt) = generate_case3();
+        let (dataset, dbg_true, dbg_opt, _) = generate_case3();
         let copy_nums_true = dbg_true.to_node_copy_nums();
         let copy_nums_opt = dbg_opt.to_node_copy_nums();
 
