@@ -210,13 +210,13 @@ fn main() {
         dbg.set_node_copy_nums(&copy_nums_true);
         let r_true = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
         println!("NT\t{}\t{}\t", k, r_true);
-        dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
+        // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // (b) dbg_max
         dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
         let r_max = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
         println!("NM\t{}\t{}\t", k, r_max);
-        dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
+        // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // set to max instance copy_nums in distribution
         dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
@@ -247,11 +247,15 @@ fn main() {
         println!("# k={} n_purged={}", dbg.k(), n_purged);
 
         // upgrade
-        dbg = dbg.to_k_max_dbg_naive(opts.k_final);
-        if k == dbg.k() {
-            break;
+        if opts.use_true_dbg {
+            k += 1;
+        } else {
+            dbg = dbg.to_k_max_dbg_naive(opts.k_final);
+            if k == dbg.k() {
+                break;
+            }
+            k = dbg.k();
         }
-        k = dbg.k();
     }
 
     println!("# finished_at={}", chrono::Local::now());
