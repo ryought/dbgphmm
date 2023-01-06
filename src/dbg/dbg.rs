@@ -707,6 +707,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .unwrap_or_else(|missing_kmers| panic!("{}", missing_kmers));
         self.set_node_copy_nums(&copy_nums_true);
     }
+    ///
+    ///
+    ///
+    pub fn edit_copy_nums_by_seq(&mut self, seq: &[u8], x: i8) {
+        let nodes = self
+            .to_nodes_of_styled_seq(&StyledSequence::linear_fragment(seq.to_vec()))
+            .unwrap();
+        for node in nodes {
+            let copy_num = self.node(node).copy_num();
+            let new_copy_num = if x >= 0 {
+                copy_num + (x as usize)
+            } else {
+                copy_num - (-x as usize)
+            };
+            self.graph
+                .node_weight_mut(node)
+                .unwrap()
+                .set_copy_num(new_copy_num);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

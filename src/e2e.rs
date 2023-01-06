@@ -479,6 +479,33 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset
     )
 }
 
+///
+/// Difficult 500bp tandem repeat test case
+///
+/// U10N50H001S1
+///
+/// -c 20 -l 100 -p 0.01
+/// --k-init 12 --k-final 15
+/// -U 10 -N 50 -E 50 -P 2 -D 0.0 -H 0.01 --sigma 100 -d 10 -m 50 -s 1
+/// --use-true-end-nodes --start-from-true --use-true-dbg
+///
+pub fn generate_500bp_case_dataset() -> Dataset {
+    let seed = 1;
+    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
+        10, 50, 0.0, seed, seed, 50, 2, 0.01, seed,
+    );
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        seed,
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
 //
 // tests
 //
