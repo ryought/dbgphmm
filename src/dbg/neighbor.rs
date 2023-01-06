@@ -345,6 +345,37 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .collect()
     }
     ///
+    /// +1x only neighbors
+    ///
+    pub fn neighbor_copy_nums_up_only(
+        &self,
+        max_depth: usize,
+        zero_edge: EdgeIndex,
+    ) -> Vec<(NodeCopyNums, CopyNumsUpdateInfo<N::Kmer>)> {
+        let graph = self.to_compact_edbg_graph();
+        let network = graph.map(
+            |_, _| (),
+            |_, weight| {
+                let copy_num = weight.copy_num();
+                FlowEdgeBase::new(copy_num, copy_num.saturating_add(1), 0.0)
+            },
+        );
+        let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index());
+        // enumerate all cycles
+        // TODO return only cycles containing `zero_edge`
+        enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
+            .into_iter()
+            .map(|(flow, update_info)| {
+                let flow_in_original =
+                    compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
+                (
+                    flow_in_original.switch_index(),
+                    CopyNumsUpdateInfo::from_compacted(self.k(), &graph, &update_info),
+                )
+            })
+            .collect()
+    }
+    ///
     ///
     pub fn to_kmer_distribution(
         &self,

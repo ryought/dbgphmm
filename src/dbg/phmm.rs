@@ -15,6 +15,7 @@ use crate::hmmv2::sample::State;
 use crate::prob::Prob;
 use crate::utils::{spaces, timer};
 use itertools::Itertools;
+use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 
 impl<N: DbgNode> SeqNode for N {
@@ -297,6 +298,27 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 );
             }
             // self.show_mapping_summary(read.as_ref(), &output);
+        }
+    }
+    ///
+    /// List up all missing kmers (whose true copynum is >0x but current copynum is 0x)
+    ///
+    fn missing_kmer_nodes(&self, copy_nums_true: &NodeCopyNums) -> Vec<NodeIndex> {
+        let mut ret = Vec::new();
+        for (node, node_weight) in self.nodes() {
+            // true is >0 but current is 0
+            if copy_nums_true[node] > 0 && node_weight.copy_num() == 0 {
+                ret.push(node);
+            }
+        }
+        ret
+    }
+    ///
+    ///
+    pub fn inspect_missing_kmer_nodes(&self, copy_nums_true: &NodeCopyNums) {
+        for missing_node in self.missing_kmer_nodes(copy_nums_true) {
+            // for each missing node, try long cycles with +1x-ing the missing node.
+            println!("missing_node=v{}", missing_node.index());
         }
     }
 }

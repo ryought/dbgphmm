@@ -375,6 +375,41 @@ pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
     flows
 }
 
+///
+/// list up all neighboring flows TODO
+///
+pub fn enumerate_neighboring_flows_in_residue_with_edge<F: FlowRateLike>(
+    rg: &ResidueGraph<F>,
+    flow: &Flow<F>,
+    max_cycle_size: Option<usize>,
+) -> Vec<(Flow<F>, UpdateInfo)> {
+    // println!("{:?}", petgraph::dot::Dot::with_config(&rg, &[]));
+    let simple_cycles = match max_cycle_size {
+        Some(k) => simple_k_cycles_with_cond(rg, k, |e_a, e_b| {
+            is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
+        }),
+        // TODO Johnson algorithm does not support parallel edges
+        // this cause problem when with compacted edbg
+        None => simple_cycles(rg),
+    };
+    // for cycle in simple_cycles.iter() {
+    //     println!("cycle = {}", cycle);
+    // }
+    // eprintln!("# n_simple_cycles={}", simple_cycles.len());
+    let flows: Vec<_> = simple_cycles
+        .into_iter()
+        .map(|cycle| {
+            (
+                apply_residual_edges_to_flow(flow, rg, cycle.edges()),
+                cycle_in_residue_graph_into_update_info(rg, cycle.edges()),
+            )
+        })
+        .filter(|(new_flow, _update_info)| new_flow != flow)
+        .collect();
+    // eprintln!("# n_flows={}", flows.len());
+    flows
+}
+
 #[derive(Clone, Debug, Copy)]
 pub enum CycleDetectMethod {
     BellmanFord,
