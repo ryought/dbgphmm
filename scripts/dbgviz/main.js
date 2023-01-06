@@ -226,7 +226,7 @@ function init_cytoscape(elements) {
               const copy_num_expected = e.data('copy_num_expected') || 0
               const id = e.id()
               const info = e.scratch('show_info') ? e.data('info') : ''
-              const label = `${e.data('label')} (x${copy_num},x${copy_num_expected ? copy_num_expected.toFixed(2) : 0})` || ''
+              const label = `${e.data('label')} (x${copy_num},x${copy_num_expected ? copy_num_expected.toFixed(2) : '?'})` || ''
               const use_history = e.scratch('use_history')
               const time = e.scratch('time')
               const history = use_history ? e.data('history')[time] : ''
