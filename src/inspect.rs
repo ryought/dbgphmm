@@ -10,7 +10,7 @@ use crate::common::{
 use crate::dbg::{Dbg, HashDbg, SimpleDbg};
 use crate::e2e::{
     generate_500bp_case_dataset, generate_difficult_diploid_tandem_repeat_dataset_full_length,
-    Dataset,
+    generate_small_case_dataset, Dataset,
 };
 use crate::hmmv2::common::{PHMMEdge, PHMMNode};
 use crate::kmer::veckmer::kmer;
@@ -22,6 +22,26 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 ///
 pub fn generate_500bp_case() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
     let dataset = generate_500bp_case_dataset();
+    let k = 12;
+
+    // true dbg
+    let dbg_true = SimpleDbg::from_styled_seqs(k, dataset.genome());
+    assert!(dbg_true.is_valid());
+
+    // false MAP dbg
+    let mut dbg_opt = dbg_true.clone();
+    dbg_opt.edit_copy_nums_by_seq(b"GACAAGCTAGGCAAGCTAGGACAAGCTAGG", -1);
+    // dbg_opt.edit_copy_nums_by_seq(b"GACAAGCTAGGACAAGCTAGG", -1);
+    assert!(dbg_opt.is_valid());
+
+    (dataset, dbg_true, dbg_opt)
+}
+
+///
+///
+///
+pub fn generate_small_case() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
+    let dataset = generate_small_case_dataset();
     let k = 12;
 
     // true dbg
@@ -155,5 +175,20 @@ mod tests {
         let missing_node = dbg_opt.find_node_from_kmer(&kmer(b"AAGCTAGGCAAG")).unwrap();
         assert_eq!(dbg_true.copy_num(missing_node), 1);
         assert_eq!(dbg_opt.copy_num(missing_node), 0);
+    }
+
+    #[test]
+    fn e2e_small_generation() {
+        let (dataset, dbg_true, dbg_opt) = generate_small_case();
+        dataset.show_reads_with_genome();
+        println!("{}", dbg_true);
+        println!("{}", dbg_opt);
+        let p_true = dbg_true.to_full_prob(dataset.params(), dataset.reads());
+        println!("p_true={}", p_true);
+        let p_opt = dbg_opt.to_full_prob(dataset.params(), dataset.reads());
+        println!("p_opt={}", p_opt);
+        // let missing_node = dbg_opt.find_node_from_kmer(&kmer(b"AAGCTAGGCAAG")).unwrap();
+        // assert_eq!(dbg_true.copy_num(missing_node), 1);
+        // assert_eq!(dbg_opt.copy_num(missing_node), 0);
     }
 }

@@ -4,6 +4,7 @@
 //! * generate genome
 //! * generate reads
 //!
+use crate::common::collection::genome_size;
 use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
@@ -491,9 +492,37 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset
 ///
 pub fn generate_500bp_case_dataset() -> Dataset {
     let seed = 1;
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
-        10, 50, 0.0, seed, seed, 50, 2, 0.01, seed,
+    let (genome, genome_size) = genome::tandem_repeat_500bp();
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        seed,
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
+///
+/// small tandem repeat test case
+///
+pub fn generate_small_case_dataset() -> Dataset {
+    let seed = 1;
+    let g0 = StyledSequence::linear(
+        //                    1         2         3         4         5         6         7         8         9         0         ....................
+        b"TGCTCTGGCGGTCCACGTCTTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCGTATCGTATGCTTGTTGTTG"
+        .to_vec(),
     );
+    let g1 = StyledSequence::linear(
+        //                    1         2    x    3         4   x      5   x     6         7   D    8         9       D0         ....................
+        b"TGCTCTGGCGGTCCACGTCTTAGGACAAGCTAGGAGAAGCTAGGACAAGCTAGGTACAAGCTAGGCCAAGCTAGGACAAGCTAGGCAAGCTAGGACAAGCTAGGACAACTAGGACAAGCGTATCGTATGCTTGTTGTTG"
+        .to_vec(),
+    );
+    let genome = vec![g0, g1];
+    let genome_size = genome_size(&genome);
+    println!("size={}", genome_size);
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
         genome.clone(),

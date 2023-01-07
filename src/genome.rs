@@ -199,6 +199,57 @@ pub fn tandem_repeat_diploid_example_ins() -> (Genome, usize) {
     (genome, genome_size)
 }
 
+pub fn tandem_repeat_500bp() -> (Genome, usize) {
+    let seed = 1;
+    tandem_repeat_polyploid_with_unique_ends(10, 50, 0.0, seed, seed, 50, 2, 0.01, seed)
+}
+
+///
+/// For posterior sampling debugging
+///
+pub fn tandem_repeat_small(end_length: usize) -> (Genome, usize) {
+    let prefix = generate(end_length, 2);
+    let suffix = generate(end_length, 0);
+
+    let unit = b"TAGGACAAGC".to_vec();
+    let unit_mut_cg = b"TAGGAGAAGC".to_vec();
+    let unit_ins_t = b"TAGGTACAAGC".to_vec();
+    let unit_mut_ac = b"TAGGCCAAGC".to_vec();
+    let unit_del_a = b"TAGGCAAGC".to_vec();
+    let unit_del_g = b"TAGGACAAC".to_vec();
+
+    let hap_0 = StyledSequence::linear(
+        [
+            prefix.clone(),
+            // 50 units,
+            tandem_repeat(&unit, 50),
+            suffix.clone(),
+        ]
+        .concat(),
+    );
+    let hap_1 = StyledSequence::linear(
+        [
+            prefix,
+            // 50 units, 4+20+1+10+10=45 original units and 5 mutated units
+            tandem_repeat(&unit, 4),
+            unit_mut_cg,
+            tandem_repeat(&unit, 20),
+            unit_ins_t,
+            unit_mut_ac,
+            tandem_repeat(&unit, 1),
+            unit_del_a,
+            tandem_repeat(&unit, 10),
+            unit_del_g,
+            tandem_repeat(&unit, 10),
+            suffix,
+        ]
+        .concat(),
+    );
+    let genome_size = hap_0.len() + hap_1.len();
+
+    (vec![hap_0, hap_1], genome_size)
+}
+
 //
 // tests
 //
@@ -354,5 +405,21 @@ mod tests {
         let (g, gs) = tandem_repeat_diploid_example_ins();
         show_genome(&g, gs);
         assert!(g[0] != g[1]);
+    }
+    #[test]
+    fn genome_tandem_repeat_500bp_and_small() {
+        let (g_a, gs_a) = tandem_repeat_500bp();
+        let (g_b, gs_b) = tandem_repeat_small(50);
+        show_genome(&g_a, gs_a);
+        show_genome(&g_b, gs_b);
+        assert_eq!(g_a[0], g_b[0]);
+        for i in 0..(g_b[1].len()) {
+            println!(
+                "{} {} {}",
+                g_a[1].seq()[i],
+                g_b[1].seq()[i],
+                g_a[1].seq()[i] == g_b[1].seq()[i]
+            );
+        }
     }
 }
