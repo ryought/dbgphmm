@@ -168,7 +168,7 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     let mut genome_size = 0;
     let hap_a = hap.remove(0);
     genome_size += hap_a.len();
-    // assert_eq!(hap_a.len(), hap_genome_size);
+    assert_eq!(hap_a.len(), hap_genome_size);
     genome.push(hap_a.clone());
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
@@ -207,7 +207,18 @@ pub fn tandem_repeat_500bp() -> (Genome, usize) {
 ///
 /// For posterior sampling debugging
 ///
-pub fn tandem_repeat_small(end_length: usize) -> (Genome, usize) {
+/// original:
+/// let (a, b, c, d) = (4, 20, 10, 10);
+/// test:
+/// let (a, b, c, d) = (1, 2, 1, 20);
+///
+pub fn tandem_repeat_small(
+    end_length: usize,
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+) -> (Genome, usize) {
     let prefix = generate(end_length, 2);
     let suffix = generate(end_length, 0);
 
@@ -218,11 +229,13 @@ pub fn tandem_repeat_small(end_length: usize) -> (Genome, usize) {
     let unit_del_a = b"TAGGCAAGC".to_vec();
     let unit_del_g = b"TAGGACAAC".to_vec();
 
+    // original
+    let n = a + b + c + d + 6;
     let hap_0 = StyledSequence::linear(
         [
             prefix.clone(),
             // 50 units,
-            tandem_repeat(&unit, 50),
+            tandem_repeat(&unit, n),
             suffix.clone(),
         ]
         .concat(),
@@ -231,16 +244,16 @@ pub fn tandem_repeat_small(end_length: usize) -> (Genome, usize) {
         [
             prefix,
             // 50 units, 4+20+1+10+10=45 original units and 5 mutated units
-            tandem_repeat(&unit, 4),
+            tandem_repeat(&unit, a),
             unit_mut_cg,
-            tandem_repeat(&unit, 20),
+            tandem_repeat(&unit, b),
             unit_ins_t,
             unit_mut_ac,
             tandem_repeat(&unit, 1),
             unit_del_a,
-            tandem_repeat(&unit, 10),
+            tandem_repeat(&unit, c),
             unit_del_g,
-            tandem_repeat(&unit, 10),
+            tandem_repeat(&unit, d),
             suffix,
         ]
         .concat(),
@@ -409,7 +422,7 @@ mod tests {
     #[test]
     fn genome_tandem_repeat_500bp_and_small() {
         let (g_a, gs_a) = tandem_repeat_500bp();
-        let (g_b, gs_b) = tandem_repeat_small(50);
+        let (g_b, gs_b) = tandem_repeat_small(50, 4, 20, 10, 10);
         show_genome(&g_a, gs_a);
         show_genome(&g_b, gs_b);
         assert_eq!(g_a[0], g_b[0]);
@@ -421,5 +434,6 @@ mod tests {
                 g_a[1].seq()[i] == g_b[1].seq()[i]
             );
         }
+        assert_eq!(g_a[1].seq()[..550], g_b[1].seq()[..550]);
     }
 }

@@ -211,13 +211,7 @@ mod tests {
         h.push(State::End, Emission::Empty);
         let s = h.to_string();
         println!("{}", s);
-        let s_true = r#"MatchBegin -> -
-Match(0) -> A
-Ins(1) -> C
-Del(2) -> -
-Match(3) -> G
-End -> -
-"#;
+        let s_true = "MB -> -\nM(n0) -> A\nI(n1) -> C\nD(n2) -> -\nM(n3) -> G\nE -> -\n";
         assert_eq!(s, s_true);
         let b = h.to_sequence();
         let b_true = b"ACG";

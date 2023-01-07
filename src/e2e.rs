@@ -508,21 +508,9 @@ pub fn generate_500bp_case_dataset() -> Dataset {
 ///
 /// small tandem repeat test case
 ///
-pub fn generate_small_case_dataset() -> Dataset {
+pub fn generate_small_case_dataset(a: usize, b: usize, c: usize, d: usize) -> Dataset {
+    let (genome, genome_size) = genome::tandem_repeat_small(20, a, b, c, d);
     let seed = 1;
-    let g0 = StyledSequence::linear(
-        //                    1         2         3         4         5         6         7         8         9         0         ....................
-        b"TGCTCTGGCGGTCCACGTCTTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCTAGGACAAGCGTATCGTATGCTTGTTGTTG"
-        .to_vec(),
-    );
-    let g1 = StyledSequence::linear(
-        //                    1         2    x    3         4   x      5   x     6         7   D    8         9       D0         ....................
-        b"TGCTCTGGCGGTCCACGTCTTAGGACAAGCTAGGAGAAGCTAGGACAAGCTAGGTACAAGCTAGGCCAAGCTAGGACAAGCTAGGCAAGCTAGGACAAGCTAGGACAACTAGGACAAGCGTATCGTATGCTTGTTGTTG"
-        .to_vec(),
-    );
-    let genome = vec![g0, g1];
-    let genome_size = genome_size(&genome);
-    println!("size={}", genome_size);
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
         genome.clone(),

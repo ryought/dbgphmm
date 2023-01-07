@@ -40,8 +40,13 @@ pub fn generate_500bp_case() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>
 ///
 ///
 ///
-pub fn generate_small_case() -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
-    let dataset = generate_small_case_dataset();
+pub fn generate_small_case(
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+) -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
+    let dataset = generate_small_case_dataset(a, b, c, d);
     let k = 12;
 
     // true dbg
@@ -179,7 +184,7 @@ mod tests {
 
     #[test]
     fn e2e_small_generation() {
-        let (dataset, dbg_true, dbg_opt) = generate_small_case();
+        let (dataset, dbg_true, dbg_opt) = generate_small_case(1, 2, 1, 20);
         dataset.show_reads_with_genome();
         println!("{}", dbg_true);
         println!("{}", dbg_opt);
@@ -187,8 +192,17 @@ mod tests {
         println!("p_true={}", p_true);
         let p_opt = dbg_opt.to_full_prob(dataset.params(), dataset.reads());
         println!("p_opt={}", p_opt);
-        // let missing_node = dbg_opt.find_node_from_kmer(&kmer(b"AAGCTAGGCAAG")).unwrap();
-        // assert_eq!(dbg_true.copy_num(missing_node), 1);
-        // assert_eq!(dbg_opt.copy_num(missing_node), 0);
+        let missing_node = dbg_opt.find_node_from_kmer(&kmer(b"AAGCTAGGCAAG")).unwrap();
+        assert_eq!(dbg_true.copy_num(missing_node), 1);
+        assert_eq!(dbg_opt.copy_num(missing_node), 0);
+
+        // let copy_nums_true = dbg_true.to_node_copy_nums();
+        // let copy_nums_opt = dbg_opt.to_node_copy_nums();
+        // dbg_true.compare_mappings(
+        //     dataset.params(),
+        //     dataset.reads(),
+        //     &copy_nums_true,
+        //     &copy_nums_opt,
+        // );
     }
 }
