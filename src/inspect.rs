@@ -45,8 +45,9 @@ pub fn generate_small_case(
     b: usize,
     c: usize,
     d: usize,
+    p: f64,
 ) -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
-    let dataset = generate_small_case_dataset(a, b, c, d);
+    let dataset = generate_small_case_dataset(a, b, c, d, p);
     let k = 12;
 
     // true dbg

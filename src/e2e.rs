@@ -508,10 +508,10 @@ pub fn generate_500bp_case_dataset() -> Dataset {
 ///
 /// small tandem repeat test case
 ///
-pub fn generate_small_case_dataset(a: usize, b: usize, c: usize, d: usize) -> Dataset {
+pub fn generate_small_case_dataset(a: usize, b: usize, c: usize, d: usize, p: f64) -> Dataset {
     let (genome, genome_size) = genome::tandem_repeat_small(20, a, b, c, d);
     let seed = 1;
-    let param = PHMMParams::uniform(0.01);
+    let param = PHMMParams::uniform(p);
     generate_dataset(
         genome.clone(),
         genome_size,
