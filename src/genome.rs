@@ -226,7 +226,7 @@ pub fn tandem_repeat_small(
     let unit_mut_cg = b"TAGGAGAAGC".to_vec();
     let unit_ins_t = b"TAGGTACAAGC".to_vec();
     let unit_mut_ac = b"TAGGCCAAGC".to_vec();
-    let unit_del_a = b"TAGGCAAGC".to_vec();
+    let unit_del_a = b"TAGGCAAGC".to_vec(); // missing
     let unit_del_g = b"TAGGACAAC".to_vec();
 
     // original
@@ -250,7 +250,7 @@ pub fn tandem_repeat_small(
             unit_ins_t,
             unit_mut_ac,
             tandem_repeat(&unit, 1),
-            unit_del_a,
+            unit_del_a, // missing
             tandem_repeat(&unit, c),
             unit_del_g,
             tandem_repeat(&unit, d),

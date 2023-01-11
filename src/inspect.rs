@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn e2e_small_generation() {
-        let (dataset, dbg_true, dbg_opt) = generate_small_case(1, 2, 1, 20);
+        let (dataset, dbg_true, dbg_opt) = generate_small_case(1, 2, 1, 20, 0.01);
         dataset.show_reads_with_genome();
         println!("{}", dbg_true);
         println!("{}", dbg_opt);

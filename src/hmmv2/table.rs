@@ -256,12 +256,22 @@ impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
 
 impl<S: Storage<Item = Prob>> PHMMTable<S> {
     ///
-    /// one-line summary
+    /// one-line summary with top-10 nodes
     ///
     pub fn to_summary_string<F: Fn(NodeIndex) -> String>(&self, node_info: F) -> String {
+        self.to_summary_string_n(10, node_info)
+    }
+    ///
+    /// one-line summary
+    ///
+    pub fn to_summary_string_n<F: Fn(NodeIndex) -> String>(
+        &self,
+        n: usize,
+        node_info: F,
+    ) -> String {
         self.to_states()
             .into_iter()
-            .take(10)
+            .take(n)
             .map(|(state, prob)| {
                 if let Some(node) = state.to_node_index() {
                     format!("{}:{}{:.5}", node_info(node), state, prob.to_value())
