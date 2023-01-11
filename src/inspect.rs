@@ -45,9 +45,14 @@ pub fn generate_small_case(
     b: usize,
     c: usize,
     d: usize,
+    mut_cg: bool,
+    ins_t: bool,
+    mut_ac: bool,
+    del_a: bool,
+    del_g: bool,
     p: f64,
 ) -> (Dataset, SimpleDbg<VecKmer>, SimpleDbg<VecKmer>) {
-    let dataset = generate_small_case_dataset(a, b, c, d, p);
+    let dataset = generate_small_case_dataset(a, b, c, d, mut_cg, ins_t, mut_ac, del_a, del_g, p);
     let k = 12;
 
     // true dbg
@@ -185,7 +190,8 @@ mod tests {
 
     #[test]
     fn e2e_small_generation() {
-        let (dataset, dbg_true, dbg_opt) = generate_small_case(1, 2, 1, 20, 0.01);
+        let (dataset, dbg_true, dbg_opt) =
+            generate_small_case(1, 2, 1, 20, true, true, true, true, true, 0.01);
         dataset.show_reads_with_genome();
         println!("{}", dbg_true);
         println!("{}", dbg_opt);

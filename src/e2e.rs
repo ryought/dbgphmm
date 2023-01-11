@@ -251,7 +251,7 @@ pub fn generate_dataset(
     // for read in pos_reads.iter() {
     //     println!("{}", read);
     // }
-    g.show_coverage(&pos_reads);
+    // g.show_coverage(&pos_reads);
     // TODO
     // use strand justified read only currently
     let reads = pos_reads.justify_strand();
@@ -508,8 +508,20 @@ pub fn generate_500bp_case_dataset() -> Dataset {
 ///
 /// small tandem repeat test case
 ///
-pub fn generate_small_case_dataset(a: usize, b: usize, c: usize, d: usize, p: f64) -> Dataset {
-    let (genome, genome_size) = genome::tandem_repeat_small(20, a, b, c, d);
+pub fn generate_small_case_dataset(
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+    mut_cg: bool,
+    ins_t: bool,
+    mut_ac: bool,
+    del_a: bool,
+    del_g: bool,
+    p: f64,
+) -> Dataset {
+    let (genome, genome_size) =
+        genome::tandem_repeat_small(20, a, b, c, d, mut_cg, ins_t, mut_ac, del_a, del_g);
     let seed = 1;
     let param = PHMMParams::uniform(p);
     generate_dataset(

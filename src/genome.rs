@@ -218,6 +218,11 @@ pub fn tandem_repeat_small(
     b: usize,
     c: usize,
     d: usize,
+    mut_cg: bool,
+    ins_t: bool,
+    mut_ac: bool,
+    del_a: bool,
+    del_g: bool,
 ) -> (Genome, usize) {
     let prefix = generate(end_length, 2);
     let suffix = generate(end_length, 0);
@@ -245,14 +250,14 @@ pub fn tandem_repeat_small(
             prefix,
             // 50 units, 4+20+1+10+10=45 original units and 5 mutated units
             tandem_repeat(&unit, a),
-            unit_mut_cg,
+            if mut_cg { unit_mut_cg } else { unit.clone() },
             tandem_repeat(&unit, b),
-            unit_ins_t,
-            unit_mut_ac,
+            if ins_t { unit_ins_t } else { unit.clone() },
+            if mut_ac { unit_mut_ac } else { unit.clone() },
             tandem_repeat(&unit, 1),
-            unit_del_a, // missing
+            if del_a { unit_del_a } else { unit.clone() }, // missing
             tandem_repeat(&unit, c),
-            unit_del_g,
+            if del_g { unit_del_g } else { unit.clone() }, // missing
             tandem_repeat(&unit, d),
             suffix,
         ]
@@ -422,7 +427,7 @@ mod tests {
     #[test]
     fn genome_tandem_repeat_500bp_and_small() {
         let (g_a, gs_a) = tandem_repeat_500bp();
-        let (g_b, gs_b) = tandem_repeat_small(50, 4, 20, 10, 10);
+        let (g_b, gs_b) = tandem_repeat_small(50, 4, 20, 10, 10, true, true, true, true, true);
         show_genome(&g_a, gs_a);
         show_genome(&g_b, gs_b);
         assert_eq!(g_a[0], g_b[0]);
