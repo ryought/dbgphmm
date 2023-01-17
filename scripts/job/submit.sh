@@ -1,6 +1,5 @@
 #!/bin/bash
 set -Ceuo pipefail
-#!
 case $1 in
   "case1")
     # good, easiest case
@@ -11,12 +10,43 @@ case $1 in
   "case2t")
     # good
     ARG="-c 20 -l 100 -p 0.01 --k-init 16 --k-final 100 -U 200 -N 5 -E 50 -P 1 -D 0.01 -H 0.01 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+  "case3k8")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 8 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k8.json --use-true-end-nodes";;
   "case3k12")
     # fail in k=12
-    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read";;
-  "case3k12t")
+    # use in sampling test stopped local minimum
+    # ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 5 -m 40 --use-fragment-read";;
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12.json --use-true-end-nodes";;
+  "case3k12td10")
     # fail in k=13
-    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+    # ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read --start-from-true";;
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12td10.json --use-true-end-nodes --start-from-true";;
+  "case3k12c30td10")
+    ARG="-c 30 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3k12c30td10.json --use-true-end-nodes --start-from-true";;
+  "case3")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 50 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-fragment-read --dbgviz-output case3.json --use-true-end-nodes --start-from-true --use-true-dbg";;
+  "case3F")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --dbgviz-output case3F.json --use-true-end-nodes --start-from-true --use-true-dbg";;
+  "case3Fsmall")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 15 -U 50 -N 10 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-true-end-nodes --start-from-true --use-true-dbg -s 0";;
+  "case3Fseed0")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 12 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50 --use-true-end-nodes --start-from-true --use-true-dbg -s 0";;
+  "case3Fseed1")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 1";;
+  "case3Fseed2")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 2";;
+  "case3Fseed3")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 3";;
+  "case3Fseed4")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 4";;
+  "case3LFseed1")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 20 -U 50 -N 10 -E 100 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 4";;
+  "case3AFseed1")
+    ARG="-c 20 -l 100 -p 0.005 --k-init 12 --k-final 20 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 10 -m 50  --use-true-end-nodes --start-from-true --use-true-dbg -s 1";;
+  "case3k12td14")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 14 -m 50 --use-fragment-read --dbgviz-output case3k12td14.json --use-true-end-nodes --start-from-true";;
+  "case3k12td20")
+    ARG="-c 20 -l 100 -p 0.01 --k-init 12 --k-final 14 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -d 20 -m 50 --use-fragment-read --dbgviz-output case3k12t.json --use-true-end-nodes --start-from-true";;
   # k=16
   # missing kmer
   "case3k16")
@@ -78,5 +108,6 @@ esac
 OUTPUT=$1
 echo $ARG
 echo $OUTPUT
+cargo build --release
 pjsub -x "ARG=$ARG,OUTPUT=$OUTPUT" -N $OUTPUT -o $OUTPUT.log -j sample_posterior.sh
 # pjsub -N $OUTPUT -o $OUTPUT.log -j sample_posterior.sh

@@ -2,17 +2,19 @@
 //! dbg as a seqgraph and phmm
 //!
 use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
-use crate::common::{CopyNum, Seq};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, Seq};
+use crate::dbg::dbg::NodeCopyNums;
 use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
 use crate::hmmv2::freq::PHMMOutput;
 use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::result::PHMMResultLike;
+use crate::hmmv2::result::{PHMMResult, PHMMResultLike};
 use crate::hmmv2::sample::State;
 use crate::prob::Prob;
-use crate::utils::timer;
+use crate::utils::{spaces, timer};
+use itertools::Itertools;
 use rayon::prelude::*;
 
 impl<N: DbgNode> SeqNode for N {
@@ -176,7 +178,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     }
 }
 
-impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
+impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// show mapping of a sequence of emissions in cli.
     /// list the nodes which emits emissons[i] with high probability.
@@ -187,34 +189,197 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
         output: &PHMMOutput<R>,
     ) {
         let k = self.k();
+        let header = || {
+            println!("{}{}", spaces(k + 7), emissions.to_str());
+        };
         for (i, state_probs) in output.iter_emit_probs().skip(1).enumerate() {
-            println!("{}{}", spaces(k + 1), emissions.to_str());
-            println!("{}*{}", spaces(k + 1 + i), i);
-            for (state, p) in state_probs.to_states().into_iter().take(10) {
-                let ep = p.to_value();
-                let s_state = match state {
-                    State::Match(v) => format!("M {}", self.kmer(v)),
-                    State::Ins(v) => format!("I {}", self.kmer(v)),
-                    State::Del(v) => format!("D {}", self.kmer(v)),
-                    State::MatchBegin => format!("MB"),
-                    State::InsBegin => format!("IB"),
-                    State::End => format!("E"),
-                };
-                let s_p = format!("{}", ep);
-                println!("{}{} {}", spaces(i), s_state, s_p);
+            // print header
+            if i % 10 == 0 {
+                header();
             }
+            println!(
+                "{}i={:<5} {}",
+                spaces(i),
+                i,
+                state_probs.to_summary_string(|v| format!(
+                    "{}x{}",
+                    self.kmer(v).to_string(),
+                    self.copy_num(v)
+                ))
+            );
+            let p = output.forward.table_merged(i + 1).e().to_log_value();
+            let p_prev = output.forward.table_merged(i).e().to_log_value();
+            let dp = p - p_prev;
+            println!("{}{}({})", spaces(i + 2), p, dp);
         }
     }
-}
+    pub fn show_mapping_summary_for_reads<T>(&self, param: PHMMParams, reads: T)
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        let phmm = self.to_phmm(param);
+        for (i, read) in reads.into_iter().enumerate() {
+            let output = phmm.run(read.as_ref());
+            println!("r[{}] {}", i, read.as_ref().to_str());
+            self.show_mapping_summary(read.as_ref(), &output);
+        }
+    }
+    pub fn compare_mappings_v2(
+        &self,
+        param: PHMMParams,
+        emissions: &[u8],
+        copy_nums_a: &NodeCopyNums,
+        copy_nums_b: &NodeCopyNums,
+    ) {
+        let mut dbg_a = self.clone();
+        dbg_a.set_node_copy_nums(copy_nums_a);
+        let phmm_a = dbg_a.to_phmm(param);
 
-///
-/// get strings with repeated n-times space (' ').
-///
-fn spaces(n: usize) -> String {
-    // old rust
-    // std::iter::repeat(" ").take(n).collect::<String>()
-    // new rust 1.16
-    " ".repeat(n)
+        let mut dbg_b = self.clone();
+        dbg_b.set_node_copy_nums(copy_nums_b);
+        let phmm_b = dbg_b.to_phmm(param);
+
+        let summary = |output: &PHMMOutput<PHMMResult>, copy_nums: &NodeCopyNums, x: usize| {
+            let node_info = |v| format!("{}x{}", self.kmer(v).to_string(), copy_nums[v]);
+            output.forward.tables[x]
+                .to_states()
+                .into_iter()
+                .take(5)
+                .map(|(state, prob)| {
+                    if let Some(node) = state.to_node_index() {
+                        format!("{}:{}{:.5}", node_info(node), state, prob.to_log_value())
+                    } else {
+                        format!("{}{:.5}", state, prob.to_log_value())
+                    }
+                })
+                .join(",")
+        };
+        let dp = |output: &PHMMOutput<PHMMResult>, i: usize| {
+            let p = output.forward.table_merged(i + 1).e().to_log_value();
+            let p_prev = output.forward.table_merged(i).e().to_log_value();
+            p - p_prev
+        };
+
+        let output_a = phmm_a.run(emissions);
+        let output_b = phmm_b.run(emissions);
+        let paf = output_a.to_full_prob_forward();
+        let pab = output_a.to_full_prob_backward();
+        let pbf = output_b.to_full_prob_forward();
+        let pbb = output_b.to_full_prob_backward();
+        println!("paf={} pab={} pbf={} pbb={}", paf, pab, pbf, pbb);
+
+        let state_probs_a: Vec<_> = output_a.iter_emit_probs().skip(1).collect();
+        let state_probs_b: Vec<_> = output_b.iter_emit_probs().skip(1).collect();
+
+        let k = self.k();
+        for i in 0..emissions.len() {
+            // position
+            let dp_a = dp(&output_a, i);
+            let dp_b = dp(&output_b, i);
+            // print header
+            println!("{}{}", spaces(k + 7), emissions.to_str());
+            println!(
+                "{}i={:<5} {} {}",
+                spaces(i),
+                i,
+                state_probs_a[i].to_summary_string_n(3, |v| format!(
+                    "{}x{}x{}",
+                    self.kmer(v).to_string(),
+                    copy_nums_a[v],
+                    copy_nums_b[v],
+                )),
+                dp_a,
+            );
+            println!(
+                "{}i={:<5} {} {}",
+                spaces(i),
+                i,
+                state_probs_b[i].to_summary_string_n(3, |v| format!(
+                    "{}x{}x{}",
+                    self.kmer(v).to_string(),
+                    copy_nums_a[v],
+                    copy_nums_b[v],
+                )),
+                dp_b,
+            );
+            println!("{} {:.5}", spaces(i), dp_b - dp_a);
+        }
+    }
+    pub fn compare_mappings(
+        &self,
+        param: PHMMParams,
+        reads: &PositionedReads,
+        copy_nums_a: &NodeCopyNums,
+        copy_nums_b: &NodeCopyNums,
+    ) {
+        let mut dbg_a = self.clone();
+        dbg_a.set_node_copy_nums(copy_nums_a);
+        let phmm_a = dbg_a.to_phmm(param);
+
+        let mut dbg_b = self.clone();
+        dbg_b.set_node_copy_nums(copy_nums_b);
+        let phmm_b = dbg_b.to_phmm(param);
+
+        let summary = |output: &PHMMOutput<PHMMResult>, copy_nums: &NodeCopyNums, x: usize| {
+            let node_info = |v| format!("{}x{}", self.kmer(v).to_string(), copy_nums[v]);
+            output.forward.tables[x]
+                .to_states()
+                .into_iter()
+                .take(5)
+                .map(|(state, prob)| {
+                    if let Some(node) = state.to_node_index() {
+                        format!("{}:{}{:.5}", node_info(node), state, prob.to_log_value())
+                    } else {
+                        format!("{}{:.5}", state, prob.to_log_value())
+                    }
+                })
+                .join(",")
+        };
+
+        for (i, read) in reads.into_iter().enumerate() {
+            let emissions = read.seq();
+            let output_a = phmm_a.run(emissions);
+            let output_b = phmm_b.run(emissions);
+            let pa = output_a.to_full_prob_forward().to_log_value();
+            let pb = output_b.to_full_prob_forward().to_log_value();
+            println!(
+                "r[{}]\tsummary\t{}\t{}\t{}\t{}",
+                i,
+                read.origin_node().index(),
+                pa,
+                pb,
+                pa - pb,
+            );
+
+            for x in 0..emissions.len() {
+                let pa = output_a.forward.table_merged(x + 1).e().to_log_value();
+                let pa_prev = output_a.forward.table_merged(x).e().to_log_value();
+                let dpa = pa - pa_prev;
+                let sa = summary(&output_a, &copy_nums_a, x);
+
+                let pb = output_b.forward.table_merged(x + 1).e().to_log_value();
+                let pb_prev = output_b.forward.table_merged(x).e().to_log_value();
+                let dpb = pb - pb_prev;
+                let sb = summary(&output_b, &copy_nums_b, x);
+
+                println!(
+                    "r[{}]\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    i,
+                    x,
+                    emissions[x] as char,
+                    pa,
+                    pb,
+                    dpa,
+                    dpb,
+                    dpa - dpb,
+                    sa,
+                    sb
+                );
+            }
+            // self.show_mapping_summary(read.as_ref(), &output);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -228,5 +393,13 @@ mod tests {
         println!("c={}", c);
         let phmm = dbg.to_phmm(PHMMParams::default());
         println!("{}", phmm);
+    }
+    #[test]
+    fn dbg_phmm_show_mapping_summary() {
+        let dbg = mock_simple();
+        let read = b"CTTGCTT";
+        let phmm = dbg.to_phmm(PHMMParams::default());
+        let output = phmm.run(read);
+        dbg.show_mapping_summary(read, &output);
     }
 }

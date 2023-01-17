@@ -72,27 +72,62 @@ impl GenomeEdge {
 }
 
 #[derive(Clone, Debug, Copy, PartialEq)]
-pub struct GenomeGraphPos {
-    /// index of GenomeNode
-    node: NodeIndex,
-    /// position in GenomeNode
-    pos: usize,
+pub enum GenomeGraphPos {
+    Match {
+        /// index of GenomeNode
+        node: NodeIndex,
+        /// position in GenomeNode
+        pos: usize,
+    },
+    Ins,
 }
 
 impl GenomeGraphPos {
-    /// Constructor
-    pub fn new(node: NodeIndex, pos: usize) -> Self {
-        GenomeGraphPos { node, pos }
+    /// Constructor of GenomeGraphPos::Match
+    pub fn new_match(node: NodeIndex, pos: usize) -> Self {
+        GenomeGraphPos::Match { node, pos }
+    }
+    /// Constructor of GenomeGraphPos::Ins
+    pub fn new_ins() -> Self {
+        GenomeGraphPos::Ins
     }
     /// is first base or not (pos == 0)
     pub fn is_first_base(&self) -> bool {
-        self.pos == 0
+        match self.pos() {
+            Some(pos) => pos == 0,
+            None => false,
+        }
+    }
+    pub fn is_match(&self) -> bool {
+        match self {
+            GenomeGraphPos::Match { pos, node } => true,
+            GenomeGraphPos::Ins => false,
+        }
+    }
+    pub fn node(&self) -> Option<NodeIndex> {
+        match self {
+            GenomeGraphPos::Match { pos, node } => Some(*node),
+            GenomeGraphPos::Ins => None,
+        }
+    }
+    pub fn pos(&self) -> Option<usize> {
+        match self {
+            GenomeGraphPos::Match { pos, node } => Some(*pos),
+            GenomeGraphPos::Ins => None,
+        }
     }
 }
 
 impl std::fmt::Display for GenomeGraphPos {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}-{}", self.node.index(), self.pos)
+        match self {
+            GenomeGraphPos::Match { pos, node } => {
+                write!(f, "{}-{}", node.index(), pos)
+            }
+            GenomeGraphPos::Ins => {
+                write!(f, "I")
+            }
+        }
     }
 }
 #[derive(Clone, Debug)]
@@ -106,12 +141,16 @@ impl std::str::FromStr for GenomeGraphPos {
     type Err = GenomeGraphPosParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let segments: Vec<_> = s.split('-').collect();
-        let node: usize = segments[0].parse().unwrap();
-        let pos: usize = segments[1].parse().unwrap();
-        Ok(GenomeGraphPos {
-            node: NodeIndex::new(node),
-            pos,
-        })
+        if segments.len() == 2 {
+            let node: usize = segments[0].parse().unwrap();
+            let pos: usize = segments[1].parse().unwrap();
+            Ok(GenomeGraphPos::Match {
+                node: NodeIndex::new(node),
+                pos,
+            })
+        } else {
+            Ok(GenomeGraphPos::Ins)
+        }
     }
 }
 
@@ -231,7 +270,7 @@ impl GenomeGraph {
                 graph,
                 &seq.to_revcomp(),
                 |index, base| {
-                    let pos = GenomeGraphPos::new(node, n - index - 1);
+                    let pos = GenomeGraphPos::new_match(node, n - index - 1);
                     let is_start_point = is_start_point_node && index == 0;
                     SimpleSeqNode::new(copy_num, base, is_start_point, true, pos)
                 },
@@ -242,7 +281,7 @@ impl GenomeGraph {
                 graph,
                 seq,
                 |index, base| {
-                    let pos = GenomeGraphPos::new(node, index);
+                    let pos = GenomeGraphPos::new_match(node, index);
                     let is_start_point = is_start_point_node && index == 0;
                     SimpleSeqNode::new(copy_num, base, is_start_point, false, pos)
                 },
@@ -410,7 +449,9 @@ impl GenomeGraph {
             .collect();
         for read in reads.iter() {
             for origin in read.origins() {
-                coverages[origin.node.index()][origin.pos] += 1;
+                if origin.is_match() {
+                    coverages[origin.node().unwrap().index()][origin.pos().unwrap()] += 1;
+                }
             }
         }
         coverages
@@ -459,7 +500,10 @@ mod tests {
             .collect();
         assert_eq!(
             start_point_sources,
-            vec![GenomeGraphPos::new(ni(0), 0), GenomeGraphPos::new(ni(0), 9)]
+            vec![
+                GenomeGraphPos::new_match(ni(0), 0),
+                GenomeGraphPos::new_match(ni(0), 9)
+            ]
         );
         assert_eq!(sg.node_count(), 20);
         assert_eq!(sg.edge_count(), 18);
@@ -486,26 +530,26 @@ mod tests {
         println!("{}", Dot::with_config(&sg, &[]));
         assert!(has_edge_between_two_pos(
             &sg,
-            GenomeGraphPos::new(ni(0), 4),
-            GenomeGraphPos::new(ni(2), 0),
+            GenomeGraphPos::new_match(ni(0), 4),
+            GenomeGraphPos::new_match(ni(2), 0),
             false
         ));
         assert!(has_edge_between_two_pos(
             &sg,
-            GenomeGraphPos::new(ni(1), 2),
-            GenomeGraphPos::new(ni(2), 0),
+            GenomeGraphPos::new_match(ni(1), 2),
+            GenomeGraphPos::new_match(ni(2), 0),
             false
         ));
         assert!(has_edge_between_two_pos(
             &sg,
-            GenomeGraphPos::new(ni(2), 0),
-            GenomeGraphPos::new(ni(0), 4),
+            GenomeGraphPos::new_match(ni(2), 0),
+            GenomeGraphPos::new_match(ni(0), 4),
             true
         ));
         assert!(has_edge_between_two_pos(
             &sg,
-            GenomeGraphPos::new(ni(2), 0),
-            GenomeGraphPos::new(ni(1), 2),
+            GenomeGraphPos::new_match(ni(2), 0),
+            GenomeGraphPos::new_match(ni(1), 2),
             true
         ));
     }
@@ -591,10 +635,10 @@ mod tests {
             phmm_params: PHMMParams::default(),
         });
         let is_valid_end_origin = |origin: GenomeGraphPos| {
-            origin == GenomeGraphPos::new(ni(0), 0)
-                || origin == GenomeGraphPos::new(ni(0), 10)
-                || origin == GenomeGraphPos::new(ni(1), 0)
-                || origin == GenomeGraphPos::new(ni(1), 11)
+            origin == GenomeGraphPos::new_match(ni(0), 0)
+                || origin == GenomeGraphPos::new_match(ni(0), 10)
+                || origin == GenomeGraphPos::new_match(ni(1), 0)
+                || origin == GenomeGraphPos::new_match(ni(1), 11)
         };
         let mut n_revcomp = 0;
         for read in reads.iter() {
@@ -613,7 +657,7 @@ mod tests {
         assert_eq!(
             coverages,
             vec![
-                vec![9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9],
+                vec![9, 9, 9, 8, 9, 9, 9, 9, 9, 9, 9],
                 vec![6, 6, 6, 7, 6, 6, 6, 6, 6, 6, 6, 6]
             ]
         );

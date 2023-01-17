@@ -88,9 +88,15 @@ pub enum ElementV2<K: KmerLike> {
         /// Node label
         #[serde_as(as = "Option<DisplayFromStr>")]
         label: Option<K>,
+        /// Node additional info
+        #[serde(skip_serializing_if = "Option::is_none")]
+        info: Option<String>,
         attrs: Vec<NodeAttr>,
         history: Vec<f64>,
         copy_num: CopyNum,
+        /// Node expected copy num
+        #[serde(skip_serializing_if = "Option::is_none")]
+        copy_num_expected: Option<f64>,
     },
     #[serde(rename = "edges")]
     /// Edge element of cytoscape
@@ -169,9 +175,11 @@ mod tests {
         elements.push(ElementV2::Node {
             id: NodeIndex::new(0),
             label: Some(Kmer::from_bases(b"ATCGA")),
+            info: None,
             attrs: vec![NodeAttr::CopyNum(10)],
             history: vec![],
             copy_num: 10,
+            copy_num_expected: None,
         });
         elements.push(ElementV2::Edge {
             id: EdgeIndex::new(0),

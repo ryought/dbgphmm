@@ -168,7 +168,7 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     let mut genome_size = 0;
     let hap_a = hap.remove(0);
     genome_size += hap_a.len();
-    // assert_eq!(hap_a.len(), hap_genome_size);
+    assert_eq!(hap_a.len(), hap_genome_size);
     genome.push(hap_a.clone());
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
@@ -183,6 +183,89 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
         genome.push(hap_b);
     }
     (genome, genome_size)
+}
+
+pub fn tandem_repeat_diploid_example_mut() -> (Genome, usize) {
+    let (mut genome, genome_size) =
+        tandem_repeat_polyploid_with_unique_ends(50, 20, 0.00, 0, 0, 50, 2, 0.00, 0);
+    genome[1].seq[75] = b'A';
+    (genome, genome_size)
+}
+
+pub fn tandem_repeat_diploid_example_ins() -> (Genome, usize) {
+    let (mut genome, genome_size) =
+        tandem_repeat_polyploid_with_unique_ends(50, 20, 0.00, 0, 0, 50, 2, 0.00, 0);
+    genome[1].seq.insert(75, b'C');
+    (genome, genome_size)
+}
+
+pub fn tandem_repeat_500bp() -> (Genome, usize) {
+    let seed = 1;
+    tandem_repeat_polyploid_with_unique_ends(10, 50, 0.0, seed, seed, 50, 2, 0.01, seed)
+}
+
+///
+/// For posterior sampling debugging
+///
+/// original:
+/// let (a, b, c, d) = (4, 20, 10, 10);
+/// test:
+/// let (a, b, c, d) = (1, 2, 1, 20);
+///
+pub fn tandem_repeat_small(
+    end_length: usize,
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+    mut_cg: bool,
+    ins_t: bool,
+    mut_ac: bool,
+    del_a: bool,
+    del_g: bool,
+) -> (Genome, usize) {
+    let prefix = generate(end_length, 2);
+    let suffix = generate(end_length, 0);
+
+    let unit = b"TAGGACAAGC".to_vec();
+    let unit_mut_cg = b"TAGGAGAAGC".to_vec();
+    let unit_ins_t = b"TAGGTACAAGC".to_vec();
+    let unit_mut_ac = b"TAGGCCAAGC".to_vec();
+    let unit_del_a = b"TAGGCAAGC".to_vec(); // missing
+    let unit_del_g = b"TAGGACAAC".to_vec();
+
+    // original
+    let n = a + b + c + d + 6;
+    let hap_0 = StyledSequence::linear(
+        [
+            prefix.clone(),
+            // 50 units,
+            tandem_repeat(&unit, n),
+            suffix.clone(),
+        ]
+        .concat(),
+    );
+    let hap_1 = StyledSequence::linear(
+        [
+            prefix,
+            // 50 units, 4+20+1+10+10=45 original units and 5 mutated units
+            tandem_repeat(&unit, a),
+            if mut_cg { unit_mut_cg } else { unit.clone() },
+            tandem_repeat(&unit, b),
+            if ins_t { unit_ins_t } else { unit.clone() },
+            if mut_ac { unit_mut_ac } else { unit.clone() },
+            tandem_repeat(&unit, 1),
+            if del_a { unit_del_a } else { unit.clone() }, // missing
+            tandem_repeat(&unit, c),
+            if del_g { unit_del_g } else { unit.clone() }, // missing
+            tandem_repeat(&unit, d),
+            suffix,
+        ]
+        .concat(),
+    );
+    let genome_size = hap_0.len() + hap_1.len();
+
+    (vec![hap_0, hap_1], genome_size)
 }
 
 //
@@ -330,5 +413,32 @@ mod tests {
                 ),
             ]
         );
+    }
+    #[test]
+    fn genome_tandem_repeat_example_manual_mutation() {
+        let (g, gs) = tandem_repeat_diploid_example_mut();
+        show_genome(&g, gs);
+        assert!(g[0] != g[1]);
+
+        let (g, gs) = tandem_repeat_diploid_example_ins();
+        show_genome(&g, gs);
+        assert!(g[0] != g[1]);
+    }
+    #[test]
+    fn genome_tandem_repeat_500bp_and_small() {
+        let (g_a, gs_a) = tandem_repeat_500bp();
+        let (g_b, gs_b) = tandem_repeat_small(50, 4, 20, 10, 10, true, true, true, true, true);
+        show_genome(&g_a, gs_a);
+        show_genome(&g_b, gs_b);
+        assert_eq!(g_a[0], g_b[0]);
+        for i in 0..(g_b[1].len()) {
+            println!(
+                "{} {} {}",
+                g_a[1].seq()[i],
+                g_b[1].seq()[i],
+                g_a[1].seq()[i] == g_b[1].seq()[i]
+            );
+        }
+        assert_eq!(g_a[1].seq()[..550], g_b[1].seq()[..550]);
     }
 }

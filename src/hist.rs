@@ -69,6 +69,15 @@ impl DiscreteDistribution {
             None => Prob::zero(),
         }
     }
+    ///
+    /// E[X] = sum_x(x * P(X=x))
+    ///
+    pub fn mean(&self) -> f64 {
+        self.hashmap
+            .keys()
+            .map(|&x| x as f64 * self.p_x(x).to_value())
+            .sum()
+    }
 }
 impl std::fmt::Display for DiscreteDistribution {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -225,12 +234,18 @@ mod tests {
         ]);
         assert_abs_diff_eq!(d.p_x(0), p(0.8));
         assert_abs_diff_eq!(d.p_x(1), p(0.2));
+        println!("E[X]={}", d.mean());
+        assert_abs_diff_eq!(d.mean(), 0.2);
 
         let d = DiscreteDistribution::from_occurs(&[(0, p(0.5)), (0, p(0.2))]);
         assert_abs_diff_eq!(d.p_x(0), p(1.0));
+        println!("E[X]={}", d.mean());
+        assert_abs_diff_eq!(d.mean(), 0.0);
 
         let d = DiscreteDistribution::from_occurs(&[(0, p(0.3)), (1, p(0.1)), (1, p(0.1))]);
         assert_abs_diff_eq!(d.p_x(0), p(0.6));
         assert_abs_diff_eq!(d.p_x(1), p(0.4), epsilon = 0.000001);
+        println!("E[X]={}", d.mean());
+        assert_abs_diff_eq!(d.mean(), 0.4);
     }
 }

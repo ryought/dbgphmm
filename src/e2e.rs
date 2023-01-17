@@ -4,6 +4,7 @@
 //! * generate genome
 //! * generate reads
 //!
+use crate::common::collection::genome_size;
 use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
@@ -14,6 +15,8 @@ use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
+use crate::utils::spaces;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 ///
@@ -84,6 +87,39 @@ impl Dataset {
     pub fn show_genome(&self) {
         for i in 0..self.genome().len() {
             println!("# genome[{}]={}", i, self.genome()[i]);
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn show_reads_with_genome(&self) {
+        let n = self.reads().len();
+        let n_hap = self.genome().len();
+        let mut pos: Vec<Vec<usize>> = vec![vec![]; n_hap];
+        for read_id in 0..(self.reads().len()) {
+            // haplotype id that generated the read
+            let hap_id = self.reads()[read_id].origin_node().index();
+            pos[hap_id].push(read_id);
+        }
+        for hap_id in 0..n_hap {
+            pos[hap_id].sort_by_key(|&read_id| self.reads()[read_id].origin_pos())
+        }
+
+        for hap_id in 0..n_hap {
+            for (i, &read_id) in pos[hap_id].iter().enumerate() {
+                if i % 10 == 0 {
+                    println!("# g[{}]\n# {}", hap_id, self.genome()[hap_id]);
+                }
+                let read = &self.reads()[read_id];
+                let offset = 2 + read.origin_pos();
+                let spaces = spaces(offset);
+                // let aligned = read.to_aligned_str();
+                // println!(
+                //     "{}r[{}]\n{}{}\n{}{}",
+                //     spaces, read_id, spaces, aligned[0], spaces, aligned[1],
+                // );
+                println!("# {}{} r[{}]", spaces, read.seq().to_str(), read_id);
+            }
         }
     }
 }
@@ -215,7 +251,7 @@ pub fn generate_dataset(
     // for read in pos_reads.iter() {
     //     println!("{}", read);
     // }
-    g.show_coverage(&pos_reads);
+    // g.show_coverage(&pos_reads);
     // TODO
     // use strand justified read only currently
     let reads = pos_reads.justify_strand();
@@ -426,6 +462,79 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset() -> Dataset {
     )
 }
 
+///
+///
+///
+pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset {
+    let (genome, genome_size) =
+        genome::tandem_repeat_polyploid_with_unique_ends(50, 20, 0.05, 0, 0, 50, 2, 0.05, 0);
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        0,  // read seed
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
+///
+/// Difficult 500bp tandem repeat test case
+///
+/// U10N50H001S1
+///
+/// -c 20 -l 100 -p 0.01
+/// --k-init 12 --k-final 15
+/// -U 10 -N 50 -E 50 -P 2 -D 0.0 -H 0.01 --sigma 100 -d 10 -m 50 -s 1
+/// --use-true-end-nodes --start-from-true --use-true-dbg
+///
+pub fn generate_500bp_case_dataset() -> Dataset {
+    let seed = 1;
+    let (genome, genome_size) = genome::tandem_repeat_500bp();
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        seed,
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
+///
+/// small tandem repeat test case
+///
+pub fn generate_small_case_dataset(
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+    mut_cg: bool,
+    ins_t: bool,
+    mut_ac: bool,
+    del_a: bool,
+    del_g: bool,
+    p: f64,
+) -> Dataset {
+    let (genome, genome_size) =
+        genome::tandem_repeat_small(20, a, b, c, d, mut_cg, ins_t, mut_ac, del_a, del_g);
+    let seed = 1;
+    let param = PHMMParams::uniform(p);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        seed,
+        20, // coverage
+        genome_size * 2,
+        ReadType::FullLength,
+        param,
+    )
+}
+
 //
 // tests
 //
@@ -445,22 +554,22 @@ mod tests {
                 PositionedSequence::new(
                     b"ATCGT".to_vec(),
                     vec![
-                        GenomeGraphPos::new(ni(0), 0),
-                        GenomeGraphPos::new(ni(0), 1),
-                        GenomeGraphPos::new(ni(0), 2),
-                        GenomeGraphPos::new(ni(0), 3),
-                        GenomeGraphPos::new(ni(0), 3),
+                        GenomeGraphPos::new_match(ni(0), 0),
+                        GenomeGraphPos::new_match(ni(0), 1),
+                        GenomeGraphPos::new_match(ni(0), 2),
+                        GenomeGraphPos::new_match(ni(0), 3),
+                        GenomeGraphPos::new_match(ni(0), 3),
                     ],
                     false,
                 ),
                 PositionedSequence::new(
                     b"TTTCG".to_vec(),
                     vec![
-                        GenomeGraphPos::new(ni(1), 10),
-                        GenomeGraphPos::new(ni(1), 9),
-                        GenomeGraphPos::new(ni(1), 8),
-                        GenomeGraphPos::new(ni(1), 6),
-                        GenomeGraphPos::new(ni(1), 5),
+                        GenomeGraphPos::new_match(ni(1), 10),
+                        GenomeGraphPos::new_match(ni(1), 9),
+                        GenomeGraphPos::new_match(ni(1), 8),
+                        GenomeGraphPos::new_match(ni(1), 6),
+                        GenomeGraphPos::new_match(ni(1), 5),
                     ],
                     true,
                 ),
@@ -470,5 +579,21 @@ mod tests {
         let json = serde_json::to_string(&d).unwrap();
         println!("{}", json);
         assert_eq!(d, serde_json::from_str(&json).unwrap());
+    }
+    #[test]
+    fn e2e_dataset_read_with_genome_visualization_test() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_ends(50, 4, 0.05, 0, 0, 50, 2, 0.05, 0);
+        let param = PHMMParams::uniform(0.01);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,  // read seed
+            20, // coverage
+            100,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
     }
 }

@@ -60,6 +60,16 @@ where
     (ret, duration.as_millis())
 }
 
+///
+/// get strings with repeated n-times space (' ').
+///
+pub fn spaces(n: usize) -> String {
+    // old rust
+    // std::iter::repeat(" ").take(n).collect::<String>()
+    // new rust 1.16
+    " ".repeat(n)
+}
+
 //
 // tests
 //

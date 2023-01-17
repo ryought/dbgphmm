@@ -10,6 +10,22 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{
     convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
 };
+use fnv::FnvHashMap as HashMap;
+use petgraph::graph::NodeIndex;
+
+///
+///
+///
+pub enum EndNodeInference<K: KmerLike> {
+    ///
+    /// End node (source and sink) is automatically infered from reads
+    ///
+    Auto,
+    ///
+    /// specify the end nodes
+    ///
+    Custom((Vec<(K, CopyNum)>, Vec<(K, CopyNum)>)),
+}
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Create draft dbg from reads
@@ -38,7 +54,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
         let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false, &[])
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
@@ -54,6 +70,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         base_coverage: f64,
         ave_read_length: usize,
         p_error: f64,
+        end_node_inference: &EndNodeInference<N::Kmer>,
     ) -> Self
     where
         T: IntoIterator,
@@ -64,21 +81,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             "[draft_frag] k={} ave_read_length={} p_error={} base_coverage={} kmer_coverage={}",
             k, ave_read_length, p_error, base_coverage, kmer_coverage
         );
-        Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage)
+        Self::create_draft_from_fragment_seqs(k, seqs, kmer_coverage, end_node_inference)
     }
     /// Create draft dbg from fragment reads
     ///
     /// 1. construct dbg without considering starting/ending kmers (= use
     ///    `Dbg::from_fragment_seqs`)
     /// 2. remove 0x and 1x nodes
-    /// 3. add starts/ends to all deadend nodes
+    /// 3. add starts/ends to all deadend nodes (if Auto) or specified nodes (if Custom)
     /// 4. assign approximate (flow consistent) copy nums by `min_squared_error`.
     ///
     /// ## Known problems
     /// * from fragmented reads, coverage can be overestimated (due to edge effects and k-mer-size
     /// effects)
     ///
-    pub fn create_draft_from_fragment_seqs<T>(k: usize, seqs: T, coverage: f64) -> Self
+    pub fn create_draft_from_fragment_seqs<T>(
+        k: usize,
+        seqs: T,
+        coverage: f64,
+        end_node_inference: &EndNodeInference<N::Kmer>,
+    ) -> Self
     where
         T: IntoIterator,
         T::Item: Seq,
@@ -93,12 +115,30 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg.remove_nodes(2);
         eprintln!("[draft_frag] n_nodes={}", dbg.n_nodes());
         eprintln!("[draft_frag] n_edges={}", dbg.n_edges());
-        dbg.augment_sources_and_sinks();
+        match end_node_inference {
+            EndNodeInference::Auto => {
+                dbg.augment_sources_and_sinks();
+            }
+            EndNodeInference::Custom((starts, ends)) => {
+                for (start_kmer, _copy_num) in starts.iter() {
+                    dbg.add_starting_kmers(dbg.find_node_from_kmer(start_kmer).unwrap());
+                }
+                for (end_kmer, _copy_num) in ends.iter() {
+                    dbg.add_ending_kmers(dbg.find_node_from_kmer(end_kmer).unwrap());
+                }
+                dbg.remove_deadend_nodes();
+            }
+        }
         // 3
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
+        let fixed_copy_nums = dbg.to_fixed_copy_nums(end_node_inference);
+        // debug output
+        for (node, copy_num) in fixed_copy_nums.iter() {
+            eprintln!("fixed_copy_nums=({}, x{})", node.index(), copy_num);
+        }
         let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, true, &fixed_copy_nums)
             .unwrap();
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
@@ -114,7 +154,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ) -> Option<(NodeCopyNums, Cost)> {
         let graph = self.to_edbg_graph(
             |_| (),
-            |v, weight| MinSquaredErrorCopyNumAndFreq::new(vec![(weight.is_emittable(), freqs[v])]),
+            |v, weight| {
+                MinSquaredErrorCopyNumAndFreq::new(vec![(weight.is_emittable(), freqs[v])], None)
+            },
         );
         min_cost_flow_convex_fast(&graph).map(|flow| {
             let cost = total_cost(&graph, &flow);
@@ -131,6 +173,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         &self,
         freqs: &NodeFreqs,
         ignore_startings_and_endings: bool,
+        fixed_copy_nums: &[(NodeIndex, CopyNum)],
     ) -> Option<(NodeCopyNums, Cost)> {
         let graph = self.to_compact_edbg_graph();
         // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
@@ -150,7 +193,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         (is_target, freqs[node])
                     })
                     .collect();
-                MinSquaredErrorCopyNumAndFreq::new(freqs)
+                // TODO assert that all copy nums specified is consistent?
+                let fixed_copy_num = weight.origin_edges().iter().find_map(|edge| {
+                    // original node have fixed copy_num?
+                    let origin_node = NodeIndex::new(edge.index());
+                    fixed_copy_nums
+                        .iter()
+                        .find(|(node, _)| *node == origin_node)
+                        .map(|(_, copy_num)| *copy_num)
+                });
+                MinSquaredErrorCopyNumAndFreq::new(freqs, fixed_copy_num)
             },
         );
         min_cost_flow_convex_fast(&flow_network).map(|flow| {
@@ -175,12 +227,44 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 .collect(),
         )
     }
+    ///
+    /// generate `fixed_copy_nums (Vec<(NodeIndex, CopyNum)>)` from `EndNodeInference`.
+    ///
+    pub fn to_fixed_copy_nums(
+        &self,
+        end_nodes: &EndNodeInference<N::Kmer>,
+    ) -> Vec<(NodeIndex, CopyNum)> {
+        match end_nodes {
+            EndNodeInference::Auto => Vec::new(),
+            EndNodeInference::Custom((starts, ends)) => {
+                let mut copy_nums: HashMap<NodeIndex, CopyNum> = HashMap::default();
+                for (start, copy_num) in starts {
+                    let node = self
+                        .find_node_from_kmer(start)
+                        .expect("start kmer specified not found!");
+                    *copy_nums.entry(node).or_insert(0) += copy_num;
+                }
+                for (end, copy_num) in ends {
+                    let node = self
+                        .find_node_from_kmer(end)
+                        .expect("end kmer specified not found!");
+                    *copy_nums.entry(node).or_insert(0) += copy_num;
+                }
+                copy_nums.into_iter().collect()
+            }
+        }
+    }
 }
 
 ///
 /// Edge attribute for min_squared_error_copy_nums_from_freqs
 ///
 /// FlowEdge
+/// If this node has fixed_copy_num,
+/// * demand = fixed_copy_num
+/// * capacity = fixed_copy_num
+///
+/// Otherwise,
 /// * demand = 0
 /// * capacity = +inf
 ///
@@ -189,15 +273,23 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
 ///
 #[derive(Clone, Debug)]
 struct MinSquaredErrorCopyNumAndFreq {
+    ///
+    ///
     freqs: Vec<(bool, Freq)>,
+    ///
+    ///
+    fixed_copy_num: Option<CopyNum>,
 }
 
 impl MinSquaredErrorCopyNumAndFreq {
     ///
-    /// constructor from Vec<(is_target: bool, freq: Freeq)>
+    /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
     ///
-    pub fn new(freqs: Vec<(bool, Freq)>) -> Self {
-        MinSquaredErrorCopyNumAndFreq { freqs }
+    pub fn new(freqs: Vec<(bool, Freq)>, fixed_copy_num: Option<CopyNum>) -> Self {
+        MinSquaredErrorCopyNumAndFreq {
+            freqs,
+            fixed_copy_num,
+        }
     }
 }
 
@@ -210,10 +302,16 @@ pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
 impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
     fn demand(&self) -> usize {
-        0
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => 0,
+        }
     }
     fn capacity(&self) -> usize {
-        MAX_COPY_NUM_OF_EDGE
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => MAX_COPY_NUM_OF_EDGE,
+        }
     }
 }
 
@@ -307,7 +405,7 @@ mod tests {
 
         // (2) compact
         let (approx2, cost2) = dbg_raw
-            .min_squared_error_copy_nums_from_freqs_compacted(&freq, false)
+            .min_squared_error_copy_nums_from_freqs_compacted(&freq, false, &[])
             .unwrap();
         assert_eq!(approx2.dist(&copy_nums_true), 0);
         assert_eq!(approx2, approx);
@@ -337,6 +435,7 @@ mod tests {
                     dataset.coverage(),
                     50,     // 50bp read
                     0.00_1, // 0.1% error
+                    &EndNodeInference::Auto,
                 );
             // to check with cytoscape
             let check_with_cytoscape = false;
@@ -359,6 +458,7 @@ mod tests {
                 dataset.coverage(),
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
+                &EndNodeInference::Auto,
             );
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
         let copy_nums_draft = dbg.to_node_copy_nums();

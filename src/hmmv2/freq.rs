@@ -49,7 +49,11 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         // check forward/backward is created by phmm.forward/backward()
         assert!(forward.is_forward());
         assert!(!backward.is_forward());
+        assert_eq!(forward.n_emissions(), backward.n_emissions());
         PHMMOutput { forward, backward }
+    }
+    fn n_emissions(&self) -> usize {
+        self.forward.n_emissions()
     }
 }
 
@@ -498,6 +502,34 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
 }
 
 //
+// For inspection of emissions
+//
+
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    ///
+    /// PHMMModel version of `Dbg::show_mapping_summary`
+    ///
+    fn inspect<R: PHMMResultLike, F: Fn(NodeIndex) -> String>(
+        &self,
+        output: &PHMMOutput<R>,
+        emissions: &[u8],
+        node_info: F,
+    ) {
+        assert_eq!(output.n_emissions(), emissions.len());
+        // for (i, &emission) in emissions.into_iter().enumerate() {}
+        for (i, state_prob) in output.iter_emit_probs().skip(1).enumerate() {
+            // println!("i={} {}", i, state_prob);
+            println!(
+                "{}\t{}\t{}",
+                i,
+                emissions[i] as char,
+                state_prob.to_summary_string(&node_info)
+            );
+        }
+    }
+}
+
+//
 // Tests
 //
 
@@ -688,7 +720,10 @@ mod tests {
         }
     }
     #[test]
-    fn hmm_to_node_freqs() {
+    fn hmm_node_freq_inspect() {
         let phmm = mock_linear_phmm(PHMMParams::default());
+        let read = b"ATTCGTCGT";
+        let output = phmm.run(read);
+        phmm.inspect(&output, read, |_| format!(""));
     }
 }

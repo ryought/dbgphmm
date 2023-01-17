@@ -12,8 +12,12 @@
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
+use crate::common::CopyNum;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
+use crate::kmer::kmer::KmerLike;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
+use petgraph::graph::NodeIndex;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -97,6 +101,29 @@ pub type Genome = Vec<StyledSequence>;
 ///
 pub fn genome_size(genome: &Genome) -> usize {
     genome.iter().map(|seq| seq.len()).sum()
+}
+
+///
+///
+///
+pub fn starts_and_ends_of_genome<K: KmerLike>(
+    genome: &Genome,
+    k: usize,
+) -> (Vec<(K, CopyNum)>, Vec<(K, CopyNum)>) {
+    // mapping from kmer to copynum
+    let mut starts: HashMap<K, CopyNum> = HashMap::default();
+    let mut ends: HashMap<K, CopyNum> = HashMap::default();
+    for hap in genome {
+        let (starts_hap, ends_hap) = hap.start_and_end_kmer::<K>(k);
+        for start in starts_hap.into_iter() {
+            *starts.entry(start).or_insert(0) += 1;
+        }
+        for end in ends_hap.into_iter() {
+            *ends.entry(end).or_insert(0) += 1;
+        }
+    }
+    // convert HashMap<K, CopyNum> into Vec<(K, CopyNum)> (key value list)
+    (starts.into_iter().collect(), ends.into_iter().collect())
 }
 
 ///
@@ -325,7 +352,7 @@ impl FromStr for SeqStyle {
 #[pyclass]
 #[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct StyledSequence {
-    seq: Sequence,
+    pub seq: Sequence,
     style: SeqStyle,
 }
 
@@ -358,6 +385,18 @@ impl StyledSequence {
     /// length of the sequence
     pub fn len(&self) -> usize {
         self.seq.len()
+    }
+    pub fn start_and_end_kmer<K: KmerLike>(&self, k: usize) -> (Vec<K>, Vec<K>) {
+        match self.style() {
+            SeqStyle::Linear => {
+                let n = self.len();
+                (
+                    vec![K::from_bases(&self.seq[0..k])],
+                    vec![K::from_bases(&self.seq[n - k..n])],
+                )
+            }
+            _ => (Vec::new(), Vec::new()),
+        }
     }
 }
 
@@ -435,18 +474,46 @@ pub struct PositionedSequence {
 impl PositionedSequence {
     /// Constructor of positioned sequence.
     pub fn new(seq: Sequence, origins: GenomeGraphPosVec, is_revcomp: bool) -> Self {
+        assert_eq!(seq.len(), origins.len());
         PositionedSequence {
             seq,
             origins,
             is_revcomp,
         }
     }
+    pub fn len(&self) -> usize {
+        self.seq.len()
+    }
     pub fn origins(&self) -> &GenomeGraphPosVec {
         &self.origins
+    }
+    pub fn seq(&self) -> &Sequence {
+        &self.seq
     }
     /// origin position of first base
     pub fn head_origin(&self) -> GenomeGraphPos {
         *self.origins.first().unwrap()
+    }
+    pub fn first_match_origin(&self) -> GenomeGraphPos {
+        *self
+            .origins
+            .iter()
+            .find(|origin| origin.is_match())
+            .expect("sequence has no valid origin info")
+    }
+    ///
+    /// origin node (NodeIndex) of this positioned sequence.
+    /// Determined by the first (Match) origin of the read.
+    ///
+    pub fn origin_node(&self) -> NodeIndex {
+        self.first_match_origin().node().unwrap()
+    }
+    ///
+    /// origin position (location of bases; usize) of this positioned sequence.
+    /// Determined by the first (Match) origin of the read.
+    ///
+    pub fn origin_pos(&self) -> usize {
+        self.first_match_origin().pos().unwrap()
     }
     /// origin position of last base
     pub fn tail_origin(&self) -> GenomeGraphPos {
@@ -464,6 +531,33 @@ impl PositionedSequence {
             origins,
             is_revcomp: !self.is_revcomp,
         }
+    }
+    ///
+    /// To aligned two-row string representation
+    ///
+    /// ```text
+    /// ATGCGA-CGTGG
+    ///   G     C
+    /// ```
+    ///
+    /// Deletion: `-` in 1st-row
+    /// Insertion: `X` in 2nd-row
+    ///
+    pub fn to_aligned_str(&self) -> [String; 2] {
+        // // let n = self.origins.iter().filter(|origin| origin.is_match())
+        // let mut row1 = String::new();
+        // let mut row2 = String::new();
+        // for i in 0..self.len() {
+        //     if self.origins[i].is_match() {
+        //         row1.push(self.seq[i] as char);
+        //         row2.push(' ');
+        //     } else {
+        //         // row1.push(self.seq[i] as char);
+        //         row2.push(self.seq[i] as char);
+        //     }
+        // }
+        // [row1, row2]
+        unimplemented!();
     }
 }
 
@@ -537,6 +631,8 @@ impl StoreableTypeTrait for PositionedSequence {
 mod tests {
     use super::*;
     use crate::common::ni;
+    use crate::kmer::common::kmers_to_string;
+    use crate::kmer::VecKmer;
     #[test]
     fn seq_style() {
         let s = SeqStyle::Linear;
@@ -606,17 +702,74 @@ mod tests {
     #[test]
     fn positioned_seq_serialize() {
         let s1 = PositionedSequence::new(
-            b"ATCG".to_vec(),
+            b"ATCGT".to_vec(),
             vec![
-                GenomeGraphPos::new(ni(0), 0),
-                GenomeGraphPos::new(ni(0), 1),
-                GenomeGraphPos::new(ni(0), 2),
-                GenomeGraphPos::new(ni(0), 3),
+                GenomeGraphPos::new_match(ni(0), 0),
+                GenomeGraphPos::new_match(ni(0), 1),
+                GenomeGraphPos::new_match(ni(0), 2),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(0), 3),
             ],
             true,
         );
         println!("{}", s1);
         let s1b = PositionedSequence::from_str(&s1.to_string()).unwrap();
         assert_eq!(s1, s1b);
+    }
+    #[test]
+    fn starts_and_ends() {
+        let genome = vec![
+            // hap0
+            StyledSequence::new(b"ATCGATTTAGC".to_vec(), SeqStyle::Linear),
+            // hap1
+            StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Linear),
+            // hap2
+            // start kmer of hap1 and hap2 are same (GGGC).
+            StyledSequence::new(b"GGGCGGCTGCTGC".to_vec(), SeqStyle::Linear),
+            // hap3
+            // circular does not have start/end
+            StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Circular),
+        ];
+        let (starts, ends) = starts_and_ends_of_genome::<VecKmer>(&genome, 4);
+        for (kmer, copy_num) in starts.iter() {
+            println!("start {} x{}", kmer, copy_num);
+        }
+        for (kmer, copy_num) in ends.iter() {
+            println!("end {} x{}", kmer, copy_num);
+        }
+        assert_eq!(
+            starts,
+            vec![
+                (VecKmer::from_bases(b"GGGC"), 2),
+                (VecKmer::from_bases(b"ATCG"), 1),
+            ],
+        );
+        assert_eq!(
+            ends,
+            vec![
+                (VecKmer::from_bases(b"TAGC"), 1),
+                (VecKmer::from_bases(b"CTGC"), 1),
+                (VecKmer::from_bases(b"GCTG"), 1),
+            ],
+        );
+    }
+    #[test]
+    fn positioned_seq_aligned_str() {
+        let s1 = PositionedSequence::new(
+            b"ATCGTTCG".to_vec(),
+            vec![
+                GenomeGraphPos::new_match(ni(0), 0),
+                GenomeGraphPos::new_match(ni(0), 1),
+                GenomeGraphPos::new_match(ni(0), 3),
+                GenomeGraphPos::new_match(ni(0), 4),
+                GenomeGraphPos::new_match(ni(0), 5),
+                GenomeGraphPos::new_match(ni(0), 5),
+                GenomeGraphPos::new_match(ni(0), 6),
+                GenomeGraphPos::new_match(ni(0), 7),
+            ],
+            false,
+        );
+        let aligned = s1.to_aligned_str();
+        println!("{}\n{}", aligned[0], aligned[1]);
     }
 }

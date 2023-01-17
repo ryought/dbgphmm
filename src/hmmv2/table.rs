@@ -11,6 +11,7 @@ use super::sample::State;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use crate::vector::{DenseStorage, NodeVec, SparseStorage, Storage};
+use itertools::Itertools;
 pub use petgraph::graph::NodeIndex;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
 
@@ -59,26 +60,6 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             active_nodes: ActiveNodes::All,
         }
     }
-    pub fn new_with_active_nodes(
-        n_nodes: usize,
-        m: Prob,
-        i: Prob,
-        d: Prob,
-        mb: Prob,
-        ib: Prob,
-        e: Prob,
-        active_nodes: ActiveNodes,
-    ) -> Self {
-        PHMMTable {
-            m: NodeVec::new(n_nodes, m),
-            i: NodeVec::new(n_nodes, i),
-            d: NodeVec::new(n_nodes, d),
-            mb,
-            ib,
-            e,
-            active_nodes,
-        }
-    }
     pub fn zero(n_nodes: usize) -> Self {
         PHMMTable {
             m: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
@@ -88,17 +69,6 @@ impl<S: Storage<Item = Prob>> PHMMTable<S> {
             ib: Prob::from_prob(0.0),
             e: Prob::from_prob(0.0),
             active_nodes: ActiveNodes::All,
-        }
-    }
-    pub fn zero_with_active_nodes(n_nodes: usize, active_nodes: ActiveNodes) -> Self {
-        PHMMTable {
-            m: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
-            i: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
-            d: NodeVec::new(n_nodes, Prob::from_prob(0.0)),
-            mb: Prob::from_prob(0.0),
-            ib: Prob::from_prob(0.0),
-            e: Prob::from_prob(0.0),
-            active_nodes,
         }
     }
 }
@@ -277,6 +247,39 @@ impl<S: Storage<Item = Prob>> std::fmt::Display for PHMMTable<S> {
         }
         // End state
         writeln!(f, "End\t{}", self.e)
+    }
+}
+
+//
+// summarized to_string for limited area
+//
+
+impl<S: Storage<Item = Prob>> PHMMTable<S> {
+    ///
+    /// one-line summary with top-10 nodes
+    ///
+    pub fn to_summary_string<F: Fn(NodeIndex) -> String>(&self, node_info: F) -> String {
+        self.to_summary_string_n(10, node_info)
+    }
+    ///
+    /// one-line summary
+    ///
+    pub fn to_summary_string_n<F: Fn(NodeIndex) -> String>(
+        &self,
+        n: usize,
+        node_info: F,
+    ) -> String {
+        self.to_states()
+            .into_iter()
+            .take(n)
+            .map(|(state, prob)| {
+                if let Some(node) = state.to_node_index() {
+                    format!("{}:{}{:.5}", node_info(node), state, prob.to_value())
+                } else {
+                    format!("{}{:.5}", state, prob.to_value())
+                }
+            })
+            .join(",")
     }
 }
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 #PJM -g gg57
 #PJM -L node=1
-#PJM -L elapse=24:00:00
+#PJM -L elapse=12:00:00
 #PJM -L rscgrp=gg57
 
 # pjsub -X KEY=VALUE,KEY=VALUE -N ${JOB_NAME} -o ${LOG_FILE} -j --comment hoge job.sh

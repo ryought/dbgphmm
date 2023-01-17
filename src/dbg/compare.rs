@@ -506,12 +506,27 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
     }
     ///
-    /// inspect kmer existence
+    /// inspect kmer existence and count missing and error kmers
     ///
     /// * Missing kmers: exists in genome but not exists in Dbg
     /// * Error kmers: not exists in genome but exists in Dbg
     ///
     pub fn inspect_kmers(&self, genome: &Genome) -> ((usize, usize), (usize, usize)) {
+        let (missings, errors) = self.missing_error_kmers(genome);
+        let n_missing_null = missings.iter().filter(|kmer| kmer.has_null()).count();
+        let n_missing = missings.len() - n_missing_null;
+        let n_error_null = errors.iter().filter(|kmer| kmer.has_null()).count();
+        let n_error = errors.len() - n_error_null;
+
+        ((n_missing, n_missing_null), (n_error, n_error_null))
+    }
+    ///
+    /// return (vec of missing kmers, vec of error kmers)
+    ///
+    /// * Missing kmers: exists in genome but not exists in Dbg
+    /// * Error kmers: not exists in genome but exists in Dbg
+    ///
+    pub fn missing_error_kmers(&self, genome: &Genome) -> (Vec<N::Kmer>, Vec<N::Kmer>) {
         // density map of this FloatDbg
         let copy_nums = self.to_kmer_profile();
         // calculate true copy_nums with Genome
@@ -527,8 +542,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .map(|(kmer, _)| kmer.clone())
             .collect();
-        let n_missing_null = missings.iter().filter(|kmer| kmer.has_null()).count();
-        let n_missing = missings.len() - n_missing_null;
 
         // error
         let errors: Vec<_> = copy_nums
@@ -539,19 +552,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             })
             .map(|(kmer, _)| kmer.clone())
             .collect();
-        let n_error_null = errors.iter().filter(|kmer| kmer.has_null()).count();
-        let n_error = errors.len() - n_error_null;
 
-        // eprintln!(
-        //     "n_nodes={} n_missing={} ({}) n_error={} ({})",
-        //     self.n_nodes(),
-        //     n_missing,
-        //     kmers_to_string(&missings),
-        //     n_error,
-        //     kmers_to_string(&errors),
-        // );
-
-        ((n_missing, n_missing_null), (n_error, n_error_null))
+        (missings, errors)
     }
 }
 

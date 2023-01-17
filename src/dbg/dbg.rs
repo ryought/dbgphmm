@@ -457,6 +457,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn copy_num(&self, node: NodeIndex) -> CopyNum {
         self.node(node).copy_num()
     }
+    ///
+    /// the number of nXXXX
+    ///
+    pub fn n_starting_kmers(&self) -> usize {
+        self.nodes()
+            .filter(|(_, w)| w.kmer().is_starting() && w.copy_num() > 0)
+            .count()
+    }
 }
 
 ///
@@ -583,7 +591,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     /// If the sequence cannot be emitted using a path in the dbg, returns None.
     ///
-    fn to_nodes_of_styled_seq(
+    pub fn to_nodes_of_styled_seq(
         &self,
         seq: &StyledSequence,
     ) -> Result<Vec<NodeIndex>, KmerNotFoundError<N::Kmer>> {
@@ -698,6 +706,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .to_copy_nums_of_styled_seqs(seqs)
             .unwrap_or_else(|missing_kmers| panic!("{}", missing_kmers));
         self.set_node_copy_nums(&copy_nums_true);
+    }
+    ///
+    ///
+    ///
+    pub fn edit_copy_nums_by_seq(&mut self, seq: &[u8], x: i8) {
+        let nodes = self
+            .to_nodes_of_styled_seq(&StyledSequence::linear_fragment(seq.to_vec()))
+            .unwrap();
+        for node in nodes {
+            let copy_num = self.node(node).copy_num();
+            let new_copy_num = if x >= 0 {
+                copy_num + (x as usize)
+            } else {
+                copy_num - (-x as usize)
+            };
+            self.graph
+                .node_weight_mut(node)
+                .unwrap()
+                .set_copy_num(new_copy_num);
+        }
     }
 }
 
@@ -835,7 +863,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         }
     }
     ///
-    ///
+    /// TODO
+    /// * add `min_copy_num`
+    /// * support hint for tandem repeat assembly
     ///
     pub fn augment_sources_and_sinks(&mut self) {
         let sources = self.get_sources();

@@ -7,6 +7,7 @@ var global_state = {
   max_depth: 20,
   // synced states
   show_node_label: true,
+  show_node_info: true,
   show_edge_label: true,
   edge_label_key: -1,
   edge_color_key: -1,
@@ -86,6 +87,23 @@ function color(x, x_min, x_max) {
   return `rgb(0, ${z}, ${z})`
 }
 
+/**
+ * definition of contrasting color mapping x \in [-x_max, x_max].
+ *
+ * [-x_max, 0] will be blue
+ * [0, x_max] will be red
+ */
+function red_blue_color(x, x_max) {
+  const y = (x / x_max) * 255
+  if (y < 0) {
+    const z = Math.max(0, Math.min(-y, 255))
+    return `rgb(0, 0, ${z})`
+  } else {
+    const z = Math.max(0, Math.min(y, 255))
+    return `rgb(${z}, 0, 0)`
+  }
+}
+
 
 
 /*
@@ -130,8 +148,9 @@ function select_node(root_node, max_depth) {
       },
       directed: false,
     })
-    cy.nodes().style('display', 'none');
+    cy.nodes().style('display', 'none').style('text-background-opacity', 0.0);
     cy.nodes().filter((v) => depth[v.id()] < max_depth).neighborhood().style('display', '');
+    elem.style('text-background-opacity', 0.5).style('text-background-color', 'green');
   }
 }
 function unselect_node() {
@@ -204,16 +223,19 @@ function init_cytoscape(elements) {
             if (e.scratch('show_label')) {
               const key = e.scratch('label_attr_key')
               const copy_num = e.data('copy_num')
-              const label = `${e.data('label')} (x${copy_num})` || ''
+              const copy_num_expected = e.data('copy_num_expected') || 0
+              const id = e.id()
+              const info = e.scratch('show_info') ? e.data('info') : ''
+              const label = `${e.data('label')} (x${copy_num},x${copy_num_expected ? copy_num_expected.toFixed(2) : '?'})` || ''
               const use_history = e.scratch('use_history')
               const time = e.scratch('time')
               const history = use_history ? e.data('history')[time] : ''
               if (key != -1) {
                 const attrs = e.data('attrs')
                 const time = e.scratch('time')
-                return `${label} (${get_attr(attrs, key, time)}) ${history}`
+                return `${id}:${label} (${get_attr(attrs, key, time)}) ${history} ${info}`
               } else {
-                return `${label} ${history}`
+                return `${id}:${label} ${history} ${info}`
               }
             } else {
               return ''
@@ -226,7 +248,12 @@ function init_cytoscape(elements) {
           'border-color': (e) => {
             // const copy_num = e.data('copy_num')
             // return color(copy_num + 1, 0, 5)
-            return 'red'
+            const kmer = e.data('label')
+            if (kmer.includes('n')) {
+              return 'green'
+            } else {
+              return 'red'
+            }
           },
           'background-color': (e) => {
             const attrs = e.data('attrs')
@@ -242,7 +269,14 @@ function init_cytoscape(elements) {
               if (x != null)  {
                 return color(x, 0, x_max)
               } else {
-                return '#000'
+                const copy_num_expected = e.data('copy_num_expected')
+                const copy_num = e.data('copy_num')
+                if (copy_num_expected) {
+                  const d = copy_num_expected - copy_num;
+                  return red_blue_color(d, 1)
+                } else {
+                  return '#000'
+                }
               }
             }
           }
@@ -305,6 +339,7 @@ function init_cytoscape(elements) {
 
 function sync_states() {
   cy.nodes().scratch('show_label', global_state.show_node_label)
+  cy.nodes().scratch('show_info', global_state.show_node_info)
   cy.edges().scratch('show_label', global_state.show_edge_label)
   cy.edges().scratch('label_attr_key', global_state.edge_label_key)
   cy.edges().scratch('color_attr_key', global_state.edge_color_key)
@@ -344,6 +379,8 @@ function init_controls(history_labels) {
   attr.closed = false
   attr.add(global_state, 'show_node_label')
     .onChange((value) => cy.nodes().scratch('show_label', value))
+  attr.add(global_state, 'show_node_info')
+    .onChange((value) => cy.nodes().scratch('show_info', value))
   attr.add(global_state, 'show_edge_label')
     .onChange((value) => cy.edges().scratch('show_label', value))
   // edges

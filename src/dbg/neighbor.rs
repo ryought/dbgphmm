@@ -7,6 +7,7 @@ use super::edge_centric::compact::{
 };
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
+use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::cycle::{
     apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
 };
@@ -22,6 +23,7 @@ use crate::min_flow::residue::{
 };
 use crate::prob::Prob;
 use crate::utils::all_same_value;
+use crate::vector::{DenseStorage, NodeVec};
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use petgraph::dot::Dot;
@@ -377,17 +379,31 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         n_before - n_after
     }
     ///
+    ///
+    pub fn to_copy_num_expected_vector(
+        &self,
+        dds: &[DiscreteDistribution],
+    ) -> NodeVec<DenseStorage<f64>> {
+        assert_eq!(dds.len(), self.n_nodes());
+        let mut ret = NodeVec::new(self.n_nodes(), 0.0);
+        for (node, _) in self.nodes() {
+            ret[node] = dds[node.index()].mean();
+        }
+        ret
+    }
+    ///
     /// check the variance of copy_num of each kmer
     ///
     pub fn inspect_kmer_variance(
         &self,
         neighbors: &[(NodeCopyNums, Prob)],
         copy_nums_true: &NodeCopyNums,
+        read_count: &HashDbg<N::Kmer>,
     ) {
         let k = self.k();
         let print_header = || {
             println!(
-                "#K k={}\tkmer\tnode_id\ttrue_copy_num\tprobs\tp(copy_num=copy_num_true)\thist\tcopy_nums",
+                "#K k={}\tkmer\tnode_id\ttrue_copy_num\tread_count\tprobs\tp(copy_num=copy_num_true)\tp(copy_num=0)\tdegree_info(in,out)\thist\tcopy_nums",
                 k
             );
         };
@@ -406,13 +422,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let copy_num_true = copy_nums_true[node];
             println!(
                 // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
-                "K\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 k,
                 weight.kmer(),
                 node.index(),
                 copy_num_true,
+                read_count.get(weight.kmer()),
                 kmer_distributions[node.index()],
-                kmer_distributions[node.index()].p_x(copy_num_true),
+                kmer_distributions[node.index()]
+                    .p_x(copy_num_true)
+                    .to_value(),
+                kmer_distributions[node.index()].p_x(0).to_value(),
+                format!("({},{})", self.in_degree(node), self.out_degree(node)),
                 hist,
                 // copy_nums_with_prob,
             );

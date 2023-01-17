@@ -16,6 +16,7 @@ pub mod greedy;
 pub mod hist;
 pub mod hmm;
 pub mod hmmv2;
+pub mod inspect;
 pub mod io;
 pub mod json;
 pub mod kmer;
