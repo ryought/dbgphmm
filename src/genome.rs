@@ -185,6 +185,50 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     (genome, genome_size)
 }
 
+///
+/// Tandem repeat (polyploid) genome with unique (homozygous) prefix/suffix.
+///
+pub fn tandem_repeat_polyploid_with_unique_homo_ends(
+    unit_size: usize,
+    n_unit: usize,
+    unit_seed: u64,
+    end_length: usize,
+    n_haplotypes: usize,
+    divergence_between_haplotypes: f64,
+    div_seed: u64,
+) -> (Genome, usize) {
+    // base tandem repeats
+    let unit = generate(unit_size, unit_seed);
+    let tandem_repeat = tandem_repeat(&unit, n_unit);
+
+    // unique ends
+    let prefix = generate(end_length, unit_seed.wrapping_add(1));
+    let suffix = generate(end_length, unit_seed.wrapping_sub(1));
+
+    let mut genome = Vec::new();
+    let mut genome_size = 0;
+
+    // add first (unmutated) haplotype
+    let hap = join(prefix.clone(), join(tandem_repeat.clone(), suffix.clone()));
+    genome_size += hap.len();
+    genome.push(StyledSequence::linear(hap));
+
+    // add other mutated haplotypes
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
+    for _ in 1..n_haplotypes {
+        let (tandem_repeat_mut, _ops) = random_mutation_with_rng(
+            &tandem_repeat,
+            MutationProfile::uniform(divergence_between_haplotypes),
+            &mut rng,
+        );
+        let hap = join(prefix.clone(), join(tandem_repeat_mut, suffix.clone()));
+        genome_size += hap.len();
+        genome.push(StyledSequence::linear(hap));
+    }
+
+    (genome, genome_size)
+}
+
 pub fn tandem_repeat_diploid_example_mut() -> (Genome, usize) {
     let (mut genome, genome_size) =
         tandem_repeat_polyploid_with_unique_ends(50, 20, 0.00, 0, 0, 50, 2, 0.00, 0);
@@ -440,5 +484,31 @@ mod tests {
             );
         }
         assert_eq!(g_a[1].seq()[..550], g_b[1].seq()[..550]);
+    }
+    #[test]
+    fn genome_tandem_repeat_unique_homo_ends() {
+        let (g, gs) = tandem_repeat_polyploid_with_unique_homo_ends(10, 5, 0, 10, 4, 0.05, 0);
+        show_genome(&g, gs);
+        assert_eq!(
+            g,
+            vec![
+                StyledSequence::linear(
+                    b"TAGGACAAGCCCAATTCACACCAATTCACACCAATTCACACCAATTCACACCAATTCACACCTCACCTCA"
+                        .to_vec()
+                ),
+                StyledSequence::linear(
+                    b"TAGGACAAGCCCAATTCACACCAAATGACACCAATCACACCAATTCACACCAATTCACACCTCACCTCA"
+                        .to_vec()
+                ),
+                StyledSequence::linear(
+                    b"TAGGACAAGCCCAATATCCACACCAATTCACACCAATTCACACCCAATTCACACCAATTCACACCTCACCTCA"
+                        .to_vec()
+                ),
+                StyledSequence::linear(
+                    b"TAGGACAAGCCCAATTCACAGCAATTCACCCAATTCACACCTATTCACACCAATTCACACCTCACCTCA"
+                        .to_vec()
+                ),
+            ]
+        );
     }
 }
