@@ -1,4 +1,5 @@
 use clap::Clap;
+use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::{Dbg, SimpleDbg};
 use dbgphmm::genome;
 use dbgphmm::hmmv2::params::PHMMParams;
@@ -96,6 +97,14 @@ fn main() {
                     kmers_to_string_pretty(&errors),
                 );
             }
+
+            dbg.set_node_copy_nums(&copy_nums_true);
+            let neighbors: Vec<_> = distribution
+                .iter()
+                .map(|(p, instance, _score)| (instance.copy_nums().clone(), *p))
+                .collect();
+            let read_count = HashDbg::from_styled_seqs(k, &genome);
+            dbg.inspect_kmer_variance(&neighbors, &copy_nums_true, &read_count);
         }
     }
 }
