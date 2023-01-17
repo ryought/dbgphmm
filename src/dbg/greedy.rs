@@ -2,7 +2,7 @@
 //! Greedy search of posterior probability
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
-use crate::common::CopyNum;
+use crate::common::{CopyNum, Seq};
 use crate::dbg::draft::EndNodeInference;
 use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::dbg::phmm::EvalResult;
@@ -13,6 +13,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 //
@@ -90,6 +91,59 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         genome_size_sigma: CopyNum,
     ) -> Posterior<N::Kmer> {
         unimplemented!();
+    }
+    ///
+    ///
+    ///
+    pub fn search_posterior_raw<S, F>(
+        &self,
+        reads: &[S],
+        params: PHMMParams,
+        max_neighbor_depth: usize,
+        max_move: usize,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+        on_move: F,
+    ) -> Posterior<N::Kmer>
+    where
+        S: Seq,
+        F: Fn(&DbgCopyNumsInstance<N::Kmer>),
+    {
+        let instance_init =
+            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let mut searcher = GreedySearcher::new(
+            instance_init,
+            |instance| {
+                let mut dbg = self.clone();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                dbg.evaluate(params, reads, genome_size_expected, genome_size_sigma)
+            },
+            |instance| {
+                on_move(instance);
+                let mut dbg = self.clone();
+                let start = Instant::now();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                let neighbors: Vec<_> = dbg
+                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, false)
+                    .into_iter()
+                    .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
+                    .map(|(copy_nums, info)| {
+                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                    })
+                    .collect();
+                let duration = start.elapsed();
+                // eprintln!(
+                //     "[to_neighbors/#{}] found {} neighbors (in {} ms)",
+                //     instance.move_count(),
+                //     neighbors.len(),
+                //     duration.as_millis(),
+                // );
+                neighbors
+            },
+        );
+
+        searcher.search(max_move);
+        searcher.into_posterior_distribution()
     }
     ///
     ///
