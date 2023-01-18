@@ -2,7 +2,7 @@
 set -Ceuo pipefail
 cargo build --release
 # cargo run --release --bin batch -- -H 0.01 -U 100 -N 10 -P 2
-for U in 2000 1000 500 200 100 50 20 10
+for U in 2000 1000 500 100 50 20
 do
   L=2000
   N=$(($L / $U))

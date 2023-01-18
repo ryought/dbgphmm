@@ -43,7 +43,7 @@ fn main() {
     let param = PHMMParams::uniform(opts.p_error);
     println!("# opts={:?}", opts);
 
-    for seed in 0..5 {
+    for seed in 0..3 {
         // data generation
         let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             opts.unit_size,
