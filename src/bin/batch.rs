@@ -64,12 +64,16 @@ fn main() {
         for k in opts.k_init..=opts.k_final {
             let mut dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, &genome);
             let copy_nums_true = dbg.to_node_copy_nums();
-            println!("# k={} n_nodes={}", k, dbg.n_nodes());
-            println!("# k={} n_edges={}", k, dbg.n_edges());
-            println!("# k={} copy_num_stats={:?}", k, dbg.copy_num_stats());
-            println!("# k={} degree_stats={:?}", k, dbg.degree_stats());
+            println!("# k={} s={} n_nodes={}", k, seed, dbg.n_nodes());
+            println!("# k={} s={} n_edges={}", k, seed, dbg.n_edges());
+            println!(
+                "# k={} s={} copy_num_stats={:?}",
+                k,
+                seed,
+                dbg.copy_num_stats()
+            );
+            println!("# k={} s={} degree_stats={:?}", k, seed, dbg.degree_stats());
 
-            // TODO not use dataset but use seq list
             let distribution =
                 dbg.search_posterior_raw(&genome, param, 10, 3, genome_size, 100, |instance| {});
 
@@ -104,7 +108,12 @@ fn main() {
                 .map(|(p, instance, _score)| (instance.copy_nums().clone(), *p))
                 .collect();
             let read_count = HashDbg::from_styled_seqs(k, &genome);
-            dbg.inspect_kmer_variance(&neighbors, &copy_nums_true, &read_count);
+            dbg.inspect_kmer_variance_with_comment(
+                &neighbors,
+                &copy_nums_true,
+                &read_count,
+                |_| format!("{}", seed),
+            );
         }
     }
 }
