@@ -3,6 +3,7 @@ use dbgphmm::dbg::greedy::get_max_posterior_instance;
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::{Dbg, SimpleDbg};
 use dbgphmm::genome;
+use dbgphmm::graph::utils::degree_stats;
 use dbgphmm::hmmv2::params::PHMMParams;
 use dbgphmm::kmer::common::kmers_to_string_pretty;
 use dbgphmm::kmer::VecKmer;
@@ -37,6 +38,9 @@ struct Opts {
     ///
     #[clap(short = 'P', default_value = "1")]
     n_haplotypes: usize,
+    ///
+    #[clap(long)]
+    try_all_k: bool,
 }
 
 fn main() {
@@ -76,6 +80,15 @@ fn main() {
                 dbg.copy_num_stats()
             );
             println!("# k={} s={} degree_stats={:?}", k, seed, dbg.degree_stats());
+            let edbg = dbg.to_compact_edbg_graph();
+            println!("# k={} s={} edbg_n_nodes={:?}", k, seed, edbg.node_count());
+            println!("# k={} s={} edbg_n_edges={:?}", k, seed, edbg.edge_count());
+            println!(
+                "# k={} s={} edbg_degree_stats={:?}",
+                k,
+                seed,
+                degree_stats(&edbg),
+            );
 
             let distribution =
                 dbg.search_posterior_raw(&genome, param, 10, 3, genome_size, 100, |_instance| {});
@@ -105,7 +118,6 @@ fn main() {
                 );
             }
 
-            // dbg.set_node_copy_nums(&copy_nums_true);
             dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
             let neighbors: Vec<_> = distribution
                 .iter()
@@ -120,11 +132,16 @@ fn main() {
             );
 
             // upgrade
-            dbg = dbg.to_k_max_dbg_naive(opts.k_final);
-            if k == dbg.k() {
-                break;
+            if opts.try_all_k {
+                k += 4;
+            } else {
+                dbg.set_node_copy_nums(&copy_nums_true);
+                dbg = dbg.to_k_max_dbg_naive(opts.k_final);
+                if k == dbg.k() {
+                    break;
+                }
+                k = dbg.k();
             }
-            k = dbg.k();
         }
     }
 }

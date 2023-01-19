@@ -13,6 +13,7 @@ use crate::dbg::flow_intersection::FlowIntersection;
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::remove_deadends;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use crate::graph::utils::degree_stats;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
@@ -324,12 +325,7 @@ impl<N: DbgNodeBase, E: DbgEdgeBase> Dbg<N, E> {
     /// count the number of nodes with (in_degree, out_degree).
     ///
     pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
-        let mut h = HashMap::default();
-        for (node, _) in self.nodes() {
-            *h.entry((self.in_degree(node), self.out_degree(node)))
-                .or_insert(0) += 1;
-        }
-        h
+        degree_stats(&self.graph)
     }
 }
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
