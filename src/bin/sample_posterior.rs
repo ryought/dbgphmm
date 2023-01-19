@@ -61,6 +61,8 @@ struct Opts {
     #[clap(long = "p0", default_value = "0.8")]
     p_0: f64,
     #[clap(long)]
+    p_infer: Option<f64>,
+    #[clap(long)]
     start_from_true: bool,
     #[clap(long)]
     dbgviz_output: Option<PathBuf>,
@@ -138,6 +140,13 @@ fn main() {
     dataset.show_reads_with_genome();
     let mut k = dbg.k();
 
+    // phmm param used in inference and posterior-sampling.
+    let param_infer = if let Some(p_infer) = opts.p_infer {
+        PHMMParams::uniform(p_infer)
+    } else {
+        PHMMParams::uniform(opts.p_error)
+    };
+
     while k <= opts.k_final {
         if opts.use_true_dbg {
             dbg = SimpleDbg::from_styled_seqs(k, dataset.genome());
@@ -167,7 +176,7 @@ fn main() {
 
         let distribution = dbg.search_posterior(
             dataset.reads(),
-            dataset.params(),
+            param_infer,
             opts.neighbor_depth,
             opts.max_move,
             dataset.genome_size(),
@@ -209,13 +218,13 @@ fn main() {
         // compare dense score of dbg_true and dbg_max
         // (a) dbg_true
         dbg.set_node_copy_nums(&copy_nums_true);
-        let r_true = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
+        let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
         println!("NT\t{}\t{}\t", k, r_true);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // (b) dbg_max
         dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
-        let r_max = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
+        let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
         println!("NM\t{}\t{}\t", k, r_max);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
