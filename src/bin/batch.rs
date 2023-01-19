@@ -61,8 +61,10 @@ fn main() {
             println!("# genome[{}]={}", i, genome[i]);
         }
 
+        let mut k = opts.k_init;
+
         // inference
-        for k in opts.k_init..=opts.k_final {
+        while k <= opts.k_final {
             let mut dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, &genome);
             let copy_nums_true = dbg.to_node_copy_nums();
             println!("# k={} s={} n_nodes={}", k, seed, dbg.n_nodes());
@@ -76,7 +78,7 @@ fn main() {
             println!("# k={} s={} degree_stats={:?}", k, seed, dbg.degree_stats());
 
             let distribution =
-                dbg.search_posterior_raw(&genome, param, 10, 3, genome_size, 100, |instance| {});
+                dbg.search_posterior_raw(&genome, param, 10, 3, genome_size, 100, |_instance| {});
 
             for (p, instance, score) in distribution.iter() {
                 dbg.set_node_copy_nums(instance.copy_nums());
@@ -116,6 +118,13 @@ fn main() {
                 &read_count,
                 |_| format!("{}", seed),
             );
+
+            // upgrade
+            dbg = dbg.to_k_max_dbg_naive(opts.k_final);
+            if k == dbg.k() {
+                break;
+            }
+            k = dbg.k();
         }
     }
 }
