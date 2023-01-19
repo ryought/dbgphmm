@@ -1,4 +1,5 @@
 use clap::Clap;
+use dbgphmm::dbg::greedy::get_max_posterior_instance;
 use dbgphmm::dbg::hashdbg_v2::HashDbg;
 use dbgphmm::dbg::{Dbg, SimpleDbg};
 use dbgphmm::genome;
@@ -102,7 +103,8 @@ fn main() {
                 );
             }
 
-            dbg.set_node_copy_nums(&copy_nums_true);
+            // dbg.set_node_copy_nums(&copy_nums_true);
+            dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
             let neighbors: Vec<_> = distribution
                 .iter()
                 .map(|(p, instance, _score)| (instance.copy_nums().clone(), *p))
