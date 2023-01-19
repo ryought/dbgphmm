@@ -2,7 +2,7 @@
 //! Greedy search of posterior probability
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
-use crate::common::{CopyNum, Seq};
+use crate::common::{CopyNum, ReadCollection, Seq};
 use crate::dbg::draft::EndNodeInference;
 use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::dbg::phmm::EvalResult;
@@ -164,9 +164,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
     ///
-    pub fn search_posterior<F>(
+    pub fn search_posterior<F, S: Seq>(
         &self,
-        dataset: &Dataset,
+        reads: &ReadCollection<S>,
+        params: PHMMParams,
         max_neighbor_depth: usize,
         max_move: usize,
         genome_size_expected: CopyNum,
@@ -178,14 +179,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         eprintln!("creating hint");
-        let reads_with_hints = self.generate_hints(dataset.reads(), dataset.params());
+        let reads_with_hints = self.generate_hints(reads, params);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let r = dbg.evaluate_with_hint(
-                    dataset.params(),
+                    params,
                     &reads_with_hints,
                     genome_size_expected,
                     genome_size_sigma,
@@ -318,7 +319,8 @@ mod tests {
 
         let sigma = 10;
         let s = dbg_draft.search_posterior(
-            experiment.dataset(),
+            experiment.dataset().reads(),
+            experiment.dataset().params(),
             100,
             10,
             experiment.genome_size(),
@@ -350,7 +352,8 @@ mod tests {
 
         let sigma = 100;
         let distribution = dbg_draft_true.search_posterior(
-            experiment.dataset(),
+            experiment.dataset().reads(),
+            experiment.dataset().params(),
             5,
             1,
             experiment.genome_size(),

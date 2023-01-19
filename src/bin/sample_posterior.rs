@@ -166,7 +166,8 @@ fn main() {
         );
 
         let distribution = dbg.search_posterior(
-            &dataset,
+            dataset.reads(),
+            dataset.params(),
             opts.neighbor_depth,
             opts.max_move,
             dataset.genome_size(),
