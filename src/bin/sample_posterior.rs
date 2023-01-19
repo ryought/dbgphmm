@@ -81,11 +81,9 @@ fn main() {
     println!("# version={}", GIT_VERSION);
     println!("# opts={:?}", opts);
 
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
+    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
         opts.unit_size,
         opts.n_unit,
-        opts.unit_divergence,
-        opts.seed,
         opts.seed,
         opts.end_length,
         opts.n_haplotypes,
