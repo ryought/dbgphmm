@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from visualize_posterior import parse_prob
+import pickle
 
 @dataclass
 class Experiment:
@@ -76,7 +77,7 @@ def parse_log_file(filename):
     return kmers, samples, opts
 
 def filename_from_params(U, N, H, P, p):
-    return 'U{}N{}H{}P{}p{}'.format(U, N, H, P, p)
+    return 'U{}N{}H{}P{}p{}'.format(U, N, H, str(P).replace('.', ''), str(p).replace('.', ''))
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -88,11 +89,14 @@ def main():
     for U in [1000, 500, 100, 50, 20]:
         N = 1000 // U
         P = 2
-        for H in [0.001, 0.005]:
-            for p in [0.001, 0.005, 0.01]:
-                kmers, samples, opts = parse_log_file(args.log_dir / filename_from_params(U, N, H, P, p))
-                kmers[(U, H, p)] = kmers
-                samples[(U, H, p)] = samples
+        # for H in [0.001, 0.005]:
+        H = 0.001
+        for p in [0.001, 0.005, 0.01]:
+            kmers, samples, opts = parse_log_file(args.log_dir / filename_from_params(U, N, H, P, p))
+            kmers[(U, H, p)] = kmers
+            samples[(U, H, p)] = samples
+    with open('batch_logs.pkl', 'wb') as f:
+        pickle.dump((kmers, samples), f)
 
 if __name__ == '__main__':
     main()
