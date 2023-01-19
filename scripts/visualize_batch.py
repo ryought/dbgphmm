@@ -77,7 +77,7 @@ def parse_log_file(filename):
     return kmers, samples, opts
 
 def filename_from_params(U, N, H, P, p):
-    return 'U{}N{}H{}P{}p{}'.format(U, N, H, str(P).replace('.', ''), str(p).replace('.', ''))
+    return 'U{}N{}H{}P{}p{}'.format(U, N, str(H).replace('.', ''), P, str(p).replace('.', ''))
 
 def main():
     parser = argparse.ArgumentParser(description='')
