@@ -6,6 +6,7 @@ import argparse
 import csv
 from collections import defaultdict
 from parse import *
+from pathlib import Path
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -74,12 +75,24 @@ def parse_log_file(filename):
                 pass
     return kmers, samples, opts
 
+def filename_from_params(U, N, H, P, p):
+    return 'U{}N{}H{}P{}p{}'.format(U, N, H, P, p)
+
 def main():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('log_filename', type=str, help='batch log file')
+    parser.add_argument('log_dir', type=Path, help='batch log directory')
     args = parser.parse_args()
 
-    kmers, samples, opts = parse_log_file(args.log_filename)
+    kmers = dict()
+    samples = dict()
+    for U in [1000, 500, 100, 50, 20]:
+        N = 1000 // U
+        P = 2
+        for H in [0.001, 0.005]:
+            for p in [0.001, 0.005, 0.01]:
+                kmers, samples, opts = parse_log_file(args.log_dir / filename_from_params(U, N, H, P, p))
+                kmers[(U, H, p)] = kmers
+                samples[(U, H, p)] = samples
 
 if __name__ == '__main__':
     main()
