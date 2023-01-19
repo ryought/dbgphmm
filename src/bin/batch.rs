@@ -97,7 +97,7 @@ fn main() {
                     instance.copy_nums().max_abs_diff(&copy_nums_true),
                     n_missing,
                     n_error,
-                    instance.info(),
+                    instance.info_string(),
                     kmers_to_string_pretty(&missings),
                     kmers_to_string_pretty(&errors),
                 );

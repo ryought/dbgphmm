@@ -22,22 +22,37 @@ use std::time::{Duration, Instant};
 #[derive(Clone)]
 pub struct DbgCopyNumsInstance<K: KmerLike> {
     copy_nums: NodeCopyNums,
-    info: CopyNumsUpdateInfo<K>,
+    ///
+    /// List of cycles used to update copy_nums from init copy_nums
+    ///
+    infos: Vec<CopyNumsUpdateInfo<K>>,
     move_count: usize,
 }
 impl<K: KmerLike> DbgCopyNumsInstance<K> {
-    pub fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>, move_count: usize) -> Self {
+    pub fn new(
+        copy_nums: NodeCopyNums,
+        info: Vec<CopyNumsUpdateInfo<K>>,
+        move_count: usize,
+    ) -> Self {
         DbgCopyNumsInstance {
             copy_nums,
-            info,
+            infos: info,
             move_count,
         }
     }
     pub fn copy_nums(&self) -> &NodeCopyNums {
         &self.copy_nums
     }
-    pub fn info(&self) -> &CopyNumsUpdateInfo<K> {
-        &self.info
+    pub fn infos(&self) -> &[CopyNumsUpdateInfo<K>] {
+        &self.infos
+    }
+    ///
+    /// string representation of list of CopyNumsUpdateInfo.
+    ///
+    /// Example: [TGGGTAGGCGTTCCCATGACGC+,TGGGTAGGCGTCCCATGACGC-(dG=1,L=2,n=21):....]
+    ///
+    pub fn info_string(&self) -> String {
+        format!("[{}]", self.infos().iter().format(":"))
     }
     pub fn move_count(&self) -> usize {
         self.move_count
@@ -109,8 +124,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         S: Seq,
         F: Fn(&DbgCopyNumsInstance<N::Kmer>),
     {
-        let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
@@ -128,7 +142,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
                     .map(|(copy_nums, info)| {
-                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
                     })
                     .collect();
                 let duration = start.elapsed();
@@ -160,8 +176,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     where
         F: Fn(&DbgCopyNumsInstance<N::Kmer>),
     {
-        let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         eprintln!("creating hint");
         let reads_with_hints = self.generate_hints(dataset.reads(), dataset.params());
         let mut searcher = GreedySearcher::new(
@@ -188,7 +203,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
                     .map(|(copy_nums, info)| {
-                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
                     })
                     .collect();
                 let duration = start.elapsed();
@@ -216,8 +233,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Posterior<N::Kmer> {
-        let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
@@ -255,7 +271,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let neighbors: Vec<_> = neighbors
                     .into_iter()
                     .map(|(copy_nums, info)| {
-                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
                     })
                     .collect();
                 let duration = start.elapsed();
@@ -314,7 +332,7 @@ mod tests {
                 score.p_rg(),
                 score.p_g(),
                 instance.copy_nums(),
-                instance.info(),
+                instance.info_string(),
             );
         }
     }
@@ -347,7 +365,7 @@ mod tests {
                 score.p_rg(),
                 score.p_g(),
                 instance.move_count(),
-                instance.info(),
+                instance.info_string(),
                 instance.copy_nums().dist(&copy_nums_true),
                 instance.copy_nums(),
             );

@@ -172,7 +172,7 @@ fn main() {
             dataset.genome_size(),
             opts.sigma,
             |instance| {
-                println!("G\t{}\t{}", instance.info(), instance.move_count());
+                println!("G\t{}\t{}", instance.info_string(), instance.move_count());
             },
         );
 
@@ -198,7 +198,7 @@ fn main() {
                     "({:<3}{:<3}),({:<3}{:<3})",
                     n_missing, n_missing_null, n_error, n_error_null,
                 ),
-                instance.info(),
+                instance.info_string(),
                 kmers_to_string_pretty(&missings),
                 kmers_to_string_pretty(&errors),
                 dbg,
