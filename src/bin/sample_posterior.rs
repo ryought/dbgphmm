@@ -74,6 +74,8 @@ struct Opts {
     /// construct true dbg (for each k) and infer the copy numbers on it.
     #[clap(long)]
     use_true_dbg: bool,
+    #[clap(long)]
+    use_homo_ends: bool,
     #[clap(long, default_value = "1")]
     copy_num_multiplicity: usize,
 }
@@ -85,15 +87,31 @@ fn main() {
     println!("# version={}", GIT_VERSION);
     println!("# opts={:?}", opts);
 
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-        opts.unit_size,
-        opts.n_unit,
-        opts.seed,
-        opts.end_length,
-        opts.n_haplotypes,
-        opts.hap_divergence,
-        opts.seed,
-    );
+    let (genome, genome_size) = if opts.use_homo_ends {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            opts.unit_size,
+            opts.n_unit,
+            opts.seed,
+            opts.end_length,
+            opts.n_haplotypes,
+            opts.hap_divergence,
+            opts.seed,
+        )
+    } else {
+        // will deprecate
+        genome::tandem_repeat_polyploid_with_unique_ends(
+            opts.unit_size,
+            opts.n_unit,
+            opts.unit_divergence,
+            opts.seed,
+            opts.seed,
+            opts.end_length,
+            opts.n_haplotypes,
+            opts.hap_divergence,
+            opts.seed,
+        )
+    };
+
     // let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
