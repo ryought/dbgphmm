@@ -79,6 +79,12 @@ def parse_log_file(filename):
 def filename_from_params(U, N, H, P, p):
     return 'U{}N{}H{}P{}p{}'.format(U, N, str(H).replace('.', ''), P, str(p).replace('.', ''))
 
+def defaultdict_to_dict(d):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            d[k] = defaultdict_to_dict(v)
+    return dict(d)
+
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('log_dir', type=Path, help='batch log directory')
@@ -93,8 +99,8 @@ def main():
         H = 0.001
         for p in [0.001, 0.005, 0.01]:
             kmers, samples, opts = parse_log_file(args.log_dir / filename_from_params(U, N, H, P, p))
-            kmers[(U, H, p)] = kmers
-            samples[(U, H, p)] = samples
+            kmers[(U, H, p)] = defaultdict_to_dict(kmers)
+            samples[(U, H, p)] = defaultdict_to_dict(samples)
     with open('batch_logs.pkl', 'wb') as f:
         pickle.dump((kmers, samples), f)
 
