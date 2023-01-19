@@ -64,10 +64,14 @@ struct Opts {
     p_infer: Option<f64>,
     #[clap(long)]
     start_from_true: bool,
+    /// use true dbg (k=k_init) as initial dbg and extend it until k reaches k_final
+    #[clap(long)]
+    start_from_true_dbg: bool,
     #[clap(long)]
     dbgviz_output: Option<PathBuf>,
     #[clap(long)]
     use_true_end_nodes: bool,
+    /// construct true dbg (for each k) and infer the copy numbers on it.
     #[clap(long)]
     use_true_dbg: bool,
     #[clap(long, default_value = "1")]
@@ -132,6 +136,10 @@ fn main() {
             SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage());
         (dataset, dbg)
     };
+
+    if opts.start_from_true_dbg {
+        dbg = SimpleDbg::from_styled_seqs(opts.k_init, dataset.genome());
+    }
 
     // dataset.show_genome();
     // dataset.show_reads();
