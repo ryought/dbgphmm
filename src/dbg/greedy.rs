@@ -2,7 +2,7 @@
 //! Greedy search of posterior probability
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopyNums};
-use crate::common::CopyNum;
+use crate::common::{CopyNum, ReadCollection, Seq};
 use crate::dbg::draft::EndNodeInference;
 use crate::dbg::neighbor::CopyNumsUpdateInfo;
 use crate::dbg::phmm::EvalResult;
@@ -13,6 +13,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 //
@@ -21,22 +22,37 @@ use std::time::{Duration, Instant};
 #[derive(Clone)]
 pub struct DbgCopyNumsInstance<K: KmerLike> {
     copy_nums: NodeCopyNums,
-    info: CopyNumsUpdateInfo<K>,
+    ///
+    /// List of cycles used to update copy_nums from init copy_nums
+    ///
+    infos: Vec<CopyNumsUpdateInfo<K>>,
     move_count: usize,
 }
 impl<K: KmerLike> DbgCopyNumsInstance<K> {
-    pub fn new(copy_nums: NodeCopyNums, info: CopyNumsUpdateInfo<K>, move_count: usize) -> Self {
+    pub fn new(
+        copy_nums: NodeCopyNums,
+        info: Vec<CopyNumsUpdateInfo<K>>,
+        move_count: usize,
+    ) -> Self {
         DbgCopyNumsInstance {
             copy_nums,
-            info,
+            infos: info,
             move_count,
         }
     }
     pub fn copy_nums(&self) -> &NodeCopyNums {
         &self.copy_nums
     }
-    pub fn info(&self) -> &CopyNumsUpdateInfo<K> {
-        &self.info
+    pub fn infos(&self) -> &[CopyNumsUpdateInfo<K>] {
+        &self.infos
+    }
+    ///
+    /// string representation of list of CopyNumsUpdateInfo.
+    ///
+    /// Example: [TGGGTAGGCGTTCCCATGACGC+,TGGGTAGGCGTCCCATGACGC-(dG=1,L=2,n=21):....]
+    ///
+    pub fn info_string(&self) -> String {
+        format!("[{}]", self.infos().iter().format(":"))
     }
     pub fn move_count(&self) -> usize {
         self.move_count
@@ -94,9 +110,64 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     ///
     ///
-    pub fn search_posterior<F>(
+    pub fn search_posterior_raw<S, F>(
         &self,
-        dataset: &Dataset,
+        reads: &[S],
+        params: PHMMParams,
+        max_neighbor_depth: usize,
+        max_move: usize,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+        on_move: F,
+    ) -> Posterior<N::Kmer>
+    where
+        S: Seq,
+        F: Fn(&DbgCopyNumsInstance<N::Kmer>),
+    {
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
+        let mut searcher = GreedySearcher::new(
+            instance_init,
+            |instance| {
+                let mut dbg = self.clone();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                dbg.evaluate(params, reads, genome_size_expected, genome_size_sigma)
+            },
+            |instance| {
+                on_move(instance);
+                let mut dbg = self.clone();
+                let start = Instant::now();
+                dbg.set_node_copy_nums(instance.copy_nums());
+                let neighbors: Vec<_> = dbg
+                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, false)
+                    .into_iter()
+                    .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
+                    .map(|(copy_nums, info)| {
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
+                    })
+                    .collect();
+                let duration = start.elapsed();
+                // eprintln!(
+                //     "[to_neighbors/#{}] found {} neighbors (in {} ms)",
+                //     instance.move_count(),
+                //     neighbors.len(),
+                //     duration.as_millis(),
+                // );
+                neighbors
+            },
+        );
+
+        searcher.search(max_move);
+        searcher.into_posterior_distribution()
+    }
+    ///
+    ///
+    ///
+    pub fn search_posterior<F, S: Seq>(
+        &self,
+        reads: &ReadCollection<S>,
+        params: PHMMParams,
         max_neighbor_depth: usize,
         max_move: usize,
         genome_size_expected: CopyNum,
@@ -106,17 +177,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     where
         F: Fn(&DbgCopyNumsInstance<N::Kmer>),
     {
-        let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         eprintln!("creating hint");
-        let reads_with_hints = self.generate_hints(dataset.reads(), dataset.params());
+        let reads_with_hints = self.generate_hints(reads, params);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let r = dbg.evaluate_with_hint(
-                    dataset.params(),
+                    params,
                     &reads_with_hints,
                     genome_size_expected,
                     genome_size_sigma,
@@ -134,7 +204,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     .into_iter()
                     .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
                     .map(|(copy_nums, info)| {
-                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
                     })
                     .collect();
                 let duration = start.elapsed();
@@ -162,8 +234,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Posterior<N::Kmer> {
-        let instance_init =
-            DbgCopyNumsInstance::new(self.to_node_copy_nums(), CopyNumsUpdateInfo::empty(), 0);
+        let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
@@ -201,7 +272,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let neighbors: Vec<_> = neighbors
                     .into_iter()
                     .map(|(copy_nums, info)| {
-                        DbgCopyNumsInstance::new(copy_nums, info, instance.move_count + 1)
+                        let mut infos = instance.infos().to_owned();
+                        infos.push(info);
+                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
                     })
                     .collect();
                 let duration = start.elapsed();
@@ -246,7 +319,8 @@ mod tests {
 
         let sigma = 10;
         let s = dbg_draft.search_posterior(
-            experiment.dataset(),
+            experiment.dataset().reads(),
+            experiment.dataset().params(),
             100,
             10,
             experiment.genome_size(),
@@ -260,7 +334,7 @@ mod tests {
                 score.p_rg(),
                 score.p_g(),
                 instance.copy_nums(),
-                instance.info(),
+                instance.info_string(),
             );
         }
     }
@@ -278,7 +352,8 @@ mod tests {
 
         let sigma = 100;
         let distribution = dbg_draft_true.search_posterior(
-            experiment.dataset(),
+            experiment.dataset().reads(),
+            experiment.dataset().params(),
             5,
             1,
             experiment.genome_size(),
@@ -293,7 +368,7 @@ mod tests {
                 score.p_rg(),
                 score.p_g(),
                 instance.move_count(),
-                instance.info(),
+                instance.info_string(),
                 instance.copy_nums().dist(&copy_nums_true),
                 instance.copy_nums(),
             );

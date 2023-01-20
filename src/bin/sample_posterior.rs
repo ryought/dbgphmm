@@ -61,13 +61,21 @@ struct Opts {
     #[clap(long = "p0", default_value = "0.8")]
     p_0: f64,
     #[clap(long)]
+    p_infer: Option<f64>,
+    #[clap(long)]
     start_from_true: bool,
+    /// use true dbg (k=k_init) as initial dbg and extend it until k reaches k_final
+    #[clap(long)]
+    start_from_true_dbg: bool,
     #[clap(long)]
     dbgviz_output: Option<PathBuf>,
     #[clap(long)]
     use_true_end_nodes: bool,
+    /// construct true dbg (for each k) and infer the copy numbers on it.
     #[clap(long)]
     use_true_dbg: bool,
+    #[clap(long)]
+    use_homo_ends: bool,
     #[clap(long, default_value = "1")]
     copy_num_multiplicity: usize,
 }
@@ -79,17 +87,31 @@ fn main() {
     println!("# version={}", GIT_VERSION);
     println!("# opts={:?}", opts);
 
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
-        opts.unit_size,
-        opts.n_unit,
-        opts.unit_divergence,
-        opts.seed,
-        opts.seed,
-        opts.end_length,
-        opts.n_haplotypes,
-        opts.hap_divergence,
-        opts.seed,
-    );
+    let (genome, genome_size) = if opts.use_homo_ends {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            opts.unit_size,
+            opts.n_unit,
+            opts.seed,
+            opts.end_length,
+            opts.n_haplotypes,
+            opts.hap_divergence,
+            opts.seed,
+        )
+    } else {
+        // will deprecate
+        genome::tandem_repeat_polyploid_with_unique_ends(
+            opts.unit_size,
+            opts.n_unit,
+            opts.unit_divergence,
+            opts.seed,
+            opts.seed,
+            opts.end_length,
+            opts.n_haplotypes,
+            opts.hap_divergence,
+            opts.seed,
+        )
+    };
+
     // let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
@@ -133,10 +155,21 @@ fn main() {
         (dataset, dbg)
     };
 
+    if opts.start_from_true_dbg {
+        dbg = SimpleDbg::from_styled_seqs(opts.k_init, dataset.genome());
+    }
+
     // dataset.show_genome();
     // dataset.show_reads();
     dataset.show_reads_with_genome();
     let mut k = dbg.k();
+
+    // phmm param used in inference and posterior-sampling.
+    let param_infer = if let Some(p_infer) = opts.p_infer {
+        PHMMParams::uniform(p_infer)
+    } else {
+        PHMMParams::uniform(opts.p_error)
+    };
 
     while k <= opts.k_final {
         if opts.use_true_dbg {
@@ -166,13 +199,14 @@ fn main() {
         );
 
         let distribution = dbg.search_posterior(
-            &dataset,
+            dataset.reads(),
+            param_infer,
             opts.neighbor_depth,
             opts.max_move,
             dataset.genome_size(),
             opts.sigma,
             |instance| {
-                println!("G\t{}\t{}", instance.info(), instance.move_count());
+                println!("G\t{}\t{}", instance.info_string(), instance.move_count());
             },
         );
 
@@ -198,7 +232,7 @@ fn main() {
                     "({:<3}{:<3}),({:<3}{:<3})",
                     n_missing, n_missing_null, n_error, n_error_null,
                 ),
-                instance.info(),
+                instance.info_string(),
                 kmers_to_string_pretty(&missings),
                 kmers_to_string_pretty(&errors),
                 dbg,
@@ -208,13 +242,13 @@ fn main() {
         // compare dense score of dbg_true and dbg_max
         // (a) dbg_true
         dbg.set_node_copy_nums(&copy_nums_true);
-        let r_true = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
+        let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
         println!("NT\t{}\t{}\t", k, r_true);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // (b) dbg_max
         dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
-        let r_max = dbg.evaluate(dataset.params(), dataset.reads(), genome_size, opts.sigma);
+        let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
         println!("NM\t{}\t{}\t", k, r_max);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 

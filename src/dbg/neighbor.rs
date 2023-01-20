@@ -400,10 +400,26 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         copy_nums_true: &NodeCopyNums,
         read_count: &HashDbg<N::Kmer>,
     ) {
+        self.inspect_kmer_variance_with_comment(neighbors, copy_nums_true, read_count, |_| {
+            String::new()
+        })
+    }
+    ///
+    /// check the variance of copy_num of each kmer
+    ///
+    pub fn inspect_kmer_variance_with_comment<F>(
+        &self,
+        neighbors: &[(NodeCopyNums, Prob)],
+        copy_nums_true: &NodeCopyNums,
+        read_count: &HashDbg<N::Kmer>,
+        comment: F,
+    ) where
+        F: Fn(NodeIndex) -> String,
+    {
         let k = self.k();
         let print_header = || {
             println!(
-                "#K k={}\tkmer\tnode_id\ttrue_copy_num\tread_count\tprobs\tp(copy_num=copy_num_true)\tp(copy_num=0)\tdegree_info(in,out)\thist\tcopy_nums",
+                "#K k={}\tkmer\tnode_id\tcurrent_copy_num\ttrue_copy_num\tread_count\tp(copy_num=copy_num_true)\tp(copy_num=0)\tprobs\tdegree_info(in,out)\thist\tcopy_nums\tcomment",
                 k
             );
         };
@@ -421,21 +437,22 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             //     .collect();
             let copy_num_true = copy_nums_true[node];
             println!(
-                // "K\t{}\t{}\t{}\t{}\t{}\t{:?}",
-                "K\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "K\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}\t{:.4}\t{}\t{}\t{}\t{}",
                 k,
                 weight.kmer(),
                 node.index(),
+                weight.copy_num(),
                 copy_num_true,
                 read_count.get(weight.kmer()),
-                kmer_distributions[node.index()],
                 kmer_distributions[node.index()]
                     .p_x(copy_num_true)
                     .to_value(),
                 kmer_distributions[node.index()].p_x(0).to_value(),
+                kmer_distributions[node.index()],
                 format!("({},{})", self.in_degree(node), self.out_degree(node)),
                 hist,
                 // copy_nums_with_prob,
+                comment(node),
             );
         }
         print_header();
