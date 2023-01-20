@@ -8,6 +8,7 @@ csv.field_size_limit(1000000000)
 from collections import defaultdict
 from parse import *
 import math
+import statistics
 import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
@@ -33,6 +34,12 @@ def parse_prob(s):
     p_x = math.exp(log_p_x)
     return (log_p_x, p_x)
 
+def parse_kmer_list(s):
+    if s == '[]':
+        return []
+    else:
+        return s.lstrip('[').rstrip(']').split(',')
+
 @dataclass
 class Sample:
     # posterior probability P(G|R)
@@ -47,6 +54,10 @@ class Sample:
     i: int
     # dist from true copy nums
     d: int
+    # number of missing kmers
+    n_missing: int
+    # number of error (redundant) kmers
+    n_error: int
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -72,6 +83,8 @@ def main():
                 if copy_num_true > 0:
                     non_zero_kmer_post_of_k[copy_num_true][k].append(post[0])
             elif row[0] == 'N':
+                n_missing = len(parse_kmer_list(row[12]))
+                n_error = len(parse_kmer_list(row[13]))
                 k = int(row[1])
                 lp, p = parse_prob(row[2])
                 ll = float(row[3])
@@ -85,6 +98,8 @@ def main():
                     g=g,
                     i=i,
                     d=d,
+                    n_missing=n_missing,
+                    n_error=n_error,
                 ))
                 pass
             elif row[0].startswith('# opts='):
@@ -111,7 +126,7 @@ def main():
     print(n_purged_of_k)
 
     # visualize
-    h = 3
+    h = 4
     w = 3
     fig, ax = plt.subplots(h, w, sharex="all", figsize=(20, 10))
     ks_for_tick = list(n_nodes_of_k.keys())
@@ -124,17 +139,26 @@ def main():
         ks = list(n_edges_of_k.keys())
         n_edges = list(n_edges_of_k.values())
         ax.plot(ks, n_edges, label='n_edges', marker='o')
-        ks = list(n_purged_of_k.keys())
-        n_purged = list(n_purged_of_k.values())
-        ax.plot(ks, n_purged, label='n_purged', marker='x', color='black')
-        twin1 = ax.twinx()
-        twin1.bar(ks, n_purged, color='black', alpha=0.5)
-        twin1.set_ylim(0, 10)
-        twin1.set_ylabel('n_purged')
+        # ks = list(n_purged_of_k.keys())
+        # n_purged = list(n_purged_of_k.values())
+        # ax.plot(ks, n_purged, label='n_purged', marker='x', color='black')
+        # twin1 = ax.twinx()
+        # twin1.bar(ks, n_purged, color='black', alpha=0.5)
+        # twin1.set_ylim(0, 10)
+        # twin1.set_ylabel('n_purged')
         ax.set_ylabel('graph props')
         ax.set_ylim(0, None)
         ax.legend()
     draw_graph_structure(ax[0, 0])
+
+    # (1-b) graph structure for purged nodes
+    def draw_purged(ax):
+        ks = list(n_purged_of_k.keys())
+        n_purged = list(n_purged_of_k.values())
+        ax.plot(ks, n_purged, label='n_purged', marker='x', color='black')
+        ax.set_ylabel('n_purged')
+        ax.set_ylim(0, None)
+    draw_purged(ax[1, 0])
 
     def set_yaxis_as_prob_distribution(ax):
         ax.set_ylim(0-0.1, 1+0.1)
@@ -148,17 +172,43 @@ def main():
             ps = [s.p for s in post if s.d != 0]
             ks = [k for s in post if s.d != 0]
             ax.scatter(ks, ps, c='blue', marker='x', alpha=0.5)
-
             for s in post:
                 if s.d == 0:
                     ks_true.append(k)
                     ps_true.append(s.p)
-
-        print(len(ks_true), len(ps_true))
         ax.plot(ks_true, ps_true, c='red', marker='o', alpha=0.5)
         set_yaxis_as_prob_distribution(ax)
         ax.set_ylabel('P(G|R)')
-    draw_posterior_distribution(ax[1, 0])
+    draw_posterior_distribution(ax[2, 0])
+
+    # (2-b) posterior distribution with best missing/no-missing models
+    def draw_posterior_distribution_best(ax):
+        ks_true = []
+        ps_true = []
+        ks_no_missing = []
+        ps_no_missing = []
+        ks_missing = []
+        ps_missing = []
+        for k, post in post_of_k.items():
+            p_missing = max([s.p for s in post if s.n_missing != 0], default=None)
+            if p_missing is not None:
+                ps_missing.append(p_missing)
+                ks_missing.append(k)
+            p_no_missing = max([s.p for s in post if s.n_missing == 0], default=None)
+            if p_no_missing is not None:
+                ps_no_missing.append(p_no_missing)
+                ks_no_missing.append(k)
+            for s in post:
+                if s.d == 0:
+                    ks_true.append(k)
+                    ps_true.append(s.p)
+        ax.plot(ks_true, ps_true, c='red', marker='o', alpha=0.5, label='true')
+        ax.plot(ks_no_missing, ps_no_missing, c='green', marker='*', alpha=0.5, label='best_without_missings')
+        ax.plot(ks_missing, ps_missing, c='cyan', marker='+', alpha=0.5, label='best_with_missings')
+        set_yaxis_as_prob_distribution(ax)
+        ax.set_ylabel('P(G|R)')
+        ax.legend()
+    draw_posterior_distribution_best(ax[3, 0])
 
     # (3) log likelihood
     def draw_log_likelihood(ax):
@@ -180,7 +230,29 @@ def main():
         fig.colorbar(pcm, ax=ax, location='bottom', label='genome_size')
         ax.plot(ks_true, lls_true, c='red', marker='*', alpha=0.5)
         ax.set_ylabel('log P(R|G)')
-    draw_log_likelihood(ax[2, 0])
+    draw_log_likelihood(ax[2, 2])
+
+    # (3-b) log likelihood near true model
+    def draw_log_likelihood_zoom(ax):
+        ks = []
+        lls = []
+        gs = []
+        ks_true = []
+        lls_true = []
+        for k, post in post_of_k.items():
+            lls = lls + [s.ll for s in post if s.d != 0]
+            ks = ks + [k for s in post if s.d != 0]
+            gs = gs + [s.g for s in post if s.d != 0]
+            # ax.scatter(ks, lls, s=gs, c='blue', marker='o', alpha=0.5)
+            for s in post:
+                if s.d == 0:
+                    ks_true.append(k)
+                    lls_true.append(s.ll)
+        pcm = ax.scatter(ks, lls, c=gs, marker='o', alpha=0.3)
+        ax.plot(ks_true, lls_true, c='red', marker='*', alpha=0.5)
+        ax.set_ylim(min(lls_true), max(lls_true))
+        ax.set_ylabel('log P(R|G)')
+    draw_log_likelihood_zoom(ax[3, 2])
 
     # (4) copy_num posterior
     def draw_copy_num_posterior(ax):
@@ -212,7 +284,7 @@ def main():
             ks = [k for k, kmer_post in post_of_k.items() for _ in kmer_post]
             ps = [p for k, kmer_post in post_of_k.items() for p in kmer_post]
             ax.scatter(ks, ps, marker='o', alpha=0.5, label='x{}'.format(copy_num_true))
-        ax.legend()
+        # ax.legend()
         ax.set_ylabel('P(c[v]=0) v: c_true[v]!=0')
         set_yaxis_as_prob_distribution(ax)
     draw_copy_num_posterior_non_0x(ax[2, 1])
