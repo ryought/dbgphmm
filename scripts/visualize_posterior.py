@@ -4,6 +4,7 @@
 """
 import argparse
 import csv
+csv.field_size_limit(1000000000)
 from collections import defaultdict
 from parse import *
 import math
@@ -63,20 +64,20 @@ def main():
     with open(args.log_filename) as f:
         reader = csv.reader(f, delimiter='\t')
         for row in reader:
-            if row[0].startswith('K'):
+            if row[0] == 'K':
                 k = int(row[1])
-                copy_num_true = int(row[4])
-                post = parse_post(row[5])
+                copy_num_true = int(row[5])
+                post = parse_post(row[9])
                 kmer_post_of_k[copy_num_true][k].append(post[copy_num_true])
                 if copy_num_true > 0:
                     non_zero_kmer_post_of_k[copy_num_true][k].append(post[0])
-            elif row[0].startswith('N'):
+            elif row[0] == 'N':
                 k = int(row[1])
                 lp, p = parse_prob(row[2])
-                ll, l = parse_prob(row[3])
+                ll = float(row[3])
                 g = int(row[5])
                 i = int(row[6])  # iteration id
-                d = int(row[7])
+                d = int(row[7])  # greedy search depth
                 post_of_k[k].append(Sample(
                     lp=lp,
                     p=p,
