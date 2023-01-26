@@ -85,9 +85,7 @@ impl Dataset {
         self.reads().show_reads()
     }
     pub fn show_genome(&self) {
-        for i in 0..self.genome().len() {
-            println!("# genome[{}]={}", i, self.genome()[i]);
-        }
+        genome::show_genome(self.genome())
     }
     ///
     ///
