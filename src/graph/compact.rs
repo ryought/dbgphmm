@@ -81,7 +81,10 @@ pub fn remove_deadends_fast<N, E>(graph: DiGraph<N, E>) -> DiGraph<N, E> {
     while let Some(deadend) = queue.pop_front() {
         if g.contains_node(deadend) && is_deadend_stable(&g, deadend) {
             // child of deadend is added to the queue
-            for child in g.neighbors(deadend) {
+            for child in g.neighbors_directed(deadend, Direction::Incoming) {
+                queue.push_back(child);
+            }
+            for child in g.neighbors_directed(deadend, Direction::Outgoing) {
                 queue.push_back(child);
             }
             g.remove_node(deadend);
