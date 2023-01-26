@@ -10,12 +10,12 @@ use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string_pretty;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
+use dbgphmm::utils::timer;
 use git_version::git_version;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 const GIT_VERSION: &str = git_version!();
 
@@ -198,17 +198,20 @@ fn main() {
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
 
-        let distribution = dbg.search_posterior(
-            dataset.reads(),
-            param_infer,
-            opts.neighbor_depth,
-            opts.max_move,
-            dataset.genome_size(),
-            opts.sigma,
-            |instance| {
-                println!("G\t{}\t{}", instance.info_string(), instance.move_count());
-            },
-        );
+        let (distribution, t) = timer(|| {
+            dbg.search_posterior(
+                dataset.reads(),
+                param_infer,
+                opts.neighbor_depth,
+                opts.max_move,
+                dataset.genome_size(),
+                opts.sigma,
+                |instance| {
+                    println!("G\t{}\t{}", instance.info_string(), instance.move_count());
+                },
+            )
+        });
+        eprintln!("[search] k={} {}", k, t);
 
         println!(
             "#N\tk\tP(G|R)\tP(R|G)\tP(G)\tG\tn_haps\tmove_count\tdist_from_true\tmax_abs_diff_from_true\tcount_missing_and_error_kmers\tcycle_summary\tmissings\terrors\tdbg"
@@ -241,15 +244,15 @@ fn main() {
 
         // compare dense score of dbg_true and dbg_max
         // (a) dbg_true
-        dbg.set_node_copy_nums(&copy_nums_true);
-        let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
-        println!("NT\t{}\t{}\t", k, r_true);
+        // dbg.set_node_copy_nums(&copy_nums_true);
+        // let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
+        // println!("NT\t{}\t{}\t", k, r_true);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // (b) dbg_max
-        dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
-        let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
-        println!("NM\t{}\t{}\t", k, r_max);
+        // dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
+        // let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
+        // println!("NM\t{}\t{}\t", k, r_max);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // set to max instance copy_nums in distribution

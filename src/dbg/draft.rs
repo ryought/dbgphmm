@@ -10,6 +10,7 @@ use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{
     convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
 };
+use crate::utils::timer;
 use fnv::FnvHashMap as HashMap;
 use petgraph::graph::NodeIndex;
 
@@ -44,8 +45,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         eprintln!("[draft] n_nodes0={}", dbg.n_nodes());
         eprintln!("[draft] n_edges0={}", dbg.n_edges());
         // 1&2
-        dbg.remove_nodes(2);
-        dbg.remove_deadend_nodes();
+        let (_, t) = timer(|| {
+            dbg.remove_nodes(2);
+        });
+        eprintln!("[draft/remove_1x_nodes] {}", t);
+        let (_, t) = timer(|| {
+            dbg.remove_deadend_nodes();
+        });
+        eprintln!("[draft/remove_deadends] {}", t);
         eprintln!("[draft] n_nodes={}", dbg.n_nodes());
         eprintln!("[draft] n_edges={}", dbg.n_edges());
         eprintln!("[draft] copy_num_stats_raw={:?}", dbg.copy_num_stats());
@@ -53,9 +60,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         // 3
         let freqs = dbg.to_node_freqs() / coverage as f64;
         dbg.set_copy_nums_all_zero();
-        let (copy_nums_approx, cost) = dbg
-            .min_squared_error_copy_nums_from_freqs_compacted(&freqs, false, &[])
-            .unwrap();
+        let ((copy_nums_approx, cost), t) = timer(|| {
+            dbg.min_squared_error_copy_nums_from_freqs_compacted(&freqs, false, &[])
+                .unwrap()
+        });
+        eprintln!("[draft/min_flow] {}", t);
         eprintln!("[draft] approx_cost={}", cost);
         dbg.set_node_copy_nums(&copy_nums_approx);
         eprintln!("[draft] copy_num_stats_approx={:?}", dbg.copy_num_stats());
