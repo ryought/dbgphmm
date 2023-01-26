@@ -29,6 +29,7 @@ use super::table_ref::PHMMTableRef;
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
 use crate::prob::Prob;
+use crate::utils::check_memory_usage;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
@@ -234,7 +235,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     {
         seqs.into_par_iter()
             .map(|seq| {
-                let hint = self.run(seq.as_ref()).to_hint(self.param.n_active_nodes);
+                let hint = self
+                    .run_sparse(seq.as_ref())
+                    .to_hint(self.param.n_active_nodes);
                 hint
             })
             .collect()

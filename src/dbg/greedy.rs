@@ -11,7 +11,7 @@ use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
-use crate::utils::timer;
+use crate::utils::{check_memory_usage, timer};
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -196,6 +196,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     )
                 });
                 eprintln!("# [evaluate] {}", t);
+                check_memory_usage();
                 r
             },
             |instance| {
@@ -216,6 +217,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     neighbors
                 });
                 eprintln!("# [neighbor] {}", t);
+                check_memory_usage();
                 // eprintln!(
                 //     "[to_neighbors/#{}] found {} neighbors (in {} ms)",
                 //     instance.move_count(),

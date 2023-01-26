@@ -70,6 +70,13 @@ pub fn spaces(n: usize) -> String {
     " ".repeat(n)
 }
 
+pub fn check_memory_usage() {
+    jemalloc_ctl::epoch::advance().unwrap();
+    let allocated = jemalloc_ctl::stats::allocated::read().unwrap();
+    let resident = jemalloc_ctl::stats::resident::read().unwrap();
+    eprintln!("[memory] {} / {}", allocated, resident);
+}
+
 //
 // tests
 //

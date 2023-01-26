@@ -10,7 +10,7 @@ use dbgphmm::graph::cycle::CycleWithDir;
 use dbgphmm::kmer::common::kmers_to_string_pretty;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
-use dbgphmm::utils::timer;
+use dbgphmm::utils::{check_memory_usage, timer};
 use git_version::git_version;
 use rayon::prelude::*;
 use std::fs::File;
@@ -86,6 +86,7 @@ fn main() {
     println!("# started_at={}", chrono::Local::now());
     println!("# version={}", GIT_VERSION);
     println!("# opts={:?}", opts);
+    check_memory_usage();
 
     let (genome, genome_size) = if opts.use_homo_ends {
         genome::tandem_repeat_polyploid_with_unique_homo_ends(
@@ -170,6 +171,7 @@ fn main() {
     } else {
         PHMMParams::uniform(opts.p_error)
     };
+    check_memory_usage();
 
     while k <= opts.k_final {
         if opts.use_true_dbg {
@@ -197,6 +199,11 @@ fn main() {
             k,
             dbg.to_node_copy_nums().dist(&copy_nums_true)
         );
+
+        check_memory_usage();
+        let (neighbors, t) =
+            timer(|| dbg.neighbor_copy_nums_fast_compact_with_info(opts.neighbor_depth, false));
+        eprintln!("[neighbors] N={} t={}", neighbors.len(), t);
 
         let (distribution, t) = timer(|| {
             dbg.search_posterior(
