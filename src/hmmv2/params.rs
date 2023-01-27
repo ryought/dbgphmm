@@ -91,7 +91,7 @@ impl PHMMParams {
             Prob::from_prob(p),       // gap_open
             Prob::from_prob(p),       // gap_ext
             Prob::from_prob(0.00001), // end
-            40,                       // active nodes
+            20,                       // active nodes
             16,                       // warm up
         )
     }

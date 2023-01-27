@@ -185,6 +185,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
+                eprintln!("# [evaluate] started");
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
                 let (r, t) = timer(|| {
@@ -200,6 +201,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 r
             },
             |instance| {
+                eprintln!("# [neighbor] started");
                 on_move(instance);
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
