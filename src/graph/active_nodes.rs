@@ -21,4 +21,10 @@ impl ActiveNodes {
             ActiveNodes::All => false,
         }
     }
+    pub fn count(&self) -> Option<usize> {
+        match self {
+            ActiveNodes::Only(nodes) => Some(nodes.len()),
+            ActiveNodes::All => None,
+        }
+    }
 }

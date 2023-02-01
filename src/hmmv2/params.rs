@@ -32,13 +32,26 @@ pub struct PHMMParams {
     pub p_ID: Prob,
     pub p_DD: Prob,
     ///
-    /// number of active nodes in sparse calculation
+    /// Number of active nodes in sparse calculation.
+    /// For each bases, the probability that only top `n_active_nodes` nodes emits the base is only
+    /// be considered.
+    ///
+    /// `n_active_nodes` should be smaller than sparse vector width `vector::sparse::SIZE`,
+    /// otherwise it causes insufficient capacity error.
+    ///
+    /// `n_active_nodes` should be grater than some value, but it was not yet examined.
+    ///
     pub n_active_nodes: usize,
     ///
-    /// number of warmup layer used in sparse result
+    /// Number of initial warmup layer used in sparse calculation.
+    /// For the first `n_warmup` bases, do dense (exact full) calculation.
+    ///
+    /// PHMM is constructed from Dbg, n_warmup should be larger than k.
+    ///
     pub n_warmup: usize,
     ///
-    /// maximum number of consecutive deletions allowed in phmm
+    /// Maximum number of consecutive deletions allowed in PHMM
+    ///
     pub n_max_gaps: usize,
 }
 
@@ -91,7 +104,7 @@ impl PHMMParams {
             Prob::from_prob(p),       // gap_open
             Prob::from_prob(p),       // gap_ext
             Prob::from_prob(0.00001), // end
-            20,                       // active nodes
+            40,                       // active nodes
             50,                       // warm up
         )
     }

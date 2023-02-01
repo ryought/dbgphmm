@@ -55,10 +55,37 @@ mod tests {
 
         let k = 40;
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, dataset.genome());
-        let phmm = dbg.to_phmm(PHMMParams::uniform(0.001));
-        let read = &dataset.reads()[0];
-        let output = phmm.run_sparse(read.seq());
-        println!("p_f={}", output.to_full_prob_forward());
-        println!("p_b={}", output.to_full_prob_backward());
+        let mut param = PHMMParams::uniform(0.001);
+
+        param.n_active_nodes = 40;
+        for read in dataset.reads() {
+            // param.n_active_nodes = 5;
+            // param.n_warmup = 5;
+            // println!("running 5");
+            // let phmm = dbg.to_phmm(param);
+            // let output = phmm.run_sparse(read.seq());
+            // println!(
+            //     "n_warmup=5 p_f={} p_b={}",
+            //     output.to_full_prob_forward(),
+            //     output.to_full_prob_backward()
+            // );
+
+            println!("{} {}", read.head_origin(), read.tail_origin());
+            param.n_warmup = 50;
+            println!("running 50");
+            let phmm = dbg.to_phmm(param);
+            let output = phmm.run_sparse(read.seq());
+            println!(
+                "n_warmup=40 p_f={} p_b={}",
+                output.to_full_prob_forward(),
+                output.to_full_prob_backward()
+            );
+            let output = phmm.run(read.seq());
+            println!(
+                "n_warmup=40 p_f={} p_b={}",
+                output.to_full_prob_forward(),
+                output.to_full_prob_backward()
+            );
+        }
     }
 }

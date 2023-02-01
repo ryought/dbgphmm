@@ -109,6 +109,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                         .last()
                         .unwrap()
                         .to_sparse_active_nodes(param.n_active_nodes);
+                    println!("sparsify {:?}", table_prev.active_nodes.count());
                     let mut table = self.b_step(i, emission, &table_prev);
                     table.refresh_active_nodes(param.n_active_nodes);
                     r.tables_sparse.push(table);
@@ -158,7 +159,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Backward algorithm
     ///
-    fn b_step<S>(&self, _i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
+    fn b_step<S>(&self, i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
     where
         S: Storage<Item = Prob>,
     {
