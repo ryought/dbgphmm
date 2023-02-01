@@ -140,7 +140,7 @@ pub fn simple_k_cycles_with_cond<N, E, F>(
     is_movable: F,
 ) -> Vec<Cycle>
 where
-    F: Fn(EdgeIndex, EdgeIndex) -> bool,
+    F: Fn(&[EdgeIndex], EdgeIndex) -> bool,
 {
     let mut queue = VecDeque::new();
     let mut cycles = Vec::new();
@@ -152,11 +152,10 @@ where
 
     while let Some((v0, vn, edges)) = queue.pop_front() {
         // path v0 ---> vn
-        let last_edge = edges.last().copied();
 
         // if graph has edge vn -> v0 this can be cycle
         for edge in graph.edges_connecting(vn, v0) {
-            if last_edge.is_none() || is_movable(last_edge.unwrap(), edge.id()) {
+            if is_movable(&edges, edge.id()) {
                 let mut cycle = edges.clone();
                 cycle.push(edge.id());
                 cycles.push(Cycle::new(cycle));
@@ -166,7 +165,7 @@ where
         // extend v0 ---> vn -> v
         if edges.len() < k - 1 {
             for edge in graph.edges_directed(vn, Direction::Outgoing) {
-                if last_edge.is_none() || is_movable(last_edge.unwrap(), edge.id()) {
+                if is_movable(&edges, edge.id()) {
                     let v = edge.target();
                     let is_node_simple = edges.iter().all(|&edge| {
                         let (s, t) = graph.edge_endpoints(edge).unwrap();

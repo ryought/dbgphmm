@@ -350,8 +350,9 @@ pub fn enumerate_neighboring_flows_in_residue<F: FlowRateLike>(
 ) -> Vec<(Flow<F>, UpdateInfo)> {
     // println!("{:?}", petgraph::dot::Dot::with_config(&rg, &[]));
     let simple_cycles = match max_cycle_size {
-        Some(k) => simple_k_cycles_with_cond(rg, k, |e_a, e_b| {
-            is_meaningful_move_on_residue_graph(&rg, e_a, e_b)
+        Some(k) => simple_k_cycles_with_cond(rg, k, |edges, next_edge| match edges.last() {
+            Some(&last_edge) => is_meaningful_move_on_residue_graph(&rg, last_edge, next_edge),
+            None => true,
         }),
         // TODO Johnson algorithm does not support parallel edges
         // this cause problem when with compacted edbg
