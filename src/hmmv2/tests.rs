@@ -2,9 +2,12 @@
 mod tests {
     use crate::common::{ni, sequence_to_string};
     use crate::dbg::mocks::mock_random_with_seq;
+    use crate::e2e;
+    use crate::genome;
     use crate::hmmv2::mocks::{mock_linear_phmm, mock_linear_random_phmm};
     use crate::hmmv2::params::PHMMParams;
     use crate::hmmv2::result::PHMMResultLike;
+    use crate::prelude::*;
     use crate::random_seq::generate;
     #[test]
     fn hmmv2_sparse_and_dense() {
@@ -44,5 +47,18 @@ mod tests {
         let o = phmm.run_sparse(&r);
         let nf_infer_sparse = o.to_node_freqs();
         println!("{:?} {}", nf_infer_sparse, nf_infer_sparse.sum());
+    }
+    #[test]
+    fn hmmv2_incorrect_sparse_calculation() {
+        let dataset = e2e::generate_tandem_repeat_1kbp();
+        // dataset.show_reads_with_genome();
+
+        let k = 40;
+        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k, dataset.genome());
+        let phmm = dbg.to_phmm(PHMMParams::uniform(0.001));
+        let read = &dataset.reads()[0];
+        let output = phmm.run_sparse(read.seq());
+        println!("p_f={}", output.to_full_prob_forward());
+        println!("p_b={}", output.to_full_prob_backward());
     }
 }

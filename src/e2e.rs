@@ -533,6 +533,24 @@ pub fn generate_small_case_dataset(
     )
 }
 
+pub fn generate_tandem_repeat_1kbp() -> Dataset {
+    let seed = 1;
+    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
+        50, 20, 0.0, seed, seed, 50, 2, 0.01, seed,
+    );
+    let seed = 1;
+    let param = PHMMParams::uniform(0.01);
+    generate_dataset(
+        genome.clone(),
+        genome_size,
+        seed,
+        20, // coverage
+        200,
+        ReadType::FixedSizeFragment,
+        param,
+    )
+}
+
 //
 // tests
 //
