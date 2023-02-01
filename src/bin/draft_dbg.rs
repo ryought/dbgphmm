@@ -26,7 +26,7 @@ fn main() {
     let dataset: Dataset = serde_json::from_reader(reader).unwrap();
     eprintln!("constructing..");
     let mut dbg_draft: SimpleDbg<VecKmer> =
-        SimpleDbg::create_draft_from_seqs(opts.k, dataset.reads(), dataset.coverage());
+        SimpleDbg::create_draft_from_seqs(opts.k, dataset.reads(), dataset.coverage(), 0);
 
     // assert that true-kmers in the graph
     if opts.use_true_copy_nums {

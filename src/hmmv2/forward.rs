@@ -645,6 +645,7 @@ mod tests {
                 100,
                 0.01,
                 &EndNodeInference::Auto,
+                0,
             );
         let phmm = dbg.to_phmm(dataset.params());
         println!("n_reads={}", dataset.reads().len());

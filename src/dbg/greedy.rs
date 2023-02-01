@@ -401,6 +401,7 @@ mod tests {
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
                 &EndNodeInference::Auto,
+                0,
             );
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
         let copy_nums_draft = dbg.to_node_copy_nums();

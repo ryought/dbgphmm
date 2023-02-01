@@ -139,6 +139,7 @@ fn main() {
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
                 &end_node,
+                0,
             );
         (dataset, dbg)
     } else {
@@ -152,7 +153,7 @@ fn main() {
             param,
         );
         let dbg =
-            SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage());
+            SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage(), 0);
         (dataset, dbg)
     };
 

@@ -324,7 +324,7 @@ pub fn generate_experiment_with_draft(
     let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, dataset.genome());
     // dbg_draft
     let dbg_draft: SimpleDbg<VecKmer> =
-        SimpleDbg::create_draft_from_seqs(k_init, dataset.reads(), dataset.coverage());
+        SimpleDbg::create_draft_from_seqs(k_init, dataset.reads(), dataset.coverage(), 0);
     // dbg_draft_true
     let mut dbg_draft_true = dbg_draft.clone();
     dbg_draft_true.set_copy_nums_by_styled_seq(dataset.genome());
