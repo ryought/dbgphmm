@@ -107,6 +107,16 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         phmm.to_full_prob_parallel(seqs)
     }
     ///
+    ///
+    pub fn to_full_prob_sparse<T>(&self, param: PHMMParams, seqs: T) -> Prob
+    where
+        T: IntoParallelIterator,
+        T::Item: Seq,
+    {
+        let phmm = self.to_phmm(param);
+        phmm.to_full_prob_parallel(seqs)
+    }
+    ///
     /// Convert dbg into phmm and calculate full probability
     /// (Likelihood)
     ///
@@ -158,7 +168,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T: IntoParallelIterator,
         T::Item: Seq,
     {
-        let (p_rg, time) = timer(|| self.to_full_prob(param, seqs));
+        let (p_rg, time) = timer(|| self.to_full_prob_sparse(param, seqs));
         let p_g = self.to_prior_prob(genome_size_expected, genome_size_sigma);
         EvalResult::new(p_rg, p_g, self.genome_size(), time)
     }

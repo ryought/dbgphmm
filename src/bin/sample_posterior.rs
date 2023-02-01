@@ -251,15 +251,15 @@ fn main() {
 
         // compare dense score of dbg_true and dbg_max
         // (a) dbg_true
-        // dbg.set_node_copy_nums(&copy_nums_true);
-        // let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
-        // println!("NT\t{}\t{}\t", k, r_true);
+        dbg.set_node_copy_nums(&copy_nums_true);
+        let r_true = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
+        println!("NT\t{}\t{}\t", k, r_true);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // (b) dbg_max
-        // dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
-        // let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
-        // println!("NM\t{}\t{}\t", k, r_max);
+        dbg.set_node_copy_nums(get_max_posterior_instance(&distribution).copy_nums());
+        let r_max = dbg.evaluate(param_infer, dataset.reads(), genome_size, opts.sigma);
+        println!("NM\t{}\t{}\t", k, r_max);
         // dbg.show_mapping_summary_for_reads(dataset.params(), dataset.reads());
 
         // set to max instance copy_nums in distribution
