@@ -312,6 +312,20 @@ pub fn tandem_repeat_small(
     (vec![hap_0, hap_1], genome_size)
 }
 
+///
+/// Print genome as:
+///
+/// ```text
+/// # genome[0]=ATCGATCGT
+/// # genome[1]=ATCGATCGT
+/// ```
+///
+pub fn show_genome(genome: &Genome) {
+    for i in 0..genome.len() {
+        println!("# genome[{}]={}, len={}", i, genome[i], genome[i].len());
+    }
+}
+
 //
 // tests
 //

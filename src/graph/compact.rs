@@ -7,9 +7,11 @@
 //!
 use petgraph::{
     graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph},
+    stable_graph::StableDiGraph,
     visit::EdgeRef,
     Direction,
 };
+use std::collections::VecDeque;
 
 ///
 /// get node degree (in degree if dir=Incoming, out degree if dir=Outgoing)
@@ -33,10 +35,17 @@ fn find_edge_directed<N, E>(
 /// find a deadend node in graph (in order of index)
 ///
 fn find_deadend<N, E>(graph: &DiGraph<N, E>) -> Option<NodeIndex> {
-    graph.node_indices().find(|&node| {
-        node_degree(graph, node, Direction::Incoming) == 0
-            || node_degree(graph, node, Direction::Outgoing) == 0
-    })
+    graph.node_indices().find(|&node| is_deadend(graph, node))
+}
+
+fn is_deadend<N, E>(graph: &DiGraph<N, E>, node: NodeIndex) -> bool {
+    node_degree(graph, node, Direction::Incoming) == 0
+        || node_degree(graph, node, Direction::Outgoing) == 0
+}
+
+fn is_deadend_stable<N, E>(graph: &StableDiGraph<N, E>, node: NodeIndex) -> bool {
+    graph.edges_directed(node, Direction::Incoming).count() == 0
+        || graph.edges_directed(node, Direction::Outgoing).count() == 0
 }
 
 ///
@@ -52,6 +61,38 @@ pub fn remove_deadends<N, E>(graph: &mut DiGraph<N, E>) {
     while let Some(deadend) = find_deadend(&graph) {
         graph.remove_node(deadend);
     }
+}
+
+///
+/// Remove all deadend nodes (in_deg == out_deg == 0) faster than O(V^2)
+///
+/// ## Notes
+/// * Removing can cause node index change
+///
+pub fn remove_deadends_fast<N, E>(graph: DiGraph<N, E>) -> DiGraph<N, E> {
+    //
+    let mut g: StableDiGraph<N, E> = graph.into();
+
+    let mut queue: VecDeque<NodeIndex> = g
+        .node_indices()
+        .filter(|&node| is_deadend_stable(&g, node))
+        .collect();
+
+    while let Some(deadend) = queue.pop_front() {
+        if g.contains_node(deadend) && is_deadend_stable(&g, deadend) {
+            // child of deadend is added to the queue
+            for child in g.neighbors_directed(deadend, Direction::Incoming) {
+                queue.push_back(child);
+            }
+            for child in g.neighbors_directed(deadend, Direction::Outgoing) {
+                queue.push_back(child);
+            }
+            g.remove_node(deadend);
+        }
+    }
+
+    // convert to normal digraph
+    g.into()
 }
 
 ///
@@ -182,6 +223,38 @@ mod tests {
             println!("{:?}", Dot::with_config(&g, &[]));
             assert_eq!(g.node_count(), 4);
             assert_eq!(g.edge_count(), 4);
+
+            let g2 = remove_deadends_fast(g.clone());
+            println!("{:?}", Dot::with_config(&g2, &[]));
+            assert_eq!(g2.node_count(), 4);
+            assert_eq!(g2.edge_count(), 4);
+        }
+
+        {
+            let mut g: DiGraph<(), ()> = DiGraph::from_edges(&[
+                // main circle <1,2,3,4>
+                (1, 2),
+                (2, 3),
+                (3, 4),
+                (4, 1),
+                // deadend nodes 0,8 5,6,7
+                (2, 0),
+                (0, 8),
+                (4, 5),
+                (6, 5),
+                (5, 7),
+            ]);
+            println!("{:?}", Dot::with_config(&g, &[]));
+
+            remove_deadends(&mut g);
+            println!("{:?}", Dot::with_config(&g, &[]));
+            assert_eq!(g.node_count(), 4);
+            assert_eq!(g.edge_count(), 4);
+
+            let g2 = remove_deadends_fast(g.clone());
+            println!("{:?}", Dot::with_config(&g2, &[]));
+            assert_eq!(g2.node_count(), 4);
+            assert_eq!(g2.edge_count(), 4);
         }
 
         // graph with deadends
@@ -194,6 +267,11 @@ mod tests {
             println!("{:?}", Dot::with_config(&g, &[]));
             assert_eq!(g.node_count(), 4);
             assert_eq!(g.edge_count(), 4);
+
+            let g2 = remove_deadends_fast(g.clone());
+            println!("{:?}", Dot::with_config(&g2, &[]));
+            assert_eq!(g2.node_count(), 4);
+            assert_eq!(g2.edge_count(), 4);
         }
     }
 }

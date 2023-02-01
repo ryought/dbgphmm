@@ -11,6 +11,7 @@ use crate::greedy::{GreedyInstance, GreedyScore, GreedySearcher};
 use crate::hmmv2::params::PHMMParams;
 use crate::kmer::kmer::KmerLike;
 use crate::prob::Prob;
+use crate::utils::{check_memory_usage, timer};
 use fnv::FnvHashSet as HashSet;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -178,38 +179,47 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         F: Fn(&DbgCopyNumsInstance<N::Kmer>),
     {
         let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
-        eprintln!("creating hint");
-        let reads_with_hints = self.generate_hints(reads, params);
+        eprintln!("# [hint] started");
+        let (reads_with_hints, t) = timer(|| self.generate_hints(reads, params));
+        eprintln!("# [hint] ended in {}", t);
         let mut searcher = GreedySearcher::new(
             instance_init,
             |instance| {
+                eprintln!("# [evaluate] started");
                 let mut dbg = self.clone();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                let r = dbg.evaluate_with_hint(
-                    params,
-                    &reads_with_hints,
-                    genome_size_expected,
-                    genome_size_sigma,
-                );
-                // eprintln!("# [to_score/#{}] {}", instance.move_count(), r);
+                let (r, t) = timer(|| {
+                    dbg.evaluate_with_hint(
+                        params,
+                        &reads_with_hints,
+                        genome_size_expected,
+                        genome_size_sigma,
+                    )
+                });
+                eprintln!("# [evaluate] {}", t);
+                check_memory_usage();
                 r
             },
             |instance| {
+                eprintln!("# [neighbor] started");
                 on_move(instance);
                 let mut dbg = self.clone();
-                let start = Instant::now();
                 dbg.set_node_copy_nums(instance.copy_nums());
-                let neighbors: Vec<_> = dbg
-                    .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, false)
-                    .into_iter()
-                    .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
-                    .map(|(copy_nums, info)| {
-                        let mut infos = instance.infos().to_owned();
-                        infos.push(info);
-                        DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
-                    })
-                    .collect();
-                let duration = start.elapsed();
+                let (neighbors, t) = timer(|| {
+                    let neighbors: Vec<_> = dbg
+                        .neighbor_copy_nums_fast_compact_with_info(max_neighbor_depth, false)
+                        .into_iter()
+                        .filter(|(copy_nums, _)| copy_nums.sum() > 0) // remove null genome
+                        .map(|(copy_nums, info)| {
+                            let mut infos = instance.infos().to_owned();
+                            infos.push(info);
+                            DbgCopyNumsInstance::new(copy_nums, infos, instance.move_count + 1)
+                        })
+                        .collect();
+                    neighbors
+                });
+                eprintln!("# [neighbor] {}", t);
+                check_memory_usage();
                 // eprintln!(
                 //     "[to_neighbors/#{}] found {} neighbors (in {} ms)",
                 //     instance.move_count(),
