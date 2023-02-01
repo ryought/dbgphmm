@@ -78,6 +78,8 @@ struct Opts {
     use_homo_ends: bool,
     #[clap(long, default_value = "1")]
     copy_num_multiplicity: usize,
+    #[clap(long, default_value = "0")]
+    draft_min_copy_num: usize,
 }
 
 fn main() {
@@ -139,7 +141,7 @@ fn main() {
                 dataset.reads().average_length(),
                 dataset.params().p_error().to_value(),
                 &end_node,
-                0,
+                opts.draft_min_copy_num,
             );
         (dataset, dbg)
     } else {
@@ -152,8 +154,12 @@ fn main() {
             ReadType::FullLength,
             param,
         );
-        let dbg =
-            SimpleDbg::create_draft_from_seqs(opts.k_init, dataset.reads(), dataset.coverage(), 0);
+        let dbg = SimpleDbg::create_draft_from_seqs(
+            opts.k_init,
+            dataset.reads(),
+            dataset.coverage(),
+            opts.draft_min_copy_num,
+        );
         (dataset, dbg)
     };
 
