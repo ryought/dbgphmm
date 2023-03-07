@@ -19,6 +19,7 @@ pub mod hint;
 pub mod intersections;
 pub mod json;
 pub mod mocks;
+pub mod multi_dbg;
 pub mod neighbor;
 pub mod output;
 pub mod phmm;
