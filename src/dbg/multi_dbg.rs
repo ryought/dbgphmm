@@ -25,8 +25,16 @@ use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
 };
+use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
+use petgraph::visit::EdgeRef; // for edges_directed
+use petgraph::Direction;
 use std::convert::From;
+
+///
+/// In MultiDbg only edges have copynum.
+///
+pub type CopyNums = EdgeVec<DenseStorage<CopyNum>>;
 
 ///
 /// Edge-centric and simple-path-collapsed Dbg structure
@@ -46,8 +54,9 @@ use std::convert::From;
 /// * extend into k+1 dbg
 /// * collapse simple path
 ///
-/// ## Dumping
-/// * serialize/deserialize: GFA and string representation
+/// ## Serialize/deserialize
+/// * GFA
+/// * string representation
 ///
 #[derive(Clone, Debug)]
 pub struct MultiDbg {
@@ -137,6 +146,10 @@ impl<N: DbgNode, E: DbgEdgeBase> From<Dbg<N, E>> for MultiDbg {
     }
 }
 
+//
+// Attributes
+//
+
 impl MultiDbg {
     ///
     /// Reference to backend graph (petgraph::DiGraph<MultiDbgNode, MultiDbgEdge>)
@@ -144,16 +157,67 @@ impl MultiDbg {
     pub fn graph(&self) -> &DiGraph<MultiDbgNode, MultiDbgEdge> {
         &self.graph
     }
+    pub fn k(&self) -> usize {
+        self.k
+    }
     ///
     /// Convert edge into concatenated kmers
+    /// Concatenate k parental bases
     ///
     pub fn kmers(&self, edge: EdgeIndex) -> VecKmer {
         unimplemented!();
     }
     ///
     /// Convert node into (k-1)mer
+    /// Concatenate k-1 parental bases
     ///
     pub fn km1mer(&self, node: NodeIndex) -> VecKmer {
+        let mut bases = Vec::new();
+        let mut node = node;
+        let km1 = self.k() - 1;
+        'outer: loop {
+            let edge = self
+                .graph()
+                .edges_directed(node, Direction::Incoming)
+                .next()
+                .unwrap_or_else(|| panic!("no incoming edge"));
+            node = edge.source();
+            let seq = edge.weight().seq();
+            let n = seq.len();
+            let mut i = 0;
+            while i < n {
+                bases.push(seq[n - i - 1]);
+                i += 1;
+                if bases.len() == km1 {
+                    break 'outer;
+                }
+            }
+        }
+        VecKmer::from_bases(&bases)
+    }
+}
+
+//
+// Copy number
+//
+
+impl MultiDbg {
+    pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {}
+    pub fn get_copy_nums(&self) -> CopyNums {
+        unimplemented!();
+    }
+    pub fn neighbor_copy_nums(&self) {}
+}
+
+//
+// Modifying graph structure
+//
+
+impl MultiDbg {
+    ///
+    ///
+    ///
+    pub fn collapse_all_simple_paths(&mut self) {
         unimplemented!();
     }
     ///
@@ -162,9 +226,6 @@ impl MultiDbg {
     pub fn to_kp1_dbg(self) -> Self {
         unimplemented!();
     }
-    pub fn set_copy_nums(&mut self) {}
-    pub fn get_copy_nums(&self) {}
-    pub fn neighbor_copy_nums(&self) {}
 }
 
 //
@@ -240,5 +301,10 @@ mod tests {
         println!("{}", dbg);
         let multidbg: MultiDbg = dbg.into();
         println!("{}", multidbg.to_dot());
+
+        for node in multidbg.graph().node_indices() {
+            let km1mer = multidbg.km1mer(node);
+            println!("{:?} {}", node, km1mer);
+        }
     }
 }
