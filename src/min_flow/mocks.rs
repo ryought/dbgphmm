@@ -1,5 +1,5 @@
-use super::flow::{Flow, FlowEdgeBase, FlowGraph};
-use super::Cost;
+use super::base::{FlowEdgeBase, FlowGraph};
+use super::flow::Flow;
 use petgraph::graph::{EdgeIndex, Graph};
 
 ///

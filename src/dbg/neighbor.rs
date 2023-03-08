@@ -16,8 +16,8 @@ use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{DiscreteDistribution, Hist};
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::min_flow::base::FlowEdgeBase;
 use crate::min_flow::enumerate_neighboring_flows;
-use crate::min_flow::flow::FlowEdgeBase;
 use crate::min_flow::residue::{
     total_changes, update_info_to_cycle_with_dir, ResidueDirection, UpdateInfo,
 };

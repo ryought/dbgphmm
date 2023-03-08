@@ -23,6 +23,7 @@
 //! * tests
 //!     * mocks
 //!
+pub mod base;
 pub mod convex;
 pub mod flow;
 pub mod flow_edge;
@@ -34,7 +35,7 @@ pub mod zero_demand;
 
 use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 pub use flow::total_cost;
-use flow::{assert_valid_flow, is_valid_flow, Flow, FlowGraphRaw};
+use flow::{assert_valid_flow, is_valid_flow, Flow};
 pub use flow_edge::{ConstCost, FlowEdge};
 pub use flow_rate::FlowRateLike;
 use petgraph::graph::DiGraph;

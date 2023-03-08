@@ -2,7 +2,8 @@
 //! Zero demand flow graphs
 //! for finding init valid flow
 //!
-use super::flow::{total_cost, Flow, FlowEdgeRaw, FlowGraphRaw};
+use super::base::FlowEdgeRaw;
+use super::flow::{total_cost, Flow};
 use super::min_cost_flow_from_zero;
 use super::{Cost, FlowEdge, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex};
