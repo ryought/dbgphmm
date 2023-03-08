@@ -21,6 +21,7 @@ use crate::common::{
     sequence_to_string, CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
+use crate::graph::compact::compact_simple_paths;
 use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
@@ -217,7 +218,15 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn collapse_all_simple_paths(&mut self) {
+    pub fn collapse_all_simple_paths(&self) -> Self {
+        let compacted = compact_simple_paths(self.graph());
+        // let graph = compacted.map(
+        //     |_node, weight| weight.clone(),
+        //     |_edge, weight| {
+        //         MultiDbgEdge::new()
+        //     },
+        // );
+        // MultiDbg { k: self.k(), graph }
         unimplemented!();
     }
     ///
