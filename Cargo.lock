@@ -371,6 +371,7 @@ dependencies = [
  "rand 0.8.4",
  "rand_xoshiro",
  "rayon",
+ "rustflow",
  "serde",
  "serde_json",
  "serde_with",
@@ -1233,6 +1234,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5f5376ea5e30ce23c03eb77cbe4962b988deead10910c372b226388b594c084"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rustflow"
+version = "0.1.0"
+source = "git+https://github.com/ryought/rustflow#117b4c142b5626e726b2c7000e6ef3e1d455d9a1"
+dependencies = [
+ "itertools 0.10.1",
+ "petgraph 0.6.0",
+ "petgraph_algos",
 ]
 
 [[package]]
