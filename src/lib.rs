@@ -2,7 +2,6 @@
 #![feature(vec_retain_mut)]
 #![feature(int_abs_diff)]
 #![feature(step_trait)]
-pub mod cli;
 pub mod common;
 pub mod compressed_dbg;
 pub mod cycles;
@@ -20,7 +19,6 @@ pub mod io;
 pub mod json;
 pub mod kmer;
 pub mod mcmc;
-pub mod optimizer;
 pub mod min_flow;
 pub mod playground;
 pub mod prelude;
