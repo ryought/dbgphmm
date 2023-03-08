@@ -2,7 +2,7 @@
 //! Cycle in graph
 //!
 use itertools::Itertools;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
+use petgraph::graph::EdgeIndex;
 use std::cmp::Ordering;
 
 ///
@@ -82,7 +82,6 @@ fn cmp<X: PartialOrd + Copy>(xs: &[X], i: usize, j: usize) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::{ei, ni};
 
     #[test]
     fn cycle_compare() {

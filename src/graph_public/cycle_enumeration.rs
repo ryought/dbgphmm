@@ -11,7 +11,7 @@
 //! Finding all the elementary circuits of a directed graph
 //!
 use super::common::nodes_to_edges;
-use crate::graph::cycle::Cycle;
+use super::cycle::Cycle;
 use fnv::FnvHashSet as HashSet;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
