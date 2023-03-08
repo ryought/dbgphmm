@@ -8,7 +8,6 @@ use super::flow::{EdgeCost, Flow};
 use super::utils::draw;
 use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
 use crate::graph::bellman_ford;
-use crate::graph::cycle::CycleWithDir;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
 use crate::graph::float_weight::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
@@ -567,18 +566,6 @@ pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
 /// information of updating a edge of either direction?
 ///
 pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
-
-///
-/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
-///
-pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
-    CycleWithDir::new(
-        update_info
-            .iter()
-            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
-            .collect(),
-    )
-}
 
 // ///
 // /// summary of UpdateInfo

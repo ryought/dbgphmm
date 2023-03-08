@@ -18,9 +18,7 @@ use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::base::FlowEdgeBase;
 use crate::min_flow::enumerate_neighboring_flows;
-use crate::min_flow::residue::{
-    total_changes, update_info_to_cycle_with_dir, ResidueDirection, UpdateInfo,
-};
+use crate::min_flow::residue::{total_changes, ResidueDirection, UpdateInfo};
 use crate::min_flow::Flow;
 use crate::prob::Prob;
 use crate::utils::all_same_value;
@@ -172,6 +170,18 @@ fn have_zero_one_change(a: &Flow<usize>, b: &Flow<usize>) -> bool {
         }
     }
     false
+}
+
+///
+/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
+///
+pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
+    CycleWithDir::new(
+        update_info
+            .iter()
+            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
+            .collect(),
+    )
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
