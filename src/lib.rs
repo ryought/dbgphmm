@@ -29,6 +29,7 @@ pub mod prob;
 pub mod python;
 pub mod random_seq;
 pub mod reads;
+pub mod segment;
 pub mod stats;
 pub mod utils;
 pub mod veclike;
