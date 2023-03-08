@@ -7,6 +7,7 @@ pub use collection::{
     sequence_to_string, Bases, Genome, PositionedReads, PositionedSequence, ReadCollection, Reads,
     Seq, SeqStyle, Sequence, StyledSequence, StyledSequenceParseError,
 };
+pub use petgraph_algos::common::{ei, ni};
 
 /// integer copy number (= occurrence on the genome/sequence)
 pub type CopyNum = usize;
@@ -37,18 +38,4 @@ pub fn different_bases(base: u8) -> &'static [u8] {
         b'T' => &[b'A', b'C', b'G'],
         _ => panic!(),
     }
-}
-
-///
-/// short-hand of `NodeIndex::new`
-///
-pub fn ni(index: usize) -> NodeIndex {
-    NodeIndex::new(index)
-}
-
-///
-/// short-hand of `EdgeIndex::new`
-///
-pub fn ei(index: usize) -> EdgeIndex {
-    EdgeIndex::new(index)
 }

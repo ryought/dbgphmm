@@ -21,6 +21,7 @@ fnv = "1.0.3"
 clap = "3.0.0-beta.2"
 log = "0.4"
 env_logger = "0.8.4"
+petgraph_algos = { git = "https://github.com/ryought/petgraph_algos" }
 libm = "*"
 histo = "0.1.0"
 rayon = "*"

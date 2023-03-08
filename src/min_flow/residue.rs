@@ -7,17 +7,17 @@ use super::convex::ConvexCost;
 use super::flow::{EdgeCost, Flow};
 use super::utils::draw;
 use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
-use crate::graph_public::bellman_ford;
-use crate::graph_public::common::{
-    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
-    total_weight, FloatWeight,
-};
-use crate::graph_public::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
-use crate::graph_public::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
 use petgraph::visit::VisitMap;
+use petgraph_algos::bellman_ford;
+use petgraph_algos::common::{
+    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
+    total_weight, FloatWeight,
+};
+use petgraph_algos::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
+use petgraph_algos::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
 use std::cmp::Ordering;
 
 // basic definitions
@@ -627,7 +627,7 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
-    use crate::graph_public::min_mean_weight_cycle::find_negative_cycle;
+    use petgraph_algos::min_mean_weight_cycle::find_negative_cycle;
 
     #[test]
     fn residue_direction_basic() {

@@ -2,12 +2,12 @@
 //! Cycle in graph
 //!
 use crate::dbg::dbg::{EdgeCopyNums, NodeCopyNums};
-pub use crate::graph_public::cycle::Cycle;
 use crate::utils::breakpoints;
 use fixedbitset::FixedBitSet;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
+pub use petgraph_algos::cycle::Cycle;
 
 ///
 /// cycle with direction info (as a list of (edge, direction))

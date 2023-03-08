@@ -6,12 +6,12 @@
 use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums, NodeCopyNums};
 use crate::dbg::edge_centric::{EDbg, EDbgEdge, EDbgNode};
 use crate::graph::shortest_cycle::shortest_cycle;
-use crate::graph_public::common::nodes_to_edges;
 use crate::min_flow::residue::{
     change_flow_along_edges, ResidueDirection, ResidueEdge, ResidueGraph,
 };
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
+use petgraph_algos::common::nodes_to_edges;
 
 ///
 /// get a disturbed neighboring copy numbers
