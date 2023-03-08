@@ -156,7 +156,9 @@ pub fn inspect_flow_constraint<F: FlowRateLike, N, E: FlowEdge<F>>(
 }
 
 ///
-/// cost trait
+/// EdgeCost trait
+///
+/// generalize cost calculation of ConstCost and ConvexCost in `total_cost`
 ///
 pub trait EdgeCost<F: FlowRateLike> {
     fn cost(&self, flow: F) -> Cost;

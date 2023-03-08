@@ -17,14 +17,15 @@ use petgraph::graph::DiGraph;
 pub type FlowGraph<F> = DiGraph<(), FlowEdgeBase<F>>;
 pub type FlowGraphRaw<F, T> = DiGraph<(), FlowEdgeRaw<F, T>>;
 
-/// Edge attributes used in FlowGraph
-/// It has
-/// - demand l
-/// - capacity u
-/// - cost per flow c
-/// [l, u], c
+/// Edge attributes used in FlowGraph.
+/// This is a minimal example of min-cost-flow problem definition.
 ///
-/// it can contain additional information in T.
+/// It has
+/// * Demand l(e)
+/// * Capacity u(e)
+/// * Cost per unit flow c(e)
+///
+/// It can contain additional information in T.
 #[derive(Debug, Copy, Clone)]
 pub struct FlowEdgeRaw<F: FlowRateLike, T> {
     /// demand (lower limit of flow) of the edge l(e)
