@@ -627,7 +627,7 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
-    use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+    use crate::graph_public::min_mean_weight_cycle::find_negative_cycle;
 
     #[test]
     fn residue_direction_basic() {

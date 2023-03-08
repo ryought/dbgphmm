@@ -9,6 +9,7 @@
 //!
 pub mod bellman_ford;
 pub mod common;
+pub mod cycle;
 pub mod cycle_enumeration;
 pub mod floyd;
 pub mod min_mean_weight_cycle;
