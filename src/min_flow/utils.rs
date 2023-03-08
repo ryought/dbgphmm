@@ -4,7 +4,7 @@
 use super::flow::Flow;
 use super::mocks;
 use super::{find_initial_flow, min_cost_flow};
-use super::{Cost, FlowRate, FlowRateLike};
+use super::{Cost, FlowRateLike};
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, Graph};
 use petgraph::EdgeType;

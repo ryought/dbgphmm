@@ -1,4 +1,3 @@
-pub mod common;
 pub mod convex;
 pub mod flow;
 pub mod mocks;
@@ -17,9 +16,6 @@ use residue::{
 };
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
-
-/// type of a flow (on edges) in min-flow.
-pub type FlowRate = usize;
 
 use std::iter::{Step, Sum};
 use std::ops::{Add, AddAssign, Div, Mul, Sub};

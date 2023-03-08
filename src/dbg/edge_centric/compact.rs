@@ -8,8 +8,8 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopy
 use crate::graph::compact::compact_simple_paths;
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::flow::{Flow, FlowEdge};
-use crate::min_flow::{Cost, FlowRate, FlowRateLike};
+use crate::min_flow::flow::Flow;
+use crate::min_flow::FlowRateLike;
 use crate::utils::{all_same_value, unwrap_all};
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};

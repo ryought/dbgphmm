@@ -6,7 +6,7 @@
 use super::convex::ConvexCost;
 use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
 use super::utils::draw;
-use super::{Cost, FlowRate, FlowRateLike};
+use super::{Cost, FlowRateLike};
 use crate::graph::bellman_ford;
 use crate::graph::cycle::CycleWithDir;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};

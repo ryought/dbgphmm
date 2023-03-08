@@ -3,7 +3,7 @@
 //! - FlowGraph, FlowGraphRaw<T>
 //! - Flow
 use super::convex::ConvexCost;
-use super::{Cost, FlowRate, FlowRateLike};
+use super::{Cost, FlowRateLike};
 use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()

@@ -4,7 +4,7 @@
 //!
 use super::flow::{total_cost, Flow, FlowEdge, FlowEdgeRaw, FlowGraphRaw};
 use super::min_cost_flow_from_zero;
-use super::{Cost, FlowRate, FlowRateLike};
+use super::{Cost, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex};
 
 // basic definitions
