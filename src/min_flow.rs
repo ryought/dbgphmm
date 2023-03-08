@@ -1,9 +1,20 @@
 //!
-//! Solve minimum-cost flow problem defined on petgraph::DiGraph
+//! Solve minimum-cost flow problem defined on `petgraph::DiGraph`
 //!
+//! # Usage
+//!
+//!
+//!
+//! # Solvers
+//!
+//! ## minimum-cost flow problem
 //! * min_cost_flow
 //! * min_cost_flow_convex
+//!
+//! ## manual search of neighboring flow
 //! * enumerate_neighboring_flows
+//!
+//! # Detail of module structure
 //!
 //! Flow amount F: FlowRateLike (usize or f64)
 //! Cost f64
