@@ -1,7 +1,7 @@
 use crate::common::{CopyNum, Freq};
 use crate::min_flow::convex::ConvexCost;
-use crate::min_flow::flow::FlowEdge;
 use crate::min_flow::utils::clamped_log;
+use crate::min_flow::FlowEdge;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 const MAX_COPY_NUM_OF_EDGE: usize = 1000;

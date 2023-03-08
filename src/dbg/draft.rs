@@ -7,9 +7,7 @@ use crate::dbg::edge_centric::compact::compacted_flow_into_original_flow;
 use crate::distribution::kmer_coverage;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::{
-    convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
-};
+use crate::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, total_cost, Cost, FlowEdge};
 use crate::utils::timer;
 use fnv::FnvHashMap as HashMap;
 use petgraph::graph::NodeIndex;

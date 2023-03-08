@@ -22,7 +22,7 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use crate::dbg::draft::MAX_COPY_NUM_OF_EDGE;
 use crate::dbg::edge_centric::impls::SimpleEDbgEdgeWithAttr;
 use crate::min_flow::convex::ConvexCost;
-use crate::min_flow::flow::FlowEdge;
+use crate::min_flow::FlowEdge;
 
 // use same e-step function in V2
 pub use crate::em::compression::v2::e_step;

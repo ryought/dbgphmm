@@ -12,9 +12,8 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::trans_table::EdgeFreqs;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::convex::ConvexCost;
-use crate::min_flow::flow::FlowEdge;
 use crate::min_flow::utils::clamped_log;
-use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost};
+use crate::min_flow::{min_cost_flow_from_convex, total_cost, Cost, FlowEdge};
 use crate::prob::Prob;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 

@@ -1,5 +1,31 @@
+//!
+//! Solve minimum-cost flow problem defined on petgraph::DiGraph
+//!
+//! * min_cost_flow
+//! * min_cost_flow_convex
+//! * enumerate_neighboring_flows
+//!
+//! Flow amount F: FlowRateLike (usize or f64)
+//! Cost f64
+//! Cost function: constant or convex function from F to Cost
+//! FlowEdge: demand and capacity for each edge
+//!
+//! * traits definitions for writing problems
+//!     * const
+//!     * convex
+//!     * flow
+//!     * flow_edge
+//!     * flow_rate
+//! * submodule of solvers
+//!     * residue
+//!     * utils
+//!     * zero_demand
+//! * tests
+//!     * mocks
+//!
 pub mod convex;
 pub mod flow;
+pub mod flow_edge;
 pub mod flow_rate;
 pub mod mocks;
 pub mod residue;
@@ -8,7 +34,8 @@ pub mod zero_demand;
 
 use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
 pub use flow::total_cost;
-use flow::{assert_valid_flow, is_valid_flow, ConstCost, Flow, FlowEdge, FlowGraphRaw};
+use flow::{assert_valid_flow, is_valid_flow, Flow, FlowGraphRaw};
+pub use flow_edge::{ConstCost, FlowEdge};
 pub use flow_rate::FlowRateLike;
 use petgraph::graph::DiGraph;
 use residue::{

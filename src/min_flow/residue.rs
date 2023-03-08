@@ -4,9 +4,9 @@
 //! - ResidueDirection
 //!
 use super::convex::ConvexCost;
-use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
+use super::flow::{EdgeCost, Flow};
 use super::utils::draw;
-use super::{Cost, FlowRateLike};
+use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
 use crate::graph::bellman_ford;
 use crate::graph::cycle::CycleWithDir;
 use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};

@@ -3,36 +3,11 @@
 //! - FlowGraph, FlowGraphRaw<T>
 //! - Flow
 use super::convex::ConvexCost;
-use super::{Cost, FlowRateLike};
+use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
 use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()
 use petgraph::Direction;
-
-/// Edge of FlowGraph
-///
-/// * `demand()`: demand `l(e)`
-/// * `capacity()`: capacity `u(e)`
-///
-/// cost is either `ConstCost` or `ConvexCost`
-///
-/// `[l, u], c`
-pub trait FlowEdge<F: FlowRateLike> {
-    /// Demand of the edge, Lower limit of the flow
-    fn demand(&self) -> F;
-    /// Capacity of the edge, Upper limit of the flow
-    fn capacity(&self) -> F;
-}
-
-/// Edge of FlowGraph with constant cost
-///
-/// * `cost()`: cost per unit flow `c(e)`
-///
-/// `[l, u], c`
-pub trait ConstCost {
-    /// constant Cost-per-unit-flow of the edge
-    fn cost(&self) -> Cost;
-}
 
 /// Edge attributes used in FlowGraph
 /// It has

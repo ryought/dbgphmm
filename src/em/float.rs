@@ -23,11 +23,11 @@ use crate::hist::stat;
 use crate::hmmv2::q::{q_score_exact, QScore};
 use crate::hmmv2::{EdgeFreqs, NodeFreqs};
 use crate::io::cytoscape::{NodeAttr, NodeAttrVec};
-use crate::min_flow::flow::{inspect_flow_constraint, ConstCost, Flow, FlowEdge};
-use crate::min_flow::min_cost_flow_from;
+use crate::min_flow::flow::{inspect_flow_constraint, Flow};
 use crate::min_flow::residue::{
     improve_residue_graph, CycleDetectMethod, ResidueDirection, ResidueEdge, ResidueGraph,
 };
+use crate::min_flow::{min_cost_flow_from, ConstCost, FlowEdge};
 use crate::prelude::*;
 use crate::vector::{DenseStorage, NodeVec};
 
