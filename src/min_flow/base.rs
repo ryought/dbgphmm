@@ -1,7 +1,14 @@
+//! # `FlowGraphRaw` and `FlowGraph`
 //!
-//! # `FlowGraph`
+//! Basic example implementation of flow network with constant cost
 //!
-//! Example implementation of flow network
+//! `FlowGraphRaw` is a DiGraph whose edge is `FlowEdgeRaw`.
+//!
+//! `FlowEdgeRaw` has
+//! * `demand`
+//! * `capacity`
+//! * `cost` Cost per unit flow
+//! and additional information about an edge in `info`
 //!
 use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
 use petgraph::graph::DiGraph;

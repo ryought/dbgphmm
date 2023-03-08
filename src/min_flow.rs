@@ -33,11 +33,16 @@ pub mod residue;
 pub mod utils;
 pub mod zero_demand;
 
-use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph, ConvexCost};
-use flow::{assert_valid_flow, is_valid_flow, Flow};
-pub use flow::{total_cost, EdgeCost};
+// problem definitions
+pub use convex::ConvexCost;
+pub use flow::{EdgeCost, Flow};
 pub use flow_edge::{ConstCost, FlowEdge};
 pub use flow_rate::FlowRateLike;
+
+// solvers
+use convex::{is_convex_cost_flow_graph, restore_convex_flow, to_fixed_flow_graph};
+pub use flow::total_cost;
+use flow::{assert_valid_flow, is_valid_flow};
 use petgraph::graph::DiGraph;
 use residue::{
     enumerate_neighboring_flows_in_residue, flow_to_residue_convex, improve_flow,
@@ -46,11 +51,15 @@ use residue::{
 use utils::draw_with_flow;
 use zero_demand::{find_initial_flow, is_zero_demand_flow_graph};
 
-/// type of a cost (of edges per unit flow) in min-flow.
+///
+/// A cost (of edges passing some amount of flow) in min flow problem definition.
+///
+/// Type of Constant flow and return type of convex cost flow should be this type.
+///
 pub type Cost = f64;
 
 //
-// public functions
+// public solver functions
 //
 
 ///
