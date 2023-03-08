@@ -3,8 +3,12 @@
 //!
 //! # Algorithms
 //!
-//! * bellman_ford
+//! * bellman_ford: Bellman Ford using FloatWeight
+//! * floyd: Floyd using FloatWeight
+//! * cycle_enumeration: simple cycle enumeration
 //!
 pub mod bellman_ford;
 pub mod common;
+pub mod cycle_enumeration;
 pub mod floyd;
+pub mod min_mean_weight_cycle;

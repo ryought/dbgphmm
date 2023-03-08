@@ -14,6 +14,7 @@ use std::cmp::Ordering;
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cycle(Vec<EdgeIndex>);
+
 //
 // Cycle
 //
