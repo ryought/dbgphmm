@@ -1,8 +1,10 @@
-//! Bellman-Ford algorithms.
+//! Bellman-Ford algorithms for general EdgeWeight
 //!
 //! Copied from https://github.com/petgraph/petgraph/blob/master/src/algo/bellman_ford.rs
+//! Modified to use generalized weight.
+//! It works general EdgeWeight satisfying FloatWeight.
 
-use crate::graph::FloatWeight;
+use super::common::FloatWeight;
 use petgraph::algo::NegativeCycle;
 use petgraph::prelude::*;
 use petgraph::visit::{

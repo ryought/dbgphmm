@@ -2,7 +2,7 @@
 //! Floyd-Warshall algorithm
 //! to find minimum weight cycle
 //!
-use super::FloatWeight;
+use super::common::FloatWeight;
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 

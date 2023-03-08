@@ -11,6 +11,7 @@ pub mod distribution;
 pub mod e2e;
 pub mod genome;
 pub mod graph;
+pub mod graph_public;
 pub mod greedy;
 pub mod hist;
 pub mod hmm;

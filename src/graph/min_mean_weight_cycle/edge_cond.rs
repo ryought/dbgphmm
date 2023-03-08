@@ -3,10 +3,9 @@
 //! custom shortest paths with edge indexing for using edge-adjacency condition
 //!
 use super::ShortestPaths;
-use crate::graph::float_weight::{
-    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, total_weight,
+use crate::graph_public::common::{
+    edge_cycle_to_node_cycle, is_cycle, is_edge_simple, total_weight, FloatWeight,
 };
-use crate::graph::FloatWeight;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::prelude::*;

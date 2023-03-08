@@ -1,9 +1,17 @@
 //!
-//! FloatWeight
+//! Common definition and utility functions for graphs
 //!
+
 use fnv::FnvHashSet as HashSet;
 use petgraph::prelude::*;
 
+///
+/// FloatWeight is generalized type of f64.
+///
+/// It represents a type for which
+/// * f64 convertable
+/// * epsilon is defined
+///
 pub trait FloatWeight {
     fn float_weight(&self) -> f64;
     fn epsilon() -> f64;
