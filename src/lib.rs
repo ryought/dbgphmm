@@ -9,7 +9,6 @@ pub mod cycles;
 pub mod dbg;
 pub mod distribution;
 pub mod e2e;
-pub mod em;
 pub mod genome;
 pub mod graph;
 pub mod greedy;

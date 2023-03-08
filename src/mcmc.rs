@@ -3,7 +3,7 @@
 //!
 //! Random sample
 //!
-use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, NodeCopyNums};
+use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, EdgeCopyNums, NodeCopyNums};
 use crate::dbg::edge_centric::{EDbg, EDbgEdge, EDbgNode};
 use crate::graph::float_weight::nodes_to_edges;
 use crate::graph::shortest_cycle::shortest_cycle;
@@ -94,9 +94,10 @@ fn apply_residual_cycles_to_copy_nums(
     rg: &ResidueGraph<usize>,
     cycle: &[EdgeIndex],
 ) -> NodeCopyNums {
-    let flow = copy_nums.clone().switch_index();
-    let new_flow = change_flow_along_edges(&flow, rg, cycle, 1);
-    new_flow.switch_index()
+    let flow: EdgeCopyNums = copy_nums.clone().switch_index();
+    let new_flow = change_flow_along_edges(&flow.into(), rg, cycle, 1);
+    let copy_nums: EdgeCopyNums = new_flow.into();
+    copy_nums.switch_index()
 }
 
 trait Model {

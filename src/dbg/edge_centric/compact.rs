@@ -87,7 +87,7 @@ where
             ret[origin_edge.index()] = Some(f);
         }
     }
-    Flow::from_inner_vec(unwrap_all(ret))
+    unwrap_all(ret).into()
 }
 
 ///
@@ -113,7 +113,7 @@ where
         );
         ret[e.index()] = f;
     }
-    Flow::from_inner_vec(unwrap_all(ret))
+    unwrap_all(ret).into()
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {

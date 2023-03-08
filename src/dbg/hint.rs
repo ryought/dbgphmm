@@ -8,6 +8,7 @@ use crate::dbg::edge_centric::compact::compacted_flow_into_original_flow;
 use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
 use crate::min_flow::{min_cost_flow_convex_fast, total_cost, ConstCost, Cost, FlowEdge};
+use crate::vector::graph::flow_to_edgevec;
 
 ///
 /// Uniform edge type for `Dbg::uniform_copy_nums`
@@ -74,7 +75,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .map(|flow| {
                 let flow_in_original =
                     compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
-                flow_in_original.switch_index()
+                flow_to_edgevec(flow_in_original).switch_index()
             })
             .unwrap()
     }

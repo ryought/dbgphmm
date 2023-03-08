@@ -1,18 +1,60 @@
-//! Flow graph definitions
-//! - FlowEdge, FlowEdgeRaw<T>
-//! - FlowGraph, FlowGraphRaw<T>
-//! - Flow
+//!
+//! Flow vector definition
+//!
 use super::convex::ConvexCost;
 use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
 use crate::vector::{DenseStorage, EdgeVec};
-use petgraph::graph::DiGraph;
+use petgraph::graph::{DiGraph, EdgeIndex};
 use petgraph::visit::EdgeRef; // for EdgeReference.id()
 use petgraph::Direction;
 
-/// Flow definitions
+/// Flow
 ///
-/// Flow f is a mapping of FlowRate(u32) f(e) to each edge e
-pub type Flow<F> = EdgeVec<DenseStorage<F>>;
+/// Flow f is a mapping from edge e into FlowRateLike (usize or f64) f(e)
+///
+/// # Features (and reasons why not use Vec)
+///
+/// * Index access by edge
+/// * Convert between Vec<F> and Flow<F>
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct Flow<F: FlowRateLike>(Vec<F>);
+
+impl<F: FlowRateLike> Flow<F> {
+    pub fn new(len: usize, value: F) -> Self {
+        Flow(vec![value; len])
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<F: FlowRateLike> std::convert::Into<Vec<F>> for Flow<F> {
+    fn into(self) -> Vec<F> {
+        self.0
+    }
+}
+
+impl<F: FlowRateLike> std::convert::From<Vec<F>> for Flow<F> {
+    fn from(vec: Vec<F>) -> Self {
+        Flow(vec)
+    }
+}
+
+impl<F: FlowRateLike> std::ops::Index<EdgeIndex> for Flow<F> {
+    type Output = F;
+    fn index(&self, index: EdgeIndex) -> &Self::Output {
+        &self.0[index.index()]
+    }
+}
+
+impl<F: FlowRateLike> std::ops::IndexMut<EdgeIndex> for Flow<F> {
+    fn index_mut(&mut self, index: EdgeIndex) -> &mut Self::Output {
+        &mut self.0[index.index()]
+    }
+}
+
+// pub type Flow<F> = EdgeVec<DenseStorage<F>>;
 
 ///
 /// Check if the flow is valid, i.e. it satisfies
@@ -165,52 +207,28 @@ mod tests {
         draw(&g);
 
         // this is valid flow
-        let f1 = Flow::from_vec(
-            3,
-            0,
-            &[
-                (EdgeIndex::new(0), 5),
-                (EdgeIndex::new(1), 5),
-                (EdgeIndex::new(2), 5),
-            ],
-        );
+        let f1 = vec![5, 5, 5].into();
         assert!(is_defined_for_all_edges(&f1, &g));
         assert!(is_in_demand_and_capacity(&f1, &g));
         assert!(is_satisfying_flow_constraint(&f1, &g));
         assert!(is_valid_flow(&f1, &g));
 
         // this flow overs the capacity
-        let f2 = Flow::from_vec(
-            3,
-            0,
-            &[
-                (EdgeIndex::new(0), 100),
-                (EdgeIndex::new(1), 100),
-                (EdgeIndex::new(2), 100),
-            ],
-        );
+        let f2 = vec![100, 100, 100].into();
         assert!(is_defined_for_all_edges(&f2, &g));
         assert!(!is_in_demand_and_capacity(&f2, &g));
         assert!(is_satisfying_flow_constraint(&f2, &g));
         assert!(!is_valid_flow(&f2, &g));
 
         // this is a flow which not satisfies the flow constraint
-        let f3 = Flow::from_vec(
-            3,
-            0,
-            &[
-                (EdgeIndex::new(0), 1),
-                (EdgeIndex::new(1), 5),
-                (EdgeIndex::new(2), 1),
-            ],
-        );
+        let f3 = vec![1, 5, 1].into();
         assert!(is_defined_for_all_edges(&f3, &g));
         assert!(is_in_demand_and_capacity(&f3, &g));
         assert!(!is_satisfying_flow_constraint(&f3, &g));
         assert!(!is_valid_flow(&f3, &g));
 
         // this is a partial flow
-        let f4 = Flow::from_vec(1, 0, &[(EdgeIndex::new(0), 1)]);
+        let f4 = vec![1].into();
         assert!(!is_defined_for_all_edges(&f4, &g));
         assert!(!is_valid_flow(&f4, &g));
     }
