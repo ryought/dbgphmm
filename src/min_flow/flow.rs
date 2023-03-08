@@ -157,6 +157,7 @@ mod tests {
     use super::super::mocks::mock_flow_network1;
     use super::super::utils::draw;
     use super::*;
+    use petgraph::graph::EdgeIndex;
 
     #[test]
     fn flow_valid_tests() {

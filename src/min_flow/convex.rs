@@ -328,7 +328,9 @@ fn mock_convex_flow_graph2() -> (ConvexFlowGraph<usize>, Flow<usize>) {
 mod tests {
     use super::super::utils::{draw, draw_with_flow};
     use super::*;
-    use crate::min_flow::{min_cost_flow, min_cost_flow_convex, min_cost_flow_convex_fast};
+    use crate::min_flow::{
+        min_cost_flow, min_cost_flow_convex, min_cost_flow_convex_fast, EdgeCost,
+    };
 
     #[test]
     fn convex_flow_edge_new() {
