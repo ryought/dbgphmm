@@ -1,5 +1,5 @@
-use super::flow::{Flow, FlowEdgeBase, FlowGraph};
-use super::{Cost, FlowRate};
+use super::base::{FlowEdgeBase, FlowGraph};
+use super::flow::Flow;
 use petgraph::graph::{EdgeIndex, Graph};
 
 ///
@@ -14,15 +14,7 @@ pub fn mock_flow_network1() -> (FlowGraph<usize>, Flow<usize>) {
     graph.add_edge(a, b, FlowEdgeBase::new(0, 10, -1.0));
     graph.add_edge(b, c, FlowEdgeBase::new(0, 10, -2.0));
     graph.add_edge(c, a, FlowEdgeBase::new(0, 10, -2.0));
-    let f = Flow::from_vec(
-        3,
-        0,
-        &[
-            (EdgeIndex::new(0), 10),
-            (EdgeIndex::new(1), 10),
-            (EdgeIndex::new(2), 10),
-        ],
-    );
+    let f = vec![10, 10, 10].into();
     (graph, f)
 }
 
@@ -37,15 +29,7 @@ pub fn mock_flow_network1_float() -> (FlowGraph<f64>, Flow<f64>) {
     graph.add_edge(a, b, FlowEdgeBase::new(0.0, 10.0, -1.0));
     graph.add_edge(b, c, FlowEdgeBase::new(0.0, 10.0, -2.0));
     graph.add_edge(c, a, FlowEdgeBase::new(0.0, 10.0, -2.0));
-    let f = Flow::from_vec(
-        3,
-        0.0,
-        &[
-            (EdgeIndex::new(0), 10.0),
-            (EdgeIndex::new(1), 10.0),
-            (EdgeIndex::new(2), 10.0),
-        ],
-    );
+    let f = vec![10.0, 10.0, 10.0].into();
     (graph, f)
 }
 
@@ -62,7 +46,7 @@ pub fn mock_flow_network2() -> (FlowGraph<usize>, Flow<usize>) {
     let e = g.add_node(());
     let f = g.add_node(());
     let t = g.add_node(());
-    const INF: FlowRate = 100000;
+    const INF: usize = 100000;
     let e0 = g.add_edge(s, a, FlowEdgeBase::new(0, INF, 0.0));
     let e1 = g.add_edge(a, b, FlowEdgeBase::new(2, 4, 2.0));
     let e2 = g.add_edge(a, d, FlowEdgeBase::new(9, 13, 1.0));
@@ -75,24 +59,7 @@ pub fn mock_flow_network2() -> (FlowGraph<usize>, Flow<usize>) {
     let e9 = g.add_edge(f, t, FlowEdgeBase::new(7, 13, 3.0));
     let ea = g.add_edge(t, s, FlowEdgeBase::new(17, 17, 0.0));
 
-    let f = Flow::from_vec(
-        11,
-        0,
-        &[
-            (e0, 12),
-            (e1, 2),
-            (e2, 10),
-            (e3, 2),
-            (e4, 6),
-            (e5, 8),
-            (e6, 4),
-            (e7, 5),
-            (e8, 5),
-            (e9, 9),
-            (ea, 17),
-        ],
-    );
-
+    let f = vec![12, 2, 10, 2, 6, 8, 4, 5, 5, 9, 17].into();
     (g, f)
 }
 
@@ -108,7 +75,7 @@ pub fn mock_flow_network3() -> (FlowGraph<usize>, Flow<usize>) {
     let e3 = g.add_edge(c, d, FlowEdgeBase::new(0, 1, 4.0));
     let e4 = g.add_edge(d, a, FlowEdgeBase::new(2, 2, 0.0));
 
-    let f = Flow::from_vec(5, 0, &[(e0, 1), (e1, 1), (e2, 1), (e3, 1), (e4, 2)]);
+    let f = vec![1, 1, 1, 1, 2].into();
     (g, f)
 }
 
@@ -122,7 +89,7 @@ pub fn mock_flow_network_parallel_edge1() -> (FlowGraph<usize>, Flow<usize>) {
     let e2 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, -2.0));
     let e3 = graph.add_edge(c, a, FlowEdgeBase::new(0, 2, 0.0));
 
-    let f = Flow::from_vec(4, 0, &[(e0, 2), (e1, 0), (e2, 2), (e3, 2)]);
+    let f = vec![2, 0, 2, 2].into();
     (graph, f)
 }
 
@@ -136,7 +103,7 @@ pub fn mock_flow_network_parallel_edge2() -> (FlowGraph<usize>, Flow<usize>) {
     let e3 = graph.add_edge(b, c, FlowEdgeBase::new(0, 2, 2.0));
     let e4 = graph.add_edge(c, a, FlowEdgeBase::new(2, 2, 0.0));
 
-    let f = Flow::from_vec(4, 0, &[(e1, 2), (e2, 2), (e3, 0), (e4, 2)]);
+    let f = vec![2, 2, 0, 2].into();
     (graph, f)
 }
 

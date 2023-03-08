@@ -8,8 +8,8 @@ use crate::dbg::dbg::{Dbg, DbgEdge, DbgNode, DbgNodeBase, EdgeCopyNums, NodeCopy
 use crate::graph::compact::compact_simple_paths;
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::flow::{Flow, FlowEdge};
-use crate::min_flow::{Cost, FlowRate, FlowRateLike};
+use crate::min_flow::flow::Flow;
+use crate::min_flow::FlowRateLike;
 use crate::utils::{all_same_value, unwrap_all};
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -87,7 +87,7 @@ where
             ret[origin_edge.index()] = Some(f);
         }
     }
-    Flow::from_inner_vec(unwrap_all(ret))
+    unwrap_all(ret).into()
 }
 
 ///
@@ -113,7 +113,7 @@ where
         );
         ret[e.index()] = f;
     }
-    Flow::from_inner_vec(unwrap_all(ret))
+    unwrap_all(ret).into()
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {

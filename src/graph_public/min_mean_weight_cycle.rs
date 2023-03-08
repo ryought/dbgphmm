@@ -7,8 +7,7 @@
 //!
 //! * https://walkccc.me/CLRS/Chap24/Problems/24-5/
 //!
-use super::FloatWeight;
-use crate::graph::float_weight::{is_node_simple, node_list_to_edge_list};
+use super::common::{is_node_simple, node_list_to_edge_list, FloatWeight};
 use petgraph::prelude::*;
 use petgraph::visit::{VisitMap, Visitable};
 pub mod edge_cond;

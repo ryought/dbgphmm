@@ -7,10 +7,9 @@ use crate::dbg::edge_centric::compact::compacted_flow_into_original_flow;
 use crate::distribution::kmer_coverage;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::kmer::kmer::KmerLike;
-use crate::min_flow::{
-    convex::ConvexCost, flow::FlowEdge, min_cost_flow_convex_fast, total_cost, Cost,
-};
+use crate::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, total_cost, Cost, FlowEdge};
 use crate::utils::timer;
+use crate::vector::graph::flow_to_edgevec;
 use fnv::FnvHashMap as HashMap;
 use petgraph::graph::NodeIndex;
 
@@ -171,7 +170,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             let cost = total_cost(&graph, &flow);
             // an edge in edbg corresponds to a node in dbg
             // so edgevec for edbg can be converted to nodevec for dbg.
-            (flow.switch_index(), cost)
+            (flow_to_edgevec(flow).switch_index(), cost)
         })
     }
     ///
@@ -220,7 +219,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             // so edgevec for edbg can be converted to nodevec for dbg.
             // convert flow in compacted-edbg into flow in original edbg
             let flow_in_original = compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
-            (flow_in_original.switch_index(), cost)
+            (flow_to_edgevec(flow_in_original).switch_index(), cost)
         })
     }
     ///

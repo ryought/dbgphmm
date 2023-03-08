@@ -2,9 +2,10 @@
 //! Flow network definitions for convex cost.
 //!
 pub mod fast;
-use super::flow::{EdgeCost, Flow, FlowEdge, FlowEdgeRaw};
+use super::base::FlowEdgeRaw;
+use super::flow::Flow;
 use super::utils::{clamped_log, is_increasing, range};
-use super::{Cost, FlowRate, FlowRateLike};
+use super::{Cost, FlowEdge, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Edge of FlowGraph with convex function cost
@@ -272,8 +273,7 @@ fn mock_convex_flow_graph1() -> (ConvexFlowGraph<usize>, Flow<usize>) {
     let e1 = g.add_edge(b, c, cfe(0, 10, |f| (f as f64 - 5.0).powi(2)));
     let e2 = g.add_edge(c, a, cfe(0, 10, |f| (f as f64 - 5.0).powi(2)));
 
-    let f = Flow::from_vec(3, 0, &[(e0, 5), (e1, 5), (e2, 5)]);
-
+    let f = vec![5, 5, 5].into();
     (g, f)
 }
 
@@ -300,22 +300,7 @@ fn mock_convex_flow_graph2() -> (ConvexFlowGraph<usize>, Flow<usize>) {
     let e8 = g.add_edge(v2, w2, cfe(0, 6, |f| -10.0 * clamped_log(f)));
 
     // true flow
-    let f = Flow::from_vec(
-        9,
-        0,
-        &[
-            (e0, 2),
-            (e1, 4),
-            (e2, 1),
-            (e3, 5),
-            (e4, 6),
-            (e5, 0),
-            (e6, 2),
-            (e7, 1),
-            (e8, 3),
-        ],
-    );
-
+    let f = vec![2, 4, 1, 5, 6, 0, 2, 1, 3].into();
     (g, f)
 }
 
@@ -327,7 +312,9 @@ fn mock_convex_flow_graph2() -> (ConvexFlowGraph<usize>, Flow<usize>) {
 mod tests {
     use super::super::utils::{draw, draw_with_flow};
     use super::*;
-    use crate::min_flow::{min_cost_flow, min_cost_flow_convex, min_cost_flow_convex_fast};
+    use crate::min_flow::{
+        min_cost_flow, min_cost_flow_convex, min_cost_flow_convex_fast, EdgeCost,
+    };
 
     #[test]
     fn convex_flow_edge_new() {

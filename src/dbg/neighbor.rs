@@ -16,11 +16,10 @@ use crate::graph::spanning_tree::spanning_tree;
 use crate::hist::{DiscreteDistribution, Hist};
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
+use crate::min_flow::base::FlowEdgeBase;
 use crate::min_flow::enumerate_neighboring_flows;
-use crate::min_flow::flow::FlowEdgeBase;
-use crate::min_flow::residue::{
-    total_changes, update_info_to_cycle_with_dir, ResidueDirection, UpdateInfo,
-};
+use crate::min_flow::residue::{total_changes, ResidueDirection, UpdateInfo};
+use crate::min_flow::Flow;
 use crate::prob::Prob;
 use crate::utils::all_same_value;
 use crate::vector::{DenseStorage, NodeVec};
@@ -162,7 +161,7 @@ impl<K: KmerLike> CopyNumsUpdateInfo<K> {
     }
 }
 
-fn have_zero_one_change(a: &EdgeCopyNums, b: &EdgeCopyNums) -> bool {
+fn have_zero_one_change(a: &Flow<usize>, b: &Flow<usize>) -> bool {
     assert_eq!(a.len(), b.len());
     for i in 0..(a.len()) {
         let v = EdgeIndex::new(i);
@@ -171,6 +170,18 @@ fn have_zero_one_change(a: &EdgeCopyNums, b: &EdgeCopyNums) -> bool {
         }
     }
     false
+}
+
+///
+/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
+///
+pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
+    CycleWithDir::new(
+        update_info
+            .iter()
+            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
+            .collect(),
+    )
 }
 
 impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
@@ -291,13 +302,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
             },
         );
-        let copy_num = self.to_node_copy_nums().switch_index();
+        let copy_num = self.to_node_copy_nums().switch_index().into();
         // enumerate all cycles
         enumerate_neighboring_flows(&network, &copy_num, None)
             .into_iter()
             .map(|(flow, update_info)| {
+                let copy_nums: EdgeCopyNums = flow.into();
                 (
-                    flow.switch_index(),
+                    copy_nums.switch_index(),
                     CopyNumsUpdateInfo::from_uncompacted(self.k(), &edbg.graph, &update_info),
                 )
             })
@@ -323,7 +335,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
             },
         );
-        let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index());
+        let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index().into());
         // enumerate all cycles
         enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
             .into_iter()
@@ -337,8 +349,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             .map(|(flow, update_info)| {
                 let flow_in_original =
                     compacted_flow_into_original_flow(self.n_nodes(), &graph, &flow);
+                let copy_nums_in_original: EdgeCopyNums = flow_in_original.into();
                 (
-                    flow_in_original.switch_index(),
+                    copy_nums_in_original.switch_index(),
                     CopyNumsUpdateInfo::from_compacted(self.k(), &graph, &update_info),
                 )
             })

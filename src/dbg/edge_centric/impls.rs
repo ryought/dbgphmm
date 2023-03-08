@@ -1,8 +1,6 @@
 use super::{EDbg, EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
 use crate::common::{CopyNum, Freq, Sequence};
 use crate::kmer::kmer::{Kmer, KmerLike};
-use crate::min_flow::convex::ConvexCost;
-use crate::min_flow::{Cost, FlowRate, FlowRateLike};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Basic implementations of EDbg

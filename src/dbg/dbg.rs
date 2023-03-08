@@ -17,8 +17,10 @@ use crate::graph::utils::degree_stats;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
-use crate::min_flow::flow::{Flow, FlowEdgeBase};
+use crate::min_flow::base::FlowEdgeBase;
+use crate::min_flow::flow::Flow;
 use crate::min_flow::min_cost_flow_from;
+use crate::vector::graph::flow_to_edgevec;
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::{iproduct, izip, Itertools};
@@ -1266,14 +1268,14 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             },
         );
         // solve as min_flow
-        let current_flow: Flow<usize> = self.to_node_copy_nums().switch_index();
+        let current_flow: Flow<usize> = self.to_node_copy_nums().switch_index().into();
         let flow = min_cost_flow_from(&edbg.graph, &current_flow);
 
         // TODO
         // inspect_flow_constraint(&flow, &edbg.graph);
 
         let mut ret = self.clone();
-        ret.set_node_copy_nums(&flow.switch_index());
+        ret.set_node_copy_nums(&flow_to_edgevec(flow).switch_index());
         ret
     }
 }

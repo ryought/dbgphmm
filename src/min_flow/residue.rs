@@ -4,18 +4,16 @@
 //! - ResidueDirection
 //!
 use super::convex::ConvexCost;
-use super::flow::{ConstCost, EdgeCost, Flow, FlowEdge};
+use super::flow::{EdgeCost, Flow};
 use super::utils::draw;
-use super::{Cost, FlowRate, FlowRateLike};
-use crate::graph::bellman_ford;
-use crate::graph::cycle::CycleWithDir;
-use crate::graph::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
-use crate::graph::float_weight::{
+use super::{ConstCost, Cost, FlowEdge, FlowRateLike};
+use crate::graph_public::bellman_ford;
+use crate::graph_public::common::{
     edge_cycle_to_node_cycle, is_cycle, is_edge_simple, is_negative_cycle, node_list_to_edge_list,
-    total_weight,
+    total_weight, FloatWeight,
 };
-use crate::graph::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
-use crate::graph::FloatWeight;
+use crate::graph_public::cycle_enumeration::{simple_cycles, simple_k_cycles_with_cond};
+use crate::graph_public::min_mean_weight_cycle::edge_cond::find_negative_cycle_with_edge_cond;
 use itertools::Itertools; // for tuple_windows
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::prelude::*;
@@ -568,18 +566,6 @@ pub fn improve_flow<F: FlowRateLike, N, E: FlowEdge<F> + ConstCost>(
 ///
 pub type UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>;
 
-///
-/// convert UpdateInfo(Vec<Edge, ResidueDirection>) into CycleWithDir(Vec<(Edge, IsReverse)>).
-///
-pub fn update_info_to_cycle_with_dir(update_info: &UpdateInfo) -> CycleWithDir {
-    CycleWithDir::new(
-        update_info
-            .iter()
-            .map(|(edge, dir)| (*edge, *dir == ResidueDirection::Down))
-            .collect(),
-    )
-}
-
 // ///
 // /// summary of UpdateInfo
 // ///
@@ -641,7 +627,7 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
-    use crate::graph::min_mean_weight_cycle::find_negative_cycle;
+    use crate::graph_public::min_mean_weight_cycle::find_negative_cycle;
 
     #[test]
     fn residue_direction_basic() {

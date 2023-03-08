@@ -13,6 +13,32 @@ pub type NodeVec<S> = Vector<S, NodeIndex>;
 /// Vector that uses petgraph::Edge as an index
 pub type EdgeVec<S> = Vector<S, EdgeIndex>;
 
+//
+// converters between min_flow::Flow and EdgeVec<DenseStorage>
+//
+use crate::min_flow::{Flow, FlowRateLike};
+use crate::vector::DenseStorage;
+
+impl<F: FlowRateLike> std::convert::Into<EdgeVec<DenseStorage<F>>> for Flow<F> {
+    fn into(self) -> EdgeVec<DenseStorage<F>> {
+        EdgeVec::from_inner_vec(self.into())
+    }
+}
+
+impl<F: FlowRateLike> std::convert::From<EdgeVec<DenseStorage<F>>> for Flow<F> {
+    fn from(vector: EdgeVec<DenseStorage<F>>) -> Self {
+        vector.to_inner_vec().into()
+    }
+}
+
+pub fn flow_to_edgevec<F: FlowRateLike>(flow: Flow<F>) -> EdgeVec<DenseStorage<F>> {
+    flow.into()
+}
+
+pub fn edgevec_to_flow<F: FlowRateLike>(vec: EdgeVec<DenseStorage<F>>) -> Flow<F> {
+    vec.into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::dense::DenseStorage;
