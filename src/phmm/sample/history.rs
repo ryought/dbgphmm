@@ -1,9 +1,7 @@
 //!
 //! Struct for storeing sampling results
 //!
-use super::super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::super::freq::NodeFreqs;
-use super::super::trans_table::EdgeFreqs;
+use super::super::{PHMMEdge, PHMMNode, PHMM};
 use super::{Emission, State};
 use crate::common::{PositionedReads, PositionedSequence, Reads, Sequence};
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
@@ -23,7 +21,7 @@ impl History {
         History(Vec::new())
     }
     ///
-    /// total history length
+    /// Total history length
     /// This can be different from the length of emitted bases
     ///
     pub fn len(&self) -> usize {
@@ -57,90 +55,6 @@ impl History {
             .copied()
             .collect()
     }
-    /// Convert to NodeFreqs (that represents usage frequency of nodes
-    /// when emitting the sample)
-    ///
-    pub fn to_node_freqs<N, E>(&self, phmm: &PHMMModel<N, E>) -> NodeFreqs
-    where
-        N: PHMMNode,
-        E: PHMMEdge,
-    {
-        let mut nf = NodeFreqs::new(phmm.n_nodes(), 0.0);
-        for (state, _) in self.0.iter() {
-            match state.to_node_index() {
-                Some(v) => nf[v] += 1.0,
-                _ => {}
-            }
-        }
-        nf
-    }
-    /// Convert to EdgeFreqs that represents the usage frequencies of edges
-    /// when emitting the sample
-    ///
-    pub fn to_edge_freqs<N, E>(&self, phmm: &PHMMModel<N, E>) -> EdgeFreqs
-    where
-        N: PHMMNode,
-        E: PHMMEdge,
-    {
-        let mut ef = EdgeFreqs::new(phmm.n_edges(), 0.0);
-        for ((s1, _), (s2, _)) in self.0.iter().tuple_windows() {
-            match (s1.to_node_index(), s2.to_node_index()) {
-                (Some(v1), Some(v2)) => {
-                    // There can be self transition (such as Match(v) -> Ins(v))
-                    if v1 != v2 {
-                        let e = phmm.find_edge(v1, v2).unwrap();
-                        ef[e] += 1.0;
-                    }
-                }
-                _ => {}
-            }
-        }
-        ef
-    }
-    ///
-    /// Convert into genome graph pos list.
-    ///
-    fn to_genome_graph_pos(&self, sg: &SimpleSeqGraph) -> GenomeGraphPosVec {
-        let mut ret = Vec::new();
-        for i in 0..self.0.len() {
-            let (state, emission) = self.0[i];
-            if emission.is_base() {
-                let pos = match state {
-                    State::Match(node) => sg.node_weight(node).unwrap().source(),
-                    State::Ins(_) => GenomeGraphPos::new_ins(),
-                    State::InsBegin => GenomeGraphPos::new_ins(),
-                    _ => unreachable!(),
-                };
-                ret.push(pos);
-            };
-        }
-        ret
-    }
-    ///
-    /// Determine this sampling comes from revcomped node?
-    ///
-    fn to_genome_graph_is_revcomp(&self, sg: &SimpleSeqGraph) -> bool {
-        self.0
-            .iter()
-            .find_map(|(state, _)| {
-                state
-                    .to_node_index()
-                    .map(|v| sg.node_weight(v).unwrap().is_revcomp())
-            })
-            .expect(
-                "Could not determine a strand of sampling history, because it not passed any nodes",
-            )
-    }
-    ///
-    /// Convert into positioned sequence
-    ///
-    pub fn to_positioned_sequence(&self, sg: &SimpleSeqGraph) -> PositionedSequence {
-        PositionedSequence::new(
-            self.to_sequence(),
-            self.to_genome_graph_pos(sg),
-            self.to_genome_graph_is_revcomp(sg),
-        )
-    }
 }
 
 //
@@ -155,40 +69,50 @@ impl std::fmt::Display for History {
     }
 }
 
-///
-/// Vector of multiple historys
-///
-pub struct Historys(pub Vec<History>);
-
-impl Historys {
-    pub fn n_history(&self) -> usize {
-        self.0.len()
-    }
-    pub fn to_sequence(&self, index: usize) -> Sequence {
-        self.0[index].to_sequence()
-    }
-    pub fn to_reads(&self) -> Reads {
-        let reads: Vec<Sequence> = self.0.iter().map(|history| history.to_sequence()).collect();
-        Reads::from(reads)
-    }
-    pub fn to_pos(&self, sg: &SimpleSeqGraph) -> Vec<GenomeGraphPosVec> {
-        self.0
-            .iter()
-            .map(|history| history.to_genome_graph_pos(sg))
-            .collect()
-    }
-    pub fn to_positioned_reads(&self, sg: &SimpleSeqGraph) -> PositionedReads {
-        let reads: Vec<PositionedSequence> = self
-            .0
-            .iter()
-            .map(|history| history.to_positioned_sequence(sg))
-            .collect();
-        PositionedReads::from(reads)
-    }
-    pub fn iter(&self) -> impl Iterator<Item = &History> + '_ {
-        self.0.iter()
-    }
-}
+// use super::super::freq::NodeFreqs;
+// use super::super::trans_table::EdgeFreqs;
+// impl History {
+//     /// Convert to NodeFreqs (that represents usage frequency of nodes
+//     /// when emitting the sample)
+//     ///
+//     pub fn to_node_freqs<N, E>(&self, phmm: &PHMMModel<N, E>) -> NodeFreqs
+//     where
+//         N: PHMMNode,
+//         E: PHMMEdge,
+//     {
+//         let mut nf = NodeFreqs::new(phmm.n_nodes(), 0.0);
+//         for (state, _) in self.0.iter() {
+//             match state.to_node_index() {
+//                 Some(v) => nf[v] += 1.0,
+//                 _ => {}
+//             }
+//         }
+//         nf
+//     }
+//     /// Convert to EdgeFreqs that represents the usage frequencies of edges
+//     /// when emitting the sample
+//     ///
+//     pub fn to_edge_freqs<N, E>(&self, phmm: &PHMMModel<N, E>) -> EdgeFreqs
+//     where
+//         N: PHMMNode,
+//         E: PHMMEdge,
+//     {
+//         let mut ef = EdgeFreqs::new(phmm.n_edges(), 0.0);
+//         for ((s1, _), (s2, _)) in self.0.iter().tuple_windows() {
+//             match (s1.to_node_index(), s2.to_node_index()) {
+//                 (Some(v1), Some(v2)) => {
+//                     // There can be self transition (such as Match(v) -> Ins(v))
+//                     if v1 != v2 {
+//                         let e = phmm.find_edge(v1, v2).unwrap();
+//                         ef[e] += 1.0;
+//                     }
+//                 }
+//                 _ => {}
+//             }
+//         }
+//         ef
+//     }
+// }
 
 //
 // tests
@@ -218,57 +142,5 @@ mod tests {
         assert_eq!(b, b_true);
 
         assert_eq!(h.total_bases(), 3);
-    }
-
-    #[test]
-    fn hmm_history_to_freqs() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // choosing seeds..
-        for i in 0..20 {
-            let hist = phmm.sample(10, i);
-            println!("{} {}", i, hist);
-        }
-
-        // seed=0 ni(3) -> ni(9)
-        let h = phmm.sample(10, 0);
-        println!("{}", h);
-        let nf = h.to_node_freqs(&phmm);
-        assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
-        );
-        let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
-        );
-
-        // seed=2 ni(7) -> ni(9)
-        let h = phmm.sample(10, 2);
-        println!("{}", h);
-        let nf = h.to_node_freqs(&phmm);
-        assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], 0.0)
-        );
-        let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0], 0.0)
-        );
-
-        // seed=15 ni(0) -> ni(8)
-        let h = phmm.sample(10, 15);
-        println!("{}", h);
-        let nf = h.to_node_freqs(&phmm);
-        assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
-        );
-        let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
-        );
     }
 }

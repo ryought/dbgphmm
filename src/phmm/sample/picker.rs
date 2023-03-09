@@ -1,17 +1,27 @@
-use super::Emission;
+use super::super::{Emission, PHMMParams};
 use crate::common::VALID_BASES;
-use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use rand::prelude::*;
 
 ///
-/// pick randomly from the choices with its own probability.
+/// Pick randomly from choices.
 ///
-pub fn pick_with_prob<R: Rng, T: Copy>(rng: &mut R, choices: &[(T, Prob)]) -> T {
-    choices
-        .choose_weighted(rng, |item| item.1.to_value())
-        .unwrap()
-        .0
+/// Choices is a list slice of a tuple of item and its probability `&[(T, Prob)]`.
+/// If the slice is empty, returns None.
+///
+/// Panics if rng had any error.
+///
+pub fn pick_with_prob<R: Rng, T: Copy>(rng: &mut R, choices: &[(T, Prob)]) -> Option<T> {
+    if choices.len() == 0 {
+        None
+    } else {
+        Some(
+            choices
+                .choose_weighted(rng, |(_, p)| p.to_value())
+                .unwrap()
+                .0,
+        )
+    }
 }
 
 ///
@@ -57,7 +67,8 @@ mod tests {
             let picked = pick_with_prob(
                 &mut rng,
                 &[(b'a', Prob::from_prob(0.0)), (b'b', Prob::from_prob(1.0))],
-            );
+            )
+            .unwrap();
             assert_eq!(picked, b'b');
         }
 
