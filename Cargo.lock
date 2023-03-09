@@ -1365,7 +1365,7 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 [[package]]
 name = "sparsevec"
 version = "0.1.0"
-source = "git+https://github.com/ryought/sparsevec#2bb6e215bbd1a3729b54e92fcedf04d8066b06ac"
+source = "git+https://github.com/ryought/sparsevec#202d8f6b76f995f2b55eb362601b479e9e97b4b1"
 dependencies = [
  "arrayvec",
  "itertools",

@@ -13,6 +13,8 @@
 //! Define PHMM that is petgraph::DiGraph in which each node corresponds to a base
 //!
 pub mod infer;
+pub mod nodesubset;
+pub use nodesubset::NodeSubset;
 pub mod params;
 pub mod sample;
 
@@ -166,6 +168,9 @@ impl PHMM {
     pub fn graph(&self) -> &DiGraph<PHMMNode, PHMMEdge> {
         &self.graph
     }
+    pub fn n_nodes(&self) -> usize {
+        &self.graph.node_count()
+    }
     ///
     /// Emission of the node
     ///
@@ -215,6 +220,28 @@ impl PHMM {
     ///
     pub fn parents(&self, node: NodeIndex) -> ParentEdges<PHMMEdge> {
         ParentEdges::new(&self.graph, node)
+    }
+}
+
+impl PHMM {
+    ///
+    /// emission probability of observing the emission from
+    /// Match state of node v.
+    ///
+    pub fn p_match_emit(&self, node: NodeIndex, emission: u8) -> Prob {
+        if self.emission(node) == emission {
+            self.param.p_match
+        } else {
+            self.param.p_mismatch
+        }
+    }
+    ///
+    /// emission probability of observing the emission from
+    /// Ins state of node v.
+    /// The ret is always equal to `param.p_random`
+    ///
+    pub fn p_ins_emit(&self) -> Prob {
+        self.param.p_random
     }
 }
 

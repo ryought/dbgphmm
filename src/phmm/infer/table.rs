@@ -2,7 +2,7 @@
 //! PHMMTable
 //!
 
-use super::super::State;
+use super::super::{NodeSubset, State};
 use crate::prob::{p, Prob};
 use sparsevec::SparseVec;
 
@@ -17,6 +17,7 @@ use petgraph::graph::NodeIndex;
 /// * Node is normal graph node and End node
 /// * Type is Match/Ins/Del
 ///
+/// Implementation:
 /// * m[node], i[node], d[node]: SparseVec<Node, Prob>
 /// * mb, ib, e: Prob
 ///
@@ -54,6 +55,50 @@ pub const MAX_ACTIVE_NODES: usize = 40;
 ///
 pub type NodeVec = SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>;
 
+///
+/// Vec of PHMMTable to store tables of emissions
+///
+#[derive(Debug, Clone)]
+pub struct PHMMTables {
+    pub init_table: PHMMTable,
+    pub tables: Vec<PHMMTable>,
+    pub is_forward: bool,
+}
+
+///
+///
+///
+#[derive(Debug, Copy, Clone)]
+pub enum StoreMode {
+    ///
+    /// Use dense table for all tables (for debug)
+    ///
+    FullDense,
+    ///
+    /// Use dense table in first n_warmup tables, and use sparse after all.
+    ///
+    DenseWarmup,
+    ///
+    /// Use sparse table for all (for recalculation)
+    ///
+    FullSparse,
+}
+
+///
+///
+///
+#[derive(Debug, Clone)]
+pub enum TargetNodeMode {
+    ///
+    /// Use fixed or predefined target nodes
+    ///
+    Fixed(NodeSubset),
+    ///
+    /// Search for childs/parents of high-scoring nodes
+    ///
+    Adaptive,
+}
+
 //
 //
 // implementations
@@ -65,10 +110,11 @@ pub type NodeVec = SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>;
 ///
 impl PHMMTable {
     ///
-    /// Construct PHMMTable with Dense vector with specified default values
+    /// Construct PHMMTable with Dense/Sparse vector with specified default values
     ///
-    pub fn new_dense(
+    pub fn new(
         n_nodes: usize,
+        is_dense: bool,
         m: Prob,
         i: Prob,
         d: Prob,
@@ -76,47 +122,40 @@ impl PHMMTable {
         ib: Prob,
         e: Prob,
     ) -> Self {
-        PHMMTable {
-            m: NodeVec::new_dense(n_nodes, m),
-            i: NodeVec::new_dense(n_nodes, i),
-            d: NodeVec::new_dense(n_nodes, d),
-            mb,
-            ib,
-            e,
+        if is_dense {
+            PHMMTable {
+                m: NodeVec::new_dense(n_nodes, m),
+                i: NodeVec::new_dense(n_nodes, i),
+                d: NodeVec::new_dense(n_nodes, d),
+                mb,
+                ib,
+                e,
+            }
+        } else {
+            PHMMTable {
+                m: NodeVec::new_sparse(n_nodes, m),
+                i: NodeVec::new_sparse(n_nodes, i),
+                d: NodeVec::new_sparse(n_nodes, d),
+                mb,
+                ib,
+                e,
+            }
         }
     }
     ///
-    /// Construct PHMMTable with Sparse vector with specified default values
+    /// Construct PHMMTable with Dense/Sparse vector all filled with 0
     ///
-    pub fn new_sparse(
-        n_nodes: usize,
-        m: Prob,
-        i: Prob,
-        d: Prob,
-        mb: Prob,
-        ib: Prob,
-        e: Prob,
-    ) -> Self {
-        PHMMTable {
-            m: NodeVec::new_sparse(n_nodes, m),
-            i: NodeVec::new_sparse(n_nodes, i),
-            d: NodeVec::new_sparse(n_nodes, d),
-            mb,
-            ib,
-            e,
-        }
-    }
-    ///
-    /// Construct PHMMTable with Dense vector all filled with 0
-    ///
-    pub fn zero_dense(n_nodes: usize) -> Self {
-        PHMMTable::new_dense(n_nodes, p(0.0), p(0.0), p(0.0), p(0.0), p(0.0), p(0.0))
-    }
-    ///
-    /// Construct PHMMTable with Sparse vector all filled with 0
-    ///
-    pub fn zero_sparse(n_nodes: usize) -> Self {
-        PHMMTable::new_sparse(n_nodes, p(0.0), p(0.0), p(0.0), p(0.0), p(0.0), p(0.0))
+    pub fn zero(n_nodes: usize, is_dense: bool) -> Self {
+        PHMMTable::new(
+            n_nodes,
+            is_dense,
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+            p(0.0),
+        )
     }
     ///
     /// Number of nodes in graph

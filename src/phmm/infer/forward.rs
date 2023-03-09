@@ -1,18 +1,14 @@
 //!
-//! Forward algorithm definitions
+//! Forward algorithm for PHMM
 //!
 
-use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
-use super::result::{PHMMResult, PHMMResultFullSparse, PHMMResultLike, PHMMResultSparse};
-use super::table::PHMMTable;
-use super::table_ref::PHMMTableRef;
-use crate::graph::active_nodes::ActiveNodes;
+use super::super::{NodeSubset, PHMM};
+use super::table::{NodeVec, PHMMTable, PHMMTables, StoreMode, TargetNodeMode};
 use crate::prob::{p, Prob};
-use crate::vector::{NodeVec, Storage};
+use petgraph::graph::NodeIndex;
 
 // wrappers and exposed functions
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMM {
     ///
     /// Run Forward algorithm to the emissions
     ///
@@ -21,8 +17,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
     ///
-    pub fn forward(&self, emissions: &[u8]) -> PHMMResult {
-        let r0 = PHMMResult {
+    pub fn forward(
+        &self,
+        emissions: &[u8],
+        store_mode: StoreMode,
+        target_node_mode: TargetNodeMode,
+    ) -> PHMMTables {
+        let r0 = PHMMTables {
             init_table: self.f_init(),
             tables: Vec::new(),
             is_forward: true,
@@ -32,7 +33,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 let table = if i == 0 {
-                    self.f_step(i, emission, &r.init_table)
+                    self.f_step(i, emission, &r.init_table, target_node_mode)
                 } else {
                     self.f_step(i, emission, r.tables.last().unwrap())
                 };
@@ -40,90 +41,25 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 r
             })
     }
+}
+
+//
+// Recursions
+//
+impl PHMM {
     ///
-    /// Run Forward algorithm to the emissions using hint information
+    /// base table
     ///
-    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMResultFullSparse {
-        let r0 = PHMMResultFullSparse {
-            init_table: self.f_init(),
-            tables: Vec::new(),
-            is_forward: true,
-        };
-        emissions
-            .iter()
-            .enumerate()
-            .fold(r0, |mut r, (i, &emission)| {
-                let table = if i == 0 {
-                    self.f_step_with_active_nodes(i, emission, &r.init_table, hint.active_nodes(i))
-                } else {
-                    self.f_step_with_active_nodes(
-                        i,
-                        emission,
-                        r.tables.last().unwrap(),
-                        hint.active_nodes(i),
-                    )
-                };
-                r.tables.push(table);
-                r
-            })
-    }
+    /// Always use Sparse table
     ///
-    /// Run Forward algorithm to the emissions, with sparse calculation
-    /// Not tested
-    ///
-    pub fn forward_sparse(&self, emissions: &[u8]) -> PHMMResultSparse {
-        let r0 = PHMMResultSparse {
-            init_table: self.f_init(),
-            tables_warmup: Vec::new(),
-            tables_sparse: Vec::new(),
-            is_forward: true,
-        };
-        let param = &self.param;
-        emissions
-            .iter()
-            .enumerate()
-            .fold(r0, |mut r, (i, &emission)| {
-                if i < param.n_warmup {
-                    // dense_table -> dense_table
-                    let table = if i == 0 {
-                        self.f_step(i, emission, &r.init_table)
-                    } else {
-                        self.f_step(i, emission, r.tables_warmup.last().unwrap())
-                    };
-                    r.tables_warmup.push(table);
-                } else if i == param.n_warmup {
-                    // dense_table -> sparse_table
-                    let table_prev = r
-                        .tables_warmup
-                        .last()
-                        .unwrap()
-                        .to_sparse_active_nodes(param.n_active_nodes);
-                    let mut table = self.f_step(i, emission, &table_prev);
-                    table.refresh_active_nodes(param.n_active_nodes);
-                    r.tables_sparse.push(table);
-                } else {
-                    // sparse_table -> sparse_table
-                    let mut table = self.f_step(i, emission, r.tables_sparse.last().unwrap());
-                    table.refresh_active_nodes(param.n_active_nodes);
-                    r.tables_sparse.push(table);
-                };
-                r
-            })
-    }
-    ///
-    /// Create init_table in PHMMResult for Forward algorithm
-    ///
-    fn f_init<S>(&self) -> PHMMTable<S>
-    where
-        S: Storage<Item = Prob>,
-    {
+    fn f_init(&self) -> PHMMTable {
         PHMMTable::new(
             self.n_nodes(),
+            false, // always use sparse
             p(0.0),
             p(0.0),
             p(0.0),
-            // only MatchBegin has probability (p=1)
-            p(1.0),
+            p(1.0), // only MatchBegin has probability (p=1)
             p(0.0),
             p(0.0),
         )
@@ -132,21 +68,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// Calculate the table from the previous table
     /// for Forward algorithm
     ///
-    /// If `prev_table.active_nodes` is set (i.e. `ActiveNodes::Only`),
-    ///
-    fn f_step<S>(&self, _i: usize, emission: u8, prev_table: &PHMMTable<S>) -> PHMMTable<S>
-    where
-        S: Storage<Item = Prob>,
-    {
-        // candidates of active nodes of next step
-        let active_nodes = if S::is_dense() {
-            ActiveNodes::All
-        } else {
-            prev_table.active_nodes.to_childs(self)
-        };
-
+    fn f_step(
+        &self,
+        _i: usize,
+        emission: u8,
+        prev_table: &PHMMTable,
+        is_dense: bool,
+        target_node_mode: &TargetNodeMode,
+    ) -> PHMMTable {
         let mut table = PHMMTable::new(
             self.n_nodes(),
+            is_dense,
             p(0.0),
             p(0.0),
             p(0.0),
@@ -154,6 +86,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             p(0.0),
             p(0.0),
         );
+
+        let active_nodes = match target_node_mode {
+            TargetNodeMode::Fixed(nodes) => nodes,
+            TargetNodeMode::Adaptive => {
+                // infer candidates of active nodes of next step from prev_table
+                // prev_table.active_nodes.to_childs(self)
+                unimplemented!();
+            }
+        };
 
         // normal state first
         self.fm(&mut table, prev_table, emission, &active_nodes);
@@ -166,45 +107,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
         table
     }
-    ///
-    /// Calculate the table from the previous table
-    /// for Forward algorithm
-    ///
-    fn f_step_with_active_nodes<S>(
-        &self,
-        _i: usize,
-        emission: u8,
-        prev_table: &PHMMTable<S>,
-        active_nodes: &ActiveNodes,
-    ) -> PHMMTable<S>
-    where
-        S: Storage<Item = Prob>,
-    {
-        let mut table = PHMMTable::new(
-            self.n_nodes(),
-            p(0.0),
-            p(0.0),
-            p(0.0),
-            p(0.0),
-            p(0.0),
-            p(0.0),
-        );
-
-        // normal state first
-        self.fm(&mut table, prev_table, emission, active_nodes);
-        self.fi(&mut table, prev_table, emission, active_nodes);
-        self.fmb(&mut table, prev_table, emission, active_nodes);
-        self.fib(&mut table, prev_table, emission, active_nodes);
-        // silent state next
-        self.fd_with_active_nodes(&mut table, prev_table, emission, active_nodes);
-        self.fe(&mut table, prev_table, emission, active_nodes);
-
-        table
-    }
 }
 
 // functions to calculate each step
-impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMM {
     /// Fill the forward probs of `Match` states
     ///
     /// For `i=0,...,n-1`
@@ -231,17 +137,9 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// be calculated.
     ///
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fm<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        t1: &PHMMTable<S>,
-        emission: u8,
-        active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fm(&self, t0: &mut PHMMTable, t1: &PHMMTable, emission: u8, active_nodes: &NodeSubset) {
         let param = &self.param;
-        for (k, kw) in self.active_nodes(active_nodes) {
+        for k in active_nodes.iter() {
             // emission prob
             let p_emit = self.p_match_emit(k, emission);
 
@@ -255,7 +153,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .sum();
 
             // (2) from begin node
-            let from_begin = kw.init_prob() * (param.p_MM * t1.mb + param.p_IM * t1.ib);
+            let from_begin = self.init_prob(k) * (param.p_MM * t1.mb + param.p_IM * t1.ib);
 
             t0.m[k] = p_emit * (from_normal + from_begin);
         }
@@ -278,17 +176,9 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// (Here `x[:i+1] = x[0],...,x[i]`)
     ///
     /// calculate `t0.i` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
-    fn fi<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        t1: &PHMMTable<S>,
-        _emission: u8,
-        active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fi(&self, t0: &mut PHMMTable, t1: &PHMMTable, _emission: u8, active_nodes: &NodeSubset) {
         let param = &self.param;
-        for (k, _) in self.active_nodes(active_nodes) {
+        for k in active_nodes.iter() {
             // emission prob
             let p_emit = self.p_ins_emit();
 
@@ -331,51 +221,19 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// calculate t0.d from t0.m and t0.i
-    fn fd<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        _t1: &PHMMTable<S>,
-        _emission: u8,
-        active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fd(&self, t0: &mut PHMMTable, _t1: &PHMMTable, _emission: u8, active_nodes: &NodeSubset) {
         let param = &self.param;
 
         // run t=0
-        let mut active_nodes_t = active_nodes.to_childs(self);
+        let mut active_nodes_t = self.to_child_subsets(active_nodes);
         let mut fdt0 = self.fd0(t0, &active_nodes);
-        t0.d += &fdt0.d;
+        t0.d += &fdt0;
 
         for _t in 0..param.n_max_gaps {
             // run t+1
-            active_nodes_t = active_nodes_t.to_childs(self);
+            active_nodes_t = self.to_child_subsets(active_nodes);
             fdt0 = self.fdt(&fdt0, &active_nodes_t);
-            t0.d += &fdt0.d;
-        }
-    }
-    ///
-    /// `fd` with fixed active nodes (not growing)
-    ///
-    fn fd_with_active_nodes<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        _t1: &PHMMTable<S>,
-        _emission: u8,
-        active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
-        let param = &self.param;
-
-        // run t=0
-        let mut fdt0 = self.fd0(t0, &active_nodes);
-        t0.d += &fdt0.d;
-
-        for _t in 0..param.n_max_gaps {
-            // run t+1
-            fdt0 = self.fdt(&fdt0, &active_nodes);
-            t0.d += &fdt0.d;
+            t0.d += &fdt0;
         }
     }
     ///
@@ -391,13 +249,10 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// active_nodes will be determined by the childs of t0
     ///
-    fn fd0<S>(&self, t0: &PHMMTable<S>, active_nodes: &ActiveNodes) -> PHMMTable<S>
-    where
-        S: Storage<Item = Prob>,
-    {
+    fn fd0(&self, t0: &PHMMTable, active_nodes: &NodeSubset) -> NodeVec {
         let param = &self.param;
-        let mut fd0 = PHMMTable::zero(self.n_nodes());
-        for (k, kw) in self.active_nodes(active_nodes) {
+        let mut fd0 = NodeVec::new(self.n_nodes(), p(0.0), t0.is_dense());
+        for k in active_nodes.iter() {
             // (1) from normal node
             let from_normal: Prob = self
                 .parents(k)
@@ -409,9 +264,9 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .sum();
 
             // (2) from begin node
-            let from_begin = kw.init_prob() * (param.p_MD * t0.mb + param.p_ID * t0.ib);
+            let from_begin = self.init_prob(k) * (param.p_MD * t0.mb + param.p_ID * t0.ib);
 
-            fd0.d[k] = from_normal + from_begin;
+            fd0[k] = from_normal + from_begin;
         }
         fd0
     }
@@ -423,19 +278,16 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fd_i(t)[k]
     /// =   (from_d_parents) \sum_{l: parents} t_lk p_dd fd_i(t-1)[l]
     /// ```
-    fn fdt<S>(&self, fdt1: &PHMMTable<S>, active_nodes: &ActiveNodes) -> PHMMTable<S>
-    where
-        S: Storage<Item = Prob>,
-    {
+    fn fdt(&self, fdt1: &NodeVec, active_nodes: &NodeSubset) -> NodeVec {
         let param = &self.param;
-        let mut fdt0 = PHMMTable::zero(self.n_nodes());
-        for (k, _) in self.active_nodes(active_nodes) {
-            fdt0.d[k] = self
+        let mut fdt0 = NodeVec::new(self.n_nodes(), p(0.0), fdt1.is_dense());
+        for k in active_nodes.iter() {
+            fdt0[k] = self
                 .parents(k)
                 .map(|(_, l, ew)| {
                     // l -> k
                     let p_trans = ew.trans_prob();
-                    p_trans * (param.p_DD * fdt1.d[l])
+                    p_trans * (param.p_DD * fdt1[l])
                 })
                 .sum();
         }
@@ -447,15 +299,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// fm_i[b] = 1 (if i==-1)
     ///           0 (otherwise)
     /// ```
-    fn fmb<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        _t1: &PHMMTable<S>,
-        _emission: u8,
-        _active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fmb(&self, t0: &mut PHMMTable, _t1: &PHMMTable, _emission: u8, _active_nodes: &NodeSubset) {
         t0.mb = Prob::from_prob(0.0);
     }
     /// fill `InsBegin` states
@@ -465,15 +309,7 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// =   (from_self_m) p_mi e(x[i]) fm_i-1[b]
     ///   + (from_self_i) p_ii e(x[i]) fi_i-1[b]
     /// ```
-    fn fib<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        t1: &PHMMTable<S>,
-        _emission: u8,
-        _active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fib(&self, t0: &mut PHMMTable, t1: &PHMMTable, _emission: u8, _active_nodes: &NodeSubset) {
         let param = &self.param;
         let p_emit = self.p_ins_emit();
         t0.ib = p_emit * (param.p_MI * t1.mb + param.p_II * t1.ib);
@@ -486,183 +322,12 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///   + (from_all_i) \sum_{k} p_e fi_i[k]
     ///   + (from_all_d) \sum_{k} p_e fd_i[k]
     /// ```
-    fn fe<S>(
-        &self,
-        t0: &mut PHMMTable<S>,
-        _t1: &PHMMTable<S>,
-        _emission: u8,
-        active_nodes: &ActiveNodes,
-    ) where
-        S: Storage<Item = Prob>,
-    {
+    fn fe(&self, t0: &mut PHMMTable, _t1: &PHMMTable, _emission: u8, active_nodes: &NodeSubset) {
         let param = &self.param;
-        let p_normal: Prob = self
-            .active_nodes(active_nodes)
-            .map(|(k, _)| t0.m[k] + t0.i[k] + t0.d[k])
+        let p_normal: Prob = active_nodes
+            .iter()
+            .map(|k| t0.m[k] + t0.i[k] + t0.d[k])
             .sum();
         t0.e = param.p_end * p_normal
-    }
-}
-
-//
-// Tests
-//
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::common::{ni, sequence_to_string};
-    use crate::dbg::draft::EndNodeInference;
-    use crate::dbg::SimpleDbg;
-    use crate::e2e;
-    use crate::hmmv2::mocks::*;
-    use crate::hmmv2::params::PHMMParams;
-    use crate::kmer::VecKmer;
-    use crate::prob::lp;
-    use crate::vector::DenseStorage;
-    #[test]
-    fn hmm_forward_mock_linear_zero_error() {
-        let phmm = mock_linear_phmm(PHMMParams::zero_error());
-        let r = phmm.forward(b"CGATC");
-        assert_eq!(r.tables.len(), 5);
-        assert_abs_diff_eq!(r.tables[2].m[ni(5)], lp(-2.3026250931), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[3].m[ni(6)], lp(-2.3026250931), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-2.3026350932), epsilon = 0.00001);
-        // total probability
-        assert_abs_diff_eq!(r.tables[4].e, lp(-13.8155605), epsilon = 0.00001);
-        // no insertion and deletions, so i/d should be 0.
-        for table in r.tables {
-            for i in 0..table.n_nodes() {
-                assert!(table.i[ni(i)].is_zero());
-                assert!(table.d[ni(i)].is_zero());
-            }
-        }
-        // with allowing no errors, CGATT cannot be emitted.
-        // so it should have p=0
-        let r2 = phmm.forward(b"CGATT");
-        assert_eq!(r2.tables.len(), 5);
-        assert!(r2.tables[4].e.is_zero());
-    }
-    #[test]
-    fn hmm_forward_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // read 1
-        let r = phmm.forward(b"CGATC");
-        for table in r.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r.init_table);
-        assert_eq!(r.tables.len(), 5);
-        assert_abs_diff_eq!(r.tables[4].e, lp(-15.212633254), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-3.8652938682), epsilon = 0.00001);
-        // read 2
-        let r2 = phmm.forward(b"CGATT");
-        assert_abs_diff_eq!(r2.tables[4].e, lp(-16.7862972), epsilon = 0.00001);
-        // r[:4] and r2[:4] is the same emissions
-        assert_abs_diff_eq!(r2.tables[3].e, r.tables[3].e, epsilon = 0.00001);
-        assert_eq!(r2.tables.len(), 5);
-        for table in r2.tables.iter() {
-            println!("{}", table);
-        }
-    }
-    #[test]
-    fn hmm_forward_mock_sparse() {
-        let phmm = mock_linear_random_phmm(100, 0, PHMMParams::default());
-        let read = phmm.sample_read(32, 0);
-        println!("{}", sequence_to_string(&read));
-
-        let r1 = phmm.forward(&read);
-        let r2 = phmm.forward_sparse(&read);
-        for i in 0..r1.n_emissions() {
-            let t1 = r1.table(i);
-            let t2 = r2.table(i);
-            let d = t1.diff(&t2);
-            println!("{}", d);
-            assert!(d < 0.000000001);
-        }
-    }
-    #[test]
-    fn hmm_forward_with_hint_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // read1
-        let read1 = b"CGATC";
-        let o = phmm.run(read1);
-        let hint = o.to_hint(3);
-        println!("{:?}", hint);
-        println!("{:?}", hint.len());
-        assert_eq!(
-            hint,
-            Hint::new(vec![
-                ActiveNodes::Only(vec![ni(3), ni(2), ni(4)]),
-                ActiveNodes::Only(vec![ni(4), ni(3), ni(5)]),
-                ActiveNodes::Only(vec![ni(5), ni(6), ni(4)]),
-                ActiveNodes::Only(vec![ni(6), ni(7), ni(5)]),
-                ActiveNodes::Only(vec![ni(7), ni(8), ni(6)]),
-            ])
-        );
-
-        let r1 = phmm.forward(read1);
-        let r2 = phmm.forward_with_hint(read1, &hint);
-        println!("{}", r1.last_table());
-        println!("{}", r2.last_table());
-        let p1 = r1.full_prob();
-        let p2 = r2.full_prob();
-        println!("p(dense)={}", p1);
-        println!("p(hint)={}", p2);
-        assert!(p1.log_diff(p2) < 0.1);
-    }
-    #[test]
-    fn hmm_forward_with_hint_tandem_repeat() {
-        let exp = e2e::generate_small_tandem_repeat();
-        let dbg = exp.dbg_raw.clone();
-        let phmm = dbg.to_phmm(exp.phmm_params);
-        println!("n_reads={}", exp.reads().len());
-        // create hint
-        let hints: Vec<_> = exp
-            .reads()
-            .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
-            .collect();
-
-        // run
-        for (i, read) in exp.reads().iter().enumerate() {
-            let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
-            let p1 = r1.full_prob();
-            let p2 = r2.full_prob();
-            println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.log_diff(p2) < 0.1);
-        }
-    }
-    #[test]
-    fn hmm_forward_with_hint_difficult_tandem_repeat() {
-        let dataset = e2e::generate_difficult_diploid_tandem_repeat_dataset();
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
-                12,
-                dataset.reads(),
-                dataset.coverage(),
-                100,
-                0.01,
-                &EndNodeInference::Auto,
-            );
-        let phmm = dbg.to_phmm(dataset.params());
-        println!("n_reads={}", dataset.reads().len());
-        // create hint
-        let hints: Vec<_> = dataset
-            .reads()
-            .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
-            .collect();
-
-        // run
-        for (i, read) in dataset.reads().iter().enumerate() {
-            let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
-            let p1 = r1.full_prob();
-            let p2 = r2.full_prob();
-            println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.log_diff(p2) < 1.0);
-        }
     }
 }
