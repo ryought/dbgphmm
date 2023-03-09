@@ -11,24 +11,6 @@ use petgraph::graph::NodeIndex;
 // use std::ops::{Add, AddAssign, Div, Mul, MulAssign};
 
 ///
-/// Maximum number of continuous deletion (D -> D transition)
-/// allowed in pHMM.
-///
-pub const MAX_DEL: usize = 4;
-
-///
-/// Maximum number of active nodes (= nodes which have high probability)
-///
-pub const MAX_ACTIVE_NODES: usize = 40;
-
-///
-/// SparseVec used in PHMMTable
-///
-/// `SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>`
-///
-pub type NodeVec = SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>;
-
-///
 /// PHMMTable
 ///
 /// A Vector `T[Node, Type]` to compute forward/backward DP.
@@ -53,6 +35,24 @@ pub struct PHMMTable {
     /// `Table[End]`
     pub e: Prob,
 }
+
+///
+/// Maximum number of continuous deletion (D -> D transition)
+/// allowed in pHMM.
+///
+pub const MAX_DEL: usize = 4;
+
+///
+/// Maximum number of active nodes (= nodes which have high probability)
+///
+pub const MAX_ACTIVE_NODES: usize = 40;
+
+///
+/// SparseVec used in PHMMTable
+///
+/// `SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>`
+///
+pub type NodeVec = SparseVec<Prob, NodeIndex, MAX_ACTIVE_NODES>;
 
 //
 //
