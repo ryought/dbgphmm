@@ -117,3 +117,34 @@ fn f() {
     // this does not compile
     // p(&v);
 }
+
+fn create_large_graph() -> DiGraph<usize, ()> {
+    // create graph with 10M nodes
+    let mut g = DiGraph::new();
+    for i in 0..1_000_000_000 {
+        g.add_node(i);
+    }
+    g
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::{check_memory_usage, timer};
+
+    #[test]
+    fn hoge() {
+        let (g, t) = timer(|| {
+            check_memory_usage();
+            let g = create_large_graph();
+            check_memory_usage();
+            g
+        });
+        println!("{}", t);
+        println!("{}", g.node_count());
+    }
+}

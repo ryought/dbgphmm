@@ -18,11 +18,12 @@ rand_xoshiro = "*"
 approx = "*"
 arrayvec = "*"
 fnv = "1.0.3"
-clap = "3.0.0-beta.2"
+clap = { version = "3.0.0-beta.2", features = ["derive"] }
 log = "0.4"
 env_logger = "0.8.4"
 petgraph_algos = { git = "https://github.com/ryought/petgraph_algos" }
 rustflow = { git = "https://github.com/ryought/rustflow" }
+sparsevec = { git = "https://github.com/ryought/sparsevec" }
 libm = "*"
 histo = "0.1.0"
 rayon = "*"

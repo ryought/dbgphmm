@@ -3,8 +3,6 @@
 #![feature(int_abs_diff)]
 #![feature(step_trait)]
 pub mod common;
-pub mod compressed_dbg;
-pub mod cycles;
 pub mod dbg;
 pub mod distribution;
 pub mod e2e;
@@ -12,7 +10,6 @@ pub mod genome;
 pub mod graph;
 pub mod greedy;
 pub mod hist;
-pub mod hmm;
 pub mod hmmv2;
 pub mod inspect;
 pub mod io;
@@ -20,6 +17,7 @@ pub mod json;
 pub mod kmer;
 pub mod mcmc;
 pub mod min_flow;
+// pub mod phmm;
 pub mod playground;
 pub mod prelude;
 pub mod prob;
