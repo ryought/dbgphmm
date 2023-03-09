@@ -19,10 +19,10 @@ pub mod sample;
 // re-export
 pub use params::PHMMParams;
 
-use crate::common::{CopyNum, NULL_BASE};
-use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use crate::common::NULL_BASE;
 use crate::prob::Prob;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 
 ///
 /// Node in PHMM

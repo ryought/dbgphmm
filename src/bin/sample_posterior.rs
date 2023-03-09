@@ -1,4 +1,4 @@
-use clap::{AppSettings, ArgEnum, Clap};
+use clap::{AppSettings, ArgEnum, Parser};
 use dbgphmm::common::collection::starts_and_ends_of_genome;
 use dbgphmm::dbg::draft::EndNodeInference;
 use dbgphmm::dbg::greedy::get_max_posterior_instance;
@@ -19,7 +19,7 @@ use std::path::PathBuf;
 
 const GIT_VERSION: &str = git_version!();
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct Opts {
     // dbg settings
     #[clap(long)]
