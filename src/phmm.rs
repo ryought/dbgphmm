@@ -3,8 +3,10 @@
 //!
 //! * Infer
 //!     Estimating output probability or emitting states given emissions
+//!     i.e. (PHMM, emissions) -> information about emissions
 //! * Sample
 //!     Sampling emissions (reads) from the model
+//!     i.e. PHMM -> History (sequence of emission and originating state)
 //!
 //! # Usage
 //!
