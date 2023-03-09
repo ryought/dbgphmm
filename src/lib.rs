@@ -17,7 +17,7 @@ pub mod json;
 pub mod kmer;
 pub mod mcmc;
 pub mod min_flow;
-pub mod phmm;
+// pub mod phmm;
 pub mod playground;
 pub mod prelude;
 pub mod prob;
