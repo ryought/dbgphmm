@@ -28,6 +28,11 @@ use petgraph::visit::EdgeRef; // for edges_directed
 use petgraph::Direction;
 use std::convert::From;
 
+use itertools::Itertools;
+use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+
+pub mod toy;
+
 ///
 /// In MultiDbg only edges have copynum.
 ///
@@ -66,6 +71,8 @@ pub struct MultiDbg {
 ///
 /// Edge of MultiDbg full graph
 ///
+/// Corresponds to k-mer
+///
 #[derive(Clone, Debug)]
 pub struct MultiFullEdge {
     ///
@@ -73,13 +80,25 @@ pub struct MultiFullEdge {
     ///
     base: u8,
     ///
-    /// corresponding edge index in compact graph
+    /// copy number of k-mer
     ///
-    edge_in_compact: EdgeIndex,
+    copy_num: CopyNum,
+    // ///
+    // /// corresponding edge index in compact graph
+    // ///
+    // edge_in_compact: EdgeIndex,
+}
+
+impl MultiFullEdge {
+    pub fn new(base: u8, copy_num: CopyNum) -> MultiFullEdge {
+        MultiFullEdge { base, copy_num }
+    }
 }
 
 ///
 /// Node of MultiDbg full graph
+///
+/// Corresponds to (k-1)-mer
 ///
 #[derive(Clone, Debug)]
 pub struct MultiFullNode {
@@ -89,15 +108,21 @@ pub struct MultiFullNode {
     is_terminal: bool,
 }
 
+impl MultiFullNode {
+    pub fn new(is_terminal: bool) -> MultiFullNode {
+        MultiFullNode { is_terminal }
+    }
+}
+
 ///
 /// Edge of MultiDbg compact graph
 ///
 #[derive(Clone, Debug)]
 pub struct MultiCompactEdge {
-    ///
-    /// copy number of edge (simple-path or k-mers in full)
-    ///
-    copy_num: CopyNum,
+    // ///
+    // /// copy number of edge (simple-path or k-mers in full)
+    // ///
+    // copy_num: CopyNum,
     ///
     /// corresponding edges in full graph
     ///
@@ -112,6 +137,12 @@ pub struct MultiCompactEdge {
     edges_in_full: Vec<EdgeIndex>,
 }
 
+impl MultiCompactEdge {
+    pub fn new(edges_in_full: Vec<EdgeIndex>) -> Self {
+        Self { edges_in_full }
+    }
+}
+
 ///
 /// Node of MultiDbg compact graph
 ///
@@ -120,28 +151,35 @@ pub struct MultiCompactEdge {
 #[derive(Clone, Debug)]
 pub struct MultiCompactNode {}
 
+impl MultiCompactNode {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 ///
-/// Conversion Dbg -> MultiDbg
-///
-/// Dbg is not simple-path-collapsed, so each node corresponds to a kmer.
+/// Conversion Dbg (w/ copy number) -> MultiDbg
 ///
 impl<N: DbgNode, E: DbgEdgeBase> From<Dbg<N, E>> for MultiDbg {
     fn from(dbg: Dbg<N, E>) -> MultiDbg {
-        // let graph = dbg.to_edbg_graph(
-        //     |km1mer| MultiDbgNode::new(km1mer.is_null()),
-        //     |_node, node_weight| {
-        //         let seq = vec![node_weight.emission()];
-        //         let copy_num = node_weight.copy_num();
-        //         MultiDbgEdge::new(seq, copy_num)
-        //     },
-        // );
-        // MultiDbg { k: dbg.k(), graph }
-        unimplemented!();
+        let full = dbg.to_edbg_graph(
+            |km1mer| MultiFullNode::new(km1mer.is_null()),
+            |_node, node_weight| MultiFullEdge::new(node_weight.emission(), node_weight.copy_num()),
+        );
+
+        // create compact from
+        let compact = Self::construct_compact_from_full(&full);
+
+        MultiDbg {
+            k: dbg.k(),
+            full,
+            compact,
+        }
     }
 }
 
 //
-// Attributes
+// Graph wrappers
 //
 
 impl MultiDbg {
@@ -163,28 +201,68 @@ impl MultiDbg {
     pub fn k(&self) -> usize {
         self.k
     }
+    /// Iterator of all nodes in the graph
+    /// Item is (node: NodeIndex, node_weight: &MultiFullNode)
+    pub fn nodes_full(&self) -> NodesIterator<MultiFullNode> {
+        NodesIterator::new(self.graph_full())
+    }
+    /// Iterator of all edges in the graph
+    /// Item is (edge: EdgeIndex, source: NodeIndex, target: NodeIndex, edge_weight: &MultiFullEdge)
+    pub fn edges_full(&self) -> EdgesIterator<MultiFullEdge> {
+        EdgesIterator::new(self.graph_full())
+    }
+    /// Iterator of childs of the node
+    /// Item is (edge: EdgeIndex, child: NodeIndex, edge_weight: &MultiFullEdge)
+    pub fn childs_full(&self, node: NodeIndex) -> ChildEdges<MultiFullEdge> {
+        ChildEdges::new(self.graph_full(), node)
+    }
+    /// Iterator of parents of the node
+    /// Item is (edge: EdgeIndex, parent: NodeIndex, edge_weight: &MultiFullEdge)
+    pub fn parents_full(&self, node: NodeIndex) -> ParentEdges<MultiFullEdge> {
+        ParentEdges::new(self.graph_full(), node)
+    }
+    /// Iterator of all nodes in the graph
+    /// Item is (node: NodeIndex, node_weight: &MultiCompactNode)
+    pub fn nodes_compact(&self) -> NodesIterator<MultiCompactNode> {
+        NodesIterator::new(self.graph_compact())
+    }
+    /// Iterator of all edges in the graph
+    /// Item is (edge: EdgeIndex, source: NodeIndex, target: NodeIndex, edge_weight: &MultiCompactEdge)
+    pub fn edges_compact(&self) -> EdgesIterator<MultiCompactEdge> {
+        EdgesIterator::new(self.graph_compact())
+    }
+    /// Iterator of childs of the node
+    /// Item is (edge: EdgeIndex, child: NodeIndex, edge_weight: &MultiCompactEdge)
+    pub fn childs_compact(&self, node: NodeIndex) -> ChildEdges<MultiCompactEdge> {
+        ChildEdges::new(self.graph_compact(), node)
+    }
+    /// Iterator of parents of the node
+    /// Item is (edge: EdgeIndex, parent: NodeIndex, edge_weight: &MultiCompactEdge)
+    pub fn parents_compact(&self, node: NodeIndex) -> ParentEdges<MultiCompactEdge> {
+        ParentEdges::new(self.graph_compact(), node)
+    }
+}
+
+///
+/// Determine kmer of each node/edge
+///
+impl MultiDbg {
     ///
     /// Convert edge in full graph into k-mer
     ///
-    pub fn kmer(&self, edge_in_full: EdgeIndex) -> VecKmer {
+    pub fn kmer_full(&self, edge_in_full: EdgeIndex) -> VecKmer {
         let (source, _) = self.graph_full().edge_endpoints(edge_in_full).unwrap();
         let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
-        let km1mer = self.km1mer(source);
+        let km1mer = self.km1mer_full(source);
         km1mer.extend_last(base)
     }
     ///
-    /// Convert edge in compact graph into concated k-mers
+    /// Convert node in full graph into (k-1)-mer
+    /// (Concatenate k-1 parental bases)
     ///
-    pub fn kmers(&self, edge_in_compact: EdgeIndex) -> VecKmer {
-        unimplemented!();
-    }
-    ///
-    /// Convert node into (k-1)-mer
-    /// Concatenate k-1 parental bases
-    ///
-    pub fn km1mer(&self, node: NodeIndex) -> VecKmer {
+    pub fn km1mer_full(&self, node_in_full: NodeIndex) -> VecKmer {
         let mut bases = Vec::new();
-        let mut node = node;
+        let mut node = node_in_full;
         let km1 = self.k() - 1;
         while bases.len() < km1 {
             let parent_edge = self
@@ -197,6 +275,18 @@ impl MultiDbg {
         }
         bases.reverse();
         VecKmer::from_bases(&bases)
+    }
+    ///
+    /// Convert node in compact graph into (k-1)-mer
+    ///
+    pub fn km1mer_compact(&self, node_in_compact: NodeIndex) -> VecKmer {
+        unimplemented!();
+    }
+    ///
+    /// Convert edge in compact graph into concated k-mers
+    ///
+    pub fn kmer_compact(&self, edge_in_compact: EdgeIndex) -> VecKmer {
+        unimplemented!();
     }
 }
 
@@ -225,17 +315,23 @@ impl MultiDbg {
 
 impl MultiDbg {
     ///
+    /// Construct compact graph from full graph by collapsing
+    ///
+    pub fn construct_compact_from_full(
+        full: &DiGraph<MultiFullNode, MultiFullEdge>,
+    ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
+        compact_simple_paths(full).map(
+            |node, node_weight| MultiCompactNode::new(),
+            |edge, edge_weight| {
+                let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
+                MultiCompactEdge::new(edges)
+            },
+        )
+    }
+    ///
     ///
     ///
     pub fn collapse_all_simple_paths(&self) -> Self {
-        let compacted = compact_simple_paths(self.graph_full());
-        // let graph = compacted.map(
-        //     |_node, weight| weight.clone(),
-        //     |_edge, weight| {
-        //         MultiDbgEdge::new()
-        //     },
-        // );
-        // MultiDbg { k: self.k(), graph }
         unimplemented!();
     }
     ///
@@ -256,9 +352,49 @@ impl MultiDbg {
     ///
     pub fn to_dot(&self) -> String {
         format!(
-            "{}",
-            petgraph::dot::Dot::with_config(&self.graph_compact(), &[])
+            "Full:\n{}Compact:\n{}",
+            petgraph::dot::Dot::with_config(&self.graph_full(), &[]),
+            petgraph::dot::Dot::with_config(&self.graph_compact(), &[]),
         )
+    }
+    ///
+    /// Debug output each node/edge with kmer
+    ///
+    pub fn show_graph_with_kmer(&self) {
+        println!("Full:");
+        for (node, weight) in self.nodes_full() {
+            println!("v{}\t{}\t{}", node.index(), weight, self.km1mer_full(node));
+        }
+        for (edge, s, t, weight) in self.edges_full() {
+            println!(
+                "e{}\tv{}\tv{}\t{}\t{}",
+                edge.index(),
+                s.index(),
+                t.index(),
+                weight,
+                self.kmer_full(edge)
+            );
+        }
+
+        println!("Compact:");
+        for (node, weight) in self.nodes_compact() {
+            println!(
+                "v{}\t{}\t{}",
+                node.index(),
+                weight,
+                self.km1mer_compact(node)
+            );
+        }
+        for (edge, s, t, weight) in self.edges_compact() {
+            println!(
+                "e{}\tv{}\tv{}\t{}\t{}",
+                edge.index(),
+                s.index(),
+                t.index(),
+                weight,
+                self.kmer_compact(edge)
+            );
+        }
     }
     ///
     ///
@@ -270,19 +406,20 @@ impl MultiDbg {
 
 impl std::fmt::Display for MultiCompactEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // todo show edges
-        write!(f, "x{}()", self.copy_num)
+        write!(
+            f,
+            "{}",
+            self.edges_in_full
+                .iter()
+                .map(|e| format!("e{}", e.index()))
+                .join(",")
+        )
     }
 }
 
 impl std::fmt::Display for MultiFullEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}(E{})",
-            self.base as char,
-            self.edge_in_compact.index()
-        )
+        write!(f, "{}(x{})", self.base as char, self.copy_num)
     }
 }
 
@@ -336,7 +473,7 @@ mod tests {
         println!("{}", multidbg.to_dot());
 
         for node in multidbg.graph_full().node_indices() {
-            let km1mer = multidbg.km1mer(node);
+            let km1mer = multidbg.km1mer_full(node);
             println!("{:?} {}", node, km1mer);
         }
     }
