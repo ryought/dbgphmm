@@ -22,7 +22,6 @@ use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
 };
-use crate::vector::{DenseStorage, EdgeVec};
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
 use petgraph::visit::EdgeRef; // for edges_directed
 use petgraph::Direction;
@@ -30,13 +29,9 @@ use std::convert::From;
 
 use itertools::Itertools;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
+use rustflow::min_flow::Flow;
 
 pub mod toy;
-
-///
-/// In MultiDbg only edges have copynum.
-///
-pub type CopyNums = EdgeVec<DenseStorage<CopyNum>>;
 
 ///
 /// Edge-centric and simple-path-collapsed Dbg structure
@@ -201,6 +196,12 @@ impl MultiDbg {
     pub fn k(&self) -> usize {
         self.k
     }
+    ///
+    /// # of edges in compact graph
+    ///
+    pub fn n_edges_compact(&self) -> usize {
+        self.graph_compact().node_count()
+    }
     /// Iterator of all nodes in the graph
     /// Item is (node: NodeIndex, node_weight: &MultiFullNode)
     pub fn nodes_full(&self) -> NodesIterator<MultiFullNode> {
@@ -244,6 +245,33 @@ impl MultiDbg {
 }
 
 ///
+/// Bridge functions between full and compact
+///
+impl MultiDbg {
+    ///
+    /// Determine corresponding node in full
+    ///
+    fn map_node_in_compact_to_full(&self, node_in_compact: NodeIndex) -> NodeIndex {
+        //
+        // pick a outgoing edge from the node.
+        // map the edge in compact into a simple path in full.
+        // the source node of first edge in the simple path is the corresponding node in full.
+        let (_, _, ew) = self.childs_compact(node_in_compact).next().unwrap();
+        let first_child_edge = ew.edges_in_full[0];
+        let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
+        node_in_full
+    }
+    ///
+    /// Determine copy number of edge in compact graph
+    ///
+    /// = copy number of one of the corresponding edges in full graph
+    ///
+    fn copy_num_of_compact_edge(&self, edge_in_compact: EdgeIndex) -> CopyNum {
+        unimplemented!();
+    }
+}
+
+///
 /// Determine kmer of each node/edge
 ///
 impl MultiDbg {
@@ -275,19 +303,6 @@ impl MultiDbg {
         }
         bases.reverse();
         VecKmer::from_bases(&bases)
-    }
-    ///
-    /// Determine corresponding node in full
-    ///
-    fn map_node_in_compact_to_full(&self, node_in_compact: NodeIndex) -> NodeIndex {
-        //
-        // pick a outgoing edge from the node.
-        // map the edge in compact into a simple path in full.
-        // the source node of first edge in the simple path is the corresponding node in full.
-        let (_, _, ew) = self.childs_compact(node_in_compact).next().unwrap();
-        let first_child_edge = ew.edges_in_full[0];
-        let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
-        node_in_full
     }
     ///
     /// Convert node in compact graph into (k-1)-mer
@@ -327,15 +342,30 @@ impl MultiDbg {
 // Copy number
 //
 
+///
+/// CopyNums
+///
+pub type CopyNums = Flow<CopyNum>;
+
 impl MultiDbg {
     pub fn is_copy_nums_valid(&self) -> bool {
         unimplemented!();
     }
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
+        assert_eq!(copy_nums.len(), self.n_edges_compact());
+        for (e, _, _, _) in self.edges_compact() {
+            // let c = copy_nums[e];
+        }
         unimplemented!();
     }
     pub fn get_copy_nums(&self) -> CopyNums {
-        unimplemented!();
+        let mut copy_nums = CopyNums::new(self.n_edges_compact(), 0);
+        for (edge, _, _, edge_weight) in self.edges_compact() {
+            // TODO
+            // copy_nums[edge] =
+            // let c = copy_nums[e];
+        }
+        copy_nums
     }
     pub fn neighbor_copy_nums(&self) -> Vec<CopyNums> {
         unimplemented!();
