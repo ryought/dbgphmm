@@ -7,7 +7,22 @@ use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
 ///
 /// Circular `ATCG` k=4
 ///
-fn circular() -> MultiDbg {
+/// ```text
+/// k=4
+///           GATC x1
+///      ┌───┐      ┌───┐
+///      │ATC│◄─────┤GAT│
+///      └─┬─┘      └─▲─┘
+///        │          │
+/// ATCG x1│          │CGAT x1
+///        │          │
+///      ┌─▼─┐      ┌─┴─┐
+///      │TCG├─────►│CGA│
+///      └───┘      └───┘
+///           TCGA x1
+/// ```
+///
+pub fn circular() -> MultiDbg {
     let mut full = DiGraph::new();
     let v_atc = full.add_node(MultiFullNode::new(false));
     let v_tcg = full.add_node(MultiFullNode::new(false));
@@ -29,7 +44,22 @@ fn circular() -> MultiDbg {
 ///
 /// Linear `TAGGC` k=4
 ///
-fn linear() -> MultiDbg {
+/// ```text
+/// k=4
+///         nnTA   nTAG   TAGG
+///          1x     1x     1x
+///     ┌───┐  ┌───┐  ┌───┐  ┌───┐
+///     │nnT├─►│nTA├─►│TAG├─►│AGG│
+///     └─▲─┘  └───┘  └───┘  └─┬─┘
+/// nnnT  │                    │  AGGC
+///  1x   │                    │   1x
+///     ┌─┴─┐  ┌───┐  ┌───┐  ┌─▼─┐
+///     │nnn│◄─┤Cnn│◄─┤GCn│◄─┤GGC│
+///     └───┘  └───┘  └───┘  └───┘
+///         Cnnn   GCnn   GGCn
+///          1x     1x     1x
+/// ```
+pub fn linear() -> MultiDbg {
     let mut full = DiGraph::new();
     let v_nnt = full.add_node(MultiFullNode::new(false));
     let v_nta = full.add_node(MultiFullNode::new(false));
@@ -60,7 +90,28 @@ fn linear() -> MultiDbg {
 /// Linear `GATCC` and `TATCA` k=4
 /// Have an intersection at node `ATC`
 ///
-fn intersection() -> MultiDbg {
+/// ```text
+/// k=4
+///              ┌───┐
+///   ┌──────┬───┤ATC│◄──┬──────┐
+///   │      │   └───┘   │      │
+/// ┌─▼─┐  ┌─▼─┐       ┌─┴─┐  ┌─┴─┐
+/// │TCA│  │TCC│       │GAT│  │TAT│
+/// └─┬─┘  └─┬─┘       └─▲─┘  └─▲─┘
+///   │      │           │      │
+/// ┌─▼─┐  ┌─▼─┐       ┌─┴─┐  ┌─┴─┐
+/// │CAn│  │CCn│       │nGA│  │nTA│
+/// └─┬─┘  └─┬─┘       └─▲─┘  └─▲─┘
+///   │      │           │      │
+/// ┌─▼─┐  ┌─▼─┐       ┌─┴─┐  ┌─┴─┐
+/// │Ann│  │Cnn│       │nnG│  │nnT│
+/// └─┬─┘  └─┬─┘       └─▲─┘  └─▲─┘
+///   │      │   ┌───┐   │      │
+///   └──────┴──►│nnn├───┴──────┘
+///              └───┘
+/// ```
+///
+pub fn intersection() -> MultiDbg {
     let mut full = DiGraph::new();
     // 2x nodes
     let v_nnn = full.add_node(MultiFullNode::new(true));
@@ -113,7 +164,7 @@ fn intersection() -> MultiDbg {
 ///
 /// `AAAA` is 3x
 ///
-fn selfloop() -> MultiDbg {
+pub fn selfloop() -> MultiDbg {
     let mut full = DiGraph::new();
     let v_nnn = full.add_node(MultiFullNode::new(true));
     let v_nnc = full.add_node(MultiFullNode::new(false));
@@ -156,7 +207,7 @@ fn selfloop() -> MultiDbg {
 ///
 /// has repeat `CAG`x4
 ///
-fn repeat() -> MultiDbg {
+pub fn repeat() -> MultiDbg {
     let mut full = DiGraph::new();
     let v_nnn = full.add_node(MultiFullNode::new(true));
     // first half

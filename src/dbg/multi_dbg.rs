@@ -369,6 +369,17 @@ impl MultiDbg {
     pub fn neighbor_copy_nums(&self) -> Vec<CopyNums> {
         unimplemented!();
     }
+    ///
+    ///
+    ///
+    pub fn guess_copy_num(
+        &self,
+        node: NodeIndex,
+        edge_in: EdgeIndex,
+        edge_out: EdgeIndex,
+    ) -> CopyNum {
+        unimplemented!();
+    }
 }
 
 //
@@ -399,12 +410,16 @@ impl MultiDbg {
             |_, _| MultiFullNode::new(false), // to_node
             || MultiFullNode::new(true),      // to_terminal_node
             // to_edge
-            |_, e, node| {
-                // latter
+            |e_in, e_out, node| {
+                // copy_num: determined by `guess_copy_num`. distribute e_in's copy_num
+                // base: e_out's base
                 unimplemented!();
             },
             // to_terminal_edge
-            |e| unimplemented!(),
+            |e| {
+                let w = &self.graph_full()[e];
+                MultiFullEdge::new(w.base, w.copy_num)
+            },
         );
 
         // create compact from full
@@ -620,7 +635,7 @@ impl std::fmt::Display for MultiCompactEdge {
 
 impl std::fmt::Display for MultiFullEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}(x{})", self.base as char, self.copy_num)
+        write!(f, "{}({}x)", self.base as char, self.copy_num)
     }
 }
 
