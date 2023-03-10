@@ -364,14 +364,133 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn collapse_all_simple_paths(&self) -> Self {
-        unimplemented!();
-    }
-    ///
-    ///
-    ///
     pub fn to_kp1_dbg(self) -> Self {
         unimplemented!();
+    }
+    /// Construct node centric (full) graph G'
+    ///
+    /// ```text
+    /// node v in G' == edge (k-mer) v in G (id will be conserved)
+    /// edge from node v to node w in G' == (target of edge v is source of edge w in G)
+    /// ```
+    ///
+    /// Use in k+1 extension and PHMM conversion.
+    ///
+    /// to_node: `(edge_index, edge_weight)`
+    /// to_edge: `(edge_index_source, edge_index_target, center_node_index)`
+    ///
+    /// # Example
+    ///
+    /// k=4
+    /// ```text
+    /// +---+ ATCC
+    /// |ATC+--+
+    /// +---+  +-->+---+     +---+
+    ///            |TCC+---->|CCA|
+    /// +---+  +-->+---+     +---+
+    /// |GTC+--+        TCCA
+    /// +---+ GTCC
+    /// ```
+    ///
+    /// k=5
+    /// ```text
+    ///        ATCCA
+    /// +----+
+    /// |ATCC+---+
+    /// +----+   +-->+----+
+    ///              |TCCA|
+    /// +----+   +-->+----+
+    /// |GTCC+---+
+    /// +----+
+    ///        GTCCA
+    /// ```
+    ///
+    /// # Procedure
+    ///
+    /// ## (1) Add nodes in G' corresponding to each edge in G
+    ///
+    /// ```text
+    /// G:
+    ///        e
+    /// --> v ---> w -->
+    ///
+    /// G':
+    /// -> to_node(e) ->
+    /// ```
+    ///
+    /// ## (2) For each node in G, add an edge between a pair of incoming edge v and outgoing edge w.
+    ///
+    /// ```text
+    /// G:
+    ///  e1         e2
+    /// ----> node ---->
+    ///
+    /// G':
+    ///       to_edge(e1,e2,node)
+    ///  e1 ----------------------> e2
+    /// ```
+    ///
+    /// If the node is terminal, add new node to represent terminal.
+    ///
+    /// ```text
+    /// G:
+    ///       GNNN        NNNA
+    /// GNN  -----> NNN  -----> NNA
+    ///
+    /// G':
+    /// -> GNNN --> NNNN --> NNNA ->
+    /// ```
+    ///
+    pub fn to_node_centric_graph<N, E, FN, FTN, FE, FTE>(
+        &self,
+        to_node: FN,
+        to_terminal_node: FTN,
+        to_edge: FE,
+        to_terminal_edge: FTE,
+    ) -> DiGraph<N, E>
+    where
+        FN: Fn(EdgeIndex, &MultiFullEdge) -> N,
+        FTN: Fn() -> N,
+        FE: Fn(EdgeIndex, EdgeIndex, NodeIndex) -> E,
+        FTE: Fn(EdgeIndex) -> E,
+    {
+        let mut graph = DiGraph::new();
+
+        // convert edge in G into node in G'
+        //
+        let to_node_index = |edge: EdgeIndex| NodeIndex::new(edge.index());
+
+        // (1) add a node corresponding to each edge
+        //
+        for (edge, _, _, edge_weight) in self.edges_full() {
+            let node = graph.add_node(to_node(edge, edge_weight));
+            assert_eq!(node.index(), edge.index(), "edge index is corrupted");
+        }
+
+        // (2) for each node
+        for (node, node_weight) in self.nodes_full() {
+            if node_weight.is_terminal {
+                let terminal_node = graph.add_node(to_terminal_node());
+                for (e, _, _) in self.parents_full(node) {
+                    let v = to_node_index(e);
+                    graph.add_edge(v, terminal_node, to_terminal_edge(e));
+                }
+                for (e, _, _) in self.childs_full(node) {
+                    let v = to_node_index(e);
+                    graph.add_edge(terminal_node, v, to_terminal_edge(e));
+                }
+            } else {
+                for (e1, _, _) in self.parents_full(node) {
+                    let v1 = to_node_index(e1);
+                    for (e2, _, _) in self.childs_full(node) {
+                        let v2 = to_node_index(e2);
+                        graph.add_edge(v1, v2, to_edge(e1, e2, node));
+                    }
+                }
+            }
+        }
+
+        graph
     }
 }
 
