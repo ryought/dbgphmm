@@ -277,10 +277,9 @@ impl MultiDbg {
         VecKmer::from_bases(&bases)
     }
     ///
-    /// Convert node in compact graph into (k-1)-mer
+    /// Determine corresponding node in full
     ///
-    pub fn km1mer_compact(&self, node_in_compact: NodeIndex) -> VecKmer {
-        // determine corresponding node in full
+    fn map_node_in_compact_to_full(&self, node_in_compact: NodeIndex) -> NodeIndex {
         //
         // pick a outgoing edge from the node.
         // map the edge in compact into a simple path in full.
@@ -288,7 +287,13 @@ impl MultiDbg {
         let (_, _, ew) = self.childs_compact(node_in_compact).next().unwrap();
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
-
+        node_in_full
+    }
+    ///
+    /// Convert node in compact graph into (k-1)-mer
+    ///
+    pub fn km1mer_compact(&self, node_in_compact: NodeIndex) -> VecKmer {
+        let node_in_full = self.map_node_in_compact_to_full(node_in_compact);
         self.km1mer_full(node_in_full)
     }
     ///
