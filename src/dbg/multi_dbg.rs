@@ -22,12 +22,11 @@ use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
 };
-use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
-use petgraph::visit::EdgeRef; // for edges_directed
-use petgraph::Direction;
-use std::convert::From;
 
 use itertools::Itertools;
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::visit::{EdgeRef, IntoNodeReferences};
+use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::Flow;
 
@@ -155,7 +154,7 @@ impl MultiCompactNode {
 ///
 /// Conversion Dbg (w/ copy number) -> MultiDbg
 ///
-impl<N: DbgNode, E: DbgEdgeBase> From<Dbg<N, E>> for MultiDbg {
+impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
     fn from(dbg: Dbg<N, E>) -> MultiDbg {
         let full = dbg.to_edbg_graph(
             |km1mer| MultiFullNode::new(km1mer.is_null()),
@@ -266,7 +265,7 @@ impl MultiDbg {
     ///
     /// = copy number of one of the corresponding edges in full graph
     ///
-    fn copy_num_of_compact_edge(&self, edge_in_compact: EdgeIndex) -> CopyNum {
+    fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
         unimplemented!();
     }
 }
