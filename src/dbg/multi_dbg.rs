@@ -354,18 +354,38 @@ impl MultiDbg {
         full: &DiGraph<MultiFullNode, MultiFullEdge>,
     ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
         compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
-            |node, node_weight| MultiCompactNode::new(),
-            |edge, edge_weight| {
+            |_node, _| MultiCompactNode::new(),
+            |_edge, edge_weight| {
                 let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
                 MultiCompactEdge::new(edges)
             },
         )
     }
+    /// Extend k to k+1.
     ///
     ///
-    ///
-    pub fn to_kp1_dbg(self) -> Self {
-        unimplemented!();
+    pub fn to_kp1_dbg(&self) -> Self {
+        // create full
+        let full = self.to_node_centric_graph(
+            |_, _| MultiFullNode::new(false), // to_node
+            || MultiFullNode::new(true),      // to_terminal_node
+            // to_edge
+            |_, e, node| {
+                // latter
+                unimplemented!();
+            },
+            // to_terminal_edge
+            |e| unimplemented!(),
+        );
+
+        // create compact from full
+        let compact = Self::construct_compact_from_full(&full);
+
+        MultiDbg {
+            k: self.k() + 1,
+            full,
+            compact,
+        }
     }
     /// Construct node centric (full) graph G'
     ///
