@@ -17,7 +17,7 @@ use crate::common::{
     sequence_to_string, CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
-use crate::graph::compact::compact_simple_paths;
+use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
@@ -280,13 +280,41 @@ impl MultiDbg {
     /// Convert node in compact graph into (k-1)-mer
     ///
     pub fn km1mer_compact(&self, node_in_compact: NodeIndex) -> VecKmer {
-        unimplemented!();
+        // determine corresponding node in full
+        //
+        // pick a outgoing edge from the node.
+        // map the edge in compact into a simple path in full.
+        // the source node of first edge in the simple path is the corresponding node in full.
+        let (_, _, ew) = self.childs_compact(node_in_compact).next().unwrap();
+        let first_child_edge = ew.edges_in_full[0];
+        let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
+
+        self.km1mer_full(node_in_full)
     }
     ///
     /// Convert edge in compact graph into concated k-mers
     ///
+    /// (kmer of edge in compact) = (km1mer of source node) + (bases in edge)
+    ///
     pub fn kmer_compact(&self, edge_in_compact: EdgeIndex) -> VecKmer {
-        unimplemented!();
+        let (source_node, _) = self
+            .graph_compact()
+            .edge_endpoints(edge_in_compact)
+            .unwrap();
+        let mut kmer = self.km1mer_compact(source_node);
+
+        for &edge_in_full in self
+            .graph_compact()
+            .edge_weight(edge_in_compact)
+            .unwrap()
+            .edges_in_full
+            .iter()
+        {
+            let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
+            kmer = kmer.into_extend_last(base);
+        }
+
+        kmer
     }
 }
 
@@ -320,7 +348,7 @@ impl MultiDbg {
     pub fn construct_compact_from_full(
         full: &DiGraph<MultiFullNode, MultiFullEdge>,
     ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
-        compact_simple_paths(full).map(
+        compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
             |node, node_weight| MultiCompactNode::new(),
             |edge, edge_weight| {
                 let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
