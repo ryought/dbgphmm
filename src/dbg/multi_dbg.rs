@@ -99,7 +99,15 @@ pub struct MultiCompactEdge {
     ///
     copy_num: CopyNum,
     ///
+    /// corresponding edges in full graph
     ///
+    /// Ordering of edges is source to terminal.
+    /// For example, if below four edges in full is collapsed into an edge in compact, then `[e0,e1,e2,e3]`.
+    ///
+    /// ```text
+    /// e0 e1 e2 e3
+    /// -->-->-->-->
+    /// ```
     ///
     edges_in_full: Vec<EdgeIndex>,
 }
@@ -159,7 +167,10 @@ impl MultiDbg {
     /// Convert edge in full graph into k-mer
     ///
     pub fn kmer(&self, edge_in_full: EdgeIndex) -> VecKmer {
-        unimplemented!();
+        let (source, _) = self.graph_full().edge_endpoints(edge_in_full).unwrap();
+        let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
+        let km1mer = self.km1mer(source);
+        km1mer.extend_last(base)
     }
     ///
     /// Convert edge in compact graph into concated k-mers
@@ -194,6 +205,9 @@ impl MultiDbg {
 //
 
 impl MultiDbg {
+    pub fn is_copy_nums_valid(&self) -> bool {
+        unimplemented!();
+    }
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
         unimplemented!();
     }
