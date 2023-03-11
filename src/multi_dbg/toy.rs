@@ -303,14 +303,16 @@ pub fn repeat() -> MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::{ei, ni};
 
     #[test]
     fn test_circular() {
-        let dbg = circular();
-        // let dbg = linear();
-        // let dbg = intersection();
-        // let dbg = repeat();
+        let dbg = linear();
         dbg.show_graph_with_kmer();
+        let p = dbg.get_euler_circuit();
+        for s in dbg.to_styled_seqs() {
+            println!("{}", s);
+        }
 
         let dbg_ext = dbg.to_kp1_dbg();
         dbg_ext.show_graph_with_kmer();

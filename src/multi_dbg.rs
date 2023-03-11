@@ -289,11 +289,10 @@ impl MultiDbg {
     ///
     /// Get terminal node (= (k-1)-mer NNN) in full
     ///
-    pub fn terminal_node_full(&self) -> NodeIndex {
+    pub fn terminal_node_full(&self) -> Option<NodeIndex> {
         self.nodes_full()
             .find(|(_, node_weight)| node_weight.is_terminal)
             .map(|(node, _)| node)
-            .unwrap()
     }
     ///
     /// count the number of nodes with (in_degree, out_degree) in graph full
@@ -321,17 +320,110 @@ impl MultiDbg {
         node_in_full
     }
     ///
-    ///
+    /// Convert a path (= sequence of edges) in compact into a path in full.
     ///
     pub fn path_full_from_path_compact(&self, path_compact: &[EdgeIndex]) -> Vec<EdgeIndex> {
-        unimplemented!();
+        let mut path_full = Vec::new();
+        for &edge_in_compact in path_compact {
+            for &edge_in_full in self.graph_compact()[edge_in_compact].edges_in_full() {
+                path_full.push(edge_in_full);
+            }
+        }
+        path_full
     }
     ///
     ///
     ///
     pub fn path_to_styled_seqs(&self, path_full: &[EdgeIndex]) -> Vec<StyledSequence> {
-        let mut ret = Vec::new();
-        ret
+        let mut seqs = Vec::new();
+        let mut state: Option<(Vec<u8>, NodeIndex, SeqStyle)> = None;
+        let terminal_node = self.terminal_node_full();
+
+        for &e in path_full {
+            let (s, t) = self
+                .graph_full()
+                .edge_endpoints(e)
+                .expect("edge in path is not in graph");
+
+            // beginning of new seq
+            if state.is_none() {
+                let style = if terminal_node.is_some() && s == terminal_node.unwrap() {
+                    SeqStyle::Linear
+                } else {
+                    SeqStyle::Circular
+                };
+                state = Some((Vec::new(), s, style));
+            }
+
+            let (mut seq, first_node, style) = state.unwrap();
+            let weight = &self.graph_full()[e];
+            if weight.is_null_base() {
+                assert!(!style.is_circular());
+            } else {
+                seq.push(weight.base);
+            }
+
+            if t == first_node {
+                // end of this seq
+                seqs.push(StyledSequence::new(seq, style));
+                state = None
+            } else {
+                // iterate again
+                state = Some((seq, first_node, style));
+            }
+        }
+        seqs
+    }
+    ///
+    /// Generate Euler circuit path of full graph that traverses all edges
+    ///
+    pub fn get_euler_circuit(&self) -> Vec<EdgeIndex> {
+        let mut path = Vec::new();
+
+        // start from terminal node if exists
+        let start_node = self.terminal_node_full().unwrap_or(NodeIndex::new(0));
+
+        let mut node = start_node;
+        let mut copy_nums_remain = self.get_copy_nums_full();
+
+        loop {
+            match self
+                .childs_full(node)
+                .find(|(edge, _, _)| copy_nums_remain[*edge] > 0)
+            {
+                Some((edge, child, _)) => {
+                    path.push(edge);
+                    copy_nums_remain[edge] -= 1;
+                    node = child;
+                }
+                None => {
+                    if node == start_node {
+                        break;
+                    } else {
+                        panic!("euler traverse not found");
+                    }
+                }
+            }
+        }
+
+        path
+    }
+    ///
+    /// used in `get_euler_circuit` to create copy_nums_remain
+    ///
+    /// CopyNums of edges in full is abnormal
+    ///
+    fn get_copy_nums_full(&self) -> CopyNums {
+        let mut copy_nums = CopyNums::new(self.n_edges_full(), 0);
+        for (edge, _, _, edge_weight) in self.edges_full() {
+            copy_nums[edge] = edge_weight.copy_num;
+        }
+        copy_nums
+    }
+    ///
+    ///
+    pub fn to_styled_seqs(&self) -> Vec<StyledSequence> {
+        self.path_to_styled_seqs(&self.get_euler_circuit())
     }
 }
 
@@ -853,6 +945,7 @@ impl MultiDbg {
         println!("k={}", self.k());
         println!("genome_size={}", self.genome_size());
         println!("is_copy_nums_valid={}", self.is_copy_nums_valid());
+        println!("degree_stats={:?}", self.degree_stats());
 
         println!("Full:");
         println!("n_nodes={}", self.n_nodes_full());
