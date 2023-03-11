@@ -306,9 +306,9 @@ mod tests {
 
     #[test]
     fn test_circular() {
-        // let dbg = circular();
+        let dbg = circular();
         // let dbg = linear();
-        let dbg = intersection();
+        // let dbg = intersection();
         // let dbg = repeat();
         dbg.show_graph_with_kmer();
 

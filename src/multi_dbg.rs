@@ -92,6 +92,12 @@ impl MultiFullEdge {
     pub fn new(base: u8, copy_num: CopyNum) -> MultiFullEdge {
         MultiFullEdge { base, copy_num }
     }
+    ///
+    /// Base (emission) is null (`b'n'`)?
+    ///
+    pub fn is_null_base(&self) -> bool {
+        self.base == NULL_BASE
+    }
 }
 
 ///
@@ -139,6 +145,9 @@ pub struct MultiCompactEdge {
 impl MultiCompactEdge {
     pub fn new(edges_in_full: Vec<EdgeIndex>) -> Self {
         Self { edges_in_full }
+    }
+    pub fn edges_in_full(&self) -> &[EdgeIndex] {
+        &self.edges_in_full
     }
 }
 
@@ -200,10 +209,28 @@ impl MultiDbg {
         self.k
     }
     ///
+    /// # of nodes in full graph
+    ///
+    pub fn n_nodes_full(&self) -> usize {
+        self.graph_full().node_count()
+    }
+    ///
+    /// # of nodes in compact graph
+    ///
+    pub fn n_nodes_compact(&self) -> usize {
+        self.graph_compact().node_count()
+    }
+    ///
+    /// # of edges in full graph
+    ///
+    pub fn n_edges_full(&self) -> usize {
+        self.graph_full().edge_count()
+    }
+    ///
     /// # of edges in compact graph
     ///
     pub fn n_edges_compact(&self) -> usize {
-        self.graph_compact().node_count()
+        self.graph_compact().edge_count()
     }
     /// Iterator of all nodes in the graph
     /// Item is (node: NodeIndex, node_weight: &MultiFullNode)
@@ -275,14 +302,6 @@ impl MultiDbg {
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
         node_in_full
-    }
-    ///
-    /// Determine copy number of edge in compact graph
-    ///
-    /// = copy number of one of the corresponding edges in full graph
-    ///
-    fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
-        unimplemented!();
     }
 }
 
@@ -370,29 +389,64 @@ pub type CopyNums = Flow<CopyNum>;
 ///
 impl MultiDbg {
     ///
-    /// For all nodes
+    /// Check if copy numbers assigned to all edges in full is valid.
+    ///
+    /// For all nodes v, (sum of copy_num of incoming edges) == (sum of copy_num of outgoing edges)
     ///
     pub fn is_copy_nums_valid(&self) -> bool {
-        unimplemented!();
+        self.nodes_full().all(|(node, _)| {
+            let copy_num_in: CopyNum = self.parents_full(node).map(|(_, _, w)| w.copy_num).sum();
+            let copy_num_out: CopyNum = self.childs_full(node).map(|(_, _, w)| w.copy_num).sum();
+            copy_num_in == copy_num_out
+        })
     }
+    ///
+    /// Genome size is a sum of copy number of all edges with non-null emission.
+    ///
     pub fn genome_size(&self) -> CopyNum {
-        unimplemented!();
+        self.edges_full()
+            .map(|(_edge, _, _, edge_weight)| {
+                if edge_weight.is_null_base() {
+                    0
+                } else {
+                    edge_weight.copy_num
+                }
+            })
+            .sum()
     }
+    ///
+    /// Set copy numbers of edges in full according to CopyNums vector
+    ///
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
         assert_eq!(copy_nums.len(), self.n_edges_compact());
-        for (e, _, _, _) in self.edges_compact() {
-            // let c = copy_nums[e];
+        for edge_compact in self.compact.edge_references() {
+            let copy_num = copy_nums[edge_compact.id()];
+
+            // for all edge in compact, change copy_num of corresponding edges in full
+            for &edge_in_full in edge_compact.weight().edges_in_full() {
+                self.full.edge_weight_mut(edge_in_full).unwrap().copy_num = copy_num;
+            }
         }
-        unimplemented!();
+        assert!(self.is_copy_nums_valid());
     }
+    ///
+    /// Get current copy numbers vector
+    ///
     pub fn get_copy_nums(&self) -> CopyNums {
         let mut copy_nums = CopyNums::new(self.n_edges_compact(), 0);
-        for (edge, _, _, edge_weight) in self.edges_compact() {
-            // TODO
-            // copy_nums[edge] =
-            // let c = copy_nums[e];
+        for (edge, _, _, _) in self.edges_compact() {
+            copy_nums[edge] = self.copy_num_of_edge_in_compact(edge);
         }
         copy_nums
+    }
+    ///
+    /// Determine copy number of edge in compact graph
+    ///
+    /// = copy number of the first corresponding edge in full graph
+    ///
+    fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
+        let edge_in_full = self.graph_compact()[edge_in_compact].edges_in_full()[0];
+        self.graph_full()[edge_in_full].copy_num
     }
     pub fn neighbor_copy_nums(&self) -> Vec<CopyNums> {
         unimplemented!();
@@ -650,10 +704,9 @@ impl MultiDbg {
     }
 }
 
-//
-// serialize/deserialize
-//
-
+///
+/// serialize/deserialize and debug print methods
+///
 impl MultiDbg {
     ///
     /// Dot file with each node/edge shown in Display serialization
@@ -669,7 +722,13 @@ impl MultiDbg {
     /// Debug output each node/edge with kmer
     ///
     pub fn show_graph_with_kmer(&self) {
+        println!("k={}", self.k());
+        println!("genome_size={}", self.genome_size());
+        println!("is_copy_nums_valid={}", self.is_copy_nums_valid());
+
         println!("Full:");
+        println!("n_nodes={}", self.n_nodes_full());
+        println!("n_edges={}", self.n_edges_full());
         for (node, weight) in self.nodes_full() {
             println!("v{}\t{}\t{}", node.index(), weight, self.km1mer_full(node));
         }
@@ -685,6 +744,8 @@ impl MultiDbg {
         }
 
         println!("Compact:");
+        println!("n_nodes={}", self.n_nodes_compact());
+        println!("n_edges={}", self.n_edges_compact());
         for (node, weight) in self.nodes_compact() {
             println!(
                 "v{}\t{}\t{}",
