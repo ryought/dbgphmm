@@ -33,15 +33,14 @@ use rustflow::min_flow::Flow;
 pub mod toy;
 
 ///
-/// Edge-centric and simple-path-collapsed Dbg structure
-/// For large k (k < 10,000)
+/// Edge-centric and simple-path-collapsed Dbg structure for large k (k ~ 10,000)
 ///
 #[derive(Clone, Debug)]
 pub struct MultiDbg {
     ///
     /// size of k in de Bruijn graph
     ///
-    k: usize,
+    pub k: usize,
     ///
     /// Edge-centric de Bruijn graph
     ///
@@ -50,7 +49,7 @@ pub struct MultiDbg {
     /// * Node = (k-1)-mer
     ///     terminal or not?
     ///
-    full: DiGraph<MultiFullNode, MultiFullEdge>,
+    pub full: DiGraph<MultiFullNode, MultiFullEdge>,
     ///
     /// Simple-path-collapsed edge-centric de Bruijn graph
     ///
@@ -59,7 +58,7 @@ pub struct MultiDbg {
     /// * Node = (k-1)-mer
     ///     have same index in graph
     ///
-    compact: DiGraph<MultiCompactNode, MultiCompactEdge>,
+    pub compact: DiGraph<MultiCompactNode, MultiCompactEdge>,
 }
 
 ///
@@ -346,6 +345,12 @@ impl MultiDbg {
 ///
 pub type CopyNums = Flow<CopyNum>;
 
+///
+/// # Copy number related functions
+///
+/// `CopyNums` (=`Flow<CopyNum>`) stores copy numbers of all edges in compact.
+///
+///
 impl MultiDbg {
     ///
     /// For all nodes
@@ -373,22 +378,52 @@ impl MultiDbg {
         unimplemented!();
     }
     ///
+    /// get copy number of an edge in full graph
+    ///
+    pub fn copy_num(&self, edge_in_full: EdgeIndex) -> CopyNum {
+        self.graph_full()[edge_in_full].copy_num
+    }
     ///
     ///
-    pub fn guess_copy_num(
+    ///
+    pub fn guess_copy_num_of_kp1_edge(
         &self,
         node: NodeIndex,
         edge_in: EdgeIndex,
         edge_out: EdgeIndex,
     ) -> CopyNum {
+        let copy_num_in = self.copy_num(edge_in);
+        let copy_num_out = self.copy_num(edge_out);
+        if copy_num_out == 0 {
+            0
+        } else {
+            let n_outs = self
+                .childs_full(node)
+                .filter(|(_, _, w)| w.copy_num > 0)
+                .count();
+            let n_outs = self
+                .childs_full(node)
+                .filter(|(_, _, w)| w.copy_num > 0)
+                .count();
+            unimplemented!();
+        }
+    }
+    ///
+    /// ```
+    /// use dbgphmm::dbg::multi_dbg::MultiDbg;
+    /// ```
+    fn guess_copy_num(
+        copy_num_in: CopyNum,
+        copy_num_outs: &[CopyNum],
+        copy_num_out: CopyNum,
+    ) -> CopyNum {
         unimplemented!();
     }
 }
 
-//
-// Modifying graph structure
-//
-
+///
+/// Modifying graph structure
+///
 impl MultiDbg {
     ///
     /// Construct compact graph from full graph by collapsing
