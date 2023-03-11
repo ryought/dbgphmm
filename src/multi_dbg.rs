@@ -177,10 +177,9 @@ impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
     }
 }
 
-//
-// Graph wrappers
-//
-
+///
+/// Graph wrappers and accessor to attributes
+///
 impl MultiDbg {
     ///
     /// Reference of full graph `&DiGraph<MultiFullNode, MultiFullEdge>`
@@ -245,6 +244,18 @@ impl MultiDbg {
     /// Item is (edge: EdgeIndex, parent: NodeIndex, edge_weight: &MultiCompactEdge)
     pub fn parents_compact(&self, node: NodeIndex) -> ParentEdges<MultiCompactEdge> {
         ParentEdges::new(self.graph_compact(), node)
+    }
+    ///
+    /// Copy number of edge in full graph
+    ///
+    pub fn copy_num(&self, edge_in_full: EdgeIndex) -> CopyNum {
+        self.graph_full()[edge_in_full].copy_num
+    }
+    ///
+    /// Base (emission) of edge in full graph
+    ///
+    pub fn base(&self, edge_in_full: EdgeIndex) -> u8 {
+        self.graph_full()[edge_in_full].base
     }
 }
 
@@ -364,6 +375,9 @@ impl MultiDbg {
     pub fn is_copy_nums_valid(&self) -> bool {
         unimplemented!();
     }
+    pub fn genome_size(&self) -> CopyNum {
+        unimplemented!();
+    }
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
         assert_eq!(copy_nums.len(), self.n_edges_compact());
         for (e, _, _, _) in self.edges_compact() {
@@ -382,12 +396,6 @@ impl MultiDbg {
     }
     pub fn neighbor_copy_nums(&self) -> Vec<CopyNums> {
         unimplemented!();
-    }
-    ///
-    /// get copy number of an edge in full graph
-    ///
-    pub fn copy_num(&self, edge_in_full: EdgeIndex) -> CopyNum {
-        self.graph_full()[edge_in_full].copy_num
     }
     ///
     ///
@@ -493,9 +501,11 @@ impl MultiDbg {
             || MultiFullNode::new(true),      // to_terminal_node
             // to_edge
             |e_in, e_out, node| {
-                // copy_num: determined by `guess_copy_num`. distribute e_in's copy_num
                 // base: e_out's base
-                unimplemented!();
+                let base = self.base(e_out);
+                // copy_num: determined by `guess_copy_num`. distribute e_in's copy_num
+                let copy_num = self.guess_copy_num_of_kp1_edge(node, e_in, e_out);
+                MultiFullEdge::new(base, copy_num)
             },
             // to_terminal_edge
             |e| {
