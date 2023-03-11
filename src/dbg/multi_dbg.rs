@@ -347,6 +347,9 @@ impl MultiDbg {
 pub type CopyNums = Flow<CopyNum>;
 
 impl MultiDbg {
+    ///
+    /// For all nodes
+    ///
     pub fn is_copy_nums_valid(&self) -> bool {
         unimplemented!();
     }
