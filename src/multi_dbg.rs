@@ -23,6 +23,7 @@ use crate::kmer::{
     veckmer::VecKmer,
 };
 
+use arrayvec::ArrayVec;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
@@ -60,6 +61,11 @@ pub struct MultiDbg {
     ///
     pub compact: DiGraph<MultiCompactNode, MultiCompactEdge>,
 }
+
+///
+/// maximum in/out degree (# of parents/childs)
+///
+pub const MAX_DEGREE: usize = 5;
 
 ///
 /// Edge of MultiDbg full graph
@@ -393,31 +399,69 @@ impl MultiDbg {
         edge_out: EdgeIndex,
     ) -> CopyNum {
         let copy_num_in = self.copy_num(edge_in);
-        let copy_num_out = self.copy_num(edge_out);
+        let copy_num_outs: ArrayVec<CopyNum, MAX_DEGREE> =
+            self.childs_full(node).map(|(_, _, w)| w.copy_num).collect();
+        let out_index = self
+            .childs_full(node)
+            .position(|(edge, _, _)| edge == edge_out)
+            .expect("edge_out is not a child of node");
+        Self::guess_copy_num(copy_num_in, &copy_num_outs, out_index)
+    }
+    /// Assign copy number to the pair of edges incoming/outgoing from the same node.
+    /// (used in `guess_copy_num_of_kp1_edge`.)
+    ///
+    /// Give the same amount of copy number to all >0x outgoing edge in order of copy numbers of
+    /// outgoing edge.
+    ///
+    /// ```
+    /// use dbgphmm::multi_dbg::MultiDbg;
+    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 0), 5);
+    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 1), 5);
+    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 2), 0);
+    ///
+    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 0), 5);
+    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 1), 4);
+    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 2), 0);
+    ///
+    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 1], 0), 0);
+    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 2], 1), 0);
+    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 2], 2), 1);
+    ///
+    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 0), 1);
+    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 1), 0);
+    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 2), 2);
+    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 3), 2);
+    ///
+    /// assert_eq!(MultiDbg::guess_copy_num(5, &[1], 0), 5);
+    /// ```
+    pub fn guess_copy_num(
+        copy_num_in: CopyNum,
+        copy_num_outs: &[CopyNum],
+        out_index: usize,
+    ) -> CopyNum {
+        assert!(out_index < copy_num_outs.len());
+        let n_outs = copy_num_outs.iter().filter(|&c| *c > 0).count();
+
+        // Determine out_index is k-th element in copy_num_outs?
+        let mut v: ArrayVec<(usize, CopyNum), MAX_DEGREE> =
+            copy_num_outs.iter().copied().enumerate().collect();
+        // reverse sort by copy_num
+        v.sort_by(|(_, copy_num_a), (_, copy_num_b)| copy_num_b.cmp(copy_num_a));
+        let rank = v
+            .iter()
+            .position(|(index, _copy_num)| *index == out_index)
+            .unwrap();
+
+        let copy_num_out = copy_num_outs[out_index];
         if copy_num_out == 0 {
             0
         } else {
-            let n_outs = self
-                .childs_full(node)
-                .filter(|(_, _, w)| w.copy_num > 0)
-                .count();
-            let n_outs = self
-                .childs_full(node)
-                .filter(|(_, _, w)| w.copy_num > 0)
-                .count();
-            unimplemented!();
+            let mut copy_num = copy_num_in / n_outs;
+            if rank < copy_num_in % n_outs {
+                copy_num += 1;
+            }
+            copy_num
         }
-    }
-    ///
-    /// ```
-    /// use dbgphmm::dbg::multi_dbg::MultiDbg;
-    /// ```
-    fn guess_copy_num(
-        copy_num_in: CopyNum,
-        copy_num_outs: &[CopyNum],
-        copy_num_out: CopyNum,
-    ) -> CopyNum {
-        unimplemented!();
     }
 }
 
