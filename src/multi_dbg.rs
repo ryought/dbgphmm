@@ -18,12 +18,14 @@ use crate::common::{
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
+use crate::graph::utils::degree_stats;
 use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
 };
 
 use arrayvec::ArrayVec;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
@@ -284,6 +286,21 @@ impl MultiDbg {
     pub fn base(&self, edge_in_full: EdgeIndex) -> u8 {
         self.graph_full()[edge_in_full].base
     }
+    ///
+    /// Get terminal node (= (k-1)-mer NNN) in full
+    ///
+    pub fn terminal_node_full(&self) -> NodeIndex {
+        self.nodes_full()
+            .find(|(_, node_weight)| node_weight.is_terminal)
+            .map(|(node, _)| node)
+            .unwrap()
+    }
+    ///
+    /// count the number of nodes with (in_degree, out_degree) in graph full
+    ///
+    pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
+        degree_stats(self.graph_full())
+    }
 }
 
 ///
@@ -302,6 +319,19 @@ impl MultiDbg {
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
         node_in_full
+    }
+    ///
+    ///
+    ///
+    pub fn path_full_from_path_compact(&self, path_compact: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        unimplemented!();
+    }
+    ///
+    ///
+    ///
+    pub fn path_to_styled_seqs(&self, path_full: &[EdgeIndex]) -> Vec<StyledSequence> {
+        let mut ret = Vec::new();
+        ret
     }
 }
 
@@ -389,7 +419,7 @@ pub type CopyNums = Flow<CopyNum>;
 ///
 impl MultiDbg {
     ///
-    /// Check if copy numbers assigned to all edges in full is valid.
+    /// Check if copy numbers assigned to all edges in full is valid (satisfying flow-consistency).
     ///
     /// For all nodes v, (sum of copy_num of incoming edges) == (sum of copy_num of outgoing edges)
     ///
@@ -528,25 +558,36 @@ impl MultiDbg {
 }
 
 ///
-/// Modifying graph structure
+/// k+1 extension
 ///
 impl MultiDbg {
-    ///
-    /// Construct compact graph from full graph by collapsing
-    ///
-    pub fn construct_compact_from_full(
-        full: &DiGraph<MultiFullNode, MultiFullEdge>,
-    ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
-        compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
-            |_node, _| MultiCompactNode::new(),
-            |_edge, edge_weight| {
-                let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
-                MultiCompactEdge::new(edges)
-            },
-        )
-    }
     /// Extend k to k+1.
     ///
+    /// ```text
+    /// k=3
+    ///              TCAx2
+    ///                    ┌──┐                          e1(A,2)
+    ///                 ┌─►│CA│
+    /// ┌──┐      ┌──┐  │  └──┘                 e0(C,3)     ┌──►v8
+    /// │  │      │  ├──┘                                   │
+    /// │AT├─────►│TC│               ==       v5──────►v4───┤
+    /// │  │      │  ├──┐                                   │
+    /// └──┘      └──┘  │  ┌──┐                             └──►v6
+    ///     ATCx3       └─►│CG│
+    ///                    └──┘                          e2(G,1)
+    ///              TCGx1
+    ///
+    /// k=4
+    ///         ATCAx2                               ex(A,2)
+    ///               ┌───┐
+    ///     ┌───┐  ┌─►│TCA│                              ┌──►v1
+    ///     │   ├──┘  └───┘                              │
+    ///     │ATC│                    ==           v0─────┤
+    ///     │   ├──┐  ┌───┐                              │
+    ///     └───┘  └─►│TCG│                              └──►v2
+    ///               └───┘
+    ///         ATCGx1                               ey(G,1)
+    /// ```
     ///
     pub fn to_kp1_dbg(&self) -> Self {
         // create full
@@ -577,11 +618,98 @@ impl MultiDbg {
             compact,
         }
     }
+    ///
+    /// Upconvert path (circuit) in k MultiDbg into path in k+1 MultiDbg
+    ///
+    /// path is a sequence of edges in full graph.
+    ///
+    /// path_k corresponds to node sequence in k+1, so create edge sequence by picking a unique
+    /// edge between two node.
+    ///
+    /// ```text
+    /// k
+    ///   e0    e1    e2          en-1
+    ///  ----> ----> ----> ...... ---->
+    ///
+    /// k+1
+    ///   v0 -> v1 -> v2 -> .. -> vn-1 ->
+    ///      e0'   e1'   e2'  en-2'   en-1'
+    /// ```
+    ///
+    pub fn path_kp1_from_path_k(&self, path_k: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        let n = path_k.len();
+        let to_node_index = |edge: EdgeIndex| NodeIndex::new(edge.index());
+        let mut path = Vec::new();
+
+        for i in 0..n {
+            let v_a = to_node_index(path_k[i]);
+            let v_b = to_node_index(path_k[(i + 1) % n]);
+
+            // edge from v_a to v_b
+            let e = self.graph_full().find_edge(v_a, v_b).expect("invalid path");
+            path.push(e);
+        }
+
+        path
+    }
+    /// Upconvert edge subset in k MultiDbg into edge subset in k+1 MultiDbg with corresponding
+    /// emissions.
+    ///
+    /// edge_set_k is a set of edges in k MultiDbg.
+    /// a edge in k corresponds to edges in k+1 whose target node is corresponding to the edge.
+    ///
+    /// Order will be preserved. If edge_set_k is sorted by some ordering, edge_set_kp1 is also
+    /// sorted, although ordering in multiple corresponding edges in k+1 of an edge of k cannot be
+    /// determined.
+    ///
+    pub fn edge_set_kp1_from_edge_set_k(&self, edge_set_k: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        let mut edge_set = Vec::new();
+        let to_node_in_kp1 = |edge: EdgeIndex| NodeIndex::new(edge.index());
+
+        for &edge_in_k in edge_set_k {
+            let node = to_node_in_kp1(edge_in_k);
+            for (edge_in_kp1, _, _) in self.childs_full(node) {
+                edge_set.push(edge_in_kp1);
+            }
+        }
+
+        edge_set
+    }
+}
+
+///
+/// Modifying graph structure
+///
+impl MultiDbg {
+    ///
+    /// Construct compact graph from full graph by collapsing
+    ///
+    pub fn construct_compact_from_full(
+        full: &DiGraph<MultiFullNode, MultiFullEdge>,
+    ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
+        compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
+            |_node, _| MultiCompactNode::new(),
+            |_edge, edge_weight| {
+                let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
+                MultiCompactEdge::new(edges)
+            },
+        )
+    }
     /// Construct node centric (full) graph G'
     ///
     /// ```text
     /// node v in G' == edge (k-mer) v in G (id will be conserved)
     /// edge from node v to node w in G' == (target of edge v is source of edge w in G)
+    /// ```
+    ///
+    /// ```text
+    /// to_node_centric_graph(G) = G'
+    ///
+    /// G = (V, E)
+    ///
+    /// G' = (V', E')
+    /// V' = { f(e) | ∀e ∈ E }
+    /// E' = { (f(eA), f(eB)) | ∀eA,eB ∈ E s.t. target(eA) == source(eB) }
     /// ```
     ///
     /// Use in k+1 extension and PHMM conversion.
@@ -769,6 +897,12 @@ impl MultiDbg {
     ///
     ///
     pub fn to_gfa(&self) -> String {
+        unimplemented!();
+    }
+    ///
+    ///
+    ///
+    pub fn from_gfa(&self) -> Self {
         unimplemented!();
     }
 }
