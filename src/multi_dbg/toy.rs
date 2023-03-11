@@ -307,9 +307,11 @@ mod tests {
 
     #[test]
     fn test_circular() {
-        let dbg = linear();
+        let dbg = circular();
         dbg.show_graph_with_kmer();
         let p = dbg.get_euler_circuit();
+
+        assert_eq!(p, vec![ei(0), ei(1), ei(2), ei(3)]);
         for s in dbg.to_styled_seqs() {
             println!("{}", s);
         }

@@ -281,6 +281,14 @@ impl MultiDbg {
         self.graph_full()[edge_in_full].copy_num
     }
     ///
+    /// Copy number of node in full graph = sum of incoming/outgoing edges of the node.
+    ///
+    pub fn copy_num_of_node(&self, node_in_full: NodeIndex) -> CopyNum {
+        self.childs_full(node_in_full)
+            .map(|(_, _, edge_weight)| edge_weight.copy_num)
+            .sum()
+    }
+    ///
     /// Base (emission) of edge in full graph
     ///
     pub fn base(&self, edge_in_full: EdgeIndex) -> u8 {
@@ -331,6 +339,12 @@ impl MultiDbg {
         }
         path_full
     }
+}
+
+///
+/// Path and styled seq conversion related
+///
+impl MultiDbg {
     ///
     ///
     ///
@@ -946,6 +960,7 @@ impl MultiDbg {
         println!("genome_size={}", self.genome_size());
         println!("is_copy_nums_valid={}", self.is_copy_nums_valid());
         println!("degree_stats={:?}", self.degree_stats());
+        println!("to_string={}", self.to_string());
 
         println!("Full:");
         println!("n_nodes={}", self.n_nodes_full());
@@ -997,6 +1012,17 @@ impl MultiDbg {
     ///
     pub fn from_gfa(&self) -> Self {
         unimplemented!();
+    }
+}
+
+impl std::fmt::Display for MultiDbg {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let seqs = self
+            .to_styled_seqs()
+            .iter()
+            .map(|seq| seq.to_string())
+            .join(",");
+        write!(f, "{},{}", self.k(), seqs)
     }
 }
 
