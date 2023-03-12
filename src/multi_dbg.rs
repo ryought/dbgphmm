@@ -1002,31 +1002,48 @@ impl MultiDbg {
         }
     }
     ///
-    /// create GFA string with `to_gfa_writer`
+    /// create DBG string with `to_dbg_writer`
     ///
-    pub fn to_gfa(&self) -> String {
+    pub fn to_dbg_string(&self) -> String {
         let mut writer = Vec::with_capacity(128);
-        self.to_gfa_writer(&mut writer).unwrap();
+        self.to_dbg_writer(&mut writer).unwrap();
         String::from_utf8(writer).unwrap()
     }
     ///
-    /// create GFA file with `to_gfa_writer`
+    /// create DBG file with `to_dbg_writer`
     ///
-    pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+    pub fn to_dbg_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
-        self.to_gfa_writer(&mut file)
+        self.to_dbg_writer(&mut file)
     }
     ///
     ///
     ///
-    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+    pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         write!(writer, "hoge")
     }
     ///
     ///
     ///
-    pub fn from_gfa(&self, s: &str) -> Self {
+    pub fn from_dbg_reader<R: std::io::BufRead>(reader: R) -> Self {
+        for line in reader.lines() {
+            println!("reading... {}", line.unwrap());
+        }
         unimplemented!();
+    }
+    ///
+    /// parse DBG string with `from_dbg_reader`
+    ///
+    pub fn from_dbg_str(s: &str) -> Self {
+        Self::from_dbg_reader(s.as_bytes())
+    }
+    ///
+    /// parse DBG file with `from_dbg_reader`
+    ///
+    pub fn from_dbg_file<P: AsRef<std::path::Path>>(path: P) -> Self {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        Self::from_dbg_reader(reader)
     }
 }
 
@@ -1116,10 +1133,14 @@ mod tests {
         }
     }
     #[test]
-    fn gfa() {
+    fn dumpload() {
         let dbg = toy::circular();
-        let s = dbg.to_gfa();
+        let s = dbg.to_dbg_string();
         println!("{}", s);
-        // dbg.to_gfa_file("hoge.gfa");
+        dbg.to_dbg_file("hoge.gfa");
+
+        // MultiDbg::from_dbg_file("hoge.gfa");
+
+        MultiDbg::from_dbg_str("hogehogehoge\nhogefugafuga");
     }
 }
