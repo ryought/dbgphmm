@@ -781,6 +781,16 @@ impl MultiDbg {
 
         edge_set
     }
+    /// self and other is the same dbg, ignoring the node index.
+    ///
+    pub fn is_equivalent(&self, other: &MultiDbg) -> bool {
+        self.k() == other.k()
+            && self.n_nodes_full() == other.n_nodes_full()
+            && self.n_edges_full() == other.n_edges_full()
+            && self.n_nodes_compact() == other.n_nodes_compact()
+            && self.n_edges_compact() == other.n_edges_compact()
+            && self.genome_size() == other.genome_size()
+    }
 }
 
 ///
@@ -1280,20 +1290,15 @@ mod tests {
 
         let s = dbg.to_dbg_string();
         println!("{}", s);
-        // dbg.to_dbg_file("hoge.dbg");
+
+        dbg.to_dbg_file("hoge.dbg");
 
         let dbg_1 = MultiDbg::from_dbg_str(&s);
         dbg_1.show_graph_with_kmer();
         let s_1 = dbg.to_dbg_string();
-        println!("{}", s_1);
 
-        assert_eq!(s, s_1);
-        assert_eq!(dbg.k(), dbg_1.k());
-        assert_eq!(dbg.n_nodes_full(), dbg_1.n_nodes_full());
-        assert_eq!(dbg.n_edges_full(), dbg_1.n_edges_full());
-        assert_eq!(dbg.n_nodes_compact(), dbg_1.n_nodes_compact());
-        assert_eq!(dbg.n_edges_compact(), dbg_1.n_edges_compact());
-        assert_eq!(dbg.genome_size(), dbg_1.genome_size());
+        assert!(dbg.is_equivalent(&dbg_1));
+        assert!(s == s_1);
     }
     #[test]
     fn dumpload() {
