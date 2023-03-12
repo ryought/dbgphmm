@@ -1002,15 +1002,30 @@ impl MultiDbg {
         }
     }
     ///
-    ///
+    /// create GFA string with `to_gfa_writer`
     ///
     pub fn to_gfa(&self) -> String {
-        unimplemented!();
+        let mut writer = Vec::with_capacity(128);
+        self.to_gfa_writer(&mut writer).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create GFA file with `to_gfa_writer`
+    ///
+    pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_gfa_writer(&mut file)
     }
     ///
     ///
     ///
-    pub fn from_gfa(&self) -> Self {
+    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        write!(writer, "hoge")
+    }
+    ///
+    ///
+    ///
+    pub fn from_gfa(&self, s: &str) -> Self {
         unimplemented!();
     }
 }
@@ -1084,6 +1099,7 @@ mod mocks {
 
 #[cfg(test)]
 mod tests {
+    use super::toy;
     use super::*;
     use crate::dbg::mocks as dbgmocks;
 
@@ -1098,5 +1114,12 @@ mod tests {
             let km1mer = multidbg.km1mer_full(node);
             println!("{:?} {}", node, km1mer);
         }
+    }
+    #[test]
+    fn gfa() {
+        let dbg = toy::circular();
+        let s = dbg.to_gfa();
+        println!("{}", s);
+        // dbg.to_gfa_file("hoge.gfa");
     }
 }
