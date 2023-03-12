@@ -27,7 +27,7 @@ use crate::kmer::{
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
@@ -1016,20 +1016,184 @@ impl MultiDbg {
         let mut file = std::fs::File::create(path).unwrap();
         self.to_dbg_writer(&mut file)
     }
+    /// DBG format
     ///
+    /// ```text
+    /// # comment
+    /// # K: kmer-size
+    /// K 4
     ///
+    /// # N: node
+    /// # id km1mer
+    /// N 0  NNN
+    /// N 1  ATC
     ///
+    /// # E: edge
+    /// # id source target seq       copy_num edges
+    /// E 0  0      1      ATCGATGCT 10       8,7,2,3,1
+    /// E 0  0      1      ATCGATGCT 5        8,7,2,3,1
+    ///
+    /// # P: path (sequence of edges)
+    /// P 0,5,2,3,1,2,4,2
+    ///
+    /// # C: copy numbers
+    /// # copy_nums_vector
+    /// C 1,1,1,0,0,0,0,0,1
+    /// ```
     pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        write!(writer, "hoge")
+        writeln!(writer, "K\t{}", self.k())?;
+        for (node, weight) in self.nodes_compact() {
+            writeln!(writer, "N\t{}\t{}", node.index(), self.km1mer_compact(node))?
+        }
+        for (edge, s, t, weight) in self.edges_compact() {
+            writeln!(
+                writer,
+                "E\t{}\t{}\t{}\t{}\t{}\t{}",
+                edge.index(),
+                s.index(),
+                t.index(),
+                self.kmer_compact(edge),
+                self.copy_num_of_edge_in_compact(edge),
+                weight.edges_in_full().iter().map(|e| e.index()).format(","),
+            )?
+        }
+        Ok(())
     }
     ///
     ///
     ///
     pub fn from_dbg_reader<R: std::io::BufRead>(reader: R) -> Self {
+        let mut k = None;
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        // sum of seq in compact graph and the number of edges in full graph
+        let mut n_bases = 0;
+
         for line in reader.lines() {
-            println!("reading... {}", line.unwrap());
+            let text = line.unwrap();
+            let first_char = text.chars().nth(0).unwrap();
+            match first_char {
+                'K' => {
+                    let mut iter = text.split_whitespace();
+                    iter.next().unwrap(); // 'K'
+                    k = Some(iter.next().unwrap().parse().unwrap());
+                }
+                'N' => {
+                    let mut iter = text.split_whitespace();
+                    iter.next().unwrap(); // 'N'
+
+                    let node: NodeIndex<DefaultIx> =
+                        NodeIndex::new(iter.next().unwrap().parse().unwrap());
+                    let km1mer = iter.next().unwrap().as_bytes().to_vec();
+
+                    assert_eq!(nodes.len(), node.index(), "node is not sorted");
+                    nodes.push((node, km1mer));
+                }
+                'E' => {
+                    let k = k.unwrap();
+                    let mut iter = text.split_whitespace();
+                    iter.next().unwrap(); // 'E'
+
+                    let edge: EdgeIndex<DefaultIx> =
+                        EdgeIndex::new(iter.next().unwrap().parse().unwrap());
+                    let s: NodeIndex<DefaultIx> =
+                        NodeIndex::new(iter.next().unwrap().parse().unwrap());
+                    let t: NodeIndex<DefaultIx> =
+                        NodeIndex::new(iter.next().unwrap().parse().unwrap());
+
+                    let mut kmer = iter.next().unwrap().as_bytes().to_vec();
+                    let seq = kmer.split_off(k - 1);
+                    n_bases += seq.len();
+
+                    let copy_num: CopyNum = iter.next().unwrap().parse().unwrap();
+                    let edges_in_full: Vec<EdgeIndex<DefaultIx>> = iter
+                        .next()
+                        .unwrap()
+                        .split(',')
+                        .map(|s| EdgeIndex::new(s.parse().unwrap()))
+                        .collect();
+                    assert_eq!(
+                        edges_in_full.len(),
+                        seq.len(),
+                        "length of seq and edges_in_full is different"
+                    );
+
+                    assert_eq!(edges.len(), edge.index(), "edge is not sorted");
+                    edges.push((edge, s, t, seq, copy_num, edges_in_full));
+                }
+                '#' => {} // pass
+                _ => panic!("invalid DBG format"),
+            }
         }
-        unimplemented!();
+
+        // full
+        let mut full = DiGraph::new();
+        for (_, km1mer) in nodes.iter() {
+            let is_terminal = km1mer.iter().all(|&x| x == NULL_BASE);
+            full.add_node(MultiFullNode::new(is_terminal));
+        }
+        let mut edges_full = vec![None; n_bases];
+        for (_, s, t, seq, copy_num, edges_in_full) in edges.iter() {
+            // Compact:
+            // s ------------------> t
+            //    e0,e1,e2...
+            //    ATT...
+            //
+            // into
+            //
+            // Full:
+            //
+            // s ----> v ----> v' ----> ... ----> v'' ----> t
+            //   e0      e1       e2
+            //   A       T        T
+            //
+            let n = seq.len();
+            let mut w_prev = None;
+            for i in 0..n {
+                let base = seq[i];
+                let edge_in_full = edges_in_full[i];
+
+                let v = if i == 0 {
+                    *s
+                } else {
+                    // previous w in i-1
+                    w_prev.unwrap()
+                };
+
+                let w = if i == n - 1 {
+                    *t
+                } else {
+                    // new node
+                    full.add_node(MultiFullNode::new(false))
+                };
+
+                edges_full[edge_in_full.index()] =
+                    Some((v, w, MultiFullEdge::new(base, *copy_num)));
+
+                // w will be source (v) in i+1
+                w_prev = Some(w);
+            }
+        }
+        for (i, e) in edges_full.into_iter().enumerate() {
+            let (source, target, weight) = e.expect("index of edge in full is wrong");
+            let edge = full.add_edge(source, target, weight);
+            assert_eq!(i, edge.index());
+        }
+
+        // compact
+        let mut compact = DiGraph::new();
+        for _ in nodes.iter() {
+            compact.add_node(MultiCompactNode::new());
+        }
+        for (_, s, t, _, _, edges_in_full) in edges.into_iter() {
+            compact.add_edge(s, t, MultiCompactEdge::new(edges_in_full));
+        }
+
+        MultiDbg {
+            k: k.expect("no K section"),
+            full,
+            compact,
+        }
     }
     ///
     /// parse DBG string with `from_dbg_reader`
@@ -1089,27 +1253,6 @@ impl std::fmt::Display for MultiFullNode {
     }
 }
 
-///
-/// Mock example MultiDbg definitions for debug
-///
-mod mocks {
-    use super::*;
-    ///
-    /// Circular `ATCTCCG` in k=4
-    ///
-    /// `ATCT`
-    /// `TCTC`
-    /// `CTCC`
-    /// `TCCG`
-    /// `CCGA`
-    /// `CGAT`
-    /// `GATC`
-    ///
-    pub fn multidbg_circular() -> MultiDbg {
-        unimplemented!();
-    }
-}
-
 //
 // tests
 //
@@ -1132,15 +1275,32 @@ mod tests {
             println!("{:?} {}", node, km1mer);
         }
     }
-    #[test]
-    fn dumpload() {
-        let dbg = toy::circular();
+    fn assert_dbg_dumpload_is_correct(dbg: MultiDbg) {
+        dbg.show_graph_with_kmer();
+
         let s = dbg.to_dbg_string();
         println!("{}", s);
-        dbg.to_dbg_file("hoge.gfa");
+        // dbg.to_dbg_file("hoge.dbg");
 
-        // MultiDbg::from_dbg_file("hoge.gfa");
+        let dbg_1 = MultiDbg::from_dbg_str(&s);
+        dbg_1.show_graph_with_kmer();
+        let s_1 = dbg.to_dbg_string();
+        println!("{}", s_1);
 
-        MultiDbg::from_dbg_str("hogehogehoge\nhogefugafuga");
+        assert_eq!(s, s_1);
+        assert_eq!(dbg.k(), dbg_1.k());
+        assert_eq!(dbg.n_nodes_full(), dbg_1.n_nodes_full());
+        assert_eq!(dbg.n_edges_full(), dbg_1.n_edges_full());
+        assert_eq!(dbg.n_nodes_compact(), dbg_1.n_nodes_compact());
+        assert_eq!(dbg.n_edges_compact(), dbg_1.n_edges_compact());
+        assert_eq!(dbg.genome_size(), dbg_1.genome_size());
+    }
+    #[test]
+    fn dumpload() {
+        assert_dbg_dumpload_is_correct(toy::circular());
+        assert_dbg_dumpload_is_correct(toy::linear());
+        assert_dbg_dumpload_is_correct(toy::intersection());
+        assert_dbg_dumpload_is_correct(toy::selfloop());
+        assert_dbg_dumpload_is_correct(toy::repeat());
     }
 }

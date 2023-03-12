@@ -1,6 +1,12 @@
 //!
 //! Toy example MultiDbg for debug
 //!
+//! * circular
+//! * linear
+//! * intersection
+//! * selfloop
+//! * repeat
+//!
 use super::*;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, Graph, NodeIndex};
 
