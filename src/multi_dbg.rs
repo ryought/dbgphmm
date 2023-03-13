@@ -17,6 +17,7 @@ use crate::common::{
     sequence_to_string, CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
+use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::utils::degree_stats;
 use crate::kmer::{
@@ -185,6 +186,15 @@ impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
             full,
             compact,
         }
+    }
+}
+
+///
+/// Conversion HashDbg -> MultiDbg
+///
+impl<K: KmerLike> std::convert::From<HashDbg<K>> for MultiDbg {
+    fn from(hashdbg: HashDbg<K>) -> MultiDbg {
+        unimplemented!();
     }
 }
 
@@ -519,6 +529,25 @@ impl MultiDbg {
         }
 
         kmer
+    }
+    ///
+    /// Convert edge in compact graph into sequence (emission bases)
+    ///
+    pub fn seq_compact(&self, edge_in_compact: EdgeIndex) -> Vec<u8> {
+        let mut seq = Vec::new();
+
+        for &edge_in_full in self
+            .graph_compact()
+            .edge_weight(edge_in_compact)
+            .unwrap()
+            .edges_in_full()
+            .iter()
+        {
+            let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
+            seq.push(base);
+        }
+
+        seq
     }
 }
 
@@ -960,7 +989,32 @@ impl MultiDbg {
 
         graph
     }
+    ///
+    /// Purge edges whose copy numbers is 0x.
+    /// This causes changes of edge index, so mapping is also returned.
+    ///
+    pub fn purge_edges(
+        &mut self,
+        edges_in_compact: &[EdgeIndex],
+    ) -> (HashMap<EdgeIndex, EdgeIndex>, HashMap<EdgeIndex, EdgeIndex>) {
+        // moved edges
+        let mut map_full = HashMap::default();
+        let mut map_compact = HashMap::default();
+
+        // retain_edges or remove_edge
+        for &edge in edges_in_compact {
+            let edge_weight = self.compact.remove_edge(edge).unwrap();
+            let last_edge = EdgeIndex::new(self.compact.edge_count() - 1);
+            map_compact.insert(last_edge, edge);
+        }
+
+        // remove isolated nodes
+
+        (map_full, map_compact)
+    }
 }
+
+// pub fn purge_edges(graph: &mut DiGraph<N, E>)
 
 ///
 /// serialize/deserialize and debug print methods
@@ -1233,6 +1287,66 @@ impl MultiDbg {
         let reader = std::io::BufReader::new(file);
         Self::from_dbg_reader(reader)
     }
+    /// GFA format
+    ///
+    /// ```text
+    /// # comment
+    ///
+    /// # segment
+    /// #  name  sequence   copy_number
+    /// S  0     ATCGATTCG  CN:i:1
+    /// S  1     ATCGATTCG  CN:i:1
+    ///
+    /// # link
+    /// #  source  orient  target  orient  optional  node_id
+    /// L  0       +       1       +       *         ID:Z:0
+    /// ```
+    ///
+    /// * segment for each edge
+    /// * link from in_edge to out_edge of each node
+    ///
+    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        for (edge, s, t, weight) in self.edges_compact() {
+            let seq = &self.seq_compact(edge);
+            writeln!(
+                writer,
+                "S\t{}\t{}\tCN:i:{}\tLB:z:{}",
+                edge.index(),
+                sequence_to_string(&seq),
+                self.copy_num_of_edge_in_compact(edge),
+                sequence_to_string(&seq),
+            )?
+        }
+        for (node, weight) in self.nodes_compact() {
+            for (in_edge, _, _) in self.parents_compact(node) {
+                for (out_edge, _, _) in self.childs_compact(node) {
+                    writeln!(
+                        writer,
+                        "L\t{}\t+\t{}\t+\t*\t{}",
+                        in_edge.index(),
+                        out_edge.index(),
+                        node.index(),
+                    )?
+                }
+            }
+        }
+        Ok(())
+    }
+    ///
+    /// create GFA string with `to_gfa_writer`
+    ///
+    pub fn to_gfa_string(&self) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_gfa_writer(&mut writer).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create GFA file with `to_gfa_writer`
+    ///
+    pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_gfa_writer(&mut file)
+    }
 }
 
 impl std::fmt::Display for MultiDbg {
@@ -1321,5 +1435,14 @@ mod tests {
         assert_dbg_dumpload_is_correct(toy::intersection());
         assert_dbg_dumpload_is_correct(toy::selfloop());
         assert_dbg_dumpload_is_correct(toy::repeat());
+    }
+    #[test]
+    fn gfa() {
+        let dbg = toy::repeat();
+        dbg.show_graph_with_kmer();
+        let s = dbg.to_gfa_string();
+        println!("{}", s);
+
+        dbg.to_gfa_file("repeat.gfa");
     }
 }
