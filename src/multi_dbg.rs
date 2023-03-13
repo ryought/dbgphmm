@@ -308,6 +308,20 @@ impl MultiDbg {
     pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
         degree_stats(self.graph_full())
     }
+    ///
+    /// Count # of ambiguous nodes whose in_deg > 1 and out_deg > 1.
+    ///
+    pub fn n_ambiguous_node(&self) -> usize {
+        let mut n = 0;
+        for node in self.graph_full().node_indices() {
+            let in_degree = self.parents_full(node).count();
+            let out_degree = self.childs_full(node).count();
+            if in_degree > 1 && out_degree > 1 {
+                n += 1;
+            }
+        }
+        n
+    }
 }
 
 ///
@@ -1111,7 +1125,7 @@ impl MultiDbg {
                     let t: NodeIndex<DefaultIx> =
                         NodeIndex::new(iter.next().unwrap().parse().unwrap());
 
-                    let mut kmer = iter.next().unwrap().as_bytes().to_vec();
+                    let mut kmer: Vec<u8> = iter.next().unwrap().as_bytes().to_vec();
                     let seq = kmer.split_off(k - 1);
                     n_bases += seq.len();
 
