@@ -19,7 +19,9 @@ use crate::common::{
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
+use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
+use crate::hmmv2::{common::PModel, params::PHMMParams};
 use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
@@ -865,6 +867,64 @@ impl MultiDbg {
 }
 
 ///
+/// Profile HMM related
+///
+impl MultiDbg {
+    /// Convert MultiDbg into node-centric Profile HMM `PModel` via SeqGraph `DiGraph<SNode, SEdge>`
+    ///
+    ///
+    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
+        let seqgraph = self.to_node_centric_graph(
+            |e, ew| SNode {
+                copy_num: ew.copy_num,
+                base: ew.base,
+            },
+            || {
+                let copy_num_terminal = self.copy_num_of_node(
+                    self.terminal_node_full()
+                        .expect("there is no terminal node"),
+                );
+                SNode {
+                    copy_num: copy_num_terminal,
+                    base: NULL_BASE,
+                }
+            },
+            |_, _, _| SEdge {},
+            |_| SEdge {},
+        );
+        seqgraph.to_phmm(param)
+    }
+}
+
+///
+/// Minimum instance of SeqNode from MultiDbg
+///
+struct SNode {
+    copy_num: CopyNum,
+    base: u8,
+}
+
+///
+/// Minimum instance of SeqEdge from MultiDbg
+///
+struct SEdge {}
+
+impl SeqNode for SNode {
+    fn copy_num(&self) -> CopyNum {
+        self.copy_num
+    }
+    fn base(&self) -> u8 {
+        self.base
+    }
+}
+
+impl SeqEdge for SEdge {
+    fn copy_num(&self) -> Option<CopyNum> {
+        None
+    }
+}
+
+///
 /// Modifying graph structure
 ///
 impl MultiDbg {
@@ -901,8 +961,17 @@ impl MultiDbg {
     ///
     /// Use in k+1 extension and PHMM conversion.
     ///
-    /// to_node: `(edge_index, edge_weight)`
-    /// to_edge: `(edge_index_source, edge_index_target, center_node_index)`
+    /// * `to_node(e: edge_index, edge_weight)`
+    ///     For all edge (k-mer) e in G, `to_node(e)` is called and the k-mer is added to G' as
+    ///     node.
+    /// * `to_terminal_node()`
+    ///     A special k-mer `NNNN` will be newly added to G' while no corresponding edge in G.
+    /// * `to_edge(e+: edge_index_source, e-: edge_index_target, v: center_node_index)`
+    ///     For all pair of in/out edges (e+, e-) of all node v in G, edge from e+ to e- will be
+    ///     added to G'.
+    /// * `to_terminal_edge(e: edge)`
+    ///     For all pair of in/out edges of terminal node NNN in G, edge will be added to G'
+    ///     corresponding to each edge in G.
     ///
     /// # Example
     ///
@@ -1531,5 +1600,31 @@ mod tests {
             let neighbors = dbg.to_neighbor_copy_nums(10, 2);
             assert_eq!(neighbors.len(), 12);
         }
+    }
+    #[test]
+    fn phmm_for_toy() {
+        let dbg = toy::intersection();
+        dbg.show_graph_with_kmer();
+
+        let phmm = dbg.to_phmm(PHMMParams::uniform(0.01));
+        println!("{}", phmm);
+    }
+    #[test]
+    fn phmm_from_dbg() {
+        let param = PHMMParams::uniform(0.01);
+        let reads = &[b"CTAGCTT"];
+        let dbg = dbgmocks::mock_intersection();
+        let phmm_dbg = dbg.to_phmm(param);
+        println!("{}", phmm_dbg);
+        let p_dbg = phmm_dbg.to_full_prob(reads);
+        println!("{}", p_dbg);
+
+        let mdbg: MultiDbg = dbg.into();
+        let phmm_mdbg = mdbg.to_phmm(param);
+        println!("{}", phmm_mdbg);
+        let p_mdbg = phmm_mdbg.to_full_prob(reads);
+        println!("{}", p_mdbg);
+
+        assert_eq!(p_dbg, p_mdbg);
     }
 }

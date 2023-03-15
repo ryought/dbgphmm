@@ -207,6 +207,23 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .product()
     }
     ///
+    ///
+    pub fn to_full_prob<T>(&self, seqs: T) -> Prob
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
+                let forward = self.forward(read);
+                let backward = self.backward(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_full_prob_forward()
+            })
+            .product()
+    }
+    ///
     /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
     /// (active nodes)
     ///
