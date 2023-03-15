@@ -100,27 +100,45 @@ pub fn remove_deadends_fast<N, E>(graph: DiGraph<N, E>) -> DiGraph<N, E> {
 ///
 /// Except nodes with a single self-loop.
 ///
-fn find_simple_path_node<N, E>(graph: &DiGraph<N, E>) -> Option<NodeIndex> {
-    graph.node_indices().find(|&node| {
-        node_degree(graph, node, Direction::Incoming) == 1
-            && node_degree(graph, node, Direction::Outgoing) == 1
-            && find_edge_directed(graph, node, Direction::Incoming)
-                != find_edge_directed(graph, node, Direction::Outgoing)
-    })
+fn find_simple_path_node_in_targeted_nodes<N, E, F: Fn(&N) -> bool>(
+    graph: &DiGraph<N, E>,
+    is_target_node: F,
+) -> Option<NodeIndex> {
+    graph
+        .node_indices()
+        .filter(|&node| {
+            let weight = graph.node_weight(node).unwrap();
+            is_target_node(weight)
+        })
+        .find(|&node| {
+            node_degree(graph, node, Direction::Incoming) == 1
+                && node_degree(graph, node, Direction::Outgoing) == 1
+                && find_edge_directed(graph, node, Direction::Incoming)
+                    != find_edge_directed(graph, node, Direction::Outgoing)
+        })
 }
-
 ///
 /// remove all nodes whose in/out-degree is 1
 ///
 pub fn compact_simple_paths<N: Clone, E: Clone>(
     graph: &DiGraph<N, E>,
 ) -> DiGraph<N, Vec<(EdgeIndex, E)>> {
+    compact_simple_paths_for_targeted_nodes(graph, |_| true)
+}
+
+///
+/// remove all nodes whose in/out-degree is 1
+///
+pub fn compact_simple_paths_for_targeted_nodes<N: Clone, E: Clone, F: Fn(&N) -> bool>(
+    graph: &DiGraph<N, E>,
+    is_target_node: F,
+) -> DiGraph<N, Vec<(EdgeIndex, E)>> {
     let mut ret = graph.map(
         |_node, node_weight| node_weight.clone(),
         |edge, edge_weight| vec![(edge, edge_weight.clone())],
     );
 
-    while let Some(node) = find_simple_path_node(&ret) {
+    while let Some(node) = find_simple_path_node_in_targeted_nodes(&ret, &is_target_node) {
         let in_edge_ref = ret
             .edges_directed(node, Direction::Incoming)
             .next()

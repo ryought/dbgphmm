@@ -186,6 +186,14 @@ pub trait KmerLike:
     ///
     fn extend_last(&self, last_base: u8) -> Self;
     ///
+    /// (YYY, X) -> XYYY with consuming self
+    ///
+    fn into_extend_first(self, first_base: u8) -> Self;
+    ///
+    /// (YYY, Z) -> YYYZ with consuming self
+    ///
+    fn into_extend_last(self, last_base: u8) -> Self;
+    ///
     /// (XYYY, YYYZ) (two k mers) -> XYYYZ (k+1 mer)
     ///
     fn join(&self, other: &Self) -> Self {

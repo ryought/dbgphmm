@@ -120,6 +120,16 @@ impl KmerLike for VecKmer {
         v.push(last_base);
         VecKmer(v)
     }
+    fn into_extend_first(self, first_base: u8) -> VecKmer {
+        let mut v = self.0;
+        v.insert(0, first_base);
+        VecKmer(v)
+    }
+    fn into_extend_last(self, last_base: u8) -> VecKmer {
+        let mut v = self.0;
+        v.push(last_base);
+        VecKmer(v)
+    }
     fn join(&self, other: &VecKmer) -> VecKmer {
         if self.adjacent(other) {
             // self --> other

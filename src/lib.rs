@@ -18,6 +18,7 @@ pub mod kmer;
 pub mod mcmc;
 pub mod min_flow;
 // pub mod phmm;
+pub mod multi_dbg;
 pub mod playground;
 pub mod prelude;
 pub mod prob;
