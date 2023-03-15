@@ -304,7 +304,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         );
         let copy_num = self.to_node_copy_nums().switch_index().into();
         // enumerate all cycles
-        enumerate_neighboring_flows(&network, &copy_num, None)
+        enumerate_neighboring_flows(&network, &copy_num, None, None)
             .into_iter()
             .map(|(flow, update_info)| {
                 let copy_nums: EdgeCopyNums = flow.into();
@@ -337,7 +337,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         );
         let copy_num = into_compacted_flow(&graph, &self.to_node_copy_nums().switch_index().into());
         // enumerate all cycles
-        enumerate_neighboring_flows(&network, &copy_num, Some(max_depth))
+        enumerate_neighboring_flows(&network, &copy_num, Some(max_depth), None)
             .into_iter()
             .filter(|(new_copy_num, _)| {
                 if ignore_high_copys {

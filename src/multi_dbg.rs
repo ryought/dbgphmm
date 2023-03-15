@@ -704,6 +704,12 @@ impl MultiDbg {
             copy_num
         }
     }
+    /// Get neighboring copy numbers
+    ///
+    ///
+    pub fn to_neighbor_copy_nums(&self) -> Vec<CopyNums> {
+        unimplemented!();
+    }
 }
 
 ///
