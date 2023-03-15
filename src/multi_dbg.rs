@@ -19,7 +19,7 @@ use crate::common::{
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
-use crate::graph::utils::degree_stats;
+use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::kmer::{
     common::{KmerLike, NullableKmer},
     veckmer::VecKmer,
@@ -606,7 +606,7 @@ impl MultiDbg {
                 self.full.edge_weight_mut(edge_in_full).unwrap().copy_num = copy_num;
             }
         }
-        assert!(self.is_copy_nums_valid());
+        assert!(self.is_copy_nums_valid(), "invalid new copy_nums");
     }
     ///
     /// Get current copy numbers vector
@@ -993,22 +993,43 @@ impl MultiDbg {
     /// Purge edges whose copy numbers is 0x.
     /// This causes changes of edge index, so mapping is also returned.
     ///
+    /// `(map_full, map_compact)`
+    ///
+    /// `map_{full,compact}` is a mapping from edge in original graph into edge in modified graph or None if
+    /// deleted.
+    ///
     pub fn purge_edges(
         &mut self,
         edges_in_compact: &[EdgeIndex],
-    ) -> (HashMap<EdgeIndex, EdgeIndex>, HashMap<EdgeIndex, EdgeIndex>) {
-        // moved edges
-        let mut map_full = HashMap::default();
-        let mut map_compact = HashMap::default();
-
-        // retain_edges or remove_edge
+    ) -> (
+        HashMap<EdgeIndex, Option<EdgeIndex>>,
+        HashMap<EdgeIndex, Option<EdgeIndex>>,
+    ) {
+        // List up edges to be removed in full
+        let mut edges_in_full = Vec::new();
         for &edge in edges_in_compact {
-            let edge_weight = self.compact.remove_edge(edge).unwrap();
-            let last_edge = EdgeIndex::new(self.compact.edge_count() - 1);
-            map_compact.insert(last_edge, edge);
+            for &edge_in_full in self.graph_compact()[edge].edges_in_full() {
+                edges_in_full.push(edge_in_full);
+            }
         }
 
+        // remove edges from full/compact graph
+        let (map_compact, _) = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
+        let (map_full, _) = purge_edges_with_mapping(&mut self.full, &edges_in_full);
+
         // remove isolated nodes
+        delete_isolated_nodes(&mut self.compact);
+        delete_isolated_nodes(&mut self.full);
+
+        // update edges_in_full in compact::MultiCompactEdge
+        for weight in self.compact.edge_weights_mut() {
+            for e in weight.edges_in_full.iter_mut() {
+                *e = match map_full.get(&e) {
+                    None => *e,
+                    Some(&v) => v.expect("remove edge twice"),
+                };
+            }
+        }
 
         (map_full, map_compact)
     }
@@ -1399,7 +1420,9 @@ impl std::fmt::Display for MultiFullNode {
 mod tests {
     use super::toy;
     use super::*;
+    use crate::common::ei;
     use crate::dbg::mocks as dbgmocks;
+    use crate::kmer::veckmer::kmer;
 
     #[test]
     fn convert_from_dbg() {
@@ -1444,5 +1467,22 @@ mod tests {
         println!("{}", s);
 
         dbg.to_gfa_file("repeat.gfa");
+    }
+    #[test]
+    fn purge_edges_for_toy() {
+        let mut dbg = toy::intersection();
+        dbg.show_graph_with_kmer();
+        assert_eq!(dbg.kmer_compact(ei(0)), kmer(b"ATCAnnn"));
+        assert_eq!(dbg.kmer_compact(ei(1)), kmer(b"ATCCnnn"));
+        assert_eq!(dbg.kmer_compact(ei(2)), kmer(b"nnnTATC"));
+        assert_eq!(dbg.kmer_compact(ei(3)), kmer(b"nnnGATC"));
+
+        let (mf, mc) = dbg.purge_edges(&[ei(1), ei(2)]);
+        dbg.show_graph_with_kmer();
+        println!("{:?} {:?}", mf, mc);
+        assert_eq!(dbg.n_edges_full(), 8);
+        assert_eq!(dbg.n_edges_compact(), 2);
+        assert_eq!(dbg.kmer_compact(ei(0)), kmer(b"ATCAnnn"));
+        assert_eq!(dbg.kmer_compact(ei(1)), kmer(b"nnnGATC"));
     }
 }

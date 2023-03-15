@@ -83,6 +83,17 @@ pub fn purge_edges_with_mapping<N, E>(
     (from_original, to_original)
 }
 
+/// Delete all isolated nodes (no in/out edges)
+///
+pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
+    graph.retain_nodes(|graph, node| {
+        // keep nodes with in/out edges, and remove otherwise
+        let in_degree = graph.edges_directed(node, Direction::Incoming).count();
+        let out_degree = graph.edges_directed(node, Direction::Outgoing).count();
+        in_degree > 0 || out_degree > 0
+    })
+}
+
 fn assert_is_bimap(
     from_original: &HashMap<EdgeIndex, Option<EdgeIndex>>,
     to_original: &HashMap<EdgeIndex, EdgeIndex>,
