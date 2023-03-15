@@ -32,7 +32,9 @@ use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
-use rustflow::min_flow::Flow;
+use rustflow::min_flow::{
+    base::FlowEdgeBase, enumerate_neighboring_flows, residue::UpdateInfo, Flow,
+};
 
 pub mod toy;
 
@@ -707,8 +709,28 @@ impl MultiDbg {
     /// Get neighboring copy numbers
     ///
     ///
-    pub fn to_neighbor_copy_nums(&self) -> Vec<CopyNums> {
-        unimplemented!();
+    pub fn to_neighbor_copy_nums_and_infos(
+        &self,
+        max_cycle_size: usize,
+        max_flip: usize,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let network = self.graph_compact().map(
+            |_, _| (),
+            |edge, _| {
+                let copy_num = self.copy_num_of_edge_in_compact(edge);
+                FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+            },
+        );
+        let copy_nums = self.get_copy_nums();
+        enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
+    }
+    ///
+    ///
+    pub fn to_neighbor_copy_nums(&self, max_cycle_size: usize, max_flip: usize) -> Vec<CopyNums> {
+        self.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
+            .into_iter()
+            .map(|(copy_nums, _)| copy_nums)
+            .collect()
     }
 }
 
@@ -1490,5 +1512,24 @@ mod tests {
         assert_eq!(dbg.n_edges_compact(), 2);
         assert_eq!(dbg.kmer_compact(ei(0)), kmer(b"ATCAnnn"));
         assert_eq!(dbg.kmer_compact(ei(1)), kmer(b"nnnGATC"));
+    }
+    #[test]
+    fn neighbors_for_toy() {
+        let mut dbg = toy::intersection();
+        dbg.show_graph_with_kmer();
+        let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 0);
+        for (copy_nums, update_info) in neighbors {
+            println!("{} {:?}", copy_nums, update_info);
+        }
+
+        {
+            let neighbors = dbg.to_neighbor_copy_nums(10, 0);
+            assert_eq!(neighbors.len(), 8);
+        }
+
+        {
+            let neighbors = dbg.to_neighbor_copy_nums(10, 2);
+            assert_eq!(neighbors.len(), 12);
+        }
     }
 }
