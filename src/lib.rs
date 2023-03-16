@@ -17,7 +17,6 @@ pub mod json;
 pub mod kmer;
 pub mod mcmc;
 pub mod min_flow;
-// pub mod phmm;
 pub mod multi_dbg;
 pub mod playground;
 pub mod prelude;
@@ -30,6 +29,7 @@ pub mod stats;
 pub mod utils;
 pub mod veclike;
 pub mod vector;
+// pub mod phmm;
 
 extern crate jemallocator;
 #[global_allocator]

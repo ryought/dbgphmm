@@ -115,6 +115,9 @@ mod tests {
         let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
+        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(&genome));
+        println!("p={} t={}", p, time);
+        assert!(p.log_diff(p_true) < 1.0);
 
         //
         // test using fragment and errorneous read
@@ -130,5 +133,8 @@ mod tests {
         let p_true = lp(-1475.6);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
+        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+        println!("p={} t={}", p, time);
+        // assert!(p.log_diff(p_true) < 1.0);
     }
 }
