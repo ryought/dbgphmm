@@ -23,6 +23,7 @@ pub use params::PHMMParams;
 
 use crate::common::NULL_BASE;
 use crate::prob::Prob;
+use itertools::{chain, Itertools};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 
@@ -169,7 +170,10 @@ impl PHMM {
         &self.graph
     }
     pub fn n_nodes(&self) -> usize {
-        &self.graph.node_count()
+        self.graph.node_count()
+    }
+    pub fn n_edges(&self) -> usize {
+        self.graph.edge_count()
     }
     ///
     /// Emission of the node
@@ -220,6 +224,54 @@ impl PHMM {
     ///
     pub fn parents(&self, node: NodeIndex) -> ParentEdges<PHMMEdge> {
         ParentEdges::new(&self.graph, node)
+    }
+    ///
+    /// Get a reference of node weight
+    ///
+    pub fn node(&self, node: NodeIndex) -> &PHMMNode {
+        self.graph.node_weight(node).unwrap()
+    }
+    ///
+    /// Get a reference of edge weight
+    ///
+    pub fn edge(&self, edge: EdgeIndex) -> &PHMMEdge {
+        self.graph.edge_weight(edge).unwrap()
+    }
+}
+
+///
+/// Node List related
+///
+impl PHMM {
+    pub fn to_all_nodes(&self) -> Vec<NodeIndex> {
+        self.graph.node_indices().collect()
+    }
+    pub fn to_childs(&self, nodes: &[NodeIndex]) -> Vec<NodeIndex> {
+        nodes
+            .iter()
+            .flat_map(|&node| self.childs(node).map(|(_, child, _)| child))
+            .unique()
+            .collect()
+    }
+    pub fn to_parents(&self, nodes: &[NodeIndex]) -> Vec<NodeIndex> {
+        nodes
+            .iter()
+            .flat_map(|&node| self.parents(node).map(|(_, parent, _)| parent))
+            .unique()
+            .collect()
+    }
+    pub fn to_parents_and_us(&self, nodes: &[NodeIndex]) -> Vec<NodeIndex> {
+        nodes
+            .iter()
+            .flat_map(|&node| self.parents(node).map(|(_, parent, _)| parent))
+            .chain(nodes.iter().copied())
+            .unique()
+            .collect()
+    }
+    pub fn merge(&self, a: &[NodeIndex], b: &[NodeIndex]) -> Vec<NodeIndex> {
+        chain!(a.iter().copied(), b.iter().copied())
+            .unique()
+            .collect()
     }
 }
 

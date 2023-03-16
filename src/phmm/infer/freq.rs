@@ -1,4 +1,4 @@
-use super::common::PHMMModel;
+use super::super::PHMM;
 use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
 use crate::prob::Prob;
@@ -10,7 +10,7 @@ use sparsevec::SparseVec;
 ///
 /// methods to generate PHMMOutput from PHMMModel
 ///
-impl PHMMModel {
+impl PHMM {
     ///
     /// Run forward and backward for the emissions and returns PHMMOutput.
     ///
@@ -34,7 +34,7 @@ impl PHMMModel {
 /// methods for calculating probabilities
 /// with PHMMModel and Reads
 ///
-impl PHMMModel {
+impl PHMM {
     ///
     /// calculate node freqs of multiple emission sequences (`Reads`).
     ///
