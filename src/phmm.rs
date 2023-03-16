@@ -13,10 +13,9 @@
 //! Define PHMM that is petgraph::DiGraph in which each node corresponds to a base
 //!
 pub mod infer;
-pub mod nodesubset;
-pub use nodesubset::NodeSubset;
 pub mod params;
 pub mod sample;
+pub mod speed;
 
 // re-export
 pub use params::PHMMParams;
@@ -70,8 +69,8 @@ pub struct PHMMEdge {
 /// * param: PHMMParams
 ///
 pub struct PHMM {
-    param: PHMMParams,
-    graph: DiGraph<PHMMNode, PHMMEdge>,
+    pub param: PHMMParams,
+    pub graph: DiGraph<PHMMNode, PHMMEdge>,
 }
 
 ///

@@ -16,6 +16,7 @@ mod tests {
     use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
     use crate::multi_dbg::MultiDbg;
+    use crate::phmm::params::PHMMParams as PHMMParamsV3;
     use crate::prelude::*;
     use crate::prob::{lp, p};
     use crate::utils::timer;
@@ -49,8 +50,8 @@ mod tests {
             dbg.n_edges()
         );
         assert_eq!(dbg.n_nodes(), 204734);
-        let param = PHMMParams::uniform(0.01);
-        let (phmm, time) = timer(|| dbg.to_phmm(param));
+        let param = PHMMParamsV3::uniform(0.01);
+        let (phmm, time) = timer(|| dbg.to_phmm_v3(param));
         // ~0.01s in M1 mac
         println!("phmm converted in {}ms", time);
 
@@ -86,8 +87,8 @@ mod tests {
             dbg.n_edges()
         );
         assert_eq!(dbg.n_nodes(), 512);
-        let param = PHMMParams::uniform(0.01);
-        let (phmm, time) = timer(|| dbg.to_phmm(param));
+        let param = PHMMParamsV3::uniform(0.01);
+        let (phmm, time) = timer(|| dbg.to_phmm_v3(param));
         // ~0ms in M1 mac
         println!("phmm converted in {}ms", time);
 

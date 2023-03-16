@@ -7,6 +7,7 @@ use crate::common::{CopyNum, NULL_BASE};
 use crate::graph::genome_graph::GenomeGraphPos;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
+use crate::phmm;
 use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
@@ -62,6 +63,10 @@ pub trait SeqGraph {
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
     ///
     fn to_phmm(&self, param: PHMMParams) -> PModel;
+    // v3
+    fn to_phmm_v3(&self, param: phmm::params::PHMMParams) -> phmm::PHMM;
+    fn to_phmm_node_v3(&self, node: NodeIndex, total_copy_num: CopyNum) -> phmm::PHMMNode;
+    fn to_phmm_edge_v3(&self, edge: EdgeIndex) -> phmm::PHMMEdge;
 }
 
 impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
@@ -172,6 +177,57 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             |e, _| self.to_phmm_edge(e),
         );
         PModel { param, graph }
+    }
+    /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
+    fn to_phmm_v3(&self, param: phmm::params::PHMMParams) -> phmm::PHMM {
+        let total_copy_num = self.total_emittable_copy_num();
+        let graph = self.map(
+            // node converter
+            |v, _| self.to_phmm_node_v3(v, total_copy_num),
+            // edge converter
+            |e, _| self.to_phmm_edge_v3(e),
+        );
+        phmm::PHMM { param, graph }
+    }
+    /// Convert Node in SimpleSeqGraph into phmm node
+    fn to_phmm_node_v3(&self, node: NodeIndex, total_copy_num: CopyNum) -> phmm::PHMMNode {
+        let node_weight = self.node_weight(node).unwrap();
+        let init_prob = if node_weight.is_emittable() {
+            Prob::from_prob(node_weight.copy_num() as f64) / Prob::from_prob(total_copy_num as f64)
+        } else {
+            Prob::from_prob(0.0)
+        };
+        phmm::PHMMNode::new(init_prob, node_weight.base())
+    }
+    fn to_phmm_edge_v3(&self, edge: EdgeIndex) -> phmm::PHMMEdge {
+        let (parent, child) = self.edge_endpoints(edge).unwrap();
+        let edge_weight = self.edge_weight(edge).unwrap();
+        let child_weight = self.node_weight(child).unwrap();
+        match edge_weight.copy_num() {
+            Some(copy_num) => {
+                // copy num is assigned
+                // XXX assume their consistency on the graph
+                let parent_weight = self.node_weight(parent).unwrap();
+                let parent_copy_num = parent_weight.copy_num();
+                let trans_prob = if child_weight.is_emittable() && copy_num > 0 {
+                    assert!(parent_copy_num > 0);
+                    Prob::from_prob(copy_num as f64 / parent_copy_num as f64)
+                } else {
+                    Prob::from_prob(0.0)
+                };
+                phmm::PHMMEdge::new(trans_prob)
+            }
+            None => {
+                // there is no copy num assigned to the edge
+                let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
+                let trans_prob = if child_weight.is_emittable() && total_child_copy_num > 0 {
+                    Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64)
+                } else {
+                    Prob::from_prob(0.0)
+                };
+                phmm::PHMMEdge::new(trans_prob)
+            }
+        }
     }
 }
 

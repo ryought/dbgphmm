@@ -12,6 +12,7 @@ use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::result::{PHMMResult, PHMMResultLike};
 use crate::hmmv2::sample::State;
+use crate::phmm;
 use crate::prob::Prob;
 use crate::utils::{spaces, timer};
 use itertools::Itertools;
@@ -93,6 +94,10 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert dbg into phmm
     pub fn to_phmm(&self, param: PHMMParams) -> PModel {
         self.graph.to_phmm(param)
+    }
+    /// Convert dbg into phmm (v3)
+    pub fn to_phmm_v3(&self, param: PHMMParams) -> phmm::PHMM {
+        self.graph.to_phmm_v3(param)
     }
     ///
     /// Convert dbg into phmm and calculate full probability
