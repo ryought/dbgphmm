@@ -1,5 +1,5 @@
 //!
-//! Definition of Node-centric PHMM
+//! Definition of PHMM
 //!
 use crate::common::{CopyNum, NULL_BASE};
 use crate::graph::active_nodes::ActiveNodes;
@@ -29,67 +29,108 @@ use sparsevec::SparseVec;
 /// * `init_prob(&self) -> Prob`
 ///     The initial transition probability (i.e. Begin state to this node)
 ///
-pub trait PHMMNode: std::marker::Sync {
+pub struct PHMMNode {
     ///
-    /// Emission base assigned to this HMM node.
-    fn emission(&self) -> u8;
+    ///
+    init_prob: Prob,
+    ///
+    ///
+    emission: u8,
+}
+
+impl PHMMNode {
+    ///
+    ///
+    ///
+    pub fn new(init_prob: Prob, emission: u8) -> PHMMNode {
+        PHMMNode {
+            init_prob,
+            emission,
+        }
+    }
+    ///
+    ///
+    ///
+    fn emission(&self) -> u8 {
+        self.emission
+    }
     ///
     /// This node has a valid emission or not.
+    ///
     fn is_emittable(&self) -> bool {
         self.emission() != NULL_BASE
     }
     ///
     /// Initial transition probability from Begin state to the node.
-    fn init_prob(&self) -> Prob;
+    ///
+    fn init_prob(&self) -> Prob {
+        self.init_prob
+    }
+}
+
+pub struct PHMMEdge {
+    ///
+    ///
+    ///
+    trans_prob: Prob,
 }
 
 ///
-/// attribute of PHMM Edge
+/// PHMMEdge
 ///
-/// * `trans_prob(&self) -> Prob`
-///     Transition probability from `source` to `target`.
-///
-pub trait PHMMEdge: std::marker::Sync {
+impl PHMMEdge {
+    ///
+    ///
+    ///
+    pub fn new(trans_prob: Prob) -> PHMMEdge {
+        PHMMEdge { trans_prob }
+    }
     ///
     /// Transition probability from the source node to the target node
     /// of this edge.
-    fn trans_prob(&self) -> Prob;
+    ///
+    fn trans_prob(&self) -> Prob {
+        self.trans_prob
+    }
+}
+
+impl std::fmt::Display for PHMMNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.is_emittable() {
+            write!(f, "{} (p={})", self.emission as char, self.init_prob)
+        } else {
+            write!(f, "not_emittable (p={})", self.init_prob)
+        }
+    }
+}
+
+impl std::fmt::Display for PHMMEdge {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "p={}", self.trans_prob)
+    }
 }
 
 /// Profile HMM model
 ///
-pub struct PHMMModel<N: PHMMNode, E: PHMMEdge> {
+pub struct PHMMModel {
     pub param: PHMMParams,
-    pub graph: DiGraph<N, E>,
+    pub graph: DiGraph<PHMMNode, PHMMEdge>,
 }
 
-pub type PGraph = DiGraph<PNode, PEdge>;
-pub type PModel = PHMMModel<PNode, PEdge>;
-
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMMModel {
     ///
     /// create iterator of all nodes
     /// Item of the iterator is `(NodeIndex, &N)`.
     ///
-    pub fn nodes(&self) -> NodesIterator<N> {
+    pub fn nodes(&self) -> NodesIterator<PHMMNode> {
         NodesIterator::new(&self.graph)
-    }
-    ///
-    /// create iterator on active nodes
-    /// Item of the iterator is `(NodeIndex, &N)`.
-    ///
-    pub fn active_nodes<'a>(
-        &'a self,
-        active_nodes: &'a ActiveNodes,
-    ) -> ActiveNodesIterator<'a, N, E> {
-        ActiveNodesIterator::new(&self.graph, active_nodes)
     }
     ///
     /// create iterator of all nodes
     /// Item of the iterator is
     /// `(EdgeIndex, NodeIndex of source, NodeIndex of target, &E)`.
     ///
-    pub fn edges(&self) -> EdgesIterator<E> {
+    pub fn edges(&self) -> EdgesIterator<PHMMEdge> {
         EdgesIterator::new(&self.graph)
     }
     ///
@@ -101,7 +142,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `NodeIndex` is index of child
     /// * `EdgeWeight` is of the edge transition
     ///
-    pub fn childs(&self, node: NodeIndex) -> ChildEdges<E> {
+    pub fn childs(&self, node: NodeIndex) -> ChildEdges<PHMMEdge> {
         ChildEdges::new(&self.graph, node)
     }
     ///
@@ -113,7 +154,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `NodeIndex` is index of parent
     /// * `EdgeWeight` is of the edge transition
     ///
-    pub fn parents(&self, node: NodeIndex) -> ParentEdges<E> {
+    pub fn parents(&self, node: NodeIndex) -> ParentEdges<PHMMEdge> {
         ParentEdges::new(&self.graph, node)
     }
     ///
@@ -131,13 +172,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Get a reference of node weight
     ///
-    pub fn node(&self, node: NodeIndex) -> &N {
+    pub fn node(&self, node: NodeIndex) -> &PHMMNode {
         self.graph.node_weight(node).unwrap()
     }
     ///
     /// Get a reference of edge weight
     ///
-    pub fn edge(&self, edge: EdgeIndex) -> &E {
+    pub fn edge(&self, edge: EdgeIndex) -> &PHMMEdge {
         self.graph.edge_weight(edge).unwrap()
     }
     ///
@@ -182,107 +223,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
 }
 
-impl<N, E> std::fmt::Display for PHMMModel<N, E>
-where
-    N: PHMMNode + std::fmt::Display,
-    E: PHMMEdge + std::fmt::Display,
-{
+impl std::fmt::Display for PHMMModel {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", Dot::with_config(&self.graph, &[]))
     }
 }
 
 //
-//
-// PNode
-//
-//
-
-#[derive(Debug, Copy, Clone)]
-pub struct PNode {
-    ///
-    copy_num: CopyNum,
-    /// initial transition probability
-    ///  = (copy_num) / (sum of copy_nums of all nodes)
-    init_prob: Prob,
-    ///
-    is_emittable: bool,
-    ///
-    emission: u8,
-}
-
-impl PNode {
-    pub fn new(copy_num: CopyNum, init_prob: Prob, is_emittable: bool, emission: u8) -> PNode {
-        PNode {
-            copy_num,
-            init_prob,
-            is_emittable,
-            emission,
-        }
-    }
-}
-
-impl PHMMNode for PNode {
-    fn emission(&self) -> u8 {
-        self.emission
-    }
-    fn is_emittable(&self) -> bool {
-        self.is_emittable
-    }
-    fn init_prob(&self) -> Prob {
-        self.init_prob
-    }
-}
-
-impl std::fmt::Display for PNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.is_emittable {
-            write!(f, "{} (p={})", self.emission as char, self.init_prob)
-        } else {
-            write!(f, "not_emittable (p={})", self.init_prob)
-        }
-    }
-}
-
-//
-//
-// PEdge
-//
-//
-
-#[derive(Debug, Copy, Clone)]
-pub struct PEdge {
-    ///
-    trans_prob: Prob,
-    ///
-    copy_num: Option<CopyNum>,
-}
-
-impl PEdge {
-    pub fn new(trans_prob: Prob) -> PEdge {
-        PEdge {
-            trans_prob,
-            copy_num: None,
-        }
-    }
-}
-
-impl PHMMEdge for PEdge {
-    fn trans_prob(&self) -> Prob {
-        self.trans_prob
-    }
-}
-
-impl std::fmt::Display for PEdge {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "p={}", self.trans_prob)
-    }
-}
-
-//
 // Visualizers
 //
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMMModel {
     /// println wrapper of NodeVec, with attributes of each nodes
     pub fn draw_node_vec<T, const M: usize>(&self, nv: &SparseVec<T, NodeIndex, M>)
     where

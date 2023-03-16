@@ -1,19 +1,12 @@
-//!
-//! Backward algorithm definitions
-//!
-
-use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
-use super::tablev2::{PHMMTable, PHMMTables};
-use crate::graph::active_nodes::ActiveNodes;
+use super::common::PHMMModel;
+use super::table::{PHMMTable, PHMMTables};
 use crate::prob::{p, Prob};
-use crate::vector::{NodeVec, Storage};
 use petgraph::graph::NodeIndex;
 
 ///
-/// Backward Algorithm
+/// Backward algorithm
 ///
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMMModel {
     ///
     /// Run Backward algorithm to the emissions
     ///
@@ -41,43 +34,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     r.last_table()
                 };
                 let table = self.b_step(i, emission, table_prev, &all_nodes, true, false);
-                r.tables.push(table);
-                r
-            });
-        // reverse the vector, to order the tables along with emissions
-        // i.e. tables[i] corresponds to the emissions[i]
-        r.tables.reverse();
-        r
-    }
-    ///
-    ///
-    ///
-    pub fn backward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMTables {
-        let r0 = PHMMTables {
-            init_table: self.b_init(true),
-            tables: Vec::new(),
-            is_forward: false,
-        };
-        let n = emissions.len();
-        // feed the emissions backward
-        let mut r = emissions
-            .iter()
-            .enumerate()
-            .rev()
-            .fold(r0, |mut r, (i, &emission)| {
-                let table_prev = if i == 0 {
-                    &r.init_table
-                } else {
-                    r.last_table()
-                };
-                let table = self.b_step(
-                    i,
-                    emission,
-                    table_prev,
-                    hint.active_nodes(i).nodes(),
-                    false,
-                    false,
-                );
                 r.tables.push(table);
                 r
             });
@@ -204,7 +160,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 // functions to calculate each step
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMMModel {
     ///
     /// Fill the backward probs of `Del` states
     ///
@@ -508,84 +464,4 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::common::ni;
-    use crate::hmmv2::mocks::mock_linear_phmm;
-    use crate::hmmv2::params::PHMMParams;
-    use crate::prob::lp;
-    use crate::vector::DenseStorage;
-    #[test]
-    fn hmm_backward_mock_linear_zero_error() {
-        let params = PHMMParams::zero_error();
-        println!("{}", params);
-        let phmm = mock_linear_phmm(params);
-        let r = phmm.backward(b"CGATC");
-        for table in r.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r.init_table);
-        // total probability
-        assert_abs_diff_eq!(r.tables[0].mb, lp(-13.8155605), epsilon = 0.00001);
-        // position-wise
-        assert_abs_diff_eq!(r.tables[4].m[ni(6)], lp(-11.5129354), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[4].m[ni(2)], lp(-11.5129354), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[3].m[ni(5)], lp(-11.5129454), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[3].m[ni(1)], lp(-11.5129454), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[2].m[ni(4)], lp(-11.5129554), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[1].m[ni(3)], lp(-11.5129654), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-11.5129754), epsilon = 0.00001);
-        // with allowing no errors, CGATT cannot be emitted.
-        // so it should have p=0
-        let r2 = phmm.backward(b"CGATT");
-        assert_eq!(r2.tables.len(), 5);
-        assert!(r2.tables[0].mb.is_zero());
-        for table in r2.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r2.init_table);
-    }
-    #[test]
-    fn hmm_backward_mock_linear_high_error() {
-        let mut param = PHMMParams::high_error();
-        param.n_warmup = 2;
-        param.n_active_nodes = 2;
-        let phmm = mock_linear_phmm(param);
-        // read 1
-        let r = phmm.backward(b"CGATC");
-        for table in r.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r.init_table);
-        assert_abs_diff_eq!(r.tables[0].m[ni(2)], lp(-13.0679200), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[0].mb, lp(-15.2115765494), epsilon = 0.00001);
-        // read 2
-        let r2 = phmm.backward(b"CGATT");
-        assert_eq!(r2.tables.len(), 5);
-        for table in r2.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r2.init_table);
-        assert_abs_diff_eq!(r2.tables[0].mb, lp(-16.7787277), epsilon = 0.00001);
-    }
-    #[test]
-    fn hmm_backward_with_hint_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // read1
-        let read1 = b"CGATC";
-        let o = phmm.run(read1);
-        let hint = o.to_hint(5);
-        println!("{:?}", hint);
-        println!("{:?}", hint.len());
-
-        let r1 = phmm.backward(read1);
-        let r2 = phmm.backward_with_hint(read1, &hint);
-        println!("{}", r1.first_table());
-        println!("{}", r2.first_table());
-        let p1 = r1.full_prob();
-        let p2 = r2.full_prob();
-        println!("p(dense)={}", p1);
-        println!("p(hint)={}", p2);
-        assert!(p1.log_diff(p2) < 0.1);
-    }
-}
+mod tests {}

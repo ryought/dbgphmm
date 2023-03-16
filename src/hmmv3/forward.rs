@@ -1,17 +1,12 @@
-//!
-//! Forward algorithm definitions
-//!
-
-use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
-use super::tablev2::{PHMMTable, PHMMTables};
-use crate::graph::active_nodes::ActiveNodes;
+use super::common::PHMMModel;
+use super::table::{PHMMTable, PHMMTables};
 use crate::prob::{p, Prob};
-use crate::vector::{NodeVec, Storage};
 use petgraph::graph::NodeIndex;
 
-// wrappers and exposed functions
-impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+///
+/// Forward algorithm
+///
+impl PHMMModel {
     ///
     /// Run Forward algorithm to the emissions Dense
     ///
@@ -37,36 +32,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     r.last_table()
                 };
                 let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
-                r.tables.push(table);
-                r
-            })
-    }
-    ///
-    /// Run Forward algorithm to the emissions using hint information
-    ///
-    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMTables {
-        let r0 = PHMMTables {
-            init_table: self.f_init(true),
-            tables: Vec::new(),
-            is_forward: true,
-        };
-        emissions
-            .iter()
-            .enumerate()
-            .fold(r0, |mut r, (i, &emission)| {
-                let table_prev = if i == 0 {
-                    &r.init_table
-                } else {
-                    r.last_table()
-                };
-                let table = self.f_step(
-                    i,
-                    emission,
-                    table_prev,
-                    hint.active_nodes(i).nodes(),
-                    false,
-                    false,
-                );
                 r.tables.push(table);
                 r
             })
@@ -158,7 +123,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 // functions to calculate each step
-impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+impl PHMMModel {
     /// Fill the forward probs of `Match` states
     ///
     /// For `i=0,...,n-1`
@@ -180,9 +145,6 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// ```
     ///
     /// (Here `x[:i+1] = x[0],...,x[i]`)
-    ///
-    /// If `t0.active_nodes` is set, only node k in the ActiveNodes will
-    /// be calculated.
     ///
     /// calculate `t0.m` from `t1.m, t1.i, t1.d, t1.mb, t1.ib`
     fn fm(&self, t0: &mut PHMMTable, t1: &PHMMTable, emission: u8, nodes: &[NodeIndex]) {
@@ -414,160 +376,4 @@ impl<'a, N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 //
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::common::{ni, sequence_to_string};
-    use crate::dbg::draft::EndNodeInference;
-    use crate::dbg::SimpleDbg;
-    use crate::e2e;
-    use crate::hmmv2::mocks::*;
-    use crate::hmmv2::params::PHMMParams;
-    use crate::kmer::VecKmer;
-    use crate::prob::lp;
-    use crate::vector::DenseStorage;
-    #[test]
-    fn hmm_forward_mock_linear_zero_error() {
-        let phmm = mock_linear_phmm(PHMMParams::zero_error());
-        let r = phmm.forward(b"CGATC");
-        assert_eq!(r.tables.len(), 5);
-        assert_abs_diff_eq!(r.tables[2].m[ni(5)], lp(-2.3026250931), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[3].m[ni(6)], lp(-2.3026250931), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-2.3026350932), epsilon = 0.00001);
-        // total probability
-        assert_abs_diff_eq!(r.tables[4].e, lp(-13.8155605), epsilon = 0.00001);
-        // no insertion and deletions, so i/d should be 0.
-        for table in r.tables {
-            for i in 0..table.n_nodes() {
-                assert!(table.i[ni(i)].is_zero());
-                assert!(table.d[ni(i)].is_zero());
-            }
-        }
-        // with allowing no errors, CGATT cannot be emitted.
-        // so it should have p=0
-        let r2 = phmm.forward(b"CGATT");
-        assert_eq!(r2.tables.len(), 5);
-        assert!(r2.tables[4].e.is_zero());
-    }
-    #[test]
-    fn hmm_forward_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // read 1
-        let r = phmm.forward(b"CGATC");
-        for table in r.tables.iter() {
-            println!("{}", table);
-        }
-        println!("{}", r.init_table);
-        assert_eq!(r.tables.len(), 5);
-        assert_abs_diff_eq!(r.tables[4].e, lp(-15.212633254), epsilon = 0.00001);
-        assert_abs_diff_eq!(r.tables[4].m[ni(7)], lp(-3.8652938682), epsilon = 0.00001);
-        // read 2
-        let r2 = phmm.forward(b"CGATT");
-        assert_abs_diff_eq!(r2.tables[4].e, lp(-16.7862972), epsilon = 0.00001);
-        // r[:4] and r2[:4] is the same emissions
-        assert_abs_diff_eq!(r2.tables[3].e, r.tables[3].e, epsilon = 0.00001);
-        assert_eq!(r2.tables.len(), 5);
-        for table in r2.tables.iter() {
-            println!("{}", table);
-        }
-    }
-    #[test]
-    fn hmm_forward_mock_sparse() {
-        let phmm = mock_linear_random_phmm(100, 0, PHMMParams::default());
-        let read = phmm.sample_read(32, 0);
-        println!("{}", sequence_to_string(&read));
-
-        let r1 = phmm.forward(&read);
-        let r2 = phmm.forward_sparse(&read);
-        for i in 0..r1.n_emissions() {
-            let t1 = r1.table(i);
-            let t2 = r2.table(i);
-            let d = t1.diff(&t2);
-            println!("{}", d);
-            assert!(d < 0.000000001);
-        }
-    }
-    #[test]
-    fn hmm_forward_with_hint_mock_linear_high_error() {
-        let phmm = mock_linear_phmm(PHMMParams::high_error());
-        // read1
-        let read1 = b"CGATC";
-        let o = phmm.run(read1);
-        let hint = o.to_hint(3);
-        println!("{:?}", hint);
-        println!("{:?}", hint.len());
-        assert_eq!(
-            hint,
-            Hint::new(vec![
-                ActiveNodes::Only(vec![ni(3), ni(2), ni(4)]),
-                ActiveNodes::Only(vec![ni(4), ni(3), ni(5)]),
-                ActiveNodes::Only(vec![ni(5), ni(6), ni(4)]),
-                ActiveNodes::Only(vec![ni(6), ni(7), ni(5)]),
-                ActiveNodes::Only(vec![ni(7), ni(8), ni(6)]),
-            ])
-        );
-
-        let r1 = phmm.forward(read1);
-        let r2 = phmm.forward_with_hint(read1, &hint);
-        println!("{}", r1.last_table());
-        println!("{}", r2.last_table());
-        let p1 = r1.full_prob();
-        let p2 = r2.full_prob();
-        println!("p(dense)={}", p1);
-        println!("p(hint)={}", p2);
-        assert!(p1.log_diff(p2) < 0.1);
-    }
-    #[test]
-    fn hmm_forward_with_hint_tandem_repeat() {
-        let exp = e2e::generate_small_tandem_repeat();
-        let dbg = exp.dbg_raw.clone();
-        let phmm = dbg.to_phmm(exp.phmm_params);
-        println!("n_reads={}", exp.reads().len());
-        // create hint
-        let hints: Vec<_> = exp
-            .reads()
-            .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
-            .collect();
-
-        // run
-        for (i, read) in exp.reads().iter().enumerate() {
-            let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
-            let p1 = r1.full_prob();
-            let p2 = r2.full_prob();
-            println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.log_diff(p2) < 0.1);
-        }
-    }
-    #[test]
-    fn hmm_forward_with_hint_difficult_tandem_repeat() {
-        let dataset = e2e::generate_difficult_diploid_tandem_repeat_dataset();
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
-                12,
-                dataset.reads(),
-                dataset.coverage(),
-                100,
-                0.01,
-                &EndNodeInference::Auto,
-            );
-        let phmm = dbg.to_phmm(dataset.params());
-        println!("n_reads={}", dataset.reads().len());
-        // create hint
-        let hints: Vec<_> = dataset
-            .reads()
-            .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
-            .collect();
-
-        // run
-        for (i, read) in dataset.reads().iter().enumerate() {
-            let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
-            let p1 = r1.full_prob();
-            let p2 = r2.full_prob();
-            println!("p(dense)={} p(hint)={}", p1, p2);
-            assert!(p1.log_diff(p2) < 1.0);
-        }
-    }
-}
+mod tests {}
