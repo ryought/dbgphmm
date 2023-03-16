@@ -22,7 +22,7 @@ pub const MAX_ACTIVE_NODES: usize = 400;
 ///
 /// `NodeVec x[node] = prob`
 ///
-pub type NodeVec<const N: usize> = SparseVec<Prob, NodeIndex, N>;
+pub type NodeVec<const M: usize> = SparseVec<Prob, NodeIndex, M>;
 
 ///
 /// PHMMTable V2
@@ -36,22 +36,22 @@ pub type NodeVec<const N: usize> = SparseVec<Prob, NodeIndex, N>;
 /// * mb, ib, e: Prob
 ///
 #[derive(Debug, Clone)]
-pub struct PHMMTable<const N: usize> {
+pub struct PHMMTable<const M: usize> {
     ///
     /// Match node probability
     /// `Table[Match, node]`
     ///
-    pub m: NodeVec<N>,
+    pub m: NodeVec<M>,
     ///
     /// Ins node probability
     /// `Table[Ins, node]`
     ///
-    pub i: NodeVec<N>,
+    pub i: NodeVec<M>,
     ///
     /// Del node probability
     /// `Table[Del, node]`
     ///
-    pub d: NodeVec<N>,
+    pub d: NodeVec<M>,
     ///
     /// Match node in begin state
     /// `Table[Match, Begin]`
@@ -69,14 +69,46 @@ pub struct PHMMTable<const N: usize> {
     pub e: Prob,
 }
 
+impl<const M: usize> PHMMTable<M> {
+    pub fn new(
+        is_dense: bool,
+        n_nodes: usize,
+        m: Prob,
+        i: Prob,
+        d: Prob,
+        mb: Prob,
+        ib: Prob,
+        e: Prob,
+    ) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, m, is_dense),
+            i: NodeVec::new(n_nodes, i, is_dense),
+            d: NodeVec::new(n_nodes, d, is_dense),
+            mb,
+            ib,
+            e,
+        }
+    }
+    pub fn zero(is_dense: bool, n_nodes: usize) -> Self {
+        PHMMTable {
+            m: NodeVec::new(n_nodes, Prob::zero(), is_dense),
+            i: NodeVec::new(n_nodes, Prob::zero(), is_dense),
+            d: NodeVec::new(n_nodes, Prob::zero(), is_dense),
+            mb: Prob::zero(),
+            ib: Prob::zero(),
+            e: Prob::zero(),
+        }
+    }
+}
+
 ///
 /// PHMMTables
 ///
 /// Vec of PHMMTable to store tables of emissions
 ///
 #[derive(Debug, Clone)]
-pub struct PHMMTables<const N: usize> {
-    pub init_table: PHMMTable<N>,
-    pub tables: Vec<PHMMTable<N>>,
+pub struct PHMMTables<const M: usize> {
+    pub init_table: PHMMTable<M>,
+    pub tables: Vec<PHMMTable<M>>,
     pub is_forward: bool,
 }
