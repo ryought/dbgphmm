@@ -106,9 +106,20 @@ mod tests {
         //
         // test using full-length error-free read
         //
-        let (p, time) = timer(|| phmm.to_full_prob(&genome));
         let p_true = lp(-138.0);
+        // dense
+        let (p, time) = timer(|| phmm.to_full_prob(&genome));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
+        // sparse
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
+        println!("p={} t={}", p, time);
+        assert!(p.log_diff(p_true) < 1.0);
+
+        //
+        // test using full-length error-free read
+        //
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads()));
+        println!("p={} t={}", p, time);
     }
 }
