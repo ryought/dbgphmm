@@ -66,7 +66,7 @@ mod tests {
         // test using full-length error-free read
         //
         let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
-        // ~675sec (10min) in release on m1_mac
+        // ~368sec (10min) in release on m1_mac
         println!("p={} t={}", p, time);
         let p_true = lp(-105736.2);
         assert!(p.log_diff(p_true) < 1.0);

@@ -234,9 +234,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .map(|seq| {
                 let read = seq.as_ref();
                 let forward = self.forward_sparse(read);
-                let backward = self.backward_sparse(read);
-                let o = PHMMOutput::new(forward, backward);
-                o.to_full_prob_forward()
+                forward.full_prob()
             })
             .product()
     }
