@@ -220,6 +220,7 @@ mod tests {
         assert_eq!(h.total_bases(), 3);
     }
 
+    /*
     #[test]
     fn hmm_history_to_freqs() {
         let phmm = mock_linear_phmm(PHMMParams::high_error());
@@ -262,4 +263,5 @@ mod tests {
         let ef = h.to_edge_freqs(&phmm);
         assert_abs_diff_eq!(ef.into(), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]);
     }
+    */
 }

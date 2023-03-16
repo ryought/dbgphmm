@@ -90,7 +90,6 @@ mod tests {
     use super::*;
     use crate::dbg::mocks;
     use crate::e2e;
-    use crate::hmmv2::result::PHMMResultLike;
     use crate::utils::timer;
 
     #[test]

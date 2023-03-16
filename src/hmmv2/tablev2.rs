@@ -107,11 +107,7 @@ impl PHMMTable {
     pub fn is_dense(&self) -> bool {
         self.m.is_dense()
     }
-    pub fn to_dense(&self) -> Self {
-        unimplemented!();
-    }
-    ///
-    ///
+    /// Pick up top-scored nodes
     ///
     pub fn top_nodes(&self, n_nodes: usize) -> Vec<NodeIndex> {
         unimplemented!();

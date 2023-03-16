@@ -6,7 +6,6 @@ mod tests {
     use crate::genome;
     use crate::hmmv2::mocks::{mock_linear_phmm, mock_linear_random_phmm};
     use crate::hmmv2::params::PHMMParams;
-    use crate::hmmv2::result::PHMMResultLike;
     use crate::prelude::*;
     use crate::random_seq::generate;
     #[test]

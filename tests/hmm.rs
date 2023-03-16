@@ -9,7 +9,6 @@ use dbgphmm::dbg::mocks::mock_random_with_seq;
 use dbgphmm::hmmv2::common::PModel;
 use dbgphmm::hmmv2::mocks::{mock_linear_phmm, mock_linear_random_phmm};
 use dbgphmm::hmmv2::params::PHMMParams;
-use dbgphmm::hmmv2::result::PHMMResultLike;
 use dbgphmm::hmmv2::sample::History;
 use dbgphmm::random_seq::generate;
 use itertools::izip;
