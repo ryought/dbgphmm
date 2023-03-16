@@ -1,11 +1,13 @@
 //!
 //! table structure for storing transition/edge usages
 //!
+use super::tablev2::MAX_ACTIVE_NODES;
 use crate::common::Freq;
 use crate::prob::Prob;
-use crate::vector::{DenseStorage, EdgeVec, NodeVec};
+use petgraph::graph::{EdgeIndex, NodeIndex};
+use sparsevec::SparseVec;
 
-#[derive(Debug, Copy, PartialEq, Clone, Default)]
+#[derive(Debug, Copy, PartialEq, Clone, Default, PartialOrd)]
 pub struct TransProb {
     /// Mk -> Ml transition
     pub mm: Prob,
@@ -52,14 +54,14 @@ impl std::fmt::Display for TransProb {
 }
 
 /// TransProb assigned to each edge and each edge types
-pub type TransProbs = EdgeVec<DenseStorage<TransProb>>;
+pub type TransProbs = SparseVec<TransProb, EdgeIndex, MAX_ACTIVE_NODES>;
 
 /// TransProb assigned to each node
 /// represents edge from Begin state and the node.
-pub type InitTransProbs = NodeVec<DenseStorage<TransProb>>;
+pub type InitTransProbs = SparseVec<TransProb, NodeIndex, MAX_ACTIVE_NODES>;
 
 /// Frequency (f64) assigned to each edges
-pub type EdgeFreqs = EdgeVec<DenseStorage<Freq>>;
+pub type EdgeFreqs = SparseVec<Freq, EdgeIndex, MAX_ACTIVE_NODES>;
 
 // test
 //

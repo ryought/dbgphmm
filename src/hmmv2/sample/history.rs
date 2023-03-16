@@ -65,7 +65,7 @@ impl History {
         N: PHMMNode,
         E: PHMMEdge,
     {
-        let mut nf = NodeFreqs::new(phmm.n_nodes(), 0.0);
+        let mut nf = NodeFreqs::new(phmm.n_nodes(), 0.0, true);
         for (state, _) in self.0.iter() {
             match state.to_node_index() {
                 Some(v) => nf[v] += 1.0,
@@ -82,7 +82,7 @@ impl History {
         N: PHMMNode,
         E: PHMMEdge,
     {
-        let mut ef = EdgeFreqs::new(phmm.n_edges(), 0.0);
+        let mut ef = EdgeFreqs::new(phmm.n_edges(), 0.0, true);
         for ((s1, _), (s2, _)) in self.0.iter().tuple_windows() {
             match (s1.to_node_index(), s2.to_node_index()) {
                 (Some(v1), Some(v2)) => {
@@ -234,41 +234,32 @@ mod tests {
         println!("{}", h);
         let nf = h.to_node_freqs(&phmm);
         assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
+            nf.to_vec(),
+            vec![0.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         );
         let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.0)
-        );
+        assert_abs_diff_eq!(ef.into(), vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
 
         // seed=2 ni(7) -> ni(9)
         let h = phmm.sample(10, 2);
         println!("{}", h);
         let nf = h.to_node_freqs(&phmm);
         assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], 0.0)
+            nf.into(),
+            vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         );
         let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0], 0.0)
-        );
+        assert_abs_diff_eq!(ef.into(), vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0]);
 
         // seed=15 ni(0) -> ni(8)
         let h = phmm.sample(10, 15);
         println!("{}", h);
         let nf = h.to_node_freqs(&phmm);
         assert_abs_diff_eq!(
-            nf,
-            NodeFreqs::from_slice(&[1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
+            nf.into(),
+            vec![1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]
         );
         let ef = h.to_edge_freqs(&phmm);
-        assert_abs_diff_eq!(
-            ef,
-            EdgeFreqs::from_slice(&[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], 0.0)
-        );
+        assert_abs_diff_eq!(ef.into(), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]);
     }
 }

@@ -227,12 +227,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn to_node_freqs(&self) -> NodeFreqs {
         let copy_nums = self.to_node_copy_nums();
-        NodeFreqs::from_inner_vec(
+        NodeFreqs::dense_from_vec(
             copy_nums
                 .to_inner_vec()
                 .into_iter()
                 .map(|copy_num| copy_num as Freq)
                 .collect(),
+            0.0,
         )
     }
     ///
@@ -382,7 +383,7 @@ mod tests {
         assert_eq!(fitted, nc);
         assert_eq!(cost, 0.0);
         // case 2: all zero freq
-        let nf0 = NodeFreqs::new(dbg.n_nodes(), 0.0);
+        let nf0 = NodeFreqs::new_dense(dbg.n_nodes(), 0.0);
         let (fitted, cost) = dbg.min_squared_error_copy_nums_from_freqs(&nf0).unwrap();
         assert_eq!(fitted.sum(), 0);
         assert_eq!(cost, 0.0);

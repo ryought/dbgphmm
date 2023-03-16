@@ -7,11 +7,10 @@ use crate::dbg::dbg::NodeCopyNums;
 use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
-use crate::hmmv2::freq::PHMMOutput;
 use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::result::{PHMMResult, PHMMResultLike};
 use crate::hmmv2::sample::State;
+use crate::hmmv2::tablev2::PHMMOutput;
 use crate::prob::Prob;
 use crate::utils::{spaces, timer};
 use itertools::Itertools;
@@ -183,11 +182,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// show mapping of a sequence of emissions in cli.
     /// list the nodes which emits emissons[i] with high probability.
     ///
-    pub fn show_mapping_summary<R: PHMMResultLike>(
-        &self,
-        emissions: &[u8],
-        output: &PHMMOutput<R>,
-    ) {
+    pub fn show_mapping_summary(&self, emissions: &[u8], output: &PHMMOutput) {
         let k = self.k();
         let header = || {
             println!("{}{}", spaces(k + 7), emissions.to_str());
@@ -207,8 +202,8 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                     self.copy_num(v)
                 ))
             );
-            let p = output.forward.table_merged(i + 1).e().to_log_value();
-            let p_prev = output.forward.table_merged(i).e().to_log_value();
+            let p = output.forward.table_merged(i + 1).e.to_log_value();
+            let p_prev = output.forward.table_merged(i).e.to_log_value();
             let dp = p - p_prev;
             println!("{}{}({})", spaces(i + 2), p, dp);
         }
@@ -240,7 +235,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg_b.set_node_copy_nums(copy_nums_b);
         let phmm_b = dbg_b.to_phmm(param);
 
-        let summary = |output: &PHMMOutput<PHMMResult>, copy_nums: &NodeCopyNums, x: usize| {
+        let summary = |output: &PHMMOutput, copy_nums: &NodeCopyNums, x: usize| {
             let node_info = |v| format!("{}x{}", self.kmer(v).to_string(), copy_nums[v]);
             output.forward.tables[x]
                 .to_states()
@@ -255,9 +250,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 })
                 .join(",")
         };
-        let dp = |output: &PHMMOutput<PHMMResult>, i: usize| {
-            let p = output.forward.table_merged(i + 1).e().to_log_value();
-            let p_prev = output.forward.table_merged(i).e().to_log_value();
+        let dp = |output: &PHMMOutput, i: usize| {
+            let p = output.forward.table_merged(i + 1).e.to_log_value();
+            let p_prev = output.forward.table_merged(i).e.to_log_value();
             p - p_prev
         };
 
@@ -321,7 +316,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg_b.set_node_copy_nums(copy_nums_b);
         let phmm_b = dbg_b.to_phmm(param);
 
-        let summary = |output: &PHMMOutput<PHMMResult>, copy_nums: &NodeCopyNums, x: usize| {
+        let summary = |output: &PHMMOutput, copy_nums: &NodeCopyNums, x: usize| {
             let node_info = |v| format!("{}x{}", self.kmer(v).to_string(), copy_nums[v]);
             output.forward.tables[x]
                 .to_states()
@@ -353,13 +348,13 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             );
 
             for x in 0..emissions.len() {
-                let pa = output_a.forward.table_merged(x + 1).e().to_log_value();
-                let pa_prev = output_a.forward.table_merged(x).e().to_log_value();
+                let pa = output_a.forward.table_merged(x + 1).e.to_log_value();
+                let pa_prev = output_a.forward.table_merged(x).e.to_log_value();
                 let dpa = pa - pa_prev;
                 let sa = summary(&output_a, &copy_nums_a, x);
 
-                let pb = output_b.forward.table_merged(x + 1).e().to_log_value();
-                let pb_prev = output_b.forward.table_merged(x).e().to_log_value();
+                let pb = output_b.forward.table_merged(x + 1).e.to_log_value();
+                let pb_prev = output_b.forward.table_merged(x).e.to_log_value();
                 let dpb = pb - pb_prev;
                 let sb = summary(&output_b, &copy_nums_b, x);
 
