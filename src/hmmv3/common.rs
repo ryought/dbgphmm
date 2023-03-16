@@ -8,10 +8,10 @@ use crate::graph::iterators::{
 };
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
-use crate::vector::{EdgeVec, NodeVec, Storage};
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
+use sparsevec::SparseVec;
 
 //
 // traits
@@ -284,20 +284,18 @@ impl std::fmt::Display for PEdge {
 //
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// println wrapper of NodeVec, with attributes of each nodes
-    pub fn draw_node_vec<S>(&self, nv: &NodeVec<S>)
+    pub fn draw_node_vec<T, const M: usize>(&self, nv: &SparseVec<T, NodeIndex, M>)
     where
-        S: Storage,
-        S::Item: std::fmt::Display,
+        T: std::fmt::Display + Copy + PartialOrd,
     {
         for (node, _w) in self.nodes() {
             println!("{:?}({})\t{}", node, self.emission(node) as char, nv[node]);
         }
     }
     /// println wrapper of EdgeVec, with attributes of each edges
-    pub fn draw_edge_vec<S>(&self, ev: &EdgeVec<S>)
+    pub fn draw_edge_vec<T, const M: usize>(&self, ev: &SparseVec<T, EdgeIndex, M>)
     where
-        S: Storage,
-        S::Item: std::fmt::Display,
+        T: std::fmt::Display + Copy + PartialOrd,
     {
         for (edge, k, l, _) in self.edges() {
             println!(
