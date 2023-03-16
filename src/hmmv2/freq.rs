@@ -223,6 +223,23 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .product()
     }
+    /// Calculate full prob using sparse
+    ///
+    pub fn to_full_prob_sparse<T>(&self, seqs: T) -> Prob
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
+                let forward = self.forward_sparse(read);
+                let backward = self.backward_sparse(read);
+                let o = PHMMOutput::new(forward, backward);
+                o.to_full_prob_forward()
+            })
+            .product()
+    }
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
     /// (active nodes)

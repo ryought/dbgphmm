@@ -17,6 +17,7 @@ mod tests {
     use crate::genome;
     use crate::multi_dbg::MultiDbg;
     use crate::prelude::*;
+    use crate::prob::{lp, p};
     use crate::utils::timer;
 
     /// unit 1kb x 1000 times = 1MB diploid
@@ -59,7 +60,16 @@ mod tests {
         // ~2s
         let (mdbg, time): (MultiDbg, _) = timer(|| dbg.into());
         println!("mdbg converted in {}ms", time);
-        mdbg.to_dbg_file("g1m.dbg");
+        // mdbg.to_dbg_file("g1m.dbg");
+
+        //
+        // test using full-length error-free read
+        //
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
+        // ~675sec (10min) in release on m1_mac
+        println!("p={} t={}", p, time);
+        let p_true = lp(-105736.2);
+        assert!(p.log_diff(p_true) < 1.0);
     }
 
     #[test]
@@ -92,5 +102,13 @@ mod tests {
             param,
         );
         dataset.show_reads_with_genome();
+
+        //
+        // test using full-length error-free read
+        //
+        let (p, time) = timer(|| phmm.to_full_prob(&genome));
+        let p_true = lp(-138.0);
+        println!("p={} t={}", p, time);
+        assert!(p.log_diff(p_true) < 1.0);
     }
 }
