@@ -2,7 +2,6 @@
 //!
 //!
 //!
-use super::table::PHMMTable;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::prob::Prob;
