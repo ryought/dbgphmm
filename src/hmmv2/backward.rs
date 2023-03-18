@@ -5,9 +5,9 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{PHMMTable, PHMMTables};
+use crate::common::collection::Bases;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
-use crate::vector::{NodeVec, Storage};
 use petgraph::graph::NodeIndex;
 
 ///
@@ -22,29 +22,31 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
     ///
-    pub fn backward(&self, emissions: &[u8]) -> PHMMTables {
+    pub fn backward<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
             is_forward: false,
         };
         let all_nodes = self.to_all_nodes();
-        let n = emissions.len();
+        let n = emissions.as_ref().len();
         // feed the emissions backward
-        let mut r = emissions
-            .iter()
-            .enumerate()
-            .rev()
-            .fold(r0, |mut r, (i, &emission)| {
-                let table_prev = if i == n - 1 {
-                    &r.init_table
-                } else {
-                    r.last_table()
-                };
-                let table = self.b_step(i, emission, table_prev, &all_nodes, true, false);
-                r.tables.push(table);
-                r
-            });
+        let mut r =
+            emissions
+                .as_ref()
+                .into_iter()
+                .enumerate()
+                .rev()
+                .fold(r0, |mut r, (i, &emission)| {
+                    let table_prev = if i == n - 1 {
+                        &r.init_table
+                    } else {
+                        r.last_table()
+                    };
+                    let table = self.b_step(i, emission, table_prev, &all_nodes, true, false);
+                    r.tables.push(table);
+                    r
+                });
         // reverse the vector, to order the tables along with emissions
         // i.e. tables[i] corresponds to the emissions[i]
         r.tables.reverse();
@@ -53,36 +55,38 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     ///
     ///
-    pub fn backward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMTables {
+    pub fn backward_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
             is_forward: false,
         };
-        let n = emissions.len();
+        let n = emissions.as_ref().len();
         // feed the emissions backward
-        let mut r = emissions
-            .iter()
-            .enumerate()
-            .rev()
-            .fold(r0, |mut r, (i, &emission)| {
-                // i: emission = x[i]
-                let table_prev = if i == n - 1 {
-                    &r.init_table
-                } else {
-                    r.last_table()
-                };
-                let table = self.b_step(
-                    i,
-                    emission,
-                    table_prev,
-                    hint.active_nodes(i).nodes(),
-                    false,
-                    false,
-                );
-                r.tables.push(table);
-                r
-            });
+        let mut r =
+            emissions
+                .as_ref()
+                .into_iter()
+                .enumerate()
+                .rev()
+                .fold(r0, |mut r, (i, &emission)| {
+                    // i: emission = x[i]
+                    let table_prev = if i == n - 1 {
+                        &r.init_table
+                    } else {
+                        r.last_table()
+                    };
+                    let table = self.b_step(
+                        i,
+                        emission,
+                        table_prev,
+                        hint.active_nodes(i).nodes(),
+                        false,
+                        false,
+                    );
+                    r.tables.push(table);
+                    r
+                });
         // reverse the vector, to order the tables along with emissions
         // i.e. tables[i] corresponds to the emissions[i]
         r.tables.reverse();
@@ -91,7 +95,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Backward algorithm to the emissions, with sparse calculation
     ///
-    pub fn backward_sparse(&self, emissions: &[u8]) -> PHMMTables {
+    pub fn backward_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
@@ -99,30 +103,33 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         };
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
-        let n = emissions.len();
-        let mut r = emissions
-            .iter()
-            .enumerate()
-            .rev()
-            .fold(r0, |mut r, (i, &emission)| {
-                if (n - i - 1) < param.n_warmup {
-                    // dense_table
-                    let table_prev = if i == n - 1 {
-                        &r.init_table
+        let n = emissions.as_ref().len();
+        let mut r =
+            emissions
+                .as_ref()
+                .into_iter()
+                .enumerate()
+                .rev()
+                .fold(r0, |mut r, (i, &emission)| {
+                    if (n - i - 1) < param.n_warmup {
+                        // dense_table
+                        let table_prev = if i == n - 1 {
+                            &r.init_table
+                        } else {
+                            r.last_table()
+                        };
+                        let table = self.b_step(i, emission, table_prev, &all_nodes, true, false);
+                        r.tables.push(table);
                     } else {
-                        r.last_table()
+                        // sparse_table
+                        let table_prev = r.last_table();
+                        let active_nodes = table_prev.top_nodes(param.n_active_nodes);
+                        let table =
+                            self.b_step(i, emission, &table_prev, &active_nodes, false, true);
+                        r.tables.push(table);
                     };
-                    let table = self.b_step(i, emission, table_prev, &all_nodes, true, false);
-                    r.tables.push(table);
-                } else {
-                    // sparse_table
-                    let table_prev = r.last_table();
-                    let active_nodes = table_prev.top_nodes(param.n_active_nodes);
-                    let table = self.b_step(i, emission, &table_prev, &active_nodes, false, true);
-                    r.tables.push(table);
-                };
-                r
-            });
+                    r
+                });
         // reverse the vector, to order the tables along with emissions
         // i.e. tables[i] corresponds to the emissions[i]
         r.tables.reverse();

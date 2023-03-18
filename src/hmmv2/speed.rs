@@ -19,6 +19,7 @@ mod tests {
     use crate::prelude::*;
     use crate::prob::{lp, p};
     use crate::utils::timer;
+    use std::io::prelude::*;
 
     /// unit 1kb x 1000 times = 1MB diploid
     fn g1m() -> (Genome, usize) {
@@ -133,8 +134,45 @@ mod tests {
         let p_true = lp(-1475.6);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
-        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
-        println!("p={} t={}", p, time);
+
+        let mut file = std::fs::File::create("g1k_dense_vs_sparse_for_reads.tsv").unwrap();
+        writeln!(
+            file,
+            "# read index base origin log_diff_end p_end_dense p_end_sparse"
+        )
+        .unwrap();
+
+        for (r, read) in dataset.reads().iter().enumerate() {
+            // dense
+            let dense = phmm.forward(read);
+            let sparse = phmm.forward_sparse(read);
+            let n = read.len();
+            for i in 0..n {
+                // println!("dense");
+                // println!("{}", dense.table(i));
+                // println!("sparse");
+                // println!("{}", sparse.table(i));
+                let td = dense.table(i);
+                let ts = sparse.table(i);
+                writeln!(
+                    file,
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    r,
+                    i,
+                    read.seq()[i] as char,
+                    read.origins()[i],
+                    td.e.log_diff(ts.e),
+                    td.e,
+                    ts.e,
+                    td.diff(ts),
+                )
+                .unwrap();
+            }
+        }
+
+        // backward
+        // let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+        // println!("p={} t={}", p, time);
         // assert!(p.log_diff(p_true) < 1.0);
     }
 }

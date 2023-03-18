@@ -5,9 +5,9 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{PHMMTable, PHMMTables};
+use crate::common::collection::Bases;
 use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
-use crate::vector::{NodeVec, Storage};
 use petgraph::graph::NodeIndex;
 
 // wrappers and exposed functions
@@ -20,7 +20,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// * `t` is a type of state, either Match, Ins, Del
     /// * `k` is a node index
     ///
-    pub fn forward(&self, emissions: &[u8]) -> PHMMTables {
+    pub fn forward<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
@@ -28,7 +28,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         };
         let all_nodes = self.to_all_nodes();
         emissions
-            .iter()
+            .as_ref()
+            .into_iter()
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 let table_prev = if i == 0 {
@@ -44,14 +45,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions using hint information
     ///
-    pub fn forward_with_hint(&self, emissions: &[u8], hint: &Hint) -> PHMMTables {
+    pub fn forward_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
             is_forward: true,
         };
         emissions
-            .iter()
+            .as_ref()
+            .into_iter()
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 let table_prev = if i == 0 {
@@ -74,7 +76,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions, with sparse calculation
     ///
-    pub fn forward_sparse(&self, emissions: &[u8]) -> PHMMTables {
+    pub fn forward_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
@@ -83,7 +85,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
         emissions
-            .iter()
+            .as_ref()
+            .into_iter()
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
                 if i < param.n_warmup {
