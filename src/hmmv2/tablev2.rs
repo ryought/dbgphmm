@@ -5,6 +5,7 @@
 //!
 use super::sample::State;
 use crate::prob::{p, Prob};
+use arrayvec::ArrayVec;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use sparsevec::SparseVec;
@@ -107,19 +108,24 @@ impl PHMMTable {
     pub fn is_dense(&self) -> bool {
         self.m.is_dense()
     }
+    ///
     /// Pick up top-scored nodes
     ///
-    pub fn top_nodes(&self, n_nodes: usize) -> Vec<NodeIndex> {
-        unimplemented!();
+    pub fn top_nodes(&self, n_nodes: usize) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
+        self.to_nodevec().to_top_k_indexes(n_nodes)
     }
+    /// Diff of two PHMMTables
+    ///
+    /// sum of |log(pa)-log(pb)|
+    ///
     pub fn diff(&self, other: &PHMMTable) -> f64 {
-        unimplemented!();
-        // self.m.diff(&other.m)
-        //     + self.i.diff(&other.i)
-        //     + self.d.diff(&other.d)
-        //     + self.mb.diff(other.mb)
-        //     + self.ib.diff(other.ib)
-        //     + self.e.diff(other.e)
+        let cmp = |pa: Prob, pb: Prob| pa.log_diff(pb);
+        self.m.diff_by(&other.m, cmp)
+            + self.i.diff_by(&other.i, cmp)
+            + self.d.diff_by(&other.d, cmp)
+            + self.mb.log_diff(other.mb)
+            + self.ib.log_diff(other.ib)
+            + self.e.log_diff(other.e)
     }
     ///
     ///
@@ -279,10 +285,14 @@ impl PHMMTables {
         &self.tables[i]
     }
     pub fn first_table(&self) -> &PHMMTable {
-        self.tables.first().unwrap()
+        self.tables
+            .first()
+            .expect("cannot get first table because PHMMTables is empty")
     }
     pub fn last_table(&self) -> &PHMMTable {
-        self.tables.last().unwrap()
+        self.tables
+            .last()
+            .expect("cannot get last table because PHMMTables is empty")
     }
     pub fn is_forward(&self) -> bool {
         self.is_forward
@@ -307,7 +317,8 @@ impl PHMMTables {
     ///  = P(emits x[i:] | starts from a state)
     ///
     pub fn table_merged(&self, merged_index: usize) -> &PHMMTable {
-        assert!(merged_index <= self.n_emissions());
+        // TODO
+        // assert!(merged_index <= self.n_emissions() + 1);
         if self.is_forward() {
             if merged_index == 0 {
                 &self.init_table

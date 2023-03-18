@@ -29,13 +29,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             is_forward: false,
         };
         let all_nodes = self.to_all_nodes();
+        let n = emissions.len();
         // feed the emissions backward
         let mut r = emissions
             .iter()
-            .rev()
             .enumerate()
+            .rev()
             .fold(r0, |mut r, (i, &emission)| {
-                let table_prev = if i == 0 {
+                let table_prev = if i == n - 1 {
                     &r.init_table
                 } else {
                     r.last_table()
@@ -65,7 +66,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .enumerate()
             .rev()
             .fold(r0, |mut r, (i, &emission)| {
-                let table_prev = if i == 0 {
+                // i: emission = x[i]
+                let table_prev = if i == n - 1 {
                     &r.init_table
                 } else {
                     r.last_table()
@@ -97,14 +99,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         };
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
+        let n = emissions.len();
         let mut r = emissions
             .iter()
-            .rev()
             .enumerate()
+            .rev()
             .fold(r0, |mut r, (i, &emission)| {
-                if i < param.n_warmup {
+                if (n - i - 1) < param.n_warmup {
                     // dense_table
-                    let table_prev = if i == 0 {
+                    let table_prev = if i == n - 1 {
                         &r.init_table
                     } else {
                         r.last_table()
@@ -157,7 +160,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     fn b_step(
         &self,
-        i: usize,
+        _i: usize,
         emission: u8,
         prev_table: &PHMMTable,
         nodes: &[NodeIndex],
@@ -578,9 +581,13 @@ mod tests {
         println!("{:?}", hint);
         println!("{:?}", hint.len());
 
+        println!("backward...");
         let r1 = phmm.backward(read1);
+        println!("backward with hint...");
         let r2 = phmm.backward_with_hint(read1, &hint);
+        println!("r1.first_table");
         println!("{}", r1.first_table());
+        println!("r2.first_table");
         println!("{}", r2.first_table());
         let p1 = r1.full_prob();
         let p2 = r2.full_prob();

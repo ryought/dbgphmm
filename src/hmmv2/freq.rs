@@ -26,6 +26,7 @@ use super::hint::Hint;
 use super::tablev2::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::Prob;
 use crate::utils::check_memory_usage;
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -255,7 +256,14 @@ impl PHMMOutput {
     /// Create hint (ActiveNodes list for each bases)
     ///
     pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
-        unimplemented!();
+        let ret = self
+            .iter_emit_probs()
+            .skip(1)
+            .map(|state_probs| {
+                ActiveNodes::Only(state_probs.top_nodes(n_active_nodes).as_slice().to_owned())
+            })
+            .collect();
+        Hint::new(ret)
     }
 }
 
