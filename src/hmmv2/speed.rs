@@ -131,7 +131,7 @@ mod tests {
         assert!(p.log_diff(p_true) < 1.0);
         // sparse
         let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads()));
-        let p_true = lp(-1475.6);
+        let p_true = lp(-1448.0);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
 
@@ -156,7 +156,7 @@ mod tests {
                 let ts = sparse.table(i);
                 writeln!(
                     file,
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                     r,
                     i,
                     read.seq()[i] as char,
@@ -164,6 +164,8 @@ mod tests {
                     td.e.log_diff(ts.e),
                     td.e,
                     ts.e,
+                    td.to_summary_string_n(5, |_| String::new()),
+                    ts.to_summary_string_n(5, |_| String::new()),
                     td.diff(ts),
                 )
                 .unwrap();

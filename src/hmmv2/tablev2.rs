@@ -217,9 +217,9 @@ impl PHMMTable {
             .take(n)
             .map(|(state, prob)| {
                 if let Some(node) = state.to_node_index() {
-                    format!("{}:{}{:.5}", node_info(node), state, prob.to_value())
+                    format!("{}:{}{:.5}", node_info(node), state, prob.to_log_value())
                 } else {
-                    format!("{}{:.5}", state, prob.to_value())
+                    format!("{}{:.5}", state, prob.to_log_value())
                 }
             })
             .join(",")

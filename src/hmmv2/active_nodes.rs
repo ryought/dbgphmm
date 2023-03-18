@@ -21,6 +21,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .unique()
             .collect()
     }
+    pub fn to_childs_and_us(&self, nodes: &[NodeIndex]) -> Vec<NodeIndex> {
+        nodes
+            .iter()
+            .flat_map(|&node| self.childs(node).map(|(_, parent, _)| parent))
+            .chain(nodes.iter().copied())
+            .unique()
+            .collect()
+    }
     pub fn to_parents(&self, nodes: &[NodeIndex]) -> Vec<NodeIndex> {
         nodes
             .iter()

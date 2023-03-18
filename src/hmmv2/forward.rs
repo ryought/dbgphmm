@@ -101,7 +101,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     // sparse_table
                     let table_prev = r.last_table();
-                    let active_nodes = self.to_childs(&table_prev.top_nodes(param.n_active_nodes));
+                    let active_nodes =
+                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes));
                     let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
                     r.tables.push(table);
                 };
