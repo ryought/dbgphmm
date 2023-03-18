@@ -118,7 +118,7 @@ impl PHMMTable {
     ///
     /// sum of |log(pa)-log(pb)|
     ///
-    pub fn diff(&self, other: &PHMMTable) -> f64 {
+    pub fn log_diff(&self, other: &PHMMTable) -> f64 {
         let cmp = |pa: Prob, pb: Prob| pa.log_diff(pb);
         self.m.diff_by(&other.m, cmp)
             + self.i.diff_by(&other.i, cmp)
@@ -126,6 +126,19 @@ impl PHMMTable {
             + self.mb.log_diff(other.mb)
             + self.ib.log_diff(other.ib)
             + self.e.log_diff(other.e)
+    }
+    /// Diff of two PHMMTables
+    ///
+    /// sum of |pa-pb|
+    ///
+    pub fn diff(&self, other: &PHMMTable) -> f64 {
+        let cmp = |pa: Prob, pb: Prob| pa.diff(pb);
+        self.m.diff_by(&other.m, cmp)
+            + self.i.diff_by(&other.i, cmp)
+            + self.d.diff_by(&other.d, cmp)
+            + self.mb.diff(other.mb)
+            + self.ib.diff(other.ib)
+            + self.e.diff(other.e)
     }
     ///
     ///

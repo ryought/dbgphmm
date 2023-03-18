@@ -70,7 +70,19 @@ impl Prob {
     /// abs diff of two log probs `= |log p_a - log p_b|`
     ///
     pub fn log_diff(&self, other: Prob) -> f64 {
-        (self.to_log_value() - other.to_log_value()).abs()
+        if self.is_zero() {
+            if other.is_zero() {
+                0.0
+            } else {
+                f64::INFINITY
+            }
+        } else {
+            if other.is_zero() {
+                f64::INFINITY
+            } else {
+                (self.to_log_value() - other.to_log_value()).abs()
+            }
+        }
     }
 }
 
@@ -340,5 +352,19 @@ mod tests {
         assert_eq!(p1, f(p1));
         assert_eq!(p05, f(p05));
         assert_eq!(p0, f(p0));
+    }
+    #[test]
+    fn prob_diff() {
+        let p1 = Prob::one();
+        let p05 = Prob::from_prob(0.5);
+        let p06 = Prob::from_prob(0.6);
+        let p0 = Prob::zero();
+        assert_eq!(0.0, p1.log_diff(p1));
+        assert_eq!(0.0, p05.log_diff(p05));
+        assert_eq!(0.0, p06.log_diff(p06));
+        assert_eq!(0.0, p0.log_diff(p0));
+
+        assert_eq!(f64::INFINITY, p0.log_diff(p1));
+        assert_eq!(f64::INFINITY, p1.log_diff(p0));
     }
 }

@@ -598,8 +598,10 @@ mod tests {
     }
     #[test]
     fn e2e_dataset_read_with_genome_visualization_test() {
+        println!("generating genome");
         let (genome, genome_size) =
             genome::tandem_repeat_polyploid_with_unique_ends(50, 4, 0.05, 0, 0, 50, 2, 0.05, 0);
+        println!("generating reads");
         let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
             genome.clone(),

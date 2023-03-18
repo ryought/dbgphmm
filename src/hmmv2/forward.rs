@@ -481,6 +481,9 @@ mod tests {
         for i in 0..r1.n_emissions() {
             let t1 = r1.table(i);
             let t2 = r2.table(i);
+            println!("i={}", i);
+            println!("{}", t1);
+            println!("{}", t2);
             let d = t1.diff(&t2);
             println!("{}", d);
             assert!(d < 0.000000001);
