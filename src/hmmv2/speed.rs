@@ -116,6 +116,8 @@ mod tests {
         let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
+        // sparse ~0.3sec
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
         let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(&genome));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
@@ -124,24 +126,25 @@ mod tests {
         // test using fragment and errorneous read
         //
         println!("read");
-        // dense
+        // dense ~1.6s
         let (p, time) = timer(|| phmm.to_full_prob(dataset.reads()));
         let p_true = lp(-1448.0);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
-        // sparse
+        // sparse ~0.5s
         let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads()));
         let p_true = lp(-1448.0);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
+        // sparse backward ~0.6s
+        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+        let p_true = lp(-1486.0);
+        println!("p={} t={}", p, time);
+        assert!(p.log_diff(p_true) < 1.0);
+        // assert!(p.log_diff(p_true) < 1.0);
 
-        let mut file = std::fs::File::create("g1k_dense_vs_sparse_for_reads.tsv").unwrap();
-        writeln!(
-            file,
-            "# read index base origin log_diff_end p_end_dense p_end_sparse"
-        )
-        .unwrap();
-
+        // forward
+        let mut file = std::fs::File::create("g1k_dense_vs_sparse_for_reads_forward.tsv").unwrap();
         for (r, read) in dataset.reads().iter().enumerate() {
             // dense
             let dense = phmm.forward(read);
@@ -164,6 +167,34 @@ mod tests {
                     td.e.log_diff(ts.e),
                     td.e,
                     ts.e,
+                    td.to_summary_string_n(5, |_| String::new()),
+                    ts.to_summary_string_n(5, |_| String::new()),
+                    td.diff(ts),
+                )
+                .unwrap();
+            }
+        }
+
+        // backward
+        let mut file = std::fs::File::create("g1k_dense_vs_sparse_for_reads_backward.tsv").unwrap();
+        for (r, read) in dataset.reads().iter().enumerate() {
+            // dense
+            let dense = phmm.backward(read);
+            let sparse = phmm.backward_sparse(read);
+            let n = read.len();
+            for i in 0..n {
+                let td = dense.table(i);
+                let ts = sparse.table(i);
+                writeln!(
+                    file,
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    r,
+                    i,
+                    read.seq()[i] as char,
+                    read.origins()[i],
+                    td.mb.log_diff(ts.mb),
+                    td.mb,
+                    ts.mb,
                     td.to_summary_string_n(5, |_| String::new()),
                     ts.to_summary_string_n(5, |_| String::new()),
                     td.diff(ts),
