@@ -1,9 +1,12 @@
 //!
 //! Hint information
 //!
+use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::tablev2::{PHMMOutput, MAX_ACTIVE_NODES};
+use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
 use petgraph::graph::NodeIndex;
+use rayon::prelude::*;
 
 /// Hint for a emission sequence
 ///
@@ -54,5 +57,25 @@ impl PHMMOutput {
             .map(|state_probs| state_probs.top_nodes(n_active_nodes))
             .collect();
         Hint::new(ret)
+    }
+}
+
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    ///
+    /// Append hint information
+    ///
+    /// # Todos
+    ///
+    /// * make parallel by `into_par_iter`
+    ///
+    pub fn append_hints<S: Seq>(&self, seqs: &ReadCollection<S>) -> Vec<(S, Hint)> {
+        seqs.into_iter()
+            .map(|seq| {
+                let hint = self
+                    .run_sparse(seq.as_ref())
+                    .to_hint(self.param.n_active_nodes);
+                (seq.clone(), hint)
+            })
+            .collect()
     }
 }

@@ -163,23 +163,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .product()
     }
-    ///
-    /// Append hint information in parallel
-    ///
-    pub fn to_hints_parallel<T>(&self, seqs: T) -> Vec<Hint>
-    where
-        T: IntoParallelIterator,
-        T::Item: Seq,
-    {
-        seqs.into_par_iter()
-            .map(|seq| {
-                let hint = self
-                    .run_sparse(seq.as_ref())
-                    .to_hint(self.param.n_active_nodes);
-                hint
-            })
-            .collect()
-    }
 }
 
 //
