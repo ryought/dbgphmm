@@ -4,6 +4,7 @@
 use super::{CopyNums, MultiDbg};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, Seq};
 use crate::distribution::normal;
+use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use petgraph::graph::EdgeIndex;
@@ -67,6 +68,12 @@ impl Posterior {
     /// `P(X[edge] = x | R)`
     ///
     pub fn p_edge(&self, edge: EdgeIndex, x: CopyNum) -> Prob {
+        unimplemented!();
+    }
+    ///
+    /// Posterior distribution of copy number of the edge `P(X[edge] | R)`
+    ///
+    pub fn p_edge_dist(&self, edge: EdgeIndex) -> DiscreteDistribution {
         unimplemented!();
     }
 }
