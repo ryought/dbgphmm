@@ -91,18 +91,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     } else {
                         r.last_table()
                     };
-                    let (table, t) =
-                        timer_us(|| self.f_step(i, emission, table_prev, &all_nodes, true, false));
+                    let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
                     r.tables.push(table);
                 } else {
                     // sparse_table
                     let table_prev = r.last_table();
-                    let (top_nodes, tt) = timer_us(|| table_prev.top_nodes(param.n_active_nodes));
-                    let (active_nodes, t0) = timer_us(|| self.to_childs_and_us(&top_nodes));
-                    let (table, t) = timer_us(|| {
-                        self.f_step(i, emission, table_prev, &active_nodes, false, true)
-                    });
-                    println!("i={} tt={} t0={} t={}", i, tt, t0, t);
+                    let active_nodes =
+                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes));
+                    let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
                     r.tables.push(table);
                 };
                 r
@@ -167,29 +163,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         );
 
         // normal state first
-        let (_, tm) = timer_us(|| {
-            self.fm(&mut table, prev_table, emission, active_nodes);
-        });
-        let (_, ti) = timer_us(|| {
-            self.fi(&mut table, prev_table, emission, active_nodes);
-        });
-        let (_, tmb) = timer_us(|| {
-            self.fmb(&mut table, prev_table, emission, active_nodes);
-        });
-        let (_, tib) = timer_us(|| {
-            self.fib(&mut table, prev_table, emission, active_nodes);
-        });
+        self.fm(&mut table, prev_table, emission, active_nodes);
+        self.fi(&mut table, prev_table, emission, active_nodes);
+        self.fmb(&mut table, prev_table, emission, active_nodes);
+        self.fib(&mut table, prev_table, emission, active_nodes);
         // silent state next
-        let (_, td) = timer_us(|| {
-            self.fd(&mut table, prev_table, emission, active_nodes, is_adaptive);
-        });
-        let (_, te) = timer_us(|| {
-            self.fe(&mut table, prev_table, emission, active_nodes);
-        });
-        println!(
-            "tm={} ti={} tmb={} tib={} td={} te={}",
-            tm, ti, tmb, tib, td, te
-        );
+        self.fd(&mut table, prev_table, emission, active_nodes, is_adaptive);
+        self.fe(&mut table, prev_table, emission, active_nodes);
 
         table
     }
