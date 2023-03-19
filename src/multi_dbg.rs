@@ -38,6 +38,7 @@ use rustflow::min_flow::{
     base::FlowEdgeBase, enumerate_neighboring_flows, residue::UpdateInfo, Flow,
 };
 
+pub mod posterior;
 pub mod toy;
 
 ///
