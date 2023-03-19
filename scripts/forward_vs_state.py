@@ -37,6 +37,19 @@ def jaccard(xs, ys):
     return len(i) / len(u)
 
 
+def overlap(xs, ys):
+    """
+    how xs overs ys? Ratio of ys elements covered in xs
+
+    >>> overlap([('a'), ('b')], [('a'), ('c')])
+    0.5
+    """
+    sxs = set([x[0] for x in xs])
+    sys = set([y[0] for y in ys])
+    i = sxs & sys
+    return len(i) / len(sys)
+
+
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('filename', type=str, help='')
@@ -45,7 +58,6 @@ def main():
     args = parser.parse_args()
 
     # parse
-    opts = ''
     forwards = defaultdict(list)
     states = defaultdict(list)
     js = defaultdict(list)
@@ -61,7 +73,8 @@ def main():
             state = parse(row[5])
             forwards[read_id].append(forward)
             states[read_id].append(state)
-            j = jaccard(forward, state)
+            # j = jaccard(forward, state)
+            j = overlap(forward, state)
             js[read_id].append(j)
 
     # for (read_id, read) in ps.items():
