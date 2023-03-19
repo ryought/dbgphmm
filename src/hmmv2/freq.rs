@@ -144,6 +144,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .product()
     }
+    /// Calculate the full probability `P(R|G)` of reads (ReadCollection)
+    /// Use hints of reads if available.
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
     /// (active nodes)
@@ -151,16 +153,17 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// This function does not run backward. Running forward is enough to calculate the full
     /// probability P(R|G).
     ///
-    pub fn to_full_prob_par_with_hint<S>(&self, seqs_and_hints: &ReadCollection<S>) -> Prob
-    where
-        S: Seq,
-    {
-        seqs_and_hints
+    pub fn to_full_prob_reads<S: Seq>(&self, reads: &ReadCollection<S>) -> Prob {
+        reads
             .into_par_iter()
             .enumerate()
             .map(|(i, seq)| {
-                let forward = self.forward_with_hint(seq.as_ref(), seqs_and_hints.hint(i));
-                forward.full_prob()
+                if reads.has_hint() {
+                    let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
+                    forward.full_prob()
+                } else {
+                    self.forward_sparse_score_only(seq.as_ref())
+                }
             })
             .product()
     }

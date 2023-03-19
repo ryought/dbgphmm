@@ -118,7 +118,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         S: Seq,
     {
         let phmm = self.to_phmm(param);
-        phmm.to_full_prob_par_with_hint(seqs_and_hints)
+        phmm.to_full_prob_reads(seqs_and_hints)
     }
     ///
     ///

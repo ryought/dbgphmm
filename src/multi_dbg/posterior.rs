@@ -48,13 +48,21 @@ impl Posterior {
     /// Check if the copy numbers is stored in the posterior or not
     ///
     pub fn contains(&self, copy_nums: &CopyNums) -> bool {
-        unimplemented!();
+        self.samples
+            .iter()
+            .find(|(copy_nums_in, _)| copy_nums_in == copy_nums)
+            .is_some()
     }
     ///
-    ///
+    /// Get the best copy numbers with highest score.
     ///
     pub fn max(&self) -> &CopyNums {
-        unimplemented!();
+        let (copy_nums, _score) = self
+            .samples
+            .iter()
+            .max_by_key(|(_copy_nums, score)| score.p())
+            .unwrap();
+        copy_nums
     }
     ///
     /// Sum of total probability: normalization factor of posterior probability
@@ -79,7 +87,13 @@ impl Posterior {
 }
 
 ///
-/// output
+/// dump and load functions
+///
+/// ```text
+/// P   -19281.0228
+/// C   -192919.0    likelihood=0.0    [1,2,1,1,1,2,1,0]
+/// C   -193799.0    likelihood=0.0    [1,2,1,1,0,2,0,0]
+/// ```
 ///
 impl Posterior {
     ///
@@ -112,6 +126,45 @@ impl Posterior {
     pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
         self.to_writer(&mut file)
+    }
+    ///
+    ///
+    ///
+    pub fn from_reader<R: std::io::BufRead>(reader: R) -> Self {
+        let mut samples = Vec::new();
+        let mut p = Prob::zero();
+
+        for line in reader.lines() {
+            let text = line.unwrap();
+            let first_char = text.chars().nth(0).unwrap();
+            match first_char {
+                'C' => {
+                    let mut iter = text.split_whitespace();
+                    iter.next().unwrap(); // 'C'
+                    iter.next().unwrap(); // value
+                    let score: Score = iter.next().unwrap().parse().unwrap();
+                    let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
+
+                    samples.push((copy_nums, score));
+                    p += score.p();
+                }
+                _ => {} // ignore
+            }
+        }
+
+        Posterior { samples, p }
+    }
+    ///
+    ///
+    pub fn from_str(s: &str) -> Self {
+        Self::from_reader(s.as_bytes())
+    }
+    ///
+    ///
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Self {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        Self::from_reader(reader)
     }
 }
 
@@ -223,21 +276,22 @@ impl MultiDbg {
     ///
     /// convert MultiDbg into Profile HMM (PHMMModel) and calculate the full probability of reads.
     ///
-    pub fn to_likelihood<S: Seq>(&self, params: PHMMParams, reads: &ReadCollection<S>) -> Prob {
-        unimplemented!();
+    pub fn to_likelihood<S: Seq>(&self, param: PHMMParams, reads: &ReadCollection<S>) -> Prob {
+        let phmm = self.to_phmm(param);
+        phmm.to_full_prob_reads(reads)
     }
     ///
     /// Calculate the score `P(R|G)P(G)` (by prior `P(G)` from genome size and likelihood `P(R|G)` from reads) of this MultiDbg.
     ///
     pub fn to_score<S: Seq>(
         &self,
-        params: PHMMParams,
+        param: PHMMParams,
         reads: &ReadCollection<S>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Score {
         Score {
-            likelihood: self.to_likelihood(params, reads),
+            likelihood: self.to_likelihood(param, reads),
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
             time: 0, // TODO
@@ -281,6 +335,36 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prob::p;
+
+    #[test]
+    fn posterior_dump_load() {
+        let mut post = Posterior::new();
+        post.add(
+            vec![1, 1, 2, 2, 0].into(),
+            Score {
+                likelihood: p(0.001),
+                prior: p(0.3),
+                time: 10,
+                genome_size: 101,
+            },
+        );
+        post.add(
+            vec![1, 1, 1, 2, 1].into(),
+            Score {
+                likelihood: p(0.003),
+                prior: p(0.2),
+                time: 11,
+                genome_size: 99,
+            },
+        );
+        let s = post.to_string();
+        println!("{}", s);
+
+        let post_loaded = Posterior::from_str(&s);
+        assert_eq!(post_loaded.samples, post.samples);
+        assert_eq!(post_loaded.p, post.p);
+    }
 
     #[test]
     fn score() {
