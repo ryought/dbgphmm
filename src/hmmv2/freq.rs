@@ -25,6 +25,7 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
+use crate::common::collection::Bases;
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
 use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::Prob;
@@ -40,18 +41,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run forward and backward for the emissions and returns PHMMOutput.
     ///
-    pub fn run(&self, emissions: &[u8]) -> PHMMOutput {
-        let forward = self.forward(emissions);
-        let backward = self.backward(emissions);
+    pub fn run<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
+        let forward = self.forward(&emissions);
+        let backward = self.backward(&emissions);
         PHMMOutput::new(forward, backward)
     }
     ///
     /// Run forward and backward with sparse calculation
     /// for the emissions and returns PHMMOutput.
     ///
-    pub fn run_sparse(&self, emissions: &[u8]) -> PHMMOutput {
-        let forward = self.forward_sparse(emissions);
-        let backward = self.backward_sparse(emissions);
+    pub fn run_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
+        let forward = self.forward_sparse(&emissions);
+        let backward = self.backward_sparse(&emissions);
         PHMMOutput::new(forward, backward)
     }
 }
@@ -185,14 +186,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 // For hidden states / nodes
 //
 
-/// The probability of emitting the emission from the hidden state.
-pub type EmitProbs = Vec<PHMMTable>;
-
-/// Probability assigned to each hidden states
-pub type StateProbs = PHMMTable;
-
 /// Frequency (f64) assigned to each nodes
-pub type NodeFreqs = SparseVec<f64, NodeIndex, MAX_ACTIVE_NODES>;
+pub type NodeFreqs = SparseVec<Freq, NodeIndex, MAX_ACTIVE_NODES>;
 
 /// utility function to convert Vec<Prob> into Vec<f64> by calling Prob::to_log_value
 fn from_prob_to_f64_vec(ps: Vec<Prob>) -> Vec<f64> {
@@ -221,19 +216,15 @@ impl PHMMOutput {
     /// * `k` is a node index
     /// * `P(x)` is the full probability of emissions
     ///
-    pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = StateProbs> + 'a {
+    pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = PHMMTable> + 'a {
         let n = self.forward.n_emissions();
         let p = self.to_full_prob_forward();
-        (0..=n).map(move |i| {
-            let f = self.forward.table_merged(i);
-            let b = self.backward.table_merged(i);
-            (f * b) / p
-        })
+        (0..=n).map(move |i| self.to_emit_probs(i))
     }
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.
     ///
-    pub fn to_state_probs(&self) -> StateProbs {
+    pub fn to_state_probs(&self) -> PHMMTable {
         self.iter_emit_probs().sum()
     }
     /// Calculate the expected value of the usage frequency of each nodes
@@ -455,7 +446,7 @@ mod tests {
     fn hmm_freq_mock_linear_zero_error_node_freqs() {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let o = phmm.run(b"CGATC");
-        let eps: Vec<StateProbs> = o.iter_emit_probs().collect();
+        let eps: Vec<PHMMTable> = o.iter_emit_probs().collect();
         for ep in eps.iter() {
             println!("{}", ep);
         }

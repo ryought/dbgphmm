@@ -140,7 +140,7 @@ impl PHMMTable {
             + self.ib.diff(other.ib)
             + self.e.diff(other.e)
     }
-    ///
+    /// PHMMTable (= three NodeVecs of m/i/d) -> merged NodeVec of m+i+d
     ///
     ///
     pub fn to_nodevec(&self) -> NodeVec {
@@ -160,19 +160,44 @@ impl PHMMTable {
     ///
     ///
     pub fn to_states(&self) -> Vec<(State, Prob)> {
+        self.to_states_normalize(None, false)
+    }
+    /// with normalized probability
+    ///
+    ///
+    pub fn to_states_normalize(&self, p0: Option<Prob>, is_normalize: bool) -> Vec<(State, Prob)> {
+        let z = if is_normalize {
+            self.m.sum() + self.i.sum() + self.d.sum()
+        } else {
+            Prob::one()
+        };
         let mut ret = Vec::new();
         for (node, p) in self.m.iter() {
-            ret.push((State::Match(node), p));
+            ret.push((State::Match(node), p / z));
         }
         for (node, p) in self.i.iter() {
-            ret.push((State::Ins(node), p));
+            ret.push((State::Ins(node), p / z));
         }
         for (node, p) in self.d.iter() {
-            ret.push((State::Del(node), p));
+            ret.push((State::Del(node), p / z));
         }
         ret.sort_by_key(|(_, p)| *p);
         ret.reverse();
-        ret
+
+        if let Some(p0) = p0 {
+            let mut r = Vec::new();
+            let mut p_cum = Prob::zero();
+            for (state, p) in ret {
+                p_cum += p;
+                r.push((state, p));
+                if p_cum > p0 {
+                    break;
+                }
+            }
+            r
+        } else {
+            ret
+        }
     }
 }
 
@@ -348,9 +373,17 @@ impl PHMMTables {
     }
 }
 
+/// Store output of forward and backward of a emission sequence.
+///
+/// # Struct
+///
+/// * forward: PHMMTables
+/// * backward: PHMMTables
 ///
 ///
+/// # Methods
 ///
+/// calculations that requires both forward and backward result should be in this section.
 ///
 #[derive(Debug, Clone)]
 pub struct PHMMOutput {
@@ -397,5 +430,16 @@ impl PHMMOutput {
     ///
     pub fn to_full_prob_backward(&self) -> Prob {
         self.backward.full_prob()
+    }
+    ///
+    /// Calculate emit probs (the probability of nodes to emit the emission x[i]).
+    ///
+    /// index uses merged-index, so state prob of emission[0] can be calculated by merged_index=1.
+    ///
+    pub fn to_emit_probs(&self, merged_index: usize) -> PHMMTable {
+        let p = self.to_full_prob_forward();
+        let f = self.forward.table_merged(merged_index);
+        let b = self.backward.table_merged(merged_index);
+        (f * b) / p
     }
 }

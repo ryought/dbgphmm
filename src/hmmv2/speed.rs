@@ -16,6 +16,7 @@ mod tests {
     use crate::e2e::{generate_dataset, Dataset, ReadType};
     use crate::genome;
     use crate::hmmv2::common::PModel;
+    use crate::hmmv2::sample::State;
     use crate::hmmv2::tablev2::PHMMTable;
     use crate::multi_dbg::MultiDbg;
     use crate::prelude::*;
@@ -105,7 +106,42 @@ mod tests {
         (ms, is, ds)
     }
 
-    fn inspect(dataset: &Dataset, phmm: &PModel, key: &str) {
+    fn format_states(states: &[(State, Prob)]) -> String {
+        states
+            .iter()
+            .map(|(state, prob)| format!("{}:{:.3}", state, prob.to_value()))
+            .join(",")
+    }
+
+    fn inspect_forward_vs_state(dataset: &Dataset, phmm: &PModel, key: &str) {
+        let p0 = Prob::from_prob(0.999);
+        // forward
+        let mut file = std::fs::File::create(format!("{}_forward_vs_state.tsv", key)).unwrap();
+        for (r, read) in dataset.reads().iter().enumerate() {
+            let (output, t) = timer(|| phmm.run(read));
+            println!("{} {}", r, t);
+            let n = read.len();
+            for i in 0..n {
+                writeln!(
+                    file,
+                    "{}\t{}\t{}\t{}\t{}\t{}",
+                    r,
+                    i,
+                    read.seq()[i] as char,
+                    read.origins()[i],
+                    format_states(&output.forward.table(i).to_states_normalize(Some(p0), true)),
+                    format_states(
+                        &output
+                            .to_emit_probs(i + 1)
+                            .to_states_normalize(Some(p0), false)
+                    ),
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    fn inspect_sparse_vs_dense(dataset: &Dataset, phmm: &PModel, key: &str) {
         let p0 = Prob::from_prob(0.999);
         // forward
         let mut file =
@@ -236,7 +272,7 @@ mod tests {
             ReadType::FragmentWithRevComp,
             param,
         );
-        inspect(&dataset, &phmm, "g10k");
+        inspect_sparse_vs_dense(&dataset, &phmm, "g10k");
     }
 
     #[test]
@@ -320,6 +356,8 @@ mod tests {
         // println!("p={} t={}", p, time);
         // assert!(p.log_diff(p_true) < 1.0);
 
-        inspect(&dataset, &phmm, "g1k");
+        inspect_sparse_vs_dense(&dataset, &phmm, "g1k");
+
+        inspect_forward_vs_state(&dataset, &phmm, "g1k");
     }
 }
