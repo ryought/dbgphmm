@@ -2,7 +2,7 @@
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
 use super::{CopyNums, MultiDbg};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, Seq};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
@@ -223,20 +223,21 @@ impl MultiDbg {
     ///
     /// convert MultiDbg into Profile HMM (PHMMModel) and calculate the full probability of reads.
     ///
-    pub fn to_likelihood(&self, params: PHMMParams) -> Prob {
+    pub fn to_likelihood<S: Seq>(&self, params: PHMMParams, reads: &ReadCollection<S>) -> Prob {
         unimplemented!();
     }
     ///
     /// Calculate the score `P(R|G)P(G)` (by prior `P(G)` from genome size and likelihood `P(R|G)` from reads) of this MultiDbg.
     ///
-    pub fn to_score(
+    pub fn to_score<S: Seq>(
         &self,
         params: PHMMParams,
+        reads: &ReadCollection<S>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Score {
         Score {
-            likelihood: self.to_likelihood(params),
+            likelihood: self.to_likelihood(params, reads),
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
             time: 0, // TODO

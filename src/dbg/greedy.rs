@@ -180,7 +180,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         eprintln!("# [hint] started");
-        let (reads_with_hints, t) = timer(|| self.generate_hints(reads, params));
+        let (reads_with_hints, t) = timer(|| self.generate_hints(reads.clone(), params));
         eprintln!("# [hint] ended in {}", t);
         let mut searcher = GreedySearcher::new(
             instance_init,

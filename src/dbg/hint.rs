@@ -42,9 +42,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     ///
     pub fn generate_hints<'a, S: Seq>(
         &self,
-        reads: &ReadCollection<S>,
+        reads: ReadCollection<S>,
         params: PHMMParams,
-    ) -> Vec<(S, Hint)> {
+    ) -> ReadCollection<S> {
         let mut dbg = self.clone();
         let copy_nums = dbg.uniform_copy_nums();
         dbg.set_node_copy_nums(&copy_nums);
@@ -103,11 +103,11 @@ mod tests {
         let mut param = exp.phmm_params;
         param.n_active_nodes = 10;
 
-        let reads_with_hints = dbg.generate_hints(exp.reads(), param);
+        let reads_with_hints = dbg.generate_hints(exp.reads().clone(), param);
 
         // run for each reads manually
         let phmm = dbg.to_phmm(param);
-        for (read, hint) in reads_with_hints.iter() {
+        for (read, hint) in reads_with_hints.iter_with_hint() {
             let r1 = phmm.forward(read.as_ref());
             let r2 = phmm.forward_with_hint(read.as_ref(), hint);
             let p1 = r1.full_prob();

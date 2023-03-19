@@ -2,7 +2,7 @@
 //! dbg as a seqgraph and phmm
 //!
 use super::dbg::{Dbg, DbgEdge, DbgEdgeBase, DbgNode, DbgNodeBase};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, Seq};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::dbg::dbg::NodeCopyNums;
 use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
@@ -109,7 +109,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     /// Convert dbg into phmm and calculate full probability
     /// (Likelihood)
     ///
-    pub fn to_full_prob_with_hint<S>(&self, param: PHMMParams, seqs_and_hints: &[(S, Hint)]) -> Prob
+    pub fn to_full_prob_with_hint<S>(
+        &self,
+        param: PHMMParams,
+        seqs_and_hints: &ReadCollection<S>,
+    ) -> Prob
     where
         S: Seq,
     {
@@ -167,7 +171,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn evaluate_with_hint<S: Seq>(
         &self,
         param: PHMMParams,
-        seqs_and_hints: &[(S, Hint)],
+        seqs_and_hints: &ReadCollection<S>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> EvalResult {

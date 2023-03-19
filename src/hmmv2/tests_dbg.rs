@@ -12,9 +12,7 @@ mod tests {
     #[test]
     fn hmm_dbg_changing_edge_copy_nums() {
         let mut param = PHMMParams::default();
-        let reads = Reads {
-            reads: vec![b"AACTAGCTT".to_vec()],
-        };
+        let reads = Reads::from(vec![b"AACTAGCTT".to_vec()]);
 
         let mut dbg = mock_intersection();
         let phmm = dbg.to_phmm(PHMMParams::default());

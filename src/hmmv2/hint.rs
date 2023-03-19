@@ -7,12 +7,13 @@ use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Hint for a emission sequence
 ///
 /// Define candidate nodes for each emission
 ///
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Hint(Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>);
 
 impl Hint {
@@ -68,14 +69,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * make parallel by `into_par_iter`
     ///
-    pub fn append_hints<S: Seq>(&self, seqs: &ReadCollection<S>) -> Vec<(S, Hint)> {
-        seqs.into_iter()
+    pub fn append_hints<S: Seq>(&self, reads: ReadCollection<S>) -> ReadCollection<S> {
+        let hints = reads
+            .into_iter()
             .map(|seq| {
-                let hint = self
-                    .run_sparse(seq.as_ref())
-                    .to_hint(self.param.n_active_nodes);
-                (seq.clone(), hint)
+                self.run_sparse(seq.as_ref())
+                    .to_hint(self.param.n_active_nodes)
             })
-            .collect()
+            .collect();
+
+        ReadCollection::from_with_hint(reads.reads, hints)
     }
 }
