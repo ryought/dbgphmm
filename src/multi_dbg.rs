@@ -787,6 +787,7 @@ impl MultiDbg {
                 let w = &self.graph_full()[e];
                 MultiFullEdge::new(w.base, w.copy_num)
             },
+            true,
         );
 
         // create compact from full
@@ -892,6 +893,7 @@ impl MultiDbg {
             },
             |_, _, _| SEdge {},
             |_| SEdge {},
+            false,
         );
         seqgraph.to_phmm(param)
     }
@@ -1042,6 +1044,7 @@ impl MultiDbg {
         to_terminal_node: FTN,
         to_edge: FE,
         to_terminal_edge: FTE,
+        add_terminal: bool,
     ) -> DiGraph<N, E>
     where
         FN: Fn(EdgeIndex, &MultiFullEdge) -> N,
@@ -1065,14 +1068,16 @@ impl MultiDbg {
         // (2) for each node
         for (node, node_weight) in self.nodes_full() {
             if node_weight.is_terminal {
-                let terminal_node = graph.add_node(to_terminal_node());
-                for (e, _, _) in self.parents_full(node) {
-                    let v = to_node_index(e);
-                    graph.add_edge(v, terminal_node, to_terminal_edge(e));
-                }
-                for (e, _, _) in self.childs_full(node) {
-                    let v = to_node_index(e);
-                    graph.add_edge(terminal_node, v, to_terminal_edge(e));
+                if add_terminal {
+                    let terminal_node = graph.add_node(to_terminal_node());
+                    for (e, _, _) in self.parents_full(node) {
+                        let v = to_node_index(e);
+                        graph.add_edge(v, terminal_node, to_terminal_edge(e));
+                    }
+                    for (e, _, _) in self.childs_full(node) {
+                        let v = to_node_index(e);
+                        graph.add_edge(terminal_node, v, to_terminal_edge(e));
+                    }
                 }
             } else {
                 for (e1, _, _) in self.parents_full(node) {
