@@ -7,6 +7,7 @@ use crate::distribution::normal;
 use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
+use crate::utils::timer;
 use petgraph::graph::EdgeIndex;
 
 ///
@@ -48,15 +49,20 @@ impl Posterior {
     /// Check if the copy numbers is stored in the posterior or not
     ///
     pub fn contains(&self, copy_nums: &CopyNums) -> bool {
+        self.find(copy_nums).is_some()
+    }
+    ///
+    ///
+    ///
+    pub fn find(&self, copy_nums: &CopyNums) -> Option<&(CopyNums, Score)> {
         self.samples
             .iter()
             .find(|(copy_nums_in, _)| copy_nums_in == copy_nums)
-            .is_some()
     }
     ///
     /// Get the best copy numbers with highest score.
     ///
-    pub fn max(&self) -> &CopyNums {
+    pub fn max_copy_nums(&self) -> &CopyNums {
         let (copy_nums, _score) = self
             .samples
             .iter()
@@ -290,15 +296,19 @@ impl MultiDbg {
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Score {
+        let (likelihood, time) = timer(|| self.to_likelihood(param, reads));
         Score {
-            likelihood: self.to_likelihood(param, reads),
+            likelihood,
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
-            time: 0, // TODO
+            time,
         }
     }
 }
 
+///
+/// Posterior sampling function
+///
 impl MultiDbg {
     ///
     /// # Arguments
@@ -315,16 +325,58 @@ impl MultiDbg {
     /// * max_cycle_size
     /// * max_flip
     ///
+    /// ## For greedy search
+    /// * max_iter
     ///
     ///
     /// # Procedure
     ///
-    /// * evaluate scores of neighboring copy nums
-    /// * move to the highest copy num
+    /// * start from current copynums
+    /// * evaluate scores of neighboring copynums
+    /// * move to the highest copynums
     /// * terminate if all neighbors have lower score
     ///
-    pub fn sample_posterior(&self) -> Posterior {
-        unimplemented!();
+    pub fn sample_posterior<S: Seq>(
+        &self,
+        param: PHMMParams,
+        reads: &ReadCollection<S>,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+        max_cycle_size: usize,
+        max_flip: usize,
+        max_iter: usize,
+    ) -> Posterior {
+        let mut post = Posterior::new();
+        let mut copy_nums = self.get_copy_nums();
+        let mut dbg = self.clone();
+        let mut n_iter = 0;
+
+        while n_iter < max_iter {
+            // calculate scores of new neighboring copynums of current copynum
+            //
+            dbg.set_copy_nums(&copy_nums);
+            for (copy_nums, _info) in dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
+            {
+                if !post.contains(&copy_nums) {
+                    // evaluate score
+                    dbg.set_copy_nums(&copy_nums);
+                    let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                    post.add(copy_nums, score);
+                }
+            }
+
+            // move to highest copy num and continue
+            // if self is highest, terminate
+            let next_copy_nums = post.max_copy_nums().clone();
+            if next_copy_nums == copy_nums {
+                break;
+            } else {
+                copy_nums = next_copy_nums;
+                n_iter += 1;
+            }
+        }
+
+        post
     }
 }
 

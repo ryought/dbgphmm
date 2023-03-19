@@ -69,6 +69,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
     }
     ///
+    /// Run Forward algorithm to the emissions using hint information and returns score only (drops intermediate result PHMMTable)
+    ///
+    pub fn forward_with_hint_score_only<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> Prob {
+        let mut table = self.f_init(true);
+        for (i, &emission) in emissions.as_ref().into_iter().enumerate() {
+            table = self.f_step(i, emission, &table, hint.nodes(i), false, false);
+        }
+        table.e
+    }
+    ///
     /// Run Forward algorithm to the emissions, with sparse calculation
     ///
     pub fn forward_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {

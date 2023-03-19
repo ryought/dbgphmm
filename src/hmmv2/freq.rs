@@ -159,8 +159,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .enumerate()
             .map(|(i, seq)| {
                 if reads.has_hint() {
-                    let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
-                    forward.full_prob()
+                    // let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
+                    // forward.full_prob()
+                    self.forward_with_hint_score_only(seq.as_ref(), reads.hint(i))
                 } else {
                     self.forward_sparse_score_only(seq.as_ref())
                 }
