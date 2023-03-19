@@ -243,19 +243,6 @@ impl PHMMOutput {
         }
         f
     }
-    ///
-    /// Create hint (ActiveNodes list for each bases)
-    ///
-    pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
-        let ret = self
-            .iter_emit_probs()
-            .skip(1)
-            .map(|state_probs| {
-                ActiveNodes::Only(state_probs.top_nodes(n_active_nodes).as_slice().to_owned())
-            })
-            .collect();
-        Hint::new(ret)
-    }
 }
 
 //

@@ -6,11 +6,12 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
-use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use petgraph::graph::NodeIndex;
 
-// wrappers and exposed functions
+///
+/// Forward Algorithm
+///
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions Dense
@@ -61,14 +62,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     r.last_table()
                 };
-                let table = self.f_step(
-                    i,
-                    emission,
-                    table_prev,
-                    hint.active_nodes(i).nodes(),
-                    false,
-                    false,
-                );
+                let table = self.f_step(i, emission, table_prev, hint.nodes(i), false, false);
                 r.tables.push(table);
                 r
             })
@@ -523,12 +517,12 @@ mod tests {
         println!("{:?}", hint.len());
         assert_eq!(
             hint,
-            Hint::new(vec![
-                ActiveNodes::Only(vec![ni(3), ni(2), ni(4)]),
-                ActiveNodes::Only(vec![ni(4), ni(3), ni(5)]),
-                ActiveNodes::Only(vec![ni(5), ni(6), ni(4)]),
-                ActiveNodes::Only(vec![ni(6), ni(7), ni(5)]),
-                ActiveNodes::Only(vec![ni(7), ni(8), ni(6)]),
+            Hint::from(vec![
+                vec![ni(3), ni(2), ni(4)],
+                vec![ni(4), ni(3), ni(5)],
+                vec![ni(5), ni(6), ni(4)],
+                vec![ni(6), ni(7), ni(5)],
+                vec![ni(7), ni(8), ni(6)],
             ])
         );
 
