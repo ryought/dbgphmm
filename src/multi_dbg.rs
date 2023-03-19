@@ -564,6 +564,17 @@ impl MultiDbg {
 
         seq
     }
+    ///
+    /// Create kmer mapping f: Kmer -> EdgeIndex
+    ///
+    pub fn to_kmer_map(&self) -> HashMap<VecKmer, EdgeIndex> {
+        let mut hm = HashMap::default();
+        for edge in self.graph_full().edge_indices() {
+            let kmer = self.kmer_full(edge);
+            hm.insert(kmer, edge);
+        }
+        hm
+    }
 }
 
 //

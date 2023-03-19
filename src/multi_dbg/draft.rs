@@ -5,6 +5,7 @@ use super::MultiDbg;
 use crate::common::{Seq, StyledSequence};
 use crate::dbg::{Dbg, SimpleDbg};
 use crate::kmer::VecKmer;
+use crate::utils::timer;
 
 impl MultiDbg {
     ///
@@ -55,11 +56,19 @@ mod tests {
     use crate::genome;
 
     #[test]
-    fn from_styled_seqs() {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(1_000, 2, 0, 1_000, 2, 0.01, 0);
-        let mdbg = MultiDbg::create_from_styled_seqs(40, &genome);
+    #[ignore]
+    fn from_styled_seqs_large() {
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            1_000, 1_000, 0, 1_000, 2, 0.01, 0,
+        );
+        let (mdbg, t) = timer(|| MultiDbg::create_from_styled_seqs(40, &genome));
+        // ~2391ms
+        println!("created mdbg in {}ms", t);
         mdbg.to_gfa_file("g1m.gfa");
+        let (m, t) = timer(|| mdbg.to_kmer_map());
+        // ~182ms
+        println!("created map in {}ms", t);
+        println!("m {}", m.len());
     }
 
     #[test]
