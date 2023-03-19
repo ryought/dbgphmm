@@ -23,40 +23,16 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
-use super::result::{PHMMResult, PHMMResultLike, PHMMResultSparse};
-use super::table::PHMMTable;
-use super::table_ref::PHMMTableRef;
+use super::tablev2::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
+use crate::common::collection::Bases;
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
+use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::Prob;
 use crate::utils::check_memory_usage;
-use crate::vector::{DenseStorage, EdgeVec, NodeVec, Storage};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
-
-/// Struct for storing `PHMMResultLike` for forward and backward.
-///
-#[derive(Debug, Clone)]
-pub struct PHMMOutput<R: PHMMResultLike> {
-    /// PHMMResult for forward run
-    pub forward: R,
-    /// PHMMResult for backward run
-    pub backward: R,
-}
-
-/// Constructors
-impl<R: PHMMResultLike> PHMMOutput<R> {
-    fn new(forward: R, backward: R) -> Self {
-        // check forward/backward is created by phmm.forward/backward()
-        assert!(forward.is_forward());
-        assert!(!backward.is_forward());
-        assert_eq!(forward.n_emissions(), backward.n_emissions());
-        PHMMOutput { forward, backward }
-    }
-    fn n_emissions(&self) -> usize {
-        self.forward.n_emissions()
-    }
-}
+use sparsevec::SparseVec;
 
 ///
 /// methods to generate PHMMOutput from PHMMModel
@@ -65,18 +41,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run forward and backward for the emissions and returns PHMMOutput.
     ///
-    pub fn run(&self, emissions: &[u8]) -> PHMMOutput<PHMMResult> {
-        let forward = self.forward(emissions);
-        let backward = self.backward(emissions);
+    pub fn run<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
+        let forward = self.forward(&emissions);
+        let backward = self.backward(&emissions);
         PHMMOutput::new(forward, backward)
     }
     ///
     /// Run forward and backward with sparse calculation
     /// for the emissions and returns PHMMOutput.
     ///
-    pub fn run_sparse(&self, emissions: &[u8]) -> PHMMOutput<PHMMResultSparse> {
-        let forward = self.forward_sparse(emissions);
-        let backward = self.backward_sparse(emissions);
+    pub fn run_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
+        let forward = self.forward_sparse(&emissions);
+        let backward = self.backward_sparse(&emissions);
         PHMMOutput::new(forward, backward)
     }
 }
@@ -86,7 +62,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 /// with PHMMModel and Reads
 ///
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    ///
     /// calculate node freqs of multiple emission sequences (`Reads`).
+    ///
     pub fn to_node_freqs<T>(&self, seqs: T) -> NodeFreqs
     where
         T: IntoIterator,
@@ -101,92 +79,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 o.to_node_freqs()
             })
             .sum()
-    }
-    /// calculate edge freqs of multiple emission sequences (`Reads`).
-    pub fn to_edge_freqs<T>(&self, seqs: T) -> EdgeFreqs
-    where
-        T: IntoIterator,
-        T::Item: Seq,
-    {
-        seqs.into_iter()
-            .map(|seq| {
-                let read = seq.as_ref();
-                let forward = self.forward(read);
-                let backward = self.backward(read);
-                let o = PHMMOutput::new(forward, backward);
-                o.to_edge_freqs(self, read)
-            })
-            .sum()
-    }
-    /// calculate node freqs of multiple emission sequences (`Reads`).
-    /// with rayon parallel calculation
-    ///
-    /// ## TODO
-    ///
-    /// * purge reduce function (e.g. by adding a trait on ParallelIterator)
-    ///
-    pub fn to_node_freqs_parallel<T>(&self, seqs: T) -> (NodeFreqs, Prob)
-    where
-        T: IntoParallelIterator,
-        T::Item: Seq,
-    {
-        seqs.into_par_iter()
-            .map(|seq| {
-                let read = seq.as_ref();
-                let forward = self.forward(read);
-                let backward = self.backward(read);
-                let o = PHMMOutput::new(forward, backward);
-                (o.to_node_freqs(), o.to_full_prob_forward())
-            })
-            .reduce(
-                || (NodeFreqs::new(self.n_nodes(), 0.0), Prob::one()),
-                |(mut freq_a, mut p_a), (freq_b, p_b)| {
-                    freq_a += &freq_b;
-                    p_a *= p_b;
-                    (freq_a, p_a)
-                },
-            )
-    }
-    /// calculate edge freqs of multiple emission sequences (`Reads`).
-    /// with rayon parallel calculation
-    pub fn to_edge_and_init_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, NodeFreqs, Prob)
-    where
-        T: IntoParallelIterator,
-        T::Item: Seq,
-    {
-        seqs.into_par_iter()
-            .map(|seq| {
-                let read = seq.as_ref();
-                let forward = self.forward(read);
-                let backward = self.backward(read);
-                let o = PHMMOutput::new(forward, backward);
-                let (efs, ifs) = o.to_edge_and_init_freqs(self, read);
-                (efs, ifs, o.to_full_prob_forward())
-            })
-            .reduce(
-                || {
-                    (
-                        EdgeFreqs::new(self.n_edges(), 0.0),
-                        NodeFreqs::new(self.n_nodes(), 0.0),
-                        Prob::one(),
-                    )
-                },
-                |(mut efs_a, mut ifs_a, mut p_a), (efs_b, ifs_b, p_b)| {
-                    efs_a += &efs_b;
-                    ifs_a += &ifs_b;
-                    p_a *= p_b;
-                    (efs_a, ifs_a, p_a)
-                },
-            )
-    }
-    /// wrapper of to_edge_and_init_freqs_parallel
-    pub fn to_edge_freqs_parallel<T>(&self, seqs: T) -> (EdgeFreqs, Prob)
-    where
-        T: IntoParallelIterator,
-        T::Item: Seq,
-    {
-        let (efs, _, p) = self.to_edge_and_init_freqs_parallel(seqs);
-        (efs, p)
     }
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation.
@@ -220,6 +112,35 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 let backward = self.backward(read);
                 let o = PHMMOutput::new(forward, backward);
                 o.to_full_prob_forward()
+            })
+            .product()
+    }
+    /// Calculate full prob using sparse
+    ///
+    pub fn to_full_prob_sparse<T>(&self, seqs: T) -> Prob
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
+                let forward = self.forward_sparse(read);
+                forward.full_prob()
+            })
+            .product()
+    }
+    /// Calculate full prob using sparse
+    ///
+    pub fn to_full_prob_sparse_backward<T>(&self, seqs: T) -> Prob
+    where
+        T: IntoIterator,
+        T::Item: Seq,
+    {
+        seqs.into_iter()
+            .map(|seq| {
+                let read = seq.as_ref();
+                self.backward_sparse(read).full_prob()
             })
             .product()
     }
@@ -262,51 +183,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 }
 
 //
-// For full probability
-//
-
-impl<R: PHMMResultLike> PHMMOutput<R> {
-    /// Calculate the full probability `P(x)` of the given emission `x`
-    /// from **forward** result.
-    ///
-    /// ```text
-    /// P(x) = fe_n-1 = P(emits x[0],...,x[n-1] and now in `e` (end state))
-    /// ```
-    ///
-    pub fn to_full_prob_forward(&self) -> Prob {
-        self.forward.full_prob()
-    }
-    /// Calculate the full probability `P(x)` of the given emission `x`
-    /// from **backward** result.
-    ///
-    /// ```text
-    /// P(x) = bm_0[b] = P(emits x[0:] | starts from m_b)
-    /// ```
-    ///
-    pub fn to_full_prob_backward(&self) -> Prob {
-        self.backward.full_prob()
-    }
-}
-
-//
 // For hidden states / nodes
 //
 
-/// The probability of emitting the emission from the hidden state.
-pub type EmitProbs = Vec<PHMMTable<DenseStorage<Prob>>>;
-
-/// Probability assigned to each hidden states
-pub type StateProbs = PHMMTable<DenseStorage<Prob>>;
-
 /// Frequency (f64) assigned to each nodes
-pub type NodeFreqs = NodeVec<DenseStorage<Freq>>;
+pub type NodeFreqs = SparseVec<Freq, NodeIndex, MAX_ACTIVE_NODES>;
 
 /// utility function to convert Vec<Prob> into Vec<f64> by calling Prob::to_log_value
 fn from_prob_to_f64_vec(ps: Vec<Prob>) -> Vec<f64> {
     ps.into_iter().map(|p| p.to_log_value()).collect()
 }
 
-impl<R: PHMMResultLike> PHMMOutput<R> {
+impl PHMMOutput {
     /// Calculate the probability that the hidden states (that is (type, node))
     /// emits the i-th state.
     ///
@@ -328,34 +216,15 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
     /// * `k` is a node index
     /// * `P(x)` is the full probability of emissions
     ///
-    pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = StateProbs> + 'a {
+    pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = PHMMTable> + 'a {
         let n = self.forward.n_emissions();
         let p = self.to_full_prob_forward();
-        (0..=n).map(move |i| {
-            let f = self.forward.table_merged(i);
-            let b = self.backward.table_merged(i);
-            (&f * &b) / p
-        })
-    }
-    ///
-    /// convert (collected) naive emit probs
-    ///
-    pub fn to_naive_emit_probs(&self) -> Vec<(Vec<f64>, Vec<f64>, Vec<f64>)> {
-        self.iter_emit_probs()
-            .skip(1) // first one has no information because always p(MB)=1.0
-            .map(|state_probs| {
-                (
-                    from_prob_to_f64_vec(state_probs.m.to_inner_vec()),
-                    from_prob_to_f64_vec(state_probs.i.to_inner_vec()),
-                    from_prob_to_f64_vec(state_probs.d.to_inner_vec()),
-                )
-            })
-            .collect()
+        (0..=n).map(move |i| self.to_emit_probs(i))
     }
     /// Calculate the expected value of the usage frequency of each hidden states
     /// by summing the emit probs of each states for all emissions.
     ///
-    pub fn to_state_probs(&self) -> StateProbs {
+    pub fn to_state_probs(&self) -> PHMMTable {
         self.iter_emit_probs().sum()
     }
     /// Calculate the expected value of the usage frequency of each nodes
@@ -368,7 +237,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         let state_probs = self.to_state_probs();
         let v = state_probs.to_nodevec();
         // f is NodeVec<Freq>
-        let mut f: NodeFreqs = NodeFreqs::new(state_probs.n_nodes(), 0.0);
+        let mut f: NodeFreqs = NodeFreqs::new(state_probs.n_nodes(), 0.0, true);
         for (node, p) in v.iter() {
             f[node] = p.to_value();
         }
@@ -381,7 +250,9 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         let ret = self
             .iter_emit_probs()
             .skip(1)
-            .map(|state_probs| state_probs.active_nodes_from_prob(n_active_nodes))
+            .map(|state_probs| {
+                ActiveNodes::Only(state_probs.top_nodes(n_active_nodes).as_slice().to_owned())
+            })
             .collect();
         Hint::new(ret)
     }
@@ -391,7 +262,7 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
 // For transitions / edges
 //
 
-impl<R: PHMMResultLike> PHMMOutput<R> {
+impl PHMMOutput {
     /// Calculate the expected value of the usage frequency of each edges
     ///
     /// `freq[i][e]`
@@ -413,8 +284,8 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         assert_eq!(emissions.len(), self.forward.n_emissions());
         assert_eq!(emissions.len(), self.backward.n_emissions());
 
-        let mut edge_freqs = EdgeFreqs::new(phmm.n_edges(), 0.0);
-        let mut init_freqs = NodeFreqs::new(phmm.n_nodes(), 0.0);
+        let mut edge_freqs = EdgeFreqs::new(phmm.n_edges(), 0.0, true);
+        let mut init_freqs = NodeFreqs::new(phmm.n_nodes(), 0.0, true);
 
         for i in 0..=self.forward.n_emissions() {
             let (tp, ip) = self.to_trans_and_init_probs(phmm, emissions, i);
@@ -472,8 +343,8 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
         assert_eq!(n, self.backward.n_emissions());
         assert!(i <= n);
 
-        let mut t: TransProbs = TransProbs::new(phmm.n_edges(), TransProb::zero());
-        let mut t0: InitTransProbs = InitTransProbs::new(phmm.n_nodes(), TransProb::zero());
+        let mut t: TransProbs = TransProbs::new(phmm.n_edges(), TransProb::zero(), true);
+        let mut t0: InitTransProbs = InitTransProbs::new(phmm.n_nodes(), TransProb::zero(), true);
 
         let param = &phmm.param;
         let p = self.to_full_prob_forward();
@@ -490,15 +361,15 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             // to m (normal state)
             if i < n {
                 let p_emit = phmm.p_match_emit(l, emissions[i]);
-                t[e].mm = fi0.m(k) * p_trans * param.p_MM * p_emit * bi2.m(l) / p;
-                t[e].im = fi0.i(k) * p_trans * param.p_IM * p_emit * bi2.m(l) / p;
-                t[e].dm = fi0.d(k) * p_trans * param.p_DM * p_emit * bi2.m(l) / p;
+                t[e].mm = fi0.m[k] * p_trans * param.p_MM * p_emit * bi2.m[l] / p;
+                t[e].im = fi0.i[k] * p_trans * param.p_IM * p_emit * bi2.m[l] / p;
+                t[e].dm = fi0.d[k] * p_trans * param.p_DM * p_emit * bi2.m[l] / p;
             }
 
             // to d (silent state)
-            t[e].md = fi0.m(k) * p_trans * param.p_MD * bi1.d(l) / p;
-            t[e].id = fi0.i(k) * p_trans * param.p_ID * bi1.d(l) / p;
-            t[e].dd = fi0.d(k) * p_trans * param.p_DD * bi1.d(l) / p;
+            t[e].md = fi0.m[k] * p_trans * param.p_MD * bi1.d[l] / p;
+            t[e].id = fi0.i[k] * p_trans * param.p_ID * bi1.d[l] / p;
+            t[e].dd = fi0.d[k] * p_trans * param.p_DD * bi1.d[l] / p;
         }
 
         // (2) fill InitTransProbs
@@ -508,13 +379,13 @@ impl<R: PHMMResultLike> PHMMOutput<R> {
             // to m (normal state)
             if i < n {
                 let p_emit = phmm.p_match_emit(v, emissions[i]);
-                t0[v].mm = fi0.mb() * p_init * param.p_MM * p_emit * bi2.m(v) / p;
-                t0[v].im = fi0.ib() * p_init * param.p_IM * p_emit * bi2.m(v) / p;
+                t0[v].mm = fi0.mb * p_init * param.p_MM * p_emit * bi2.m[v] / p;
+                t0[v].im = fi0.ib * p_init * param.p_IM * p_emit * bi2.m[v] / p;
             }
 
             // to d (silent state)
-            t0[v].md = fi0.mb() * p_init * param.p_MD * bi1.d(v) / p;
-            t0[v].id = fi0.ib() * p_init * param.p_ID * bi1.d(v) / p;
+            t0[v].md = fi0.mb * p_init * param.p_MD * bi1.d[v] / p;
+            t0[v].id = fi0.ib * p_init * param.p_ID * bi1.d[v] / p;
         }
 
         (t, t0)
@@ -529,9 +400,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// PHMMModel version of `Dbg::show_mapping_summary`
     ///
-    fn inspect<R: PHMMResultLike, F: Fn(NodeIndex) -> String>(
+    fn inspect<F: Fn(NodeIndex) -> String>(
         &self,
-        output: &PHMMOutput<R>,
+        output: &PHMMOutput,
         emissions: &[u8],
         node_info: F,
     ) {
@@ -575,7 +446,7 @@ mod tests {
     fn hmm_freq_mock_linear_zero_error_node_freqs() {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());
         let o = phmm.run(b"CGATC");
-        let eps: Vec<StateProbs> = o.iter_emit_probs().collect();
+        let eps: Vec<PHMMTable> = o.iter_emit_probs().collect();
         for ep in eps.iter() {
             println!("{}", ep);
         }

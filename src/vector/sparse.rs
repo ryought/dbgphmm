@@ -5,7 +5,7 @@ use super::{DenseStorage, Storage};
 use arrayvec::ArrayVec;
 
 /// SparseStorage max index size parameter
-pub const SIZE: usize = 200;
+pub const SIZE: usize = 400;
 
 /// Sparse storage powered by `ArrayVec`
 /// A type of items is represented as `T`.

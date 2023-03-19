@@ -16,7 +16,6 @@ mod tests {
     use crate::e2e::Experiment;
     use crate::hmmv2::common::PModel;
     use crate::hmmv2::params::PHMMParams;
-    use crate::hmmv2::result::PHMMResultLike;
     use std::time::{Duration, Instant};
     use test::Bencher;
 

@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn dbg_flow_intersections_simple_0() {
         let dbg = mock_base();
-        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
+        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1, true);
         println!("{}", dbg);
         println!("{}", freqs);
         for i in dbg.iter_intersections() {
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn dbg_flow_intersections_simple_iter() {
         let dbg = mock_base();
-        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1);
+        let freqs = EdgeFreqs::new(dbg.n_edges(), 1.1, true);
         println!("{}", dbg);
         println!("{}", freqs);
         for fi in dbg.iter_flow_intersections(&freqs) {
