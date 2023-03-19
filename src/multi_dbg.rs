@@ -632,9 +632,6 @@ impl MultiDbg {
         let edge_in_full = self.graph_compact()[edge_in_compact].edges_in_full()[0];
         self.graph_full()[edge_in_full].copy_num
     }
-    pub fn neighbor_copy_nums(&self) -> Vec<CopyNums> {
-        unimplemented!();
-    }
     ///
     ///
     ///
