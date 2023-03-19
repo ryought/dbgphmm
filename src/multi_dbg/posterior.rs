@@ -10,6 +10,8 @@ use crate::prob::Prob;
 use crate::utils::timer;
 use petgraph::graph::EdgeIndex;
 
+pub mod test;
+
 ///
 /// Collection of sampled CopyNums and its scores.
 ///
@@ -378,6 +380,14 @@ impl MultiDbg {
 
         post
     }
+    /// Extend to k+1 by posterior
+    ///
+    /// * Perform posterior sampling
+    /// * Purge edges by posterior
+    /// * Extend Dbg into k+1
+    /// * Update Hints and Path
+    ///
+    pub fn extend_by_posterior(posterior: &Posterior) {}
 }
 
 //
