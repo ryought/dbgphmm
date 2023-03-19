@@ -79,11 +79,48 @@ impl Posterior {
 }
 
 ///
+/// output
+///
+impl Posterior {
+    ///
+    ///
+    ///
+    pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writeln!(writer, "P\t{}", self.p.to_log_value())?;
+        for (copy_nums, score) in self.samples.iter() {
+            writeln!(
+                writer,
+                "C\t{}\t{}\t{}",
+                score.p().to_log_value(),
+                score,
+                copy_nums
+            )?
+        }
+        Ok(())
+    }
+    ///
+    /// create string with `to_gfa_writer`
+    ///
+    pub fn to_string(&self) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_writer(&mut writer).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create file with `to_gfa_writer`
+    ///
+    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_writer(&mut file)
+    }
+}
+
+///
 /// Calculated score of copy numbers
 ///
 /// Constructed by `MultiDbg::to_score`.
 ///
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Score {
     ///
     /// Likelihood `P(R|G)`
@@ -109,6 +146,54 @@ impl Score {
     ///
     fn p(&self) -> Prob {
         self.likelihood * self.prior
+    }
+}
+
+impl std::fmt::Display for Score {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "likelihood={},prior={},genome_size={},time={}",
+            self.likelihood, self.prior, self.genome_size, self.time
+        )
+    }
+}
+
+impl std::str::FromStr for Score {
+    type Err = std::num::ParseFloatError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut likelihood = None;
+        let mut prior = None;
+        let mut genome_size = None;
+        let mut time = None;
+
+        for e in s.split(',') {
+            let mut it = e.split('=');
+            let key = it.next().unwrap();
+            let value = it.next().unwrap();
+            match key {
+                "likelihood" => {
+                    likelihood = Some(value.parse().unwrap());
+                }
+                "prior" => {
+                    prior = Some(value.parse().unwrap());
+                }
+                "genome_size" => {
+                    genome_size = Some(value.parse().unwrap());
+                }
+                "time" => {
+                    time = Some(value.parse().unwrap());
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Score {
+            likelihood: likelihood.unwrap(),
+            prior: prior.unwrap(),
+            genome_size: genome_size.unwrap(),
+            time: time.unwrap(),
+        })
     }
 }
 
@@ -163,17 +248,19 @@ impl MultiDbg {
     ///
     /// # Arguments
     ///
-    /// For likelihood
+    /// ## For likelihood
     /// * reads
     /// * PHMMParams
     ///
-    /// For prior
+    /// ## For prior
     /// * genome_size_expected
     /// * genome_size_sigma
     ///
-    /// For neighbors
+    /// ## For neighbors
     /// * max_cycle_size
     /// * max_flip
+    ///
+    ///
     ///
     /// # Procedure
     ///
@@ -183,5 +270,29 @@ impl MultiDbg {
     ///
     pub fn sample_posterior(&self) -> Posterior {
         unimplemented!();
+    }
+}
+
+//
+// tests
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn score() {
+        let a = Score {
+            likelihood: Prob::from_prob(0.3),
+            prior: Prob::from_prob(0.5),
+            genome_size: 111,
+            time: 102,
+        };
+        let t = a.to_string();
+        println!("{}", t);
+        let b: Score = t.parse().unwrap();
+        println!("{}", b);
+        assert_eq!(a, b);
     }
 }
