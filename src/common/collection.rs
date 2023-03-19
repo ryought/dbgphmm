@@ -694,13 +694,37 @@ mod tests {
     }
     #[test]
     fn reads_serialize() {
-        let reads = ReadCollection::from(vec![b"ATCGATTCGTA".to_vec(), b"TTTTTTGTGGGGTG".to_vec()]);
-        let json = serde_json::to_string(&reads).unwrap();
-        println!("{}", json);
-        assert_eq!(json, "{\"reads\":[\"ATCGATTCGTA\",\"TTTTTTGTGGGGTG\"]}");
-        let reads2: Reads = serde_json::from_str(&json).unwrap();
-        println!("{:?}", reads2);
-        assert_eq!(reads, reads2);
+        {
+            // with no hints
+            let reads =
+                ReadCollection::from(vec![b"ATCGATTCGTA".to_vec(), b"TTTTTTGTGGGGTG".to_vec()]);
+            let json = serde_json::to_string(&reads).unwrap();
+            println!("{}", json);
+            assert_eq!(json, "{\"reads\":[\"ATCGATTCGTA\",\"TTTTTTGTGGGGTG\"]}");
+            let reads2: Reads = serde_json::from_str(&json).unwrap();
+            println!("{:?}", reads2);
+            assert_eq!(reads, reads2);
+        }
+
+        {
+            // with hints
+            let reads = ReadCollection::from_with_hint(
+                vec![b"AT".to_vec(), b"T".to_vec()],
+                vec![
+                    Hint::from(vec![vec![ni(0), ni(1)], vec![ni(1), ni(2)]]),
+                    Hint::from(vec![vec![ni(3), ni(9)]]),
+                ],
+            );
+            let json = serde_json::to_string(&reads).unwrap();
+            println!("{}", json);
+            assert_eq!(
+                json,
+                "{\"reads\":[\"AT\",\"T\"],\"hints\":[[[0,1],[1,2]],[[3,9]]]}"
+            );
+            let reads2: Reads = serde_json::from_str(&json).unwrap();
+            println!("{:?}", reads2);
+            assert_eq!(reads, reads2);
+        }
     }
     #[test]
     fn styled_seq_serialize() {
