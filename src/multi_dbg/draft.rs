@@ -52,9 +52,15 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::genome;
 
     #[test]
-    fn from_styled_seqs() {}
+    fn from_styled_seqs() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_homo_ends(1_000, 2, 0, 1_000, 2, 0.01, 0);
+        let mdbg = MultiDbg::create_from_styled_seqs(40, &genome);
+        mdbg.to_gfa_file("g1m.gfa");
+    }
 
     #[test]
     fn from_reads() {}

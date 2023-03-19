@@ -347,7 +347,7 @@ impl MultiDbg {
     ///
     /// Determine corresponding node in full
     ///
-    fn map_node_in_compact_to_full(&self, node_in_compact: NodeIndex) -> NodeIndex {
+    pub fn node_in_compact_to_full(&self, node_in_compact: NodeIndex) -> NodeIndex {
         //
         // pick a outgoing edge from the node.
         // map the edge in compact into a simple path in full.
@@ -356,6 +356,15 @@ impl MultiDbg {
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
         node_in_full
+    }
+    ///
+    ///
+    ///
+    pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
+        self.graph_compact().node_indices().find(|&node| {
+            let v = self.node_in_compact_to_full(node);
+            self.graph_full()[v].is_terminal
+        })
     }
     ///
     /// Convert a path (= sequence of edges) in compact into a path in full.
@@ -508,7 +517,7 @@ impl MultiDbg {
     /// Convert node in compact graph into (k-1)-mer
     ///
     pub fn km1mer_compact(&self, node_in_compact: NodeIndex) -> VecKmer {
-        let node_in_full = self.map_node_in_compact_to_full(node_in_compact);
+        let node_in_full = self.node_in_compact_to_full(node_in_compact);
         self.km1mer_full(node_in_full)
     }
     ///
@@ -1439,16 +1448,19 @@ impl MultiDbg {
                 sequence_to_string(&seq),
             )?
         }
+        let terminal = self.terminal_node_compact();
         for (node, weight) in self.nodes_compact() {
-            for (in_edge, _, _) in self.parents_compact(node) {
-                for (out_edge, _, _) in self.childs_compact(node) {
-                    writeln!(
-                        writer,
-                        "L\t{}\t+\t{}\t+\t*\t{}",
-                        in_edge.index(),
-                        out_edge.index(),
-                        node.index(),
-                    )?
+            if terminal.is_some() && node != terminal.unwrap() {
+                for (in_edge, _, _) in self.parents_compact(node) {
+                    for (out_edge, _, _) in self.childs_compact(node) {
+                        writeln!(
+                            writer,
+                            "L\t{}\t+\t{}\t+\t*\t{}",
+                            in_edge.index(),
+                            out_edge.index(),
+                            node.index(),
+                        )?
+                    }
                 }
             }
         }

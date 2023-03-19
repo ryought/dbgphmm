@@ -23,6 +23,6 @@ mod tests {
 
     #[test]
     fn simple_genome() {
-        genome::simple(1000, 0);
+        let (genome, genome_size) = genome::simple(1000, 0);
     }
 }
