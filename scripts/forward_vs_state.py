@@ -14,10 +14,22 @@ csv.field_size_limit(1000000000)
 
 
 def parse(s):
+    """
+    parse summary string of states vector
+
+    >>> parse('N(v102):0.001,I(v1):0.9')
+    [('N(v102)', 0.001), ('I(v1)', 0.9)]
+    """
     return [(x.split(':')[0], float(x.split(':')[1])) for x in s.split(',')]
 
 
 def jaccard(xs, ys):
+    """
+    calculate jaccard index
+
+    >>> jaccard([('a'), ('b')], [('a'), ('c'), ('d')])
+    0.25
+    """
     sxs = set([x[0] for x in xs])
     sys = set([y[0] for y in ys])
     u = sxs | sys
@@ -70,6 +82,7 @@ def main():
         plt.savefig(args.filename + '.png', dpi=200)
 
 
-main()
-# print(parse('N(v0102):0.001'))
-# print(jaccard([('a'), ('b')], [('a'), ('c')]))
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+    main()
