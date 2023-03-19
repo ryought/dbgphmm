@@ -216,7 +216,6 @@ mod tests {
         }
     }
 
-    /*
     #[test]
     #[ignore]
     fn test_g1m() {
@@ -254,6 +253,7 @@ mod tests {
         let p_true = lp(-105736.2);
         assert!(p.log_diff(p_true) < 1.0);
     }
+
     #[test]
     #[ignore]
     fn test_g10k() {
@@ -275,7 +275,6 @@ mod tests {
         );
         inspect_sparse_vs_dense(&dataset, &phmm, "g10k");
     }
-    */
 
     #[test]
     #[ignore = "39sec"]
