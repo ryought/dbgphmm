@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import numpy as np
+import statistics
+import math
+from parse import *
+from collections import defaultdict
 import argparse
 import csv
 csv.field_size_limit(1000000000)
-from collections import defaultdict
-from parse import *
-import math
-import statistics
-import numpy as np
-import matplotlib.pyplot as plt
-from dataclasses import dataclass
+
 
 def parse(s):
     return [(x.split(':')[0], float(x.split(':')[1])) for x in s.split(',')]
+
 
 def jaccard(xs, ys):
     sxs = set([x[0] for x in xs])
@@ -21,6 +23,7 @@ def jaccard(xs, ys):
     u = sxs | sys
     i = sxs & sys
     return len(i) / len(u)
+
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -65,6 +68,7 @@ def main():
         plt.show()
     else:
         plt.savefig(args.filename + '.png', dpi=200)
+
 
 main()
 # print(parse('N(v0102):0.001'))
