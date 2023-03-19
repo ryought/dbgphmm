@@ -93,18 +93,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     };
                     let (table, t) =
                         timer_us(|| self.f_step(i, emission, table_prev, &all_nodes, true, false));
-                    // println!("i={} t={}", i, t);
                     r.tables.push(table);
                 } else {
                     // sparse_table
                     let table_prev = r.last_table();
-                    let (active_nodes, t0) = timer_us(|| {
-                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
-                    });
+                    let (top_nodes, tt) = timer_us(|| table_prev.top_nodes(param.n_active_nodes));
+                    let (active_nodes, t0) = timer_us(|| self.to_childs_and_us(&top_nodes));
                     let (table, t) = timer_us(|| {
                         self.f_step(i, emission, table_prev, &active_nodes, false, true)
                     });
-                    // println!("i={} t0={} t={}", i, t0, t);
+                    println!("i={} tt={} t0={} t={}", i, tt, t0, t);
                     r.tables.push(table);
                 };
                 r
