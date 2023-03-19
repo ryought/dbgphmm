@@ -110,6 +110,25 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
     }
     ///
+    ///
+    ///
+    pub fn forward_sparse_score_only<X: AsRef<Bases>>(&self, emissions: X) -> Prob {
+        let mut table = self.f_init(true);
+        let param = &self.param;
+        let all_nodes = self.to_all_nodes();
+        for (i, &emission) in emissions.as_ref().into_iter().enumerate() {
+            if i < param.n_warmup {
+                // dense_table
+                table = self.f_step(i, emission, &table, &all_nodes, true, false);
+            } else {
+                // sparse_table
+                let active_nodes = self.to_childs_and_us(&table.top_nodes(param.n_active_nodes));
+                table = self.f_step(i, emission, &table, &active_nodes, false, true);
+            };
+        }
+        table.e
+    }
+    ///
     /// Create init_table in PHMMResult for Forward algorithm
     ///
     fn f_init(&self, is_dense: bool) -> PHMMTable {
