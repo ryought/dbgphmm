@@ -537,6 +537,7 @@ mod tests {
         assert!(p1.log_diff(p2) < 0.1);
     }
     #[test]
+    #[ignore = "34sec"]
     fn hmm_forward_with_hint_tandem_repeat() {
         let exp = e2e::generate_small_tandem_repeat();
         let dbg = exp.dbg_raw.clone();
@@ -560,6 +561,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "234sec"]
     fn hmm_forward_with_hint_difficult_tandem_repeat() {
         let dataset = e2e::generate_difficult_diploid_tandem_repeat_dataset();
         let dbg: SimpleDbg<VecKmer> =

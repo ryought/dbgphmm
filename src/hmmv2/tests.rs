@@ -48,6 +48,7 @@ mod tests {
         println!("{:?} {}", nf_infer_sparse, nf_infer_sparse.sum());
     }
     #[test]
+    #[ignore = "38sec"]
     fn hmmv2_incorrect_sparse_calculation() {
         let dataset = e2e::generate_tandem_repeat_1kbp();
         // dataset.show_reads_with_genome();
