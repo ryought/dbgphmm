@@ -152,9 +152,15 @@ pub struct MultiCompactEdge {
 }
 
 impl MultiCompactEdge {
+    ///
+    /// Constructor
+    ///
     pub fn new(edges_in_full: Vec<EdgeIndex>) -> Self {
         Self { edges_in_full }
     }
+    ///
+    /// Correspoinding edges in full graph of the edge in compact graph
+    ///
     pub fn edges_in_full(&self) -> &[EdgeIndex] {
         &self.edges_in_full
     }
@@ -343,6 +349,29 @@ impl MultiDbg {
 ///
 /// Bridge functions between full and compact
 ///
+/// # `node`
+/// * compact to full: [`MultiDbg::node_in_compact_to_full`]
+/// * full to compact: N/A
+///     Some of nodes in full have no corresponding node in compact.
+///     For terminal node, use [`MultiDbg::terminal_node_compact`]
+///
+/// # `terminal_node`
+/// * compact: [`MultiDbg::terminal_node_compact`]
+/// * full: [`MultiDbg::terminal_node_full`]
+///
+/// # `edge`
+/// * compact to full: [`MultiCompactEdge::edges_in_full()`] stores the all corresponding edges in
+/// full.
+/// * full to compact
+///     * single edge: [`MultiDbg::edge_in_full_to_compact`]
+///     * multiple edges: [`MultiDbg::to_edge_map_into_compact`]
+///
+/// # `path`
+/// * compact to full: [`MultiDbg::to_path_in_full`]
+/// * full to compact: [`MultiDbg::to_path_in_compact`]
+///
+/// # copy_num
+///
 impl MultiDbg {
     ///
     /// Determine corresponding node in full
@@ -358,7 +387,9 @@ impl MultiDbg {
         node_in_full
     }
     ///
+    /// Get terminal node (NNNN) in compact graph
     ///
+    /// The underlying genome is circular, the terminal node can be missing.
     ///
     pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
         self.graph_compact().node_indices().find(|&node| {
@@ -367,16 +398,25 @@ impl MultiDbg {
         })
     }
     ///
-    /// Convert a path (= sequence of edges) in compact into a path in full.
     ///
-    pub fn path_full_from_path_compact(&self, path_compact: &[EdgeIndex]) -> Vec<EdgeIndex> {
-        let mut path_full = Vec::new();
-        for &edge_in_compact in path_compact {
-            for &edge_in_full in self.graph_compact()[edge_in_compact].edges_in_full() {
-                path_full.push(edge_in_full);
+    ///
+    pub fn edge_in_full_to_compact(&self, edge_in_full: EdgeIndex) -> EdgeIndex {
+        self.edges_compact()
+            .find(|(_, _, _, ew)| ew.edges_in_full().contains(&edge_in_full))
+            .map(|(e, _, _, _)| e)
+            .expect("no corresponding edge in full")
+    }
+    ///
+    /// Create a map from edge in full into edge in compact
+    ///
+    pub fn to_edge_map_into_compact(&self) -> HashMap<EdgeIndex, EdgeIndex> {
+        let mut hm = HashMap::with_capacity_and_hasher(self.n_edges_full(), Default::default());
+        for (edge_in_compact, _, _, ew) in self.edges_compact() {
+            for edge_in_full in ew.edges_in_full() {
+                hm.insert(*edge_in_full, edge_in_compact);
             }
         }
-        path_full
+        hm
     }
 }
 
@@ -384,82 +424,114 @@ impl MultiDbg {
 /// Path and styled seq conversion related
 ///
 impl MultiDbg {
+    /// Circuit (a sequence of edges in full graph) into styled sequence
     ///
+    /// If the starting node of path is terminal (NNNN), it is regared as a Linear sequence.
+    /// Otherwise it will be a Circular sequence.
     ///
-    ///
-    pub fn path_to_styled_seqs(&self, path_full: &[EdgeIndex]) -> Vec<StyledSequence> {
-        let mut seqs = Vec::new();
-        let mut state: Option<(Vec<u8>, NodeIndex, SeqStyle)> = None;
-        let terminal_node = self.terminal_node_full();
+    pub fn circuit_to_styled_seq(&self, path: &[EdgeIndex]) -> StyledSequence {
+        assert!(path.len() > 0);
 
-        for &e in path_full {
+        let terminal_node = self.terminal_node_full();
+        let mut seq = Vec::new();
+
+        // first edge
+        let (start_node, _) = self
+            .graph_full()
+            .edge_endpoints(path[0])
+            .expect("edge in path is not in graph");
+        let style = if terminal_node.is_some() && start_node == terminal_node.unwrap() {
+            SeqStyle::Linear
+        } else {
+            SeqStyle::Circular
+        };
+        let mut node = start_node;
+
+        for &e in path {
             let (s, t) = self
                 .graph_full()
                 .edge_endpoints(e)
                 .expect("edge in path is not in graph");
+            assert_eq!(
+                s, node,
+                "source of path[i] does not match the terminal of path[i-1]"
+            );
 
-            // beginning of new seq
-            if state.is_none() {
-                let style = if terminal_node.is_some() && s == terminal_node.unwrap() {
-                    SeqStyle::Linear
-                } else {
-                    SeqStyle::Circular
-                };
-                state = Some((Vec::new(), s, style));
-            }
-
-            let (mut seq, first_node, style) = state.unwrap();
-            let weight = &self.graph_full()[e];
-            if weight.is_null_base() {
-                assert!(!style.is_circular());
+            let w = &self.graph_full()[e];
+            if w.is_null_base() {
+                assert!(!style.is_circular(), "");
             } else {
-                seq.push(weight.base);
+                seq.push(w.base);
             }
 
-            if t == first_node {
-                // end of this seq
-                seqs.push(StyledSequence::new(seq, style));
-                state = None
-            } else {
-                // iterate again
-                state = Some((seq, first_node, style));
-            }
+            node = t;
         }
-        seqs
+
+        assert_eq!(
+            node, start_node,
+            "path is not circular i.e. path[0] != path[n-1]"
+        );
+
+        StyledSequence::new(seq, style)
     }
     ///
-    /// Generate Euler circuit path of full graph that traverses all edges
+    /// Generate Euler circuit path of full graph that traverses all edges (in full graph)
     ///
-    pub fn get_euler_circuit(&self) -> Vec<EdgeIndex> {
-        let mut path = Vec::new();
+    pub fn get_euler_circuits(&self) -> Vec<Vec<EdgeIndex>> {
+        let terminal_node = self.terminal_node_full();
 
-        // start from terminal node if exists
-        let start_node = self.terminal_node_full().unwrap_or(NodeIndex::new(0));
-
-        let mut node = start_node;
+        // set of paths to be returned
+        let mut paths = Vec::new();
+        // vector to store how many times the edge can be visited?
         let mut copy_nums_remain = self.get_copy_nums_full();
 
-        loop {
-            match self
-                .childs_full(node)
-                .find(|(edge, _, _)| copy_nums_remain[*edge] > 0)
-            {
-                Some((edge, child, _)) => {
-                    path.push(edge);
-                    copy_nums_remain[edge] -= 1;
-                    node = child;
+        let copy_num_of_node = |node: NodeIndex, copy_nums: &CopyNums| -> CopyNum {
+            self.childs_full(node).map(|(e, _, _)| &copy_nums[e]).sum()
+        };
+
+        // pick a remaining node
+        let pick_node = |copy_nums: &CopyNums| -> Option<NodeIndex> {
+            // check terminal node first if remaining
+            if terminal_node.is_some() && copy_num_of_node(terminal_node.unwrap(), copy_nums) > 0 {
+                Some(terminal_node.unwrap())
+            } else {
+                self.graph_full()
+                    .node_indices()
+                    .find(|&v| copy_num_of_node(v, copy_nums) > 0)
+            }
+        };
+
+        // pick a remaining child edge
+        let pick_child =
+            |node: NodeIndex, copy_nums: &CopyNums| -> Option<(EdgeIndex, NodeIndex)> {
+                self.childs_full(node)
+                    .sorted_by_key(|(_, _, w)| w.base)
+                    .find(|(edge, _, _)| copy_nums[*edge] > 0)
+                    .map(|(edge, child, _)| (edge, child))
+            };
+
+        while let Some(start_node) = pick_node(&copy_nums_remain) {
+            let mut path = Vec::new();
+            let mut node = start_node;
+
+            while let Some((edge, child)) = pick_child(node, &copy_nums_remain) {
+                path.push(edge);
+                copy_nums_remain[edge] -= 1;
+                node = child;
+
+                if node == start_node {
+                    break;
                 }
-                None => {
-                    if node == start_node {
-                        break;
-                    } else {
-                        panic!("euler traverse not found");
-                    }
-                }
+            }
+
+            if node == start_node {
+                paths.push(path);
+            } else {
+                panic!("found path was not euler circuit");
             }
         }
 
-        path
+        paths
     }
     ///
     /// used in `get_euler_circuit` to create copy_nums_remain
@@ -473,10 +545,51 @@ impl MultiDbg {
         }
         copy_nums
     }
+    /// Create a set of StyledSequence that represents this MultiDbg
     ///
+    /// by euler circuits that uses edges by the number of their copy numbers
     ///
     pub fn to_styled_seqs(&self) -> Vec<StyledSequence> {
-        self.path_to_styled_seqs(&self.get_euler_circuit())
+        self.get_euler_circuits()
+            .into_iter()
+            .map(|circuit| self.circuit_to_styled_seq(&circuit))
+            .collect()
+    }
+    /// Convert a path in full graph into a path in compact graph
+    ///
+    ///
+    pub fn to_path_in_compact(&self, path_in_full: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        assert!(!path_in_full.is_empty(), "path is empty");
+
+        unimplemented!();
+    }
+    /// Convert a path in compact graph into a path in full graph
+    ///
+    ///
+    pub fn to_path_in_full(&self, path_in_compact: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        assert!(!path_in_compact.is_empty(), "path is empty");
+
+        let mut path_in_full = Vec::new();
+        let (mut node, _) = self
+            .graph_compact()
+            .edge_endpoints(path_in_compact[0])
+            .unwrap();
+
+        for &edge_in_compact in path_in_compact {
+            let (s, t) = self
+                .graph_compact()
+                .edge_endpoints(edge_in_compact)
+                .unwrap();
+            assert_eq!(s, node, "invalid path in compact");
+
+            for &edge_in_full in self.graph_compact()[edge_in_compact].edges_in_full() {
+                path_in_full.push(edge_in_full);
+            }
+
+            node = t;
+        }
+
+        path_in_full
     }
 }
 
@@ -567,6 +680,9 @@ impl MultiDbg {
     ///
     /// Create kmer mapping f: Kmer -> EdgeIndex
     ///
+    /// This funciton will be inefficient when k is large.
+    /// If you need a path in MultiDbg of k is large, consider extending path from small k.
+    ///
     pub fn to_kmer_map(&self) -> HashMap<VecKmer, EdgeIndex> {
         let mut hm = HashMap::default();
         for edge in self.graph_full().edge_indices() {
@@ -574,6 +690,17 @@ impl MultiDbg {
             hm.insert(kmer, edge);
         }
         hm
+    }
+    ///
+    ///
+    ///
+    pub fn paths_from_styled_seqs<T>(&self, seqs: T) -> Vec<Vec<EdgeIndex>>
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        let km = self.to_kmer_map();
+        unimplemented!();
     }
 }
 
@@ -757,6 +884,7 @@ impl MultiDbg {
 
 ///
 /// k+1 extension
+///
 ///
 impl MultiDbg {
     /// Extend k to k+1.
@@ -1544,7 +1672,7 @@ impl std::fmt::Display for MultiFullNode {
 mod tests {
     use super::toy;
     use super::*;
-    use crate::common::ei;
+    use crate::common::{ei, ni};
     use crate::dbg::mocks as dbgmocks;
     use crate::kmer::veckmer::kmer;
 
@@ -1653,5 +1781,40 @@ mod tests {
         println!("{}", p_mdbg);
 
         assert_eq!(p_dbg, p_mdbg);
+    }
+    #[test]
+    fn bridge_full_and_compact() {
+        {
+            let dbg = toy::circular();
+            dbg.show_graph_with_kmer();
+            assert_eq!(dbg.terminal_node_full(), None);
+            assert_eq!(dbg.terminal_node_compact(), None);
+            assert_eq!(dbg.edge_in_full_to_compact(ei(2)), ei(0));
+
+            let p = dbg.to_path_in_full(&[ei(0)]);
+            assert_eq!(p, vec![ei(1), ei(2), ei(3), ei(0)]);
+            let q = dbg.to_path_in_compact(&p);
+            println!("{:?}", q);
+        }
+
+        {
+            let dbg = toy::repeat();
+            dbg.show_graph_with_kmer();
+            // nnn
+            assert_eq!(dbg.terminal_node_full(), Some(ni(0)));
+            assert_eq!(dbg.terminal_node_compact(), Some(ni(0)));
+            // CAG
+            assert_eq!(dbg.node_in_compact_to_full(ni(1)), ni(6));
+            // multiple edge
+            let m = dbg.to_edge_map_into_compact();
+            println!("{:?}", m);
+            for (&edge_in_full, &edge_in_compact) in m.iter() {
+                assert!(dbg.graph_compact()[edge_in_compact]
+                    .edges_in_full()
+                    .contains(&edge_in_full));
+            }
+            // single edge
+            assert_eq!(dbg.edge_in_full_to_compact(ei(14)), ei(0));
+        }
     }
 }

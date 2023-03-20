@@ -309,20 +309,82 @@ pub fn repeat() -> MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::{ei, ni};
+    use crate::common::{ei, ni, StyledSequence};
 
     #[test]
     fn test_circular() {
         let dbg = circular();
         dbg.show_graph_with_kmer();
-        let p = dbg.get_euler_circuit();
+        let p = dbg.get_euler_circuits();
 
-        assert_eq!(p, vec![ei(0), ei(1), ei(2), ei(3)]);
+        assert_eq!(p, vec![vec![ei(0), ei(1), ei(2), ei(3)]]);
         for s in dbg.to_styled_seqs() {
             println!("{}", s);
         }
+        assert_eq!(
+            dbg.to_styled_seqs(),
+            vec![StyledSequence::circular(b"GATC".to_vec())]
+        );
 
         let dbg_ext = dbg.to_kp1_dbg();
         dbg_ext.show_graph_with_kmer();
+    }
+
+    #[test]
+    fn test_intersection() {
+        let dbg = intersection();
+        dbg.show_graph_with_kmer();
+
+        let p = dbg.get_euler_circuits();
+        assert_eq!(
+            p,
+            vec![
+                vec![ei(8), ei(9), ei(10), ei(11), ei(12), ei(13), ei(14), ei(15)],
+                vec![ei(0), ei(1), ei(2), ei(3), ei(4), ei(5), ei(6), ei(7)]
+            ]
+        );
+        for s in dbg.to_styled_seqs() {
+            println!("{}", s);
+        }
+        assert_eq!(
+            dbg.to_styled_seqs(),
+            vec![
+                StyledSequence::linear(b"TATCA".to_vec()),
+                StyledSequence::linear(b"GATCC".to_vec()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_selfloop() {
+        let dbg = selfloop();
+        dbg.show_graph_with_kmer();
+
+        let p = dbg.get_euler_circuits();
+        assert_eq!(
+            p,
+            vec![vec![
+                ei(0),
+                ei(1),
+                ei(2),
+                ei(3),
+                ei(4),
+                ei(5),
+                ei(5),
+                ei(5),
+                ei(6),
+                ei(7),
+                ei(8),
+                ei(9),
+                ei(10)
+            ]]
+        );
+        for s in dbg.to_styled_seqs() {
+            println!("{}", s);
+        }
+        assert_eq!(
+            dbg.to_styled_seqs(),
+            vec![StyledSequence::linear(b"CTAAAAAAGC".to_vec())]
+        );
     }
 }
