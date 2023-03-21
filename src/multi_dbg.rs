@@ -561,6 +561,8 @@ impl MultiDbg {
     pub fn to_path_in_compact(&self, path_in_full: &[EdgeIndex]) -> Vec<EdgeIndex> {
         assert!(!path_in_full.is_empty(), "path is empty");
 
+        // detect first node
+
         unimplemented!();
     }
     /// Convert a path in compact graph into a path in full graph
@@ -1580,11 +1582,12 @@ impl MultiDbg {
             let seq = &self.seq_compact(edge);
             writeln!(
                 writer,
-                "S\t{}\t{}\tCN:i:{}\tLB:z:{}",
+                "S\t{}\t{}\tCN:i:{}\tLB:Z:{}\tLN:i:{}",
                 edge.index(),
                 sequence_to_string(&seq),
                 self.copy_num_of_edge_in_compact(edge),
                 sequence_to_string(&seq),
+                seq.len(),
             )?
         }
         let terminal = self.terminal_node_compact();
@@ -1594,7 +1597,7 @@ impl MultiDbg {
                     for (out_edge, _, _) in self.childs_compact(node) {
                         writeln!(
                             writer,
-                            "L\t{}\t+\t{}\t+\t*\t{}",
+                            "L\t{}\t+\t{}\t+\t*\tID:Z:{}",
                             in_edge.index(),
                             out_edge.index(),
                             node.index(),
