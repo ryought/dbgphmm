@@ -401,9 +401,32 @@ impl MultiDbg {
     ///
     ///
     pub fn edge_in_full_to_compact(&self, edge_in_full: EdgeIndex) -> EdgeIndex {
+        let (edge, _i) = self.edge_in_full_to_compact_with_index(edge_in_full);
+        edge
+    }
+    ///
+    /// Wrapper of [`MultiCompactEdge::edges_in_full`]
+    ///
+    pub fn edges_in_full(&self, edge_in_compact: EdgeIndex) -> &[EdgeIndex] {
+        self.graph_compact()
+            .edge_weight(edge_in_compact)
+            .unwrap()
+            .edges_in_full()
+    }
+    ///
+    /// Map edge in full into (edge in compact, index of edges_in_full of the edge).
+    ///
+    pub fn edge_in_full_to_compact_with_index(
+        &self,
+        edge_in_full: EdgeIndex,
+    ) -> (EdgeIndex, usize) {
         self.edges_compact()
-            .find(|(_, _, _, ew)| ew.edges_in_full().contains(&edge_in_full))
-            .map(|(e, _, _, _)| e)
+            .find_map(|(edge_in_compact, _, _, ew)| {
+                ew.edges_in_full()
+                    .iter()
+                    .position(|&edge| edge == edge_in_full)
+                    .map(|i| (edge_in_compact, i))
+            })
             .expect("no corresponding edge in full")
     }
     ///
@@ -560,10 +583,49 @@ impl MultiDbg {
     ///
     pub fn to_path_in_compact(&self, path_in_full: &[EdgeIndex]) -> Vec<EdgeIndex> {
         assert!(!path_in_full.is_empty(), "path is empty");
+        let n = path_in_full.len();
+        let mut path_in_compact = Vec::new();
 
         // detect first node
+        let (_, offset) = self.edge_in_full_to_compact_with_index(path_in_full[0]);
+        let mut i = 0;
 
-        unimplemented!();
+        while i < n {
+            let index = (n - offset + i) % n;
+
+            // path[index]
+            let edge_in_full = path_in_full[index];
+            let (edge_in_compact, o) = self.edge_in_full_to_compact_with_index(edge_in_full);
+            assert_eq!(o, 0, "path[index] is not the first edge in compact");
+            path_in_compact.push(edge_in_compact);
+
+            // check the following edges do match the edge_in_compact
+            for (index_in_edge, &e) in self.edges_in_full(edge_in_compact).into_iter().enumerate() {
+                assert_eq!(
+                    path_in_full[(index + index_in_edge) % n],
+                    e,
+                    "ordering of edges in path is inconsistent with compact"
+                );
+            }
+
+            i += self.edges_in_full(edge_in_compact).len();
+        }
+
+        // check the new path is valid
+        for i in 0..path_in_compact.len() {
+            //
+            let (_, t) = self
+                .graph_compact()
+                .edge_endpoints(path_in_compact[i])
+                .unwrap();
+            let (s, _) = self
+                .graph_compact()
+                .edge_endpoints(path_in_compact[(i + 1) % path_in_compact.len()])
+                .unwrap();
+            assert_eq!(t, s, "path is invalid");
+        }
+
+        path_in_compact
     }
     /// Convert a path in compact graph into a path in full graph
     ///
@@ -647,13 +709,7 @@ impl MultiDbg {
             .unwrap();
         let mut kmer = self.km1mer_compact(source_node);
 
-        for &edge_in_full in self
-            .graph_compact()
-            .edge_weight(edge_in_compact)
-            .unwrap()
-            .edges_in_full
-            .iter()
-        {
+        for &edge_in_full in self.edges_in_full(edge_in_compact).iter() {
             let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
             kmer = kmer.into_extend_last(base);
         }
@@ -666,13 +722,7 @@ impl MultiDbg {
     pub fn seq_compact(&self, edge_in_compact: EdgeIndex) -> Vec<u8> {
         let mut seq = Vec::new();
 
-        for &edge_in_full in self
-            .graph_compact()
-            .edge_weight(edge_in_compact)
-            .unwrap()
-            .edges_in_full()
-            .iter()
-        {
+        for &edge_in_full in self.edges_in_full(edge_in_compact).iter() {
             let base = self.graph_full().edge_weight(edge_in_full).unwrap().base;
             seq.push(base);
         }
@@ -1793,11 +1843,19 @@ mod tests {
             assert_eq!(dbg.terminal_node_full(), None);
             assert_eq!(dbg.terminal_node_compact(), None);
             assert_eq!(dbg.edge_in_full_to_compact(ei(2)), ei(0));
+            assert_eq!(dbg.edge_in_full_to_compact_with_index(ei(2)), (ei(0), 1));
 
+            // path
             let p = dbg.to_path_in_full(&[ei(0)]);
             assert_eq!(p, vec![ei(1), ei(2), ei(3), ei(0)]);
+
             let q = dbg.to_path_in_compact(&p);
             println!("{:?}", q);
+            assert_eq!(q, vec![ei(0)]);
+
+            let q = dbg.to_path_in_compact(&vec![ei(2), ei(3), ei(0), ei(1)]);
+            println!("{:?}", q);
+            assert_eq!(q, vec![ei(0)]);
         }
 
         {
@@ -1818,6 +1876,52 @@ mod tests {
             }
             // single edge
             assert_eq!(dbg.edge_in_full_to_compact(ei(14)), ei(0));
+            assert_eq!(dbg.edge_in_full_to_compact_with_index(ei(3)), (ei(2), 3));
+
+            // path
+            println!("#1");
+            let p = dbg.to_path_in_full(&[ei(2), ei(0)]);
+            println!("{:?}", p);
+            assert_eq!(
+                p,
+                vec![
+                    ei(0),
+                    ei(1),
+                    ei(2),
+                    ei(3),
+                    ei(4),
+                    ei(5),
+                    ei(9),
+                    ei(10),
+                    ei(11),
+                    ei(12),
+                    ei(13),
+                    ei(14)
+                ]
+            );
+            let q = dbg.to_path_in_compact(&p);
+            println!("{:?}", q);
+            assert_eq!(q, vec![ei(2), ei(0)]);
+
+            // path starts from non-terminal edge
+            println!("#2");
+            let p = vec![
+                ei(2),
+                ei(3),
+                ei(4),
+                ei(5),
+                ei(9), // p[4]
+                ei(10),
+                ei(11),
+                ei(12),
+                ei(13),
+                ei(14),
+                ei(0), // p[10]
+                ei(1),
+            ];
+            let q = dbg.to_path_in_compact(&p);
+            println!("{:?}", q);
+            assert_eq!(q, vec![ei(2), ei(0)]);
         }
     }
 }
