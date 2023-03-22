@@ -26,8 +26,7 @@ fn test_posterior(dataset: &Dataset, k: usize, param_infer: PHMMParams, gfa_file
     let copy_nums_true = mdbg.copy_nums_from_compact_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
     mdbg.to_gfa_post_file(gfa_filename, &post);
-
-    println!("{}", mdbg.to_inspect_string(&post, &copy_nums_true));
+    mdbg.to_inspect_file(format!("{}.inspect", gfa_filename), &post, &copy_nums_true);
 
     check_posterior_is_correct(&mdbg, &post, &copy_nums_true);
 }
@@ -116,6 +115,6 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        test_posterior(&dataset, 20, PHMMParams::uniform(0.01), "repeat1k.gfa");
+        test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "repeat1k.gfa");
     }
 }
