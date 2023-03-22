@@ -1,13 +1,55 @@
 //!
 //! Output (serialization and deserialization) functions of MultiDbg
 //!
+//! # DBG format [`MultiDbg::to_dbg_writer`]
+//!
+//! ```text
+//! K
+//! N
+//! E
+//!
+//! # paths format
+//! P
+//! C
+//! ```
+//!
+//! # GFA format [`MultiDbg::to_gfa_writer`]
+//!
+//! ## without posterior
+//!
+//! ```text
+//! # segment
+//! #            copy_num
+//! S 0 TTCTG    DP:f:1  LN:i:5
+//! S 1 CCTAGCT  DP:f:1  LN:i:7
+//!
+//! # link
+//! L 0 + 1 + *   ID:Z:1
+//! ```
+//!
+//! ## with posterior
+//!
+//! ```text
+//! # segment
+//! #            copy_num          posterior_distribution_of_copy_num,true_copy_num
+//! S 0 TTCTG    DP:f:1.1  LN:i:5  LB:Z:P(1x=0.001,2x=0.9),1x
+//! S 1 CCTAGCT  DP:f:0.9  LN:i:7
+//!
+//! # link
+//! L 0 + 1 + *   ID:Z:1
+//!
+//! # path
+//! P
+//! ```
+//!
+use super::posterior::Posterior;
 use super::{MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
 use crate::common::{sequence_to_string, CopyNum, NULL_BASE};
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 
 ///
-/// serialize/deserialize and debug print methods
+/// debug print methods
 ///
 impl MultiDbg {
     ///
@@ -69,6 +111,12 @@ impl MultiDbg {
             );
         }
     }
+}
+
+///
+/// DBG format
+///
+impl MultiDbg {
     ///
     /// create DBG string with `to_dbg_writer`
     ///
@@ -190,7 +238,7 @@ impl MultiDbg {
                     edges.push((edge, s, t, seq, copy_num, edges_in_full));
                 }
                 '#' => {} // pass
-                _ => panic!("invalid DBG format"),
+                _ => {}   // ignore
             }
         }
 
@@ -277,15 +325,114 @@ impl MultiDbg {
         let reader = std::io::BufReader::new(file);
         Self::from_dbg_reader(reader)
     }
+}
+
+///
+/// PATHS format
+///
+impl MultiDbg {
+    ///
+    /// create PATHS file with [`MultiDbg::to_paths_writer`]
+    ///
+    pub fn to_paths_file<F, PS, P>(&self, filename: F, paths: PS) -> std::io::Result<()>
+    where
+        F: AsRef<std::path::Path>,
+        PS: AsRef<[P]>,
+        P: AsRef<[EdgeIndex]>,
+    {
+        let mut file = std::fs::File::create(filename).unwrap();
+        self.to_paths_writer(&mut file, paths)
+    }
+    ///
+    /// create PATHS string with [`MultiDbg::to_paths_writer`]
+    ///
+    pub fn to_paths_string<PS, P>(&self, paths: PS) -> String
+    where
+        PS: AsRef<[P]>,
+        P: AsRef<[EdgeIndex]>,
+    {
+        let mut writer = Vec::with_capacity(128);
+        self.to_paths_writer(&mut writer, paths).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create PATHS file
+    ///
+    pub fn to_paths_writer<W, PS, P>(&self, mut writer: W, paths: PS) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+        PS: AsRef<[P]>,
+        P: AsRef<[EdgeIndex]>,
+    {
+        for path in paths.as_ref().into_iter() {
+            writeln!(
+                writer,
+                "P\t{}",
+                path.as_ref().into_iter().map(|e| e.index()).format(",")
+            )?;
+        }
+        Ok(())
+    }
+    ///
+    ///
+    ///
+    pub fn from_paths_reader<R: std::io::BufRead>(reader: R) -> Vec<Vec<EdgeIndex>> {
+        let mut paths = Vec::new();
+
+        for line in reader.lines() {
+            let text = line.unwrap();
+            let first_char = text.chars().nth(0).unwrap();
+            if first_char == 'P' {
+                let mut iter = text.split_whitespace();
+
+                // first segment
+                iter.next().unwrap(); // 'P'
+
+                // second segment
+                let path: Vec<EdgeIndex> = iter
+                    .next()
+                    .unwrap()
+                    .split(',')
+                    .map(|s| EdgeIndex::new(s.parse().unwrap()))
+                    .collect();
+
+                // TODO check that this is valid path of current dbg
+
+                paths.push(path);
+            }
+        }
+
+        paths
+    }
+    ///
+    /// parse PATHS string with [`MultiDbg::from_paths_reader`]
+    ///
+    pub fn from_paths_str(s: &str) -> Vec<Vec<EdgeIndex>> {
+        Self::from_paths_reader(s.as_bytes())
+    }
+    ///
+    /// parse PATHS file with [`MultiDbg::from_paths_reader`]
+    ///
+    pub fn from_paths_file<P: AsRef<std::path::Path>>(path: P) -> Vec<Vec<EdgeIndex>> {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        Self::from_paths_reader(reader)
+    }
+}
+
+///
+/// GFA format
+///
+impl MultiDbg {
     /// GFA format
     ///
     /// ```text
     /// # comment
     ///
     /// # segment
-    /// #  name  sequence   copy_number
-    /// S  0     ATCGATTCG  CN:i:1
-    /// S  1     ATCGATTCG  CN:i:1
+    /// #  name  sequence   copy_number  length
+    /// S  0     ATCGATTCG  DP:i:1       LN:i:9
+    /// S  1     ATCGATTCG  DP:i:1       LN:i:9
     ///
     /// # link
     /// #  source  orient  target  orient  optional  node_id
@@ -295,17 +442,21 @@ impl MultiDbg {
     /// * segment for each edge
     /// * link from in_edge to out_edge of each node
     ///
-    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+    pub fn to_gfa_writer_with<W, F>(&self, mut writer: W, label: F) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+        F: Fn(EdgeIndex) -> String,
+    {
         for (edge, s, t, weight) in self.edges_compact() {
             let seq = &self.seq_compact(edge);
             writeln!(
                 writer,
-                "S\t{}\t{}\tDP:f:{}\tLB:Z:{}\tLN:i:{}",
+                "S\t{}\t{}\tDP:f:{}\tLN:i:{}\tLB:Z:{}",
                 edge.index(),
                 sequence_to_string(&seq),
                 self.copy_num_of_edge_in_compact(edge),
-                sequence_to_string(&seq),
                 seq.len(),
+                label(edge),
             )?
         }
         let terminal = self.terminal_node_compact();
@@ -326,6 +477,13 @@ impl MultiDbg {
         }
         Ok(())
     }
+    /// Default GFA format with sequence in label
+    ///
+    pub fn to_gfa_writer<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
+        self.to_gfa_writer_with(writer, |e| {
+            sequence_to_string(&self.seq_compact(e)).to_string()
+        })
+    }
     ///
     /// create GFA string with `to_gfa_writer`
     ///
@@ -340,6 +498,30 @@ impl MultiDbg {
     pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
         self.to_gfa_writer(&mut file)
+    }
+    ///
+    /// GFA-post format with posterior information in LB
+    ///
+    pub fn to_gfa_post_writer<W: std::io::Write>(
+        &self,
+        writer: W,
+        posterior: &Posterior,
+    ) -> std::io::Result<()> {
+        self.to_gfa_writer_with(writer, |e| {
+            let p_edge = posterior.p_edge(e);
+            format!("{:.5}x({})", p_edge.mean(), p_edge.to_short_string())
+        })
+    }
+    ///
+    /// create GFA-post file with posterior information
+    ///
+    pub fn to_gfa_post_file<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        posterior: &Posterior,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_gfa_post_writer(&mut file, posterior)
     }
 }
 

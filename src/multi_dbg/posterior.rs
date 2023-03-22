@@ -9,6 +9,7 @@ use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::timer;
+use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
 
 pub mod test;
@@ -110,7 +111,7 @@ impl Posterior {
 /// dump and load functions
 ///
 /// ```text
-/// P   -19281.0228
+/// Z   -19281.0228
 /// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00
 /// C   -191882.0    [1,2,0,0,1,2,2,1]   likelihood=0.01
 /// ```
@@ -120,8 +121,13 @@ impl Posterior {
     ///
     ///
     pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writeln!(writer, "P\t{}", self.p.to_log_value())?;
-        for (copy_nums, score) in self.samples.iter() {
+        writeln!(writer, "Z\t{}", self.p.to_log_value())?;
+        for (copy_nums, score) in self
+            .samples
+            .iter()
+            .sorted_by_key(|(_, score)| score.p())
+            .rev()
+        {
             writeln!(
                 writer,
                 "C\t{}\t{}\t{}",

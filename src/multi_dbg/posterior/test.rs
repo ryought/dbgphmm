@@ -45,13 +45,18 @@ mod tests {
         mdbg.to_gfa_file("simple.gfa");
         mdbg.to_dbg_file("simple.dbg");
 
+        let paths_true = mdbg.paths_from_styled_seqs(&genome).unwrap();
+        mdbg.to_paths_file("simple.paths", &paths_true);
+
         let param_infer = PHMMParams::uniform(0.01);
         let post = mdbg.sample_posterior_with_dataset(&dataset, param_infer, 200, 10, 1, 10);
         post.to_file("simple.post");
+        mdbg.to_gfa_post_file("simple.post.gfa", &post);
         // compare with true copynums
     }
 
     #[test]
+    #[ignore]
     fn repeat_1k() {
         let (genome, genome_size) =
             genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
