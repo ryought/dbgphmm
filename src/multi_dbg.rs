@@ -1662,7 +1662,7 @@ impl MultiDbg {
             let seq = &self.seq_compact(edge);
             writeln!(
                 writer,
-                "S\t{}\t{}\tCN:i:{}\tLB:Z:{}\tLN:i:{}",
+                "S\t{}\t{}\tDP:f:{}\tLB:Z:{}\tLN:i:{}",
                 edge.index(),
                 sequence_to_string(&seq),
                 self.copy_num_of_edge_in_compact(edge),
