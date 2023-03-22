@@ -47,6 +47,6 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose -- -Zunstable-options --report-time
     - name: Run ignored tests on release build
-      run: cargo test --release --verbose -- --ignored
+      run: cargo test --release --verbose -- -Zunstable-options --report-time --ignored
