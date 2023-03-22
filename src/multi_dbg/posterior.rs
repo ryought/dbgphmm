@@ -446,7 +446,7 @@ mod tests {
         post.add(
             vec![1, 1, 2, 2, 0].into(),
             Score {
-                likelihood: p(0.001),
+                likelihood: p(0.6),
                 prior: p(0.3),
                 time: 10,
                 genome_size: 101,
