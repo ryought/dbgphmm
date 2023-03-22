@@ -126,6 +126,14 @@ impl Dataset {
             }
         }
     }
+    pub fn to_json_file<P: AsRef<std::path::Path>>(&self, path: P) {
+        let mut file = std::fs::File::create(path).unwrap();
+        serde_json::to_writer(&mut file, self).unwrap()
+    }
+    pub fn from_json_file<P: AsRef<std::path::Path>>(path: P) -> Self {
+        let mut file = std::fs::File::open(path).unwrap();
+        serde_json::from_reader(&mut file).unwrap()
+    }
 }
 
 ///
