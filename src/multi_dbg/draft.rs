@@ -74,9 +74,7 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
-    use crate::hmmv2::params::PHMMParams;
 
     #[test]
     #[ignore]
@@ -92,30 +90,5 @@ mod tests {
         // ~182ms
         println!("created map in {}ms", t);
         println!("m {}", m.len());
-    }
-
-    #[test]
-    #[ignore]
-    fn from_reads() {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
-        let param = PHMMParams::uniform(0.01);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
-        dataset.show_reads_with_genome();
-
-        let k = 20;
-        let (mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
-        // ~2391ms
-        println!("created mdbg in {}ms", t);
-        mdbg.to_gfa_file("reads.gfa");
-        mdbg.to_dbg_file("reads.dbg");
     }
 }

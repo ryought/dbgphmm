@@ -4,6 +4,7 @@
 use super::{CopyNums, MultiDbg};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
+use crate::e2e::Dataset;
 use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
@@ -73,6 +74,12 @@ impl Posterior {
         copy_nums
     }
     ///
+    ///
+    ///
+    pub fn samples(&self) -> &[(CopyNums, Score)] {
+        &self.samples
+    }
+    ///
     /// Sum of total probability: normalization factor of posterior probability
     ///
     pub fn p(&self) -> Prob {
@@ -83,14 +90,19 @@ impl Posterior {
     ///
     /// `P(X[edge] = x | R)`
     ///
-    pub fn p_edge(&self, edge: EdgeIndex, x: CopyNum) -> Prob {
-        unimplemented!();
+    pub fn p_edge_x(&self, edge: EdgeIndex, x: CopyNum) -> Prob {
+        self.p_edge(edge).p_x(x)
     }
     ///
     /// Posterior distribution of copy number of the edge `P(X[edge] | R)`
     ///
-    pub fn p_edge_dist(&self, edge: EdgeIndex) -> DiscreteDistribution {
-        unimplemented!();
+    pub fn p_edge(&self, edge: EdgeIndex) -> DiscreteDistribution {
+        let copy_nums_with_prob: Vec<_> = self
+            .samples
+            .iter()
+            .map(|(copy_nums, score)| (copy_nums[edge], score.p() / self.p()))
+            .collect();
+        DiscreteDistribution::from_occurs(&copy_nums_with_prob)
     }
 }
 
@@ -354,6 +366,7 @@ impl MultiDbg {
         let mut n_iter = 0;
 
         while n_iter < max_iter {
+            eprintln!("iter #{}", n_iter);
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
@@ -379,6 +392,28 @@ impl MultiDbg {
         }
 
         post
+    }
+    ///
+    ///
+    ///
+    pub fn sample_posterior_with_dataset(
+        &self,
+        dataset: &Dataset,
+        param: PHMMParams,
+        sigma: usize,
+        max_cycle_size: usize,
+        max_flip: usize,
+        max_iter: usize,
+    ) -> Posterior {
+        self.sample_posterior(
+            param,
+            dataset.reads(),
+            dataset.genome_size(),
+            sigma,
+            max_cycle_size,
+            max_flip,
+            max_iter,
+        )
     }
     /// Extend to k+1 by posterior
     ///
