@@ -2,7 +2,7 @@
 //!
 //!
 //!
-use super::tablev2::MAX_ACTIVE_NODES;
+use super::table::MAX_ACTIVE_NODES;
 use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
 use crate::prob::Prob;
 use arrayvec::ArrayVec;

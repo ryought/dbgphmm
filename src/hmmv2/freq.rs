@@ -23,7 +23,7 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
-use super::tablev2::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
+use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::collection::Bases;
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};

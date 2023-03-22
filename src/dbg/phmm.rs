@@ -10,7 +10,7 @@ use crate::hmmv2::common::PModel;
 use crate::hmmv2::hint::Hint;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::State;
-use crate::hmmv2::tablev2::PHMMOutput;
+use crate::hmmv2::table::PHMMOutput;
 use crate::prob::Prob;
 use crate::utils::{spaces, timer};
 use itertools::Itertools;

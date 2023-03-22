@@ -2,7 +2,7 @@
 //! Hint information
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::tablev2::{PHMMOutput, MAX_ACTIVE_NODES};
+use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
 use petgraph::graph::NodeIndex;
