@@ -2,8 +2,10 @@
 //! Constructor of draft dbg from reads or genomes
 //!
 use super::MultiDbg;
+use crate::common::collection::starts_and_ends_of_genome;
 use crate::common::{Seq, StyledSequence};
-use crate::dbg::{Dbg, SimpleDbg};
+use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
+use crate::e2e::Dataset;
 use crate::kmer::VecKmer;
 use crate::utils::timer;
 
@@ -17,21 +19,22 @@ impl MultiDbg {
         base_coverage: f64,
         ave_read_length: usize,
         p_error: f64,
+        end_node_inference: &EndNodeInference<VecKmer>,
     ) -> Self
     where
         T: IntoIterator,
         T::Item: Seq,
     {
-        // let dbg: SimpleDbg<VecKmer> =
-        //     SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
-        //         k,
-        //         seqs,
-        //         base_coverage,
-        //         ave_read_length,
-        //         p_error,
-        //     );
-        // dbg.into()
-        unimplemented!();
+        let dbg: SimpleDbg<VecKmer> =
+            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+                k,
+                seqs,
+                base_coverage,
+                ave_read_length,
+                p_error,
+                end_node_inference,
+            );
+        dbg.into()
     }
     ///
     /// Create from styled seqs
@@ -44,6 +47,24 @@ impl MultiDbg {
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, seqs);
         dbg.into()
     }
+    ///
+    /// Create read-draft MultiDbg from dataset
+    ///
+    /// * use end inference from genome
+    /// * true path
+    ///
+    pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
+        let d = Self::create_draft_from_reads(
+            k,
+            dataset.reads(),
+            dataset.coverage(),
+            dataset.average_read_length(),
+            dataset.params().p_error().to_value(),
+            // &EndNodeInference::Auto,
+            &EndNodeInference::Custom(starts_and_ends_of_genome(dataset.genome(), k)),
+        );
+        d
+    }
 }
 
 //
@@ -53,7 +74,9 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
+    use crate::hmmv2::params::PHMMParams;
 
     #[test]
     #[ignore]
@@ -72,5 +95,27 @@ mod tests {
     }
 
     #[test]
-    fn from_reads() {}
+    #[ignore]
+    fn from_reads() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
+        let param = PHMMParams::uniform(0.01);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,
+            20,
+            500,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
+
+        let k = 20;
+        let (mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
+        // ~2391ms
+        println!("created mdbg in {}ms", t);
+        mdbg.to_gfa_file("reads.gfa");
+        mdbg.to_dbg_file("reads.dbg");
+    }
 }

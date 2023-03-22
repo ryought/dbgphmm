@@ -79,6 +79,12 @@ impl Dataset {
         self.reads().total_bases() as f64 / self.genome_size() as f64
     }
     ///
+    /// Average of read lengths
+    ///
+    pub fn average_read_length(&self) -> usize {
+        self.reads().average_length()
+    }
+    ///
     /// show reads
     ///
     pub fn show_reads(&self) {
