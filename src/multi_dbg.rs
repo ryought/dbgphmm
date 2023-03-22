@@ -23,7 +23,8 @@ use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{common::PModel, params::PHMMParams};
 use crate::kmer::{
-    common::{KmerLike, NullableKmer},
+    common::{kmers_to_string, KmerLike, NullableKmer},
+    kmer::styled_sequence_to_kmers,
     veckmer::VecKmer,
 };
 
@@ -743,16 +744,45 @@ impl MultiDbg {
         }
         hm
     }
+    /// Convert styled seqs into paths
     ///
-    ///
-    ///
-    pub fn paths_from_styled_seqs<T>(&self, seqs: T) -> Vec<Vec<EdgeIndex>>
+    pub fn paths_from_styled_seqs<T>(
+        &self,
+        seqs: T,
+    ) -> Result<Vec<Vec<EdgeIndex>>, KmerNotFoundError>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
     {
-        let km = self.to_kmer_map();
-        unimplemented!();
+        let m = self.to_kmer_map();
+        let mut paths = Vec::new();
+        let mut missing_kmers = Vec::new();
+
+        for seq in seqs {
+            let mut path = Vec::new();
+            for kmer in styled_sequence_to_kmers(seq.as_ref(), self.k()) {
+                match m.get(&kmer) {
+                    None => missing_kmers.push(kmer),
+                    Some(&edge) => path.push(edge),
+                }
+            }
+            paths.push(path);
+        }
+
+        if missing_kmers.is_empty() {
+            Ok(paths)
+        } else {
+            Err(KmerNotFoundError(missing_kmers))
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct KmerNotFoundError(Vec<VecKmer>);
+
+impl std::fmt::Display for KmerNotFoundError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "KmerNotFoundError({})", kmers_to_string(&self.0))
     }
 }
 
@@ -1922,6 +1952,89 @@ mod tests {
             let q = dbg.to_path_in_compact(&p);
             println!("{:?}", q);
             assert_eq!(q, vec![ei(2), ei(0)]);
+        }
+    }
+    #[test]
+    fn styled_seq() {
+        {
+            let dbg = toy::circular();
+            dbg.show_graph_with_kmer();
+
+            let c = dbg.get_euler_circuits();
+            println!("{:?}", c);
+            assert_eq!(c, vec![vec![ei(0), ei(1), ei(2), ei(3)]]);
+
+            let s = dbg.to_styled_seqs();
+            println!("{:?}", s);
+            assert_eq!(s, vec![StyledSequence::circular(b"GATC".to_vec())]);
+
+            let p = dbg.paths_from_styled_seqs(&s);
+            assert_eq!(p.unwrap(), vec![vec![ei(3), ei(0), ei(1), ei(2)]]);
+        }
+
+        {
+            let dbg = toy::repeat();
+            dbg.show_graph_with_kmer();
+
+            let c = dbg.get_euler_circuits();
+            println!("{:?}", c);
+            assert_eq!(
+                c,
+                vec![vec![
+                    ei(0),
+                    ei(1),
+                    ei(2),
+                    ei(3),
+                    ei(4),
+                    ei(5),
+                    ei(6),
+                    ei(7),
+                    ei(8),
+                    ei(6),
+                    ei(7),
+                    ei(8),
+                    ei(6),
+                    ei(7),
+                    ei(8),
+                    ei(9),
+                    ei(10),
+                    ei(11),
+                    ei(12),
+                    ei(13),
+                    ei(14)
+                ]]
+            );
+
+            let s = dbg.to_styled_seqs();
+            println!("{:?}", s);
+            assert_eq!(
+                s,
+                vec![StyledSequence::linear(b"TCCCAGCAGCAGCAGGAA".to_vec())]
+            );
+
+            let p = dbg.paths_from_styled_seqs(&s);
+            println!("{:?}", p);
+            assert_eq!(p.unwrap(), c);
+
+            let p = dbg.paths_from_styled_seqs(vec![StyledSequence::linear(b"TCCCAGGAA".to_vec())]);
+            println!("{:?}", p);
+            assert_eq!(
+                p.unwrap(),
+                vec![vec![
+                    ei(0),
+                    ei(1),
+                    ei(2),
+                    ei(3),
+                    ei(4),
+                    ei(5),
+                    ei(9),
+                    ei(10),
+                    ei(11),
+                    ei(12),
+                    ei(13),
+                    ei(14)
+                ]]
+            );
         }
     }
 }
