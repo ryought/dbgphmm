@@ -31,7 +31,7 @@ use crate::kmer::{
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
@@ -580,6 +580,29 @@ impl MultiDbg {
             .map(|circuit| self.circuit_to_styled_seq(&circuit))
             .collect()
     }
+    /// Path validity check
+    ///
+    ///
+    pub fn is_valid_path(&self, path_in_compact: &[EdgeIndex]) -> bool {
+        let mut is_valid = true;
+
+        for i in 0..path_in_compact.len() {
+            let (_, t) = self
+                .graph_compact()
+                .edge_endpoints(path_in_compact[i])
+                .unwrap();
+            let (s, _) = self
+                .graph_compact()
+                .edge_endpoints(path_in_compact[(i + 1) % path_in_compact.len()])
+                .unwrap();
+
+            if t != s {
+                is_valid = false;
+            }
+        }
+
+        is_valid
+    }
     /// Convert a path in full graph into a path in compact graph
     ///
     ///
@@ -613,19 +636,7 @@ impl MultiDbg {
             i += self.edges_in_full(edge_in_compact).len();
         }
 
-        // check the new path is valid
-        for i in 0..path_in_compact.len() {
-            //
-            let (_, t) = self
-                .graph_compact()
-                .edge_endpoints(path_in_compact[i])
-                .unwrap();
-            let (s, _) = self
-                .graph_compact()
-                .edge_endpoints(path_in_compact[(i + 1) % path_in_compact.len()])
-                .unwrap();
-            assert_eq!(t, s, "path is invalid");
-        }
+        assert!(self.is_valid_path(&path_in_compact));
 
         path_in_compact
     }
@@ -775,6 +786,23 @@ impl MultiDbg {
         } else {
             Err(KmerNotFoundError(missing_kmers))
         }
+    }
+    /// Convert styled seqs into paths in compact graph
+    ///
+    pub fn compact_paths_from_styled_seqs<T>(
+        &self,
+        seqs: T,
+    ) -> Result<Vec<Vec<EdgeIndex>>, KmerNotFoundError>
+    where
+        T: IntoIterator,
+        T::Item: AsRef<StyledSequence>,
+    {
+        self.paths_from_styled_seqs(seqs).map(|paths| {
+            paths
+                .into_iter()
+                .map(|path| self.to_path_in_compact(&path))
+                .collect()
+        })
     }
 }
 
@@ -962,6 +990,25 @@ impl MultiDbg {
             .into_iter()
             .map(|(copy_nums, _)| copy_nums)
             .collect()
+    }
+    ///
+    /// Paths in compact Vec<Vec<EdgeIndex>> into CopyNums
+    ///
+    pub fn copy_nums_from_compact_path<P: AsRef<[EdgeIndex]>, PS: AsRef<[P]>>(
+        &self,
+        paths: PS,
+    ) -> CopyNums {
+        let mut copy_nums = CopyNums::new(self.n_edges_compact(), 0);
+
+        for path in paths.as_ref() {
+            assert!(self.is_valid_path(path.as_ref()));
+
+            for &edge in path.as_ref() {
+                copy_nums[edge] += 1;
+            }
+        }
+
+        copy_nums
     }
 }
 
@@ -1390,6 +1437,38 @@ mod tests {
             let km1mer = multidbg.km1mer_full(node);
             println!("{:?} {}", node, km1mer);
         }
+    }
+    fn assert_dbg_dumpload_is_correct(dbg: MultiDbg) {
+        dbg.show_graph_with_kmer();
+
+        let s = dbg.to_dbg_string();
+        println!("{}", s);
+
+        dbg.to_dbg_file("hoge.dbg");
+
+        let dbg_1 = MultiDbg::from_dbg_str(&s);
+        dbg_1.show_graph_with_kmer();
+        let s_1 = dbg.to_dbg_string();
+
+        assert!(dbg.is_equivalent(&dbg_1));
+        assert!(s == s_1);
+    }
+    #[test]
+    fn dumpload() {
+        assert_dbg_dumpload_is_correct(toy::circular());
+        assert_dbg_dumpload_is_correct(toy::linear());
+        assert_dbg_dumpload_is_correct(toy::intersection());
+        assert_dbg_dumpload_is_correct(toy::selfloop());
+        assert_dbg_dumpload_is_correct(toy::repeat());
+    }
+    #[test]
+    fn gfa() {
+        let dbg = toy::repeat();
+        dbg.show_graph_with_kmer();
+        let s = dbg.to_gfa_string();
+        println!("{}", s);
+
+        dbg.to_gfa_file("repeat.gfa");
     }
     #[test]
     fn purge_edges_for_toy() {
