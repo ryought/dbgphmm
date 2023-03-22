@@ -30,13 +30,9 @@ struct Opts {
     n_haplotypes: usize,
     // output
     #[clap(long)]
-    dataset_json_filename: std::path::PathBuf,
+    output_prefix: std::path::PathBuf,
     #[clap(long)]
-    gfa_filename: std::path::PathBuf,
-    #[clap(long)]
-    paths_filename: std::path::PathBuf,
-    #[clap(long)]
-    dbg_filename: std::path::PathBuf,
+    genome_fasta: Option<std::path::PathBuf>,
 }
 
 // -U 10000 -N 10 -E 200 -P 2 -H 0.01
@@ -73,18 +69,22 @@ fn main() {
     println!("# dataset created in {}ms", t);
 
     // dataset.show_reads_with_genome();
-    let (_, t) = timer(|| dataset.to_json_file(&opts.dataset_json_filename));
+    let (_, t) = timer(|| dataset.to_json_file(opts.output_prefix.with_extension("json")));
     println!("# dataset dumped in {}ms", t);
 
     let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(opts.k, &dataset));
     println!("# draft dbg created in {}ms", t);
-    mdbg.to_gfa_file(&opts.gfa_filename);
-    mdbg.to_dbg_file(&opts.dbg_filename);
+    mdbg.to_gfa_file(opts.output_prefix.with_extension("gfa"));
+    mdbg.to_dbg_file(opts.output_prefix.with_extension("dbg"));
 
-    let paths_true = mdbg
-        .compact_paths_from_styled_seqs(dataset.genome())
-        .unwrap();
-    mdbg.to_paths_file(&opts.paths_filename, &paths_true);
+    match mdbg.compact_paths_from_styled_seqs(dataset.genome()) {
+        Ok(paths_true) => {
+            mdbg.to_paths_file(opts.output_prefix.with_extension("paths"), &paths_true);
+        }
+        Err(notfound) => {
+            println!("# kmer notfound {}", notfound);
+        }
+    };
 
     println!("# finished_at={}", chrono::Local::now());
 }
