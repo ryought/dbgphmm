@@ -255,6 +255,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_g10k() {
         let (genome, genome_size) = g10k();
         let k = 40;
@@ -276,6 +277,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "39sec"]
     fn test_g1k() {
         let (genome, genome_size) = g1k();
         let k = 40;

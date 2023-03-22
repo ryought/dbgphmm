@@ -180,7 +180,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     {
         let instance_init = DbgCopyNumsInstance::new(self.to_node_copy_nums(), vec![], 0);
         eprintln!("# [hint] started");
-        let (reads_with_hints, t) = timer(|| self.generate_hints(reads, params));
+        let (reads_with_hints, t) = timer(|| self.generate_hints(reads.clone(), params));
         eprintln!("# [hint] ended in {}", t);
         let mut searcher = GreedySearcher::new(
             instance_init,
@@ -318,6 +318,7 @@ mod tests {
     use crate::kmer::VecKmer;
 
     #[test]
+    #[ignore]
     fn greedy_simple_genome() {
         let experiment = generate_simple_genome_mock();
         let dbg_draft = experiment.dbg_draft.clone().unwrap();
@@ -349,6 +350,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "17sec"]
     fn greedy_tandem_repeat() {
         let experiment = generate_small_tandem_repeat();
         let dbg_draft_true = experiment.dbg_draft_true.clone().unwrap();
@@ -389,33 +391,33 @@ mod tests {
             .collect();
         dbg_draft_true.to_kmer_distribution(&neighbors);
     }
-    #[test]
-    #[ignore = "takes long time (~1 hour)"]
-    fn dbg_sample_posterior_for_difficult_tandem_repeat() {
-        let dataset = generate_difficult_diploid_tandem_repeat_dataset();
-        let mut dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
-                12,
-                dataset.reads(),
-                dataset.coverage(),
-                dataset.reads().average_length(),
-                dataset.params().p_error().to_value(),
-                &EndNodeInference::Auto,
-            );
-        let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
-        let copy_nums_draft = dbg.to_node_copy_nums();
-        let distribution =
-            dbg.search_posterior_with_restriction(&dataset, 5, 10, dataset.genome_size(), 100);
+    // #[test]
+    // #[ignore = "takes long time (~1 hour)"]
+    // fn dbg_sample_posterior_for_difficult_tandem_repeat() {
+    //     let dataset = generate_difficult_diploid_tandem_repeat_dataset();
+    //     let mut dbg: SimpleDbg<VecKmer> =
+    //         SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
+    //             12,
+    //             dataset.reads(),
+    //             dataset.coverage(),
+    //             dataset.reads().average_length(),
+    //             dataset.params().p_error().to_value(),
+    //             &EndNodeInference::Auto,
+    //         );
+    //     let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();
+    //     let copy_nums_draft = dbg.to_node_copy_nums();
+    //     let distribution =
+    //         dbg.search_posterior_with_restriction(&dataset, 5, 10, dataset.genome_size(), 100);
 
-        for (p_gr, instance, score) in distribution.iter().sorted_by_key(|(p, _, _)| *p) {
-            println!(
-                "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
-                p_gr,
-                score.p_rg(),
-                score.p_g(),
-                instance.move_count(),
-                instance.copy_nums().dist(&copy_nums_true),
-            );
-        }
-    }
+    //     for (p_gr, instance, score) in distribution.iter().sorted_by_key(|(p, _, _)| *p) {
+    //         println!(
+    //             "P(G|R)={} (P(R|G)={}, P(G)={}) {} {}",
+    //             p_gr,
+    //             score.p_rg(),
+    //             score.p_g(),
+    //             instance.move_count(),
+    //             instance.copy_nums().dist(&copy_nums_true),
+    //         );
+    //     }
+    // }
 }

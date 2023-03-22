@@ -6,7 +6,6 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
-use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
 use petgraph::graph::NodeIndex;
 
@@ -76,14 +75,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     } else {
                         r.last_table()
                     };
-                    let table = self.b_step(
-                        i,
-                        emission,
-                        table_prev,
-                        hint.active_nodes(i).nodes(),
-                        false,
-                        false,
-                    );
+                    let table = self.b_step(i, emission, table_prev, hint.nodes(i), false, false);
                     r.tables.push(table);
                     r
                 });

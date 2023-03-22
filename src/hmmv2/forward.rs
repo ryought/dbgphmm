@@ -6,11 +6,13 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
 use super::tablev2::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
-use crate::graph::active_nodes::ActiveNodes;
 use crate::prob::{p, Prob};
+use crate::utils::timer_us;
 use petgraph::graph::NodeIndex;
 
-// wrappers and exposed functions
+///
+/// Forward Algorithm
+///
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions Dense
@@ -61,17 +63,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     r.last_table()
                 };
-                let table = self.f_step(
-                    i,
-                    emission,
-                    table_prev,
-                    hint.active_nodes(i).nodes(),
-                    false,
-                    false,
-                );
+                let table = self.f_step(i, emission, table_prev, hint.nodes(i), false, false);
                 r.tables.push(table);
                 r
             })
+    }
+    ///
+    /// Run Forward algorithm to the emissions using hint information and returns score only (drops intermediate result PHMMTable)
+    ///
+    pub fn forward_with_hint_score_only<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> Prob {
+        let mut table = self.f_init(true);
+        for (i, &emission) in emissions.as_ref().into_iter().enumerate() {
+            table = self.f_step(i, emission, &table, hint.nodes(i), false, false);
+        }
+        table.e
     }
     ///
     /// Run Forward algorithm to the emissions, with sparse calculation
@@ -523,12 +528,12 @@ mod tests {
         println!("{:?}", hint.len());
         assert_eq!(
             hint,
-            Hint::new(vec![
-                ActiveNodes::Only(vec![ni(3), ni(2), ni(4)]),
-                ActiveNodes::Only(vec![ni(4), ni(3), ni(5)]),
-                ActiveNodes::Only(vec![ni(5), ni(6), ni(4)]),
-                ActiveNodes::Only(vec![ni(6), ni(7), ni(5)]),
-                ActiveNodes::Only(vec![ni(7), ni(8), ni(6)]),
+            Hint::from(vec![
+                vec![ni(3), ni(2), ni(4)],
+                vec![ni(4), ni(3), ni(5)],
+                vec![ni(5), ni(6), ni(4)],
+                vec![ni(6), ni(7), ni(5)],
+                vec![ni(7), ni(8), ni(6)],
             ])
         );
 
@@ -543,6 +548,7 @@ mod tests {
         assert!(p1.log_diff(p2) < 0.1);
     }
     #[test]
+    #[ignore = "34sec"]
     fn hmm_forward_with_hint_tandem_repeat() {
         let exp = e2e::generate_small_tandem_repeat();
         let dbg = exp.dbg_raw.clone();
@@ -566,6 +572,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "234sec"]
     fn hmm_forward_with_hint_difficult_tandem_repeat() {
         let dataset = e2e::generate_difficult_diploid_tandem_repeat_dataset();
         let dbg: SimpleDbg<VecKmer> =

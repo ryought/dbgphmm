@@ -61,6 +61,19 @@ where
 }
 
 ///
+/// measure time in micro seconds (us) of closure.
+///
+pub fn timer_us<F, T>(f: F) -> (T, u128)
+where
+    F: FnOnce() -> T,
+{
+    let start = Instant::now();
+    let ret = f();
+    let duration = start.elapsed();
+    (ret, duration.as_micros())
+}
+
+///
 /// get strings with repeated n-times space (' ').
 ///
 pub fn spaces(n: usize) -> String {

@@ -16,7 +16,7 @@ bio = "*"
 rand = "0.8"
 rand_xoshiro = "*"
 approx = "*"
-arrayvec = "*"
+arrayvec = { version = "*", features = ["serde"] }
 fnv = "1.0.3"
 clap = { version = "3.0.0-beta.2", features = ["derive"] }
 log = "0.4"
@@ -33,7 +33,7 @@ serde_with = "1.10.0"
 itertools = "*"
 jemallocator = "0.3.0"
 jemalloc-ctl = "*"
-petgraph = "0.6.0"
+petgraph = { version = "0.6.0", features = ["serde-1"] }
 derive-new = "0.5"
 fixedbitset = "*"
 # below setting does not work in mac

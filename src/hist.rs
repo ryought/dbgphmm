@@ -78,6 +78,13 @@ impl DiscreteDistribution {
             .map(|&x| x as f64 * self.p_x(x).to_value())
             .sum()
     }
+    pub fn to_short_string(&self) -> String {
+        self.hashmap
+            .keys()
+            .sorted()
+            .map(|&x| format!("p(x={})={:.3}", x, self.p_x(x).to_value()))
+            .join(",")
+    }
 }
 impl std::fmt::Display for DiscreteDistribution {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

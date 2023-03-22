@@ -1,3 +1,4 @@
+use crate::utils::{check_memory_usage, timer};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 trait A: std::marker::Sized {
@@ -127,6 +128,17 @@ fn create_large_graph() -> DiGraph<usize, ()> {
     g
 }
 
+fn test_memory_usage_of_large_graph() {
+    let (g, t) = timer(|| {
+        check_memory_usage();
+        let g = create_large_graph();
+        check_memory_usage();
+        g
+    });
+    println!("{}", t);
+    println!("{}", g.node_count());
+}
+
 //
 // tests
 //
@@ -134,17 +146,4 @@ fn create_large_graph() -> DiGraph<usize, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{check_memory_usage, timer};
-
-    #[test]
-    fn hoge() {
-        let (g, t) = timer(|| {
-            check_memory_usage();
-            let g = create_large_graph();
-            check_memory_usage();
-            g
-        });
-        println!("{}", t);
-        println!("{}", g.node_count());
-    }
 }

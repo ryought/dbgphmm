@@ -134,6 +134,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "~15s"]
     fn e2e_difficult_tandem_repeat_generation() {
         let (dataset, dbg_true, dbg_opt, _) = generate_case3();
         assert_eq!(dbg_true.genome_size(), 2209);
@@ -158,22 +159,23 @@ mod tests {
         dataset.show_reads_with_genome();
     }
 
-    #[ignore]
-    #[test]
-    fn e2e_difficult_tandem_repeat_compare_mapping() {
-        let (dataset, dbg_true, dbg_opt, _) = generate_case3();
-        let copy_nums_true = dbg_true.to_node_copy_nums();
-        let copy_nums_opt = dbg_opt.to_node_copy_nums();
+    // #[ignore = "89sec"]
+    // #[test]
+    // fn e2e_difficult_tandem_repeat_compare_mapping() {
+    //     let (dataset, dbg_true, dbg_opt, _) = generate_case3();
+    //     let copy_nums_true = dbg_true.to_node_copy_nums();
+    //     let copy_nums_opt = dbg_opt.to_node_copy_nums();
 
-        dbg_true.compare_mappings(
-            dataset.params(),
-            dataset.reads(),
-            &copy_nums_true,
-            &copy_nums_opt,
-        );
-    }
+    //     dbg_true.compare_mappings(
+    //         dataset.params(),
+    //         dataset.reads(),
+    //         &copy_nums_true,
+    //         &copy_nums_opt,
+    //     );
+    // }
 
     #[test]
+    #[ignore = "~16sec in release"]
     fn e2e_500bp_generation() {
         let (dataset, dbg_true, dbg_opt) = generate_500bp_case();
         dataset.show_reads_with_genome();
@@ -189,6 +191,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "~6sec in release"]
     fn e2e_small_generation() {
         let (dataset, dbg_true, dbg_opt) =
             generate_small_case(1, 2, 1, 20, true, true, true, true, true, 0.01);

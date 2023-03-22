@@ -144,6 +144,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
             .product()
     }
+    /// Calculate the full probability `P(R|G)` of reads (ReadCollection)
+    /// Use hints of reads if available.
     ///
     /// calculate the full probability `P(R)` using rayon parallel calculation and hint information
     /// (active nodes)
@@ -151,34 +153,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// This function does not run backward. Running forward is enough to calculate the full
     /// probability P(R|G).
     ///
-    pub fn to_full_prob_par_with_hint<S>(&self, seqs_and_hints: &[(S, Hint)]) -> Prob
-    where
-        S: Seq,
-    {
-        seqs_and_hints
+    pub fn to_full_prob_reads<S: Seq>(&self, reads: &ReadCollection<S>) -> Prob {
+        reads
             .into_par_iter()
-            .map(|(seq, hint)| {
-                let forward = self.forward_with_hint(seq.as_ref(), hint);
-                forward.full_prob()
+            .enumerate()
+            .map(|(i, seq)| {
+                if reads.has_hint() {
+                    // let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
+                    // forward.full_prob()
+                    self.forward_with_hint_score_only(seq.as_ref(), reads.hint(i))
+                } else {
+                    self.forward_sparse_score_only(seq.as_ref())
+                }
             })
             .product()
-    }
-    ///
-    /// Append hint information in parallel
-    ///
-    pub fn to_hints_parallel<T>(&self, seqs: T) -> Vec<Hint>
-    where
-        T: IntoParallelIterator,
-        T::Item: Seq,
-    {
-        seqs.into_par_iter()
-            .map(|seq| {
-                let hint = self
-                    .run_sparse(seq.as_ref())
-                    .to_hint(self.param.n_active_nodes);
-                hint
-            })
-            .collect()
     }
 }
 
@@ -242,19 +230,6 @@ impl PHMMOutput {
             f[node] = p.to_value();
         }
         f
-    }
-    ///
-    /// Create hint (ActiveNodes list for each bases)
-    ///
-    pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
-        let ret = self
-            .iter_emit_probs()
-            .skip(1)
-            .map(|state_probs| {
-                ActiveNodes::Only(state_probs.top_nodes(n_active_nodes).as_slice().to_owned())
-            })
-            .collect();
-        Hint::new(ret)
     }
 }
 

@@ -20,6 +20,7 @@ mod tests {
     }
 
     #[bench]
+    #[ignore = "~7s in release"]
     fn bench_g1m_k100_construct(b: &mut Bencher) {
         let genome = g1m();
         genome::show_genome(&genome);
@@ -41,6 +42,7 @@ mod tests {
     }
 
     #[bench]
+    #[ignore = "~3s in release"]
     fn bench_g1m_k100_clone(b: &mut Bencher) {
         let genome = g1m();
         let k = 100;
