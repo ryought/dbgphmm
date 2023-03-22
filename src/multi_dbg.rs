@@ -84,7 +84,7 @@ pub const MAX_DEGREE: usize = 5;
 ///
 /// Corresponds to k-mer
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MultiFullEdge {
     ///
     /// emission (last base of k-mer)
@@ -117,7 +117,7 @@ impl MultiFullEdge {
 ///
 /// Corresponds to (k-1)-mer
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MultiFullNode {
     ///
     /// if this node corresponds to k-1mer NNN, then true.
@@ -134,7 +134,7 @@ impl MultiFullNode {
 ///
 /// Edge of MultiDbg compact graph
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MultiCompactEdge {
     // ///
     // /// copy number of edge (simple-path or k-mers in full)
@@ -174,7 +174,7 @@ impl MultiCompactEdge {
 ///
 /// Empty struct
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MultiCompactNode {}
 
 impl MultiCompactNode {
@@ -1092,18 +1092,50 @@ impl MultiDbg {
     ///      e0'   e1'   e2'  en-2'   en-1'
     /// ```
     ///
-    pub fn path_kp1_from_path_k(&self, path_k: &[EdgeIndex]) -> Path {
-        let n = path_k.len();
+    /// if e[0] == nnnA  and e[n-1] == Gnnn, a terminal node v == nnnn should be added to path in
+    /// order for e to be valid path in k+1.
+    ///
+    pub fn path_kp1_from_path_k(&self, path_k_in_full: &[EdgeIndex]) -> Path {
+        let n = path_k_in_full.len();
         let to_node_index = |edge: EdgeIndex| NodeIndex::new(edge.index());
         let mut path = Vec::new();
 
-        for i in 0..n {
-            let v_a = to_node_index(path_k[i]);
-            let v_b = to_node_index(path_k[(i + 1) % n]);
+        // check path[0] is starting node and path[n-1] is ending node
+        // starting node
+        //   = nnnA
+        //   = parent is terminal (nnn)
+        //
+        // ending node
+        //   = Gnnn
+        //   = child is terminal (nnn)
+        let terminal = self.terminal_node_full();
+        let first = to_node_index(path_k_in_full[0]);
+        let last = to_node_index(path_k_in_full[n - 1]);
+        let start = terminal.and_then(|t| self.graph_full().find_edge(t, first));
+        let end = terminal.and_then(|t| self.graph_full().find_edge(last, t));
 
-            // edge from v_a to v_b
-            let e = self.graph_full().find_edge(v_a, v_b).expect("invalid path");
-            path.push(e);
+        if start.is_some() && end.is_some() {
+            // lienar
+            path.push(start.unwrap());
+            for i in 0..(n - 1) {
+                let v_a = to_node_index(path_k_in_full[i]);
+                let v_b = to_node_index(path_k_in_full[i + 1]);
+
+                // edge from v_a to v_b
+                let e = self.graph_full().find_edge(v_a, v_b).expect("invalid path");
+                path.push(e);
+            }
+            path.push(end.unwrap());
+        } else {
+            // circular
+            for i in 0..n {
+                let v_a = to_node_index(path_k_in_full[i]);
+                let v_b = to_node_index(path_k_in_full[(i + 1) % n]);
+
+                // edge from v_a to v_b
+                let e = self.graph_full().find_edge(v_a, v_b).expect("invalid path");
+                path.push(e);
+            }
         }
 
         path
@@ -1140,6 +1172,21 @@ impl MultiDbg {
             && self.n_nodes_compact() == other.n_nodes_compact()
             && self.n_edges_compact() == other.n_edges_compact()
             && self.genome_size() == other.genome_size()
+    }
+    /// exactly same graph including node/edge index
+    ///
+    pub fn is_equal(&self, other: &MultiDbg) -> bool {
+        // full
+        let sfn: Vec<_> = self.nodes_full().collect();
+        let ofn: Vec<_> = other.nodes_full().collect();
+        let sfe: Vec<_> = self.edges_full().collect();
+        let ofe: Vec<_> = other.edges_full().collect();
+        // compact
+        let scn: Vec<_> = self.nodes_compact().collect();
+        let ocn: Vec<_> = other.nodes_compact().collect();
+        let sce: Vec<_> = self.edges_compact().collect();
+        let oce: Vec<_> = other.edges_compact().collect();
+        sfn == ofn && sfe == ofe && scn == ocn && sce == oce
     }
 }
 
@@ -1424,15 +1471,11 @@ impl MultiDbg {
         //
         let mut dbg_k = self.clone();
         let (map_full, _) = dbg_k.purge_edges(&edges_in_compact_to_purge);
-        println!("purged!");
-        dbg_k.show_graph_with_kmer();
-        println!("map={:?}", map_full);
 
         // (2)
         // Extend to k+1-DBG
         //
         let dbg_kp1 = dbg_k.to_kp1_dbg();
-        dbg_kp1.show_graph_with_kmer();
 
         // (3)
         // convert paths and hints
@@ -1445,8 +1488,6 @@ impl MultiDbg {
                         .into_iter()
                         .map(|e| map_full.get(&e).copied().unwrap_or(Some(e)))
                         .collect();
-
-                    println!("path_k_full_purged={:?}", path_k_full_purged);
 
                     match path_k_full_purged {
                         None => None,
@@ -1764,24 +1805,58 @@ mod tests {
     #[test]
     fn purge_and_extend_toy() {
         // remove an edge
-        let mut dbg_k = toy::repeat();
-        dbg_k.show_graph_with_kmer();
-        dbg_k.set_copy_nums(&vec![1, 0, 1].into());
-        dbg_k.show_graph_with_kmer();
-        assert_eq!(dbg_k.n_nodes_full(), 14);
-        assert_eq!(dbg_k.n_edges_full(), 15);
-        assert_eq!(dbg_k.n_nodes_compact(), 2);
-        assert_eq!(dbg_k.n_edges_compact(), 3);
-        assert_eq!(dbg_k.genome_size(), 9);
+        {
+            let mut dbg_k = toy::repeat();
+            dbg_k.show_graph_with_kmer();
+            dbg_k.set_copy_nums(&vec![1, 0, 1].into());
+            dbg_k.show_graph_with_kmer();
+            assert_eq!(dbg_k.n_nodes_full(), 14);
+            assert_eq!(dbg_k.n_edges_full(), 15);
+            assert_eq!(dbg_k.n_nodes_compact(), 2);
+            assert_eq!(dbg_k.n_edges_compact(), 3);
+            assert_eq!(dbg_k.genome_size(), 9);
 
-        let (dbg_kp1, paths, hints) =
-            dbg_k.purge_and_extend(&[ei(1)], Some(vec![vec![ei(2), ei(0)]]), None);
-        dbg_kp1.show_graph_with_kmer();
-        assert_eq!(dbg_kp1.n_nodes_full(), 13);
-        assert_eq!(dbg_kp1.n_edges_full(), 13);
-        assert_eq!(dbg_kp1.n_nodes_compact(), 1);
-        assert_eq!(dbg_kp1.n_edges_compact(), 1);
-        assert_eq!(dbg_k.genome_size(), 9);
-        println!("{:?}", paths);
+            // purge repetitive edges
+            let (dbg_kp1, paths, hints) =
+                dbg_k.purge_and_extend(&[ei(1)], Some(vec![vec![ei(2), ei(0)]]), None);
+            dbg_kp1.show_graph_with_kmer();
+            assert_eq!(dbg_kp1.n_nodes_full(), 13);
+            assert_eq!(dbg_kp1.n_edges_full(), 13);
+            assert_eq!(dbg_kp1.n_nodes_compact(), 1);
+            assert_eq!(dbg_kp1.n_edges_compact(), 1);
+            assert_eq!(dbg_k.genome_size(), 9);
+            assert!(dbg_kp1.is_copy_nums_valid());
+            println!("{:?}", paths);
+            assert_eq!(paths, Some(vec![vec![ei(0)]]));
+        }
+
+        // no purge of edges
+        {
+            let dbg_k = toy::repeat();
+            dbg_k.show_graph_with_kmer();
+            let (dbg_kp1, paths, hints) = dbg_k.purge_and_extend(
+                &[],
+                Some(vec![vec![ei(2), ei(1), ei(1), ei(1), ei(0)]]),
+                None,
+            );
+            dbg_kp1.show_graph_with_kmer();
+            println!("{:?}", paths);
+            assert!(dbg_kp1.is_copy_nums_valid());
+            assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
+            assert_eq!(
+                paths,
+                Some(vec![vec![
+                    ei(6),
+                    ei(1),
+                    ei(3),
+                    ei(5),
+                    ei(3),
+                    ei(5),
+                    ei(3),
+                    ei(0),
+                    ei(4)
+                ]])
+            );
+        }
     }
 }
