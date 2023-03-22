@@ -47,9 +47,7 @@ mod tests {
 
         let param_infer = PHMMParams::uniform(0.01);
         let post = mdbg.sample_posterior_with_dataset(&dataset, param_infer, 200, 10, 1, 10);
-        for (copy_nums, score) in post.samples().iter() {
-            println!("{} {}", copy_nums, score);
-        }
+        post.to_file("simple.post");
         // compare with true copynums
     }
 

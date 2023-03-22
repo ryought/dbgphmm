@@ -111,8 +111,8 @@ impl Posterior {
 ///
 /// ```text
 /// P   -19281.0228
-/// C   -192919.0    likelihood=0.0    [1,2,1,1,1,2,1,0]
-/// C   -193799.0    likelihood=0.0    [1,2,1,1,0,2,0,0]
+/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00
+/// C   -191882.0    [1,2,0,0,1,2,2,1]   likelihood=0.01
 /// ```
 ///
 impl Posterior {
@@ -126,8 +126,8 @@ impl Posterior {
                 writer,
                 "C\t{}\t{}\t{}",
                 score.p().to_log_value(),
+                copy_nums,
                 score,
-                copy_nums
             )?
         }
         Ok(())
@@ -162,8 +162,8 @@ impl Posterior {
                     let mut iter = text.split_whitespace();
                     iter.next().unwrap(); // 'C'
                     iter.next().unwrap(); // value
-                    let score: Score = iter.next().unwrap().parse().unwrap();
                     let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
+                    let score: Score = iter.next().unwrap().parse().unwrap();
 
                     samples.push((copy_nums, score));
                     p += score.p();
