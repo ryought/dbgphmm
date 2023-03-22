@@ -11,6 +11,7 @@ use crate::prob::Prob;
 use crate::utils::timer;
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
+use rayon::prelude::*;
 
 pub mod test;
 
@@ -195,6 +196,88 @@ impl Posterior {
 }
 
 ///
+/// benchmark functions for when true genome is available
+///
+impl MultiDbg {
+    ///
+    /// Everytime
+    /// * posterior probability (normalized)
+    /// * likelihood (log)
+    /// * prior (log)
+    /// * genome size
+    ///
+    /// Only if genome is known
+    /// * diff of copynums from true
+    ///
+    pub fn to_inspect_writer<W: std::io::Write>(
+        &self,
+        mut writer: W,
+        posterior: &Posterior,
+        copy_nums_true: &CopyNums,
+    ) -> std::io::Result<()> {
+        // for each copy nums
+        for (i, (copy_nums, score)) in posterior
+            .samples
+            .iter()
+            .sorted_by_key(|(_, score)| score.p())
+            .rev()
+            .enumerate()
+        {
+            writeln!(
+                writer,
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}",
+                self.k(),
+                i,
+                (score.p() / posterior.p()).to_value(),
+                score.likelihood.to_log_value(),
+                score.prior.to_log_value(),
+                score.genome_size,
+                copy_nums.diff(&copy_nums_true),
+                copy_nums,
+            )?
+        }
+
+        // for each edges
+        for edge in self.graph_compact().edge_indices() {
+            let p_edge = posterior.p_edge(edge);
+            let copy_num_true = copy_nums_true[edge];
+            writeln!(
+                writer,
+                "{}\tE\te{}\t{}\t{:.5}\t{:.5}\t{:.5}\t{}",
+                self.k(),
+                edge.index(),
+                copy_num_true,
+                p_edge.mean(),
+                p_edge.p_x(copy_num_true).to_value(),
+                p_edge.p_x(0).to_value(),
+                p_edge.to_short_string(),
+            )?
+        }
+
+        Ok(())
+    }
+    ///
+    ///
+    pub fn to_inspect_string(&self, posterior: &Posterior, copy_nums_true: &CopyNums) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_inspect_writer(&mut writer, posterior, copy_nums_true)
+            .unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    ///
+    pub fn to_inspect_file<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        posterior: &Posterior,
+        copy_nums_true: &CopyNums,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_inspect_writer(&mut file, posterior, copy_nums_true)
+    }
+}
+
+///
 /// Calculated score of copy numbers
 ///
 /// Constructed by `MultiDbg::to_score`.
@@ -365,6 +448,7 @@ impl MultiDbg {
         max_cycle_size: usize,
         max_flip: usize,
         max_iter: usize,
+        is_parallel: bool,
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
@@ -372,17 +456,43 @@ impl MultiDbg {
         let mut n_iter = 0;
 
         while n_iter < max_iter {
-            eprintln!("iter #{}", n_iter);
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
-            for (copy_nums, _info) in dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
-            {
-                if !post.contains(&copy_nums) {
-                    // evaluate score
-                    dbg.set_copy_nums(&copy_nums);
-                    let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip);
+            eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
+
+            // evaluate all neighbors
+            if is_parallel {
+                let neighbors_with_score: Vec<_> = neighbor_copy_nums
+                    .into_par_iter()
+                    .filter_map(|(copy_nums, _info)| {
+                        println!("eval {}", copy_nums);
+                        if post.contains(&copy_nums) {
+                            None
+                        } else {
+                            // evaluate score
+                            let mut dbg = self.clone();
+                            dbg.set_copy_nums(&copy_nums);
+                            let score =
+                                dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                            Some((copy_nums, score))
+                        }
+                    })
+                    .collect();
+                for (copy_nums, score) in neighbors_with_score {
                     post.add(copy_nums, score);
+                }
+            } else {
+                for (i, (copy_nums, _info)) in neighbor_copy_nums.into_iter().enumerate() {
+                    eprintln!("iter#{} neighbor#{}", n_iter, i);
+                    if !post.contains(&copy_nums) {
+                        // evaluate score
+                        dbg.set_copy_nums(&copy_nums);
+                        let score =
+                            dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                        post.add(copy_nums, score);
+                    }
                 }
             }
 
@@ -419,6 +529,7 @@ impl MultiDbg {
             max_cycle_size,
             max_flip,
             max_iter,
+            true,
         )
     }
     /// Extend to k+1 by posterior
