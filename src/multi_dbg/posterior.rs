@@ -1,7 +1,7 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{CopyNums, MultiDbg};
+use super::{CopyNums, MultiDbg, Path};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -9,6 +9,7 @@ use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::timer;
+use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
 use rayon::prelude::*;
@@ -532,15 +533,45 @@ impl MultiDbg {
             true,
         )
     }
-    /// Extend to k+1 by posterior
+    /// Extend to k+1 by sampled posterior distribution
     ///
-    /// * Perform posterior sampling
-    /// * Purge edges by posterior
-    /// * Extend Dbg into k+1
-    /// * Update Hints and Path
+    /// 1. Purge edges by posterior
+    /// 2. Extend Dbg into k+1
+    /// 3. Convert Hints and Path for k+1 if necessary
     ///
-    pub fn extend_by_posterior(posterior: &Posterior) {}
+    /// # Arguments
+    ///
+    /// * `posterior`: sampled posterior distribution
+    /// * `p0`: remove edge `e` if `P(X(e)=0|R) > p0`
+    /// * `paths` (optional)
+    /// * `reads` (optional)
+    ///
+    pub fn extend_with_posterior<S: Seq>(
+        &self,
+        posterior: &Posterior,
+        p0: Prob,
+        paths: Option<Vec<Path>>,
+        reads: Option<ReadCollection<S>>,
+    ) -> (Self, Option<Vec<Path>>, Option<ReadCollection<S>>) {
+        // (1)
+        // Find edges to be purged according to posterior distribution
+        // List edges whose current copynum is 0 and posterior probability P(X=0) is high
+        //
+        let mut edges_purge = Vec::new();
+        for edge in self.graph_compact().edge_indices() {
+            if posterior.p_edge_x(edge, 0) > p0 && self.copy_num_of_edge_in_compact(edge) == 0 {
+                edges_purge.push(edge);
+            }
+        }
+
+        unimplemented!();
+    }
 }
+
+///
+///
+///
+pub fn infer_posterior_by_extension(dbg: MultiDbg) {}
 
 //
 // tests

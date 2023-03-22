@@ -14,14 +14,15 @@
 //! * Use compact copy number vector
 //!
 use crate::common::{
-    sequence_to_string, CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE,
+    sequence_to_string, CopyNum, ReadCollection, Reads, Seq, SeqStyle, Sequence, StyledSequence,
+    NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
-use crate::hmmv2::{common::PModel, params::PHMMParams};
+use crate::hmmv2::{common::PModel, hint::Hint, params::PHMMParams};
 use crate::kmer::{
     common::{kmers_to_string, KmerLike, NullableKmer},
     kmer::styled_sequence_to_kmers,
@@ -445,6 +446,10 @@ impl MultiDbg {
     }
 }
 
+/// Path: a sequence of edges
+///
+pub type Path = Vec<EdgeIndex>;
+
 ///
 /// Path and styled seq conversion related
 ///
@@ -502,7 +507,7 @@ impl MultiDbg {
     ///
     /// Generate Euler circuit path of full graph that traverses all edges (in full graph)
     ///
-    pub fn get_euler_circuits(&self) -> Vec<Vec<EdgeIndex>> {
+    pub fn get_euler_circuits(&self) -> Vec<Path> {
         let terminal_node = self.terminal_node_full();
 
         // set of paths to be returned
@@ -606,7 +611,7 @@ impl MultiDbg {
     /// Convert a path in full graph into a path in compact graph
     ///
     ///
-    pub fn to_path_in_compact(&self, path_in_full: &[EdgeIndex]) -> Vec<EdgeIndex> {
+    pub fn to_path_in_compact(&self, path_in_full: &[EdgeIndex]) -> Path {
         assert!(!path_in_full.is_empty(), "path is empty");
         let n = path_in_full.len();
         let mut path_in_compact = Vec::new();
@@ -643,7 +648,7 @@ impl MultiDbg {
     /// Convert a path in compact graph into a path in full graph
     ///
     ///
-    pub fn to_path_in_full(&self, path_in_compact: &[EdgeIndex]) -> Vec<EdgeIndex> {
+    pub fn to_path_in_full(&self, path_in_compact: &[EdgeIndex]) -> Path {
         assert!(!path_in_compact.is_empty(), "path is empty");
 
         let mut path_in_full = Vec::new();
@@ -758,10 +763,7 @@ impl MultiDbg {
     }
     /// Convert styled seqs into paths
     ///
-    pub fn paths_from_styled_seqs<T>(
-        &self,
-        seqs: T,
-    ) -> Result<Vec<Vec<EdgeIndex>>, KmerNotFoundError>
+    pub fn paths_from_styled_seqs<T>(&self, seqs: T) -> Result<Vec<Path>, KmerNotFoundError>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
@@ -789,10 +791,7 @@ impl MultiDbg {
     }
     /// Convert styled seqs into paths in compact graph
     ///
-    pub fn compact_paths_from_styled_seqs<T>(
-        &self,
-        seqs: T,
-    ) -> Result<Vec<Vec<EdgeIndex>>, KmerNotFoundError>
+    pub fn compact_paths_from_styled_seqs<T>(&self, seqs: T) -> Result<Vec<Path>, KmerNotFoundError>
     where
         T: IntoIterator,
         T::Item: AsRef<StyledSequence>,
@@ -992,7 +991,7 @@ impl MultiDbg {
             .collect()
     }
     ///
-    /// Paths in compact Vec<Vec<EdgeIndex>> into CopyNums
+    /// Paths in compact Vec<Path> into CopyNums
     ///
     pub fn copy_nums_from_compact_path<P: AsRef<[EdgeIndex]>, PS: AsRef<[P]>>(
         &self,
@@ -1093,7 +1092,7 @@ impl MultiDbg {
     ///      e0'   e1'   e2'  en-2'   en-1'
     /// ```
     ///
-    pub fn path_kp1_from_path_k(&self, path_k: &[EdgeIndex]) -> Vec<EdgeIndex> {
+    pub fn path_kp1_from_path_k(&self, path_k: &[EdgeIndex]) -> Path {
         let n = path_k.len();
         let to_node_index = |edge: EdgeIndex| NodeIndex::new(edge.index());
         let mut path = Vec::new();
@@ -1412,6 +1411,64 @@ impl MultiDbg {
 
         (map_full, map_compact)
     }
+    ///
+    ///
+    ///
+    pub fn purge_and_extend(
+        &self,
+        edges_in_compact_to_purge: &[EdgeIndex],
+        paths: Option<Vec<Path>>,
+        hints: Option<Vec<Hint>>,
+    ) -> (Self, Option<Vec<Path>>, Option<Vec<Hint>>) {
+        // Delete edges from the graph k-DBG and get mappings between edges
+        //
+        let mut dbg_k = self.clone();
+        let (map_full, _) = dbg_k.purge_edges(&edges_in_compact_to_purge);
+        println!("purged!");
+        dbg_k.show_graph_with_kmer();
+        println!("map={:?}", map_full);
+
+        // (2)
+        // Extend to k+1-DBG
+        //
+        let dbg_kp1 = dbg_k.to_kp1_dbg();
+        dbg_kp1.show_graph_with_kmer();
+
+        // (3)
+        // convert paths and hints
+        let paths = match paths {
+            Some(paths_k_compact) => paths_k_compact
+                .into_iter()
+                .map(|path_k_compact| {
+                    let path_k_full_purged: Option<Path> = self
+                        .to_path_in_full(&path_k_compact)
+                        .into_iter()
+                        .map(|e| map_full.get(&e).copied().unwrap_or(Some(e)))
+                        .collect();
+
+                    println!("path_k_full_purged={:?}", path_k_full_purged);
+
+                    match path_k_full_purged {
+                        None => None,
+                        Some(path_k_compact_purged) => {
+                            let path_kp1_full =
+                                dbg_kp1.path_kp1_from_path_k(&path_k_compact_purged);
+                            let path_kp1_compact = dbg_kp1.to_path_in_compact(&path_kp1_full);
+                            Some(path_kp1_compact)
+                        }
+                    }
+                })
+                .collect(),
+            None => None,
+        };
+
+        let hints = match hints {
+            Some(_) => None,
+            None => None,
+        };
+
+        (dbg_kp1, paths, hints)
+    }
 }
 
 //
@@ -1703,5 +1760,28 @@ mod tests {
                 ]]
             );
         }
+    }
+    #[test]
+    fn purge_and_extend_toy() {
+        // remove an edge
+        let mut dbg_k = toy::repeat();
+        dbg_k.show_graph_with_kmer();
+        dbg_k.set_copy_nums(&vec![1, 0, 1].into());
+        dbg_k.show_graph_with_kmer();
+        assert_eq!(dbg_k.n_nodes_full(), 14);
+        assert_eq!(dbg_k.n_edges_full(), 15);
+        assert_eq!(dbg_k.n_nodes_compact(), 2);
+        assert_eq!(dbg_k.n_edges_compact(), 3);
+        assert_eq!(dbg_k.genome_size(), 9);
+
+        let (dbg_kp1, paths, hints) =
+            dbg_k.purge_and_extend(&[ei(1)], Some(vec![vec![ei(2), ei(0)]]), None);
+        dbg_kp1.show_graph_with_kmer();
+        assert_eq!(dbg_kp1.n_nodes_full(), 13);
+        assert_eq!(dbg_kp1.n_edges_full(), 13);
+        assert_eq!(dbg_kp1.n_nodes_compact(), 1);
+        assert_eq!(dbg_kp1.n_edges_compact(), 1);
+        assert_eq!(dbg_k.genome_size(), 9);
+        println!("{:?}", paths);
     }
 }
