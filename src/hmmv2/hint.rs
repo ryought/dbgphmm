@@ -35,6 +35,10 @@ impl Hint {
                 .collect(),
         )
     }
+    ///
+    pub fn to_inner(self) -> Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>> {
+        self.0
+    }
     /// Get candidate nodes of `emissions[index]`
     ///
     pub fn nodes(&self, index: usize) -> &[NodeIndex] {
