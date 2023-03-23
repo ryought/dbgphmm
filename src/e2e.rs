@@ -16,6 +16,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::utils::spaces;
+use bio::io;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -133,6 +134,26 @@ impl Dataset {
     pub fn from_json_file<P: AsRef<std::path::Path>>(path: P) -> Self {
         let mut file = std::fs::File::open(path).unwrap();
         serde_json::from_reader(&mut file).unwrap()
+    }
+    ///
+    /// Dump genome as fasta
+    ///
+    pub fn to_genome_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let file = std::fs::File::create(path).unwrap();
+        let mut writer = io::fasta::Writer::new(file);
+
+        for (i, g) in self.genome().iter().enumerate() {
+            writer.write(&format!("g{}", i), Some(&g.style().to_string()), g.seq())?;
+        }
+
+        Ok(())
+    }
+    ///
+    /// Dump reads as fasta.
+    /// Sample position and hint information will be removed.
+    ///
+    pub fn to_reads_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        self.reads().to_fasta(path)
     }
 }
 
@@ -574,6 +595,7 @@ mod tests {
     use super::*;
     use crate::common::ni;
     use crate::graph::genome_graph::GenomeGraphPos;
+    use crate::utils::resource_dir;
 
     #[test]
     fn e2e_dataset_serialize_test() {
@@ -606,9 +628,15 @@ mod tests {
             ]),
             phmm_params: PHMMParams::default(),
         };
+
+        // json
         let json = serde_json::to_string(&d).unwrap();
         println!("{}", json);
         assert_eq!(d, serde_json::from_str(&json).unwrap());
+
+        // fasta
+        d.to_genome_fasta("d.genome.fasta");
+        d.to_reads_fasta("d.reads.fasta");
     }
     #[test]
     fn e2e_dataset_read_with_genome_visualization_test() {
