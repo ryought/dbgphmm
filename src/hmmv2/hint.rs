@@ -5,7 +5,7 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
-use indicatif::ParallelProgressIterator;
+use indicatif::{ParallelProgressIterator, ProgressStyle};
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -79,10 +79,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         reads: ReadCollection<S>,
         parallel: bool,
     ) -> ReadCollection<S> {
+        let style = ProgressStyle::with_template(
+            "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+        )
+        .unwrap()
+        .progress_chars("##-");
+
         let hints = if parallel {
             reads
                 .par_iter()
-                .progress_count(reads.len() as u64)
+                .progress_with_style(style)
                 .map(|seq| {
                     self.run_sparse(seq.as_ref())
                         .to_hint(self.param.n_active_nodes)
