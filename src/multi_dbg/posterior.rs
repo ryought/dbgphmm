@@ -10,6 +10,7 @@ use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::timer;
 use fnv::FnvHashMap as HashMap;
+use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
 use rayon::prelude::*;
@@ -465,10 +466,11 @@ impl MultiDbg {
 
             // evaluate all neighbors
             if is_parallel {
+                let n = neighbor_copy_nums.len();
                 let neighbors_with_score: Vec<_> = neighbor_copy_nums
                     .into_par_iter()
+                    .progress_count(n as u64)
                     .filter_map(|(copy_nums, _info)| {
-                        println!("eval {}", copy_nums);
                         if post.contains(&copy_nums) {
                             None
                         } else {

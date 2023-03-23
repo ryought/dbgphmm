@@ -5,6 +5,7 @@ use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
+use indicatif::ParallelProgressIterator;
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -80,9 +81,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ) -> ReadCollection<S> {
         let hints = if parallel {
             reads
-                .into_par_iter()
+                .par_iter()
+                .progress_count(reads.len() as u64)
                 .map(|seq| {
-                    println!("sparse in parallel..");
                     self.run_sparse(seq.as_ref())
                         .to_hint(self.param.n_active_nodes)
                 })
