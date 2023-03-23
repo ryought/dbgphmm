@@ -1234,11 +1234,11 @@ impl MultiDbg {
 /// Profile HMM related
 ///
 impl MultiDbg {
-    /// Convert MultiDbg into node-centric Profile HMM `PModel` via SeqGraph `DiGraph<SNode, SEdge>`
     ///
     ///
-    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
-        let seqgraph = self.to_node_centric_graph(
+    ///
+    fn to_seq_graph(&self) -> DiGraph<SNode, SEdge> {
+        self.to_node_centric_graph(
             |e, ew| SNode {
                 copy_num: ew.copy_num,
                 base: ew.base,
@@ -1256,8 +1256,18 @@ impl MultiDbg {
             |_, _, _| SEdge {},
             |_| SEdge {},
             false,
-        );
-        seqgraph.to_phmm(param)
+        )
+    }
+    /// Convert MultiDbg into node-centric Profile HMM `PModel` via SeqGraph `DiGraph<SNode, SEdge>`
+    ///
+    ///
+    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
+        self.to_seq_graph().to_phmm(param)
+    }
+    ///
+    ///
+    pub fn to_uniform_phmm(&self, param: PHMMParams) -> PModel {
+        self.to_seq_graph().to_uniform_phmm(param)
     }
 }
 

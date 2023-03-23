@@ -511,27 +511,21 @@ impl MultiDbg {
         post
     }
     ///
+    /// Append hint information for reads in parallel
     ///
+    /// # Procedure
     ///
-    pub fn sample_posterior_with_dataset(
+    /// 1. Convert MultiDbg into PHMM with uniform transition probability
+    /// 2. Run forward/backward on the PHMM and obtain node freqs of each read
+    ///
+    pub fn generate_hints<S: Seq>(
         &self,
-        dataset: &Dataset,
         param: PHMMParams,
-        sigma: usize,
-        max_cycle_size: usize,
-        max_flip: usize,
-        max_iter: usize,
-    ) -> Posterior {
-        self.sample_posterior(
-            param,
-            dataset.reads(),
-            dataset.genome_size(),
-            sigma,
-            max_cycle_size,
-            max_flip,
-            max_iter,
-            true,
-        )
+        reads: ReadCollection<S>,
+        parallel: bool,
+    ) -> ReadCollection<S> {
+        let phmm = self.to_uniform_phmm(param);
+        phmm.append_hints(reads, parallel)
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -569,9 +563,27 @@ impl MultiDbg {
 }
 
 ///
+/// Get posterior distribution of target k
 ///
+/// 1. posterior for current k-DBG
+/// 2. purge 0x edges
+/// 3. extend to k+1
 ///
-pub fn infer_posterior_by_extension(dbg: MultiDbg) {}
+pub fn infer_posterior_by_extension<S: Seq>(
+    k_final: usize,
+    dbg_init: MultiDbg,
+    param: PHMMParams,
+    reads: &ReadCollection<S>,
+    genome_size_expected: CopyNum,
+    genome_size_sigma: CopyNum,
+    // neighbor
+    max_cycle_size: usize,
+    max_flip: usize,
+    max_iter: usize,
+    is_parallel: bool,
+) -> (MultiDbg, Posterior) {
+    unimplemented!();
+}
 
 //
 // tests

@@ -73,15 +73,31 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// * make parallel by `into_par_iter`
     ///
-    pub fn append_hints<S: Seq>(&self, reads: ReadCollection<S>) -> ReadCollection<S> {
-        let hints = reads
-            .into_iter()
-            .map(|seq| {
-                self.run_sparse(seq.as_ref())
-                    .to_hint(self.param.n_active_nodes)
-            })
-            .collect();
-
+    pub fn append_hints<S: Seq>(
+        &self,
+        reads: ReadCollection<S>,
+        parallel: bool,
+    ) -> ReadCollection<S> {
+        let hints = if parallel {
+            reads
+                .into_par_iter()
+                .map(|seq| {
+                    println!("sparse in parallel..");
+                    self.run_sparse(seq.as_ref())
+                        .to_hint(self.param.n_active_nodes)
+                })
+                .collect()
+        } else {
+            reads
+                .into_iter()
+                .enumerate()
+                .map(|(i, seq)| {
+                    println!("sparse... #{}", i);
+                    self.run_sparse(seq.as_ref())
+                        .to_hint(self.param.n_active_nodes)
+                })
+                .collect()
+        };
         ReadCollection::from_with_hint(reads.reads, hints)
     }
 }

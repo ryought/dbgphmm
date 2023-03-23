@@ -19,19 +19,43 @@ fn test_posterior(
     k: usize,
     param_infer: PHMMParams,
     gfa_filename: &str,
+    use_hint: bool,
 ) -> (MultiDbg, Posterior, CopyNums) {
+    println!("# started_at={}", chrono::Local::now());
+
     let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
     let paths_true = mdbg
         .compact_paths_from_styled_seqs(dataset.genome())
         .unwrap();
     // mdbg.to_paths_file("simple.paths", &paths_true);
 
-    let post = mdbg.sample_posterior_with_dataset(&dataset, param_infer, 200, 10, 1, 10);
+    let reads = if use_hint {
+        mdbg.generate_hints(param_infer, dataset.reads().clone(), true)
+    } else {
+        dataset.reads().clone()
+    };
+
+    let (post, t) = timer(|| {
+        mdbg.sample_posterior(
+            param_infer,
+            &reads,
+            dataset.genome_size(),
+            200,
+            10,
+            1,
+            10,
+            true,
+        )
+    });
+    println!("sampled in {}ms", t);
+
     // post.to_file("simple.post");
     let copy_nums_true = mdbg.copy_nums_from_compact_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
     mdbg.to_gfa_post_file(gfa_filename, &post);
     mdbg.to_inspect_file(format!("{}.inspect", gfa_filename), &post, &copy_nums_true);
+
+    println!("# finished_at={}", chrono::Local::now());
 
     (mdbg, post, copy_nums_true)
 }
@@ -73,7 +97,9 @@ fn check_posterior_highest_at_true(
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::toy;
     use super::*;
+    use crate::common::{ni, ReadCollection, Seq};
     use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
 
@@ -93,8 +119,15 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
+        // without hints
         let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa");
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa", false);
+        check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
+        check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
+
+        // with hints
+        let (mdbg, post, copy_nums_true) =
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa", true);
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
     }
@@ -115,8 +148,10 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
+        // if without hint, 35sec
+        // if with hint, 10sec
         let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "sdip.gfa");
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "sdip.gfa", true);
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
     }
@@ -138,10 +173,56 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "repeat1k.gfa");
+        // if without hint, 35sec
+        // if with hint, 10sec
+        let (mdbg, post, copy_nums_true) = test_posterior(
+            &dataset,
+            20,
+            PHMMParams::uniform(0.001),
+            "repeat1k.gfa",
+            true,
+        );
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         // below is not satisfied in tandem repeat
         // check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
+    }
+
+    #[test]
+    fn hint_for_toy() {
+        let mdbg = toy::repeat();
+        mdbg.show_graph_with_kmer();
+        let param = PHMMParams::uniform(0.01);
+        let phmm = mdbg.to_uniform_phmm(param);
+        println!("{}", phmm);
+
+        // (1) read from first
+        let reads = ReadCollection::from(vec![b"CCCAG".to_vec()]);
+        let reads_with_hint = mdbg.generate_hints(param, reads, false);
+        for (r, h) in reads_with_hint.iter_with_hint() {
+            println!("{} {:?}", r.to_str(), h);
+        }
+        let hint = reads_with_hint.hint(0);
+        // most probable node for bases[i] is v[i+1]
+        assert_eq!(hint.nodes(0)[0], ni(1));
+        assert_eq!(hint.nodes(1)[0], ni(2));
+        assert_eq!(hint.nodes(2)[0], ni(3));
+        assert_eq!(hint.nodes(3)[0], ni(4));
+        assert_eq!(hint.nodes(4)[0], ni(5));
+
+        // (2) read from repetitive
+        let reads = ReadCollection::from(vec![b"GCAGCAGG".to_vec()]);
+        let reads_with_hint = mdbg.generate_hints(param, reads, false);
+        for (r, h) in reads_with_hint.iter_with_hint() {
+            println!("{} {:?}", r.to_str(), h);
+        }
+        let hint = reads_with_hint.hint(0);
+        assert_eq!(hint.nodes(0)[0], ni(8));
+        assert_eq!(hint.nodes(1)[0], ni(6));
+        assert_eq!(hint.nodes(2)[0], ni(7));
+        assert_eq!(hint.nodes(3)[0], ni(8));
+        assert_eq!(hint.nodes(4)[0], ni(6));
+        assert_eq!(hint.nodes(5)[0], ni(7));
+        assert_eq!(hint.nodes(6)[0], ni(8));
+        assert_eq!(hint.nodes(7)[0], ni(9));
     }
 }

@@ -276,17 +276,18 @@ pub fn repeat() -> MultiDbg {
     let v_aan = full.add_node(MultiFullNode::new(false));
     let v_ann = full.add_node(MultiFullNode::new(false));
     // edges
+    // e0-e5
     let e_nnnt = full.add_edge(v_nnn, v_nnt, MultiFullEdge::new(b'T', 1));
     let e_nntc = full.add_edge(v_nnt, v_ntc, MultiFullEdge::new(b'C', 1));
     let e_ntcc = full.add_edge(v_ntc, v_tcc, MultiFullEdge::new(b'C', 1));
     let e_tccc = full.add_edge(v_tcc, v_ccc, MultiFullEdge::new(b'C', 1));
     let e_ccca = full.add_edge(v_ccc, v_cca, MultiFullEdge::new(b'A', 1));
     let e_ccag = full.add_edge(v_cca, v_cag, MultiFullEdge::new(b'G', 1));
-
+    // e6-e8
     let e_cagc = full.add_edge(v_cag, v_agc, MultiFullEdge::new(b'C', 3));
     let e_agca = full.add_edge(v_agc, v_gca, MultiFullEdge::new(b'A', 3));
     let e_gcag = full.add_edge(v_gca, v_cag, MultiFullEdge::new(b'G', 3));
-
+    // e9-e14
     let e_cagg = full.add_edge(v_cag, v_agg, MultiFullEdge::new(b'G', 1));
     let e_agga = full.add_edge(v_agg, v_gga, MultiFullEdge::new(b'A', 1));
     let e_ggaa = full.add_edge(v_gga, v_gaa, MultiFullEdge::new(b'A', 1));
