@@ -77,7 +77,7 @@ fn main() {
     mdbg.to_gfa_file(opts.output_prefix.with_extension("gfa"));
     mdbg.to_dbg_file(opts.output_prefix.with_extension("dbg"));
 
-    match mdbg.compact_paths_from_styled_seqs(dataset.genome()) {
+    match mdbg.paths_from_styled_seqs(dataset.genome()) {
         Ok(paths_true) => {
             mdbg.to_paths_file(opts.output_prefix.with_extension("paths"), &paths_true);
         }

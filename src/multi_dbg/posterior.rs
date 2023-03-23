@@ -552,8 +552,8 @@ impl MultiDbg {
         posterior: &Posterior,
         p0: Prob,
         paths: Option<Vec<Path>>,
-        reads: Option<ReadCollection<S>>,
-    ) -> (Self, Option<Vec<Path>>, Option<ReadCollection<S>>) {
+        reads: ReadCollection<S>,
+    ) -> (Self, Option<Vec<Path>>, ReadCollection<S>) {
         // (1)
         // Find edges to be purged according to posterior distribution
         // List edges whose current copynum is 0 and posterior probability P(X=0) is high
@@ -565,30 +565,77 @@ impl MultiDbg {
             }
         }
 
-        unimplemented!();
+        // (2)
+        // Do purge and extend
+        if reads.has_hint() {
+            let hints = reads.hints.unwrap();
+            let (dbg_kp1, paths, hints) = self.purge_and_extend(&edges_purge, paths, Some(hints));
+            let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
+            (dbg_kp1, paths, reads)
+        } else {
+            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, paths, None);
+            let reads = ReadCollection::from(reads.reads);
+            (dbg_kp1, paths, reads)
+        }
     }
 }
 
 ///
-/// Get posterior distribution of target k
+/// Get posterior distribution of DBG of k_max
 ///
 /// 1. posterior for current k-DBG
 /// 2. purge 0x edges
 /// 3. extend to k+1
 ///
-pub fn infer_posterior_by_extension<S: Seq>(
-    k_final: usize,
+pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Vec<Path>>)>(
+    k_max: usize,
     dbg_init: MultiDbg,
+    // evaluate
     param: PHMMParams,
-    reads: &ReadCollection<S>,
+    reads: ReadCollection<S>,
     genome_size_expected: CopyNum,
     genome_size_sigma: CopyNum,
     // neighbor
     max_cycle_size: usize,
     max_flip: usize,
     max_iter: usize,
-    is_parallel: bool,
-) -> (MultiDbg, Posterior) {
+    // extend
+    p0: Prob,
+    // callback
+    on_extend: F,
+    // true path if available
+    paths: Option<Vec<Path>>,
+) -> (MultiDbg, Posterior, Option<Vec<Path>>) {
+    let mut dbg = dbg_init;
+    let mut reads = reads;
+    let mut paths = paths;
+
+    /*
+    let mut posterior;
+    loop {
+        posterior = dbg.sample_posterior(
+            param,
+            &reads,
+            genome_size_expected,
+            genome_size_sigma,
+            max_cycle_size,
+            max_flip,
+            max_iter,
+            true,
+        );
+
+        while dbg.k() < k_final {
+            // ignore if unneccessary
+            let is_ambiguous = dbg.n_ambiguous_node() > 0;
+            (dbg, paths, reads) = dbg.extend_with_posterior(&posterior, p0, paths, reads);
+            if is_ambiguous {
+                break;
+            }
+        }
+    }
+    (dbg, posterior, paths)
+    */
+
     unimplemented!();
 }
 

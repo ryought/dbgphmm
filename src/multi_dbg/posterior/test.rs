@@ -24,9 +24,7 @@ fn test_posterior(
     println!("# started_at={}", chrono::Local::now());
 
     let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
-    let paths_true = mdbg
-        .compact_paths_from_styled_seqs(dataset.genome())
-        .unwrap();
+    let paths_true = mdbg.paths_from_styled_seqs(dataset.genome()).unwrap();
     // mdbg.to_paths_file("simple.paths", &paths_true);
 
     let reads = if use_hint {
@@ -50,7 +48,7 @@ fn test_posterior(
     println!("sampled in {}ms", t);
 
     // post.to_file("simple.post");
-    let copy_nums_true = mdbg.copy_nums_from_compact_path(&paths_true);
+    let copy_nums_true = mdbg.copy_nums_from_full_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
     mdbg.to_gfa_post_file(gfa_filename, &post);
     mdbg.to_inspect_file(format!("{}.inspect", gfa_filename), &post, &copy_nums_true);
@@ -58,6 +56,25 @@ fn test_posterior(
     println!("# finished_at={}", chrono::Local::now());
 
     (mdbg, post, copy_nums_true)
+}
+
+///
+///
+///
+fn test_inference(
+    dataset: &Dataset,
+    k_init: usize,
+    k_final: usize,
+    param_infer: PHMMParams,
+    gfa_filename: &str,
+) {
+    println!("# started_at={}", chrono::Local::now());
+
+    let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
+    let paths_true = mdbg.paths_from_styled_seqs(dataset.genome()).unwrap();
+    let reads = mdbg.generate_hints(param_infer, dataset.reads().clone(), true);
+
+    println!("# finished_at={}", chrono::Local::now());
 }
 
 ///

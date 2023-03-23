@@ -585,10 +585,9 @@ impl MultiDbg {
             .map(|circuit| self.circuit_to_styled_seq(&circuit))
             .collect()
     }
-    /// Path validity check
+    /// Path (in compact graph) validity check
     ///
-    ///
-    pub fn is_valid_path(&self, path_in_compact: &[EdgeIndex]) -> bool {
+    pub fn is_valid_compact_path(&self, path_in_compact: &[EdgeIndex]) -> bool {
         let mut is_valid = true;
 
         for i in 0..path_in_compact.len() {
@@ -599,6 +598,25 @@ impl MultiDbg {
             let (s, _) = self
                 .graph_compact()
                 .edge_endpoints(path_in_compact[(i + 1) % path_in_compact.len()])
+                .unwrap();
+
+            if t != s {
+                is_valid = false;
+            }
+        }
+
+        is_valid
+    }
+    /// Path (in full graph) validity check
+    ///
+    pub fn is_valid_full_path(&self, path_in_full: &[EdgeIndex]) -> bool {
+        let mut is_valid = true;
+
+        for i in 0..path_in_full.len() {
+            let (_, t) = self.graph_full().edge_endpoints(path_in_full[i]).unwrap();
+            let (s, _) = self
+                .graph_full()
+                .edge_endpoints(path_in_full[(i + 1) % path_in_full.len()])
                 .unwrap();
 
             if t != s {
@@ -641,7 +659,7 @@ impl MultiDbg {
             i += self.edges_in_full(edge_in_compact).len();
         }
 
-        assert!(self.is_valid_path(&path_in_compact));
+        assert!(self.is_valid_compact_path(&path_in_compact));
 
         path_in_compact
     }
@@ -672,6 +690,25 @@ impl MultiDbg {
         }
 
         path_in_full
+    }
+    ///
+    /// Paths in full Vec<Path> into CopyNums
+    ///
+    pub fn copy_nums_from_full_path<P: AsRef<[EdgeIndex]>, PS: AsRef<[P]>>(
+        &self,
+        paths: PS,
+    ) -> CopyNums {
+        let mut copy_nums = CopyNums::new(self.n_edges_compact(), 0);
+
+        for path in paths.as_ref() {
+            let compact_path = self.to_path_in_compact(path.as_ref());
+
+            for edge in compact_path {
+                copy_nums[edge] += 1;
+            }
+        }
+
+        copy_nums
     }
 }
 
@@ -788,20 +825,6 @@ impl MultiDbg {
         } else {
             Err(KmerNotFoundError(missing_kmers))
         }
-    }
-    /// Convert styled seqs into paths in compact graph
-    ///
-    pub fn compact_paths_from_styled_seqs<T>(&self, seqs: T) -> Result<Vec<Path>, KmerNotFoundError>
-    where
-        T: IntoIterator,
-        T::Item: AsRef<StyledSequence>,
-    {
-        self.paths_from_styled_seqs(seqs).map(|paths| {
-            paths
-                .into_iter()
-                .map(|path| self.to_path_in_compact(&path))
-                .collect()
-        })
     }
 }
 
@@ -990,30 +1013,19 @@ impl MultiDbg {
             .map(|(copy_nums, _)| copy_nums)
             .collect()
     }
-    ///
-    /// Paths in compact Vec<Path> into CopyNums
-    ///
-    pub fn copy_nums_from_compact_path<P: AsRef<[EdgeIndex]>, PS: AsRef<[P]>>(
-        &self,
-        paths: PS,
-    ) -> CopyNums {
-        let mut copy_nums = CopyNums::new(self.n_edges_compact(), 0);
-
-        for path in paths.as_ref() {
-            assert!(self.is_valid_path(path.as_ref()));
-
-            for &edge in path.as_ref() {
-                copy_nums[edge] += 1;
-            }
-        }
-
-        copy_nums
-    }
 }
 
 ///
 /// k+1 extension
 ///
+/// # Extend into k+1
+/// * to_kp1_dbg
+/// * path_kp1_from_path_k
+/// * edge_set_kp1_from_edge_set_k
+/// * hint_kp1_from_hint_k
+///
+/// # Extend k unless no ambiguity
+/// * to_k_max_dbg
 ///
 impl MultiDbg {
     /// Extend k to k+1.
@@ -1203,6 +1215,13 @@ impl MultiDbg {
 
         edge_set
     }
+    ///
+    ///
+    ///
+    pub fn hint_kp1_from_hint_k(&self, hint_k: &Hint) -> Hint {
+        unimplemented!();
+    }
+    ///
     /// self and other is the same dbg, ignoring the node index.
     ///
     pub fn is_equivalent(&self, other: &MultiDbg) -> bool {
@@ -1468,18 +1487,14 @@ impl MultiDbg {
     /// Purge edges whose copy numbers is 0x.
     /// This causes changes of edge index, so mapping is also returned.
     ///
-    /// `(map_full, map_compact)`
+    /// Note that purging edges in compact can make simple-path collapsable nodes in the
+    /// resulting compact graph, but this function does not perform re-simple-path-collapsing.
     ///
-    /// `map_{full,compact}` is a mapping from edge in original graph into edge in modified graph or None if
-    /// deleted.
+    /// Return type is `PurgeEdgeMap`
+    /// Wrapper of `HashMap<EdgeIndex, Option<EdgeIndex>>`
+    /// that maps edge in graph before purging into edge in graph after purging.
     ///
-    pub fn purge_edges(
-        &mut self,
-        edges_in_compact: &[EdgeIndex],
-    ) -> (
-        HashMap<EdgeIndex, Option<EdgeIndex>>,
-        HashMap<EdgeIndex, Option<EdgeIndex>>,
-    ) {
+    pub fn purge_edges(&mut self, edges_in_compact: &[EdgeIndex]) -> PurgeEdgeMap {
         // List up edges to be removed in full
         let mut edges_in_full = Vec::new();
         for &edge in edges_in_compact {
@@ -1506,10 +1521,25 @@ impl MultiDbg {
             }
         }
 
-        (map_full, map_compact)
+        PurgeEdgeMap {
+            map_full,
+            map_compact,
+        }
     }
     ///
     ///
+    ///
+    pub fn purge_and_extend_until(
+        &self,
+        k_max: usize,
+        edges_in_compact_to_purge: &[EdgeIndex],
+        paths: Option<Vec<Path>>,
+        hints: Option<Vec<Hint>>,
+    ) -> (Self, Option<Vec<Path>>, Option<Vec<Hint>>) {
+        unimplemented!();
+    }
+    /// Purging and extending at the same time
+    /// This function also converts indexes in paths (for genome) and hints (for phmm)
     ///
     pub fn purge_and_extend(
         &self,
@@ -1520,7 +1550,7 @@ impl MultiDbg {
         // Delete edges from the graph k-DBG and get mappings between edges
         //
         let mut dbg_k = self.clone();
-        let (map_full, _) = dbg_k.purge_edges(&edges_in_compact_to_purge);
+        let map = dbg_k.purge_edges(&edges_in_compact_to_purge);
 
         // (2)
         // Extend to k+1-DBG
@@ -1538,7 +1568,7 @@ impl MultiDbg {
                     let path_k_full_purged: Option<Path> = self
                         .to_path_in_full(&path_k_compact)
                         .into_iter()
-                        .map(|e| map_full.get(&e).copied().unwrap_or(Some(e)))
+                        .map(|e| map.full(e))
                         .collect();
 
                     match path_k_full_purged {
@@ -1580,10 +1610,7 @@ impl MultiDbg {
                                         .filter_map(|node_in_hmm| {
                                             // map purged
                                             let edge_in_full = EdgeIndex::new(node_in_hmm.index());
-                                            let edge_in_purged = map_full
-                                                .get(&edge_in_full)
-                                                .copied()
-                                                .unwrap_or(Some(edge_in_full));
+                                            let edge_in_purged = map.full(edge_in_full);
                                             edge_in_purged
                                         })
                                         .collect();
@@ -1607,6 +1634,51 @@ impl MultiDbg {
         };
 
         (dbg_kp1, paths, hints)
+    }
+}
+
+// TODO
+//
+// pub trait FullEdgeMap {
+//     fn map(&self, edge_in_full: EdgeIndex) -> &[EdgeIndex];
+// }
+
+/// Mapping of edges in full/compact before and after edge-purging.
+///
+/// Return type of [`MultiDbg::purge_edges`]
+///
+/// the map (`map_compact` and `map_full`) can be generated by `purge_edges_with_mapping`.
+///
+#[derive(Clone, Debug)]
+pub struct PurgeEdgeMap {
+    map_compact: HashMap<EdgeIndex, Option<EdgeIndex>>,
+    map_full: HashMap<EdgeIndex, Option<EdgeIndex>>,
+}
+
+impl PurgeEdgeMap {
+    ///
+    /// Map compact edge in G into compact edge in G' (after edge purging)
+    ///
+    pub fn compact(&self, edge_in_compact: EdgeIndex) -> Option<EdgeIndex> {
+        self.map_compact
+            .get(&edge_in_compact)
+            .copied()
+            .unwrap_or(Some(edge_in_compact))
+    }
+    ///
+    /// Map full edge in G into full edge in G' (after edge purging)
+    ///
+    pub fn full(&self, edge_in_full: EdgeIndex) -> Option<EdgeIndex> {
+        self.map_full
+            .get(&edge_in_full)
+            .copied()
+            .unwrap_or(Some(edge_in_full))
+    }
+    pub fn path(&self, path: &[EdgeIndex]) -> Vec<EdgeIndex> {
+        unimplemented!();
+    }
+    pub fn hint(&self, hint: &Hint) -> Hint {
+        unimplemented!();
     }
 }
 
@@ -1675,9 +1747,11 @@ mod tests {
         assert_eq!(dbg.kmer_compact(ei(2)), kmer(b"nnnTATC"));
         assert_eq!(dbg.kmer_compact(ei(3)), kmer(b"nnnGATC"));
 
-        let (mf, mc) = dbg.purge_edges(&[ei(1), ei(2)]);
+        let m = dbg.purge_edges(&[ei(1), ei(2)]);
         dbg.show_graph_with_kmer();
-        println!("{:?} {:?}", mf, mc);
+        println!("{:?}", m);
+        assert_eq!(m.compact(ei(1)), None);
+        assert_eq!(m.compact(ei(2)), None);
         assert_eq!(dbg.n_edges_full(), 8);
         assert_eq!(dbg.n_edges_compact(), 2);
         assert_eq!(dbg.kmer_compact(ei(0)), kmer(b"ATCAnnn"));
