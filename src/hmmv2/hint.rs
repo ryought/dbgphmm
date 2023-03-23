@@ -30,6 +30,7 @@ impl Hint {
             v.into_iter()
                 .map(|nodes| {
                     let mut vec = ArrayVec::new();
+                    // TODO
                     vec.try_extend_from_slice(&nodes).unwrap();
                     vec
                 })
@@ -39,6 +40,10 @@ impl Hint {
     ///
     pub fn to_inner(self) -> Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>> {
         self.0
+    }
+    ///
+    pub fn inner(&self) -> &[ArrayVec<NodeIndex, MAX_ACTIVE_NODES>] {
+        &self.0
     }
     /// Get candidate nodes of `emissions[index]`
     ///

@@ -1016,7 +1016,7 @@ impl MultiDbg {
 }
 
 ///
-/// k+1 extension
+/// k+1 extension and mappings
 ///
 /// # Extend into k+1
 /// * to_kp1_dbg
@@ -1218,8 +1218,26 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn hint_kp1_from_hint_k(&self, hint_k: &Hint) -> Hint {
-        unimplemented!();
+    pub fn hint_kp1_from_hint_k(&self, hint_k: Hint) -> Hint {
+        Hint::new(
+            hint_k
+                .to_inner()
+                .into_iter()
+                .map(|nodes| {
+                    // 1
+                    let edges: Vec<EdgeIndex> = nodes
+                        .into_iter()
+                        .map(|node_in_hmm| EdgeIndex::new(node_in_hmm.index()))
+                        .collect();
+
+                    self.edge_set_kp1_from_edge_set_k(&edges)
+                        .into_iter()
+                        .map(|e| NodeIndex::new(e.index()))
+                        .take(MAX_ACTIVE_NODES)
+                        .collect::<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>()
+                })
+                .collect(),
+        )
     }
     ///
     /// self and other is the same dbg, ignoring the node index.
@@ -1483,6 +1501,12 @@ impl MultiDbg {
 
         graph
     }
+}
+
+///
+/// Edge purging and mappings
+///
+impl MultiDbg {
     ///
     /// Purge edges whose copy numbers is 0x.
     /// This causes changes of edge index, so mapping is also returned.
@@ -1527,30 +1551,24 @@ impl MultiDbg {
         }
     }
     ///
-    ///
-    ///
-    pub fn purge_and_extend_until(
-        &self,
-        k_max: usize,
-        edges_in_compact_to_purge: &[EdgeIndex],
-        paths: Option<Vec<Path>>,
-        hints: Option<Vec<Hint>>,
-    ) -> (Self, Option<Vec<Path>>, Option<Vec<Hint>>) {
-        unimplemented!();
-    }
     /// Purging and extending at the same time
     /// This function also converts indexes in paths (for genome) and hints (for phmm)
     ///
     pub fn purge_and_extend(
         &self,
         edges_in_compact_to_purge: &[EdgeIndex],
+        _k_max: usize,
         paths: Option<Vec<Path>>,
         hints: Option<Vec<Hint>>,
     ) -> (Self, Option<Vec<Path>>, Option<Vec<Hint>>) {
         // Delete edges from the graph k-DBG and get mappings between edges
         //
         let mut dbg_k = self.clone();
-        let map = dbg_k.purge_edges(&edges_in_compact_to_purge);
+        let m = dbg_k.purge_edges(&edges_in_compact_to_purge);
+        let paths: Option<Vec<Path>> =
+            paths.and_then(|paths| paths.into_iter().map(|path| m.path(&path)).collect());
+        let hints: Option<Vec<Hint>> =
+            hints.map(|hints| hints.into_iter().map(|hint| m.hint(&hint)).collect());
 
         // (2)
         // Extend to k+1-DBG
@@ -1561,87 +1579,23 @@ impl MultiDbg {
         // convert paths and hints
         //
         // (a) paths
-        let paths = match paths {
-            Some(paths_k_compact) => paths_k_compact
+        let paths = paths.map(|paths| {
+            paths
                 .into_iter()
-                .map(|path_k_compact| {
-                    let path_k_full_purged: Option<Path> = self
-                        .to_path_in_full(&path_k_compact)
-                        .into_iter()
-                        .map(|e| map.full(e))
-                        .collect();
-
-                    match path_k_full_purged {
-                        None => None,
-                        Some(path_k_compact_purged) => {
-                            let path_kp1_full =
-                                dbg_kp1.path_kp1_from_path_k(&path_k_compact_purged);
-                            let path_kp1_compact = dbg_kp1.to_path_in_compact(&path_kp1_full);
-                            Some(path_kp1_compact)
-                        }
-                    }
-                })
-                .collect(),
-            None => None,
-        };
-
+                .map(|path| dbg_kp1.path_kp1_from_path_k(&path))
+                .collect()
+        });
         // (b) hints
-        //
-        let hints = match hints {
-            Some(hints) => Some(
-                hints
-                    .into_iter()
-                    .map(|hint_k| {
-                        // hint is Vec<ArrayVec<NodeIndex>>
-                        //
-                        // NodeIndex corresponds to EdgeIndex in k
-                        // 1. index-change caused by purge
-                        //
-                        // 2. index-change caused by extension
-                        //
-                        let vecs = hint_k.to_inner();
-                        Hint::new(
-                            vecs.into_iter()
-                                .map(|vec| {
-                                    // 1
-                                    // nodes in hmm -> edges in purged k dbg
-                                    let edges_in_k: Vec<EdgeIndex> = vec
-                                        .into_iter()
-                                        .filter_map(|node_in_hmm| {
-                                            // map purged
-                                            let edge_in_full = EdgeIndex::new(node_in_hmm.index());
-                                            let edge_in_purged = map.full(edge_in_full);
-                                            edge_in_purged
-                                        })
-                                        .collect();
-
-                                    // 2
-                                    // edges in k -> edges in k+1 -> nodes in hmm
-                                    // into arrayvec by taking top n elements
-                                    dbg_kp1
-                                        .edge_set_kp1_from_edge_set_k(&edges_in_k)
-                                        .into_iter()
-                                        .map(|e| NodeIndex::new(e.index()))
-                                        .take(MAX_ACTIVE_NODES)
-                                        .collect::<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>()
-                                })
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-            ),
-            None => None,
-        };
+        let hints = hints.map(|hints| {
+            hints
+                .into_iter()
+                .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
+                .collect()
+        });
 
         (dbg_kp1, paths, hints)
     }
 }
-
-// TODO
-//
-// pub trait FullEdgeMap {
-//     fn map(&self, edge_in_full: EdgeIndex) -> &[EdgeIndex];
-// }
 
 /// Mapping of edges in full/compact before and after edge-purging.
 ///
@@ -1674,11 +1628,26 @@ impl PurgeEdgeMap {
             .copied()
             .unwrap_or(Some(edge_in_full))
     }
-    pub fn path(&self, path: &[EdgeIndex]) -> Vec<EdgeIndex> {
-        unimplemented!();
+    pub fn path(&self, path_in_full: &[EdgeIndex]) -> Option<Vec<EdgeIndex>> {
+        path_in_full.iter().map(|&e| self.full(e)).collect()
     }
     pub fn hint(&self, hint: &Hint) -> Hint {
-        unimplemented!();
+        Hint::new(
+            hint.inner()
+                .into_iter()
+                .map(|nodes| {
+                    nodes
+                        .into_iter()
+                        .filter_map(|node| {
+                            let edge = EdgeIndex::new(node.index());
+                            self.full(edge)
+                                .map(|edge_after| NodeIndex::new(edge_after.index()))
+                        })
+                        .take(MAX_ACTIVE_NODES)
+                        .collect::<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>()
+                })
+                .collect(),
+        )
     }
 }
 
@@ -1976,6 +1945,7 @@ mod tests {
     }
     #[test]
     fn purge_and_extend_toy() {
+        // extend only once
         // remove an edge
         {
             let mut dbg_k = toy::repeat();
@@ -1989,6 +1959,7 @@ mod tests {
             assert_eq!(dbg_k.genome_size(), 9);
 
             // purge repetitive edges
+            let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(0)])];
             let hints = vec![Hint::from(vec![
                 vec![
                     ni(2), // nTCC -> nnTCC ni(3)
@@ -2003,10 +1974,12 @@ mod tests {
                     ni(9), // CAGG -> CCAGG ni(7)
                 ],
             ])];
+            println!("{:?} {:?}", paths, hints);
             let (dbg_kp1, paths, hints) =
-                dbg_k.purge_and_extend(&[ei(1)], Some(vec![vec![ei(2), ei(0)]]), Some(hints));
+                dbg_k.purge_and_extend(&[ei(1)], 5, Some(paths), Some(hints));
             println!("### k+1");
             dbg_kp1.show_graph_with_kmer();
+            assert_eq!(dbg_kp1.k(), 5);
             assert_eq!(dbg_kp1.n_nodes_full(), 13);
             assert_eq!(dbg_kp1.n_edges_full(), 13);
             assert_eq!(dbg_kp1.n_nodes_compact(), 1);
@@ -2015,7 +1988,7 @@ mod tests {
             assert!(dbg_kp1.is_copy_nums_valid());
             println!("paths={:?}", paths);
             println!("hints={:?}", hints);
-            assert_eq!(paths, Some(vec![vec![ei(0)]]));
+            assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
             assert_eq!(
                 hints,
                 Some(vec![Hint::from(vec![
@@ -2031,7 +2004,7 @@ mod tests {
             let dbg_k = toy::repeat();
             println!("### k");
             dbg_k.show_graph_with_kmer();
-            let paths = vec![vec![ei(2), ei(1), ei(1), ei(1), ei(0)]];
+            let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(1), ei(1), ei(1), ei(0)])];
             let hints = vec![Hint::from(vec![
                 vec![
                     ni(2), // nTCC -> nnTCC ni(3)
@@ -2047,16 +2020,17 @@ mod tests {
                 ],
             ])];
 
-            let (dbg_kp1, paths, hints) = dbg_k.purge_and_extend(&[], Some(paths), Some(hints));
+            let (dbg_kp1, paths, hints) = dbg_k.purge_and_extend(&[], 5, Some(paths), Some(hints));
             println!("### k+1");
             dbg_kp1.show_graph_with_kmer();
+            assert_eq!(dbg_kp1.k(), 5);
             println!("paths={:?}", paths);
             println!("hints={:?}", hints);
             assert!(dbg_kp1.is_copy_nums_valid());
             assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
             assert_eq!(
                 paths,
-                Some(vec![vec![
+                Some(vec![dbg_kp1.to_path_in_full(&[
                     ei(6),
                     ei(1),
                     ei(3),
@@ -2066,7 +2040,7 @@ mod tests {
                     ei(3),
                     ei(0),
                     ei(4)
-                ]])
+                ])])
             );
             assert_eq!(
                 hints,

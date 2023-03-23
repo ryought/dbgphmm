@@ -550,6 +550,7 @@ impl MultiDbg {
     pub fn extend_with_posterior<S: Seq>(
         &self,
         posterior: &Posterior,
+        k_max: usize,
         p0: Prob,
         paths: Option<Vec<Path>>,
         reads: ReadCollection<S>,
@@ -569,11 +570,12 @@ impl MultiDbg {
         // Do purge and extend
         if reads.has_hint() {
             let hints = reads.hints.unwrap();
-            let (dbg_kp1, paths, hints) = self.purge_and_extend(&edges_purge, paths, Some(hints));
+            let (dbg_kp1, paths, hints) =
+                self.purge_and_extend(&edges_purge, k_max, paths, Some(hints));
             let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
             (dbg_kp1, paths, reads)
         } else {
-            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, paths, None);
+            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, k_max, paths, None);
             let reads = ReadCollection::from(reads.reads);
             (dbg_kp1, paths, reads)
         }
