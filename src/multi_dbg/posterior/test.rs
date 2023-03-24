@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn repeat_1k() {
+    fn repeat_1k_posterior() {
         let (genome, genome_size) =
             genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
         let param = PHMMParams::uniform(0.01);
@@ -257,6 +257,32 @@ mod tests {
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         // below is not satisfied in tandem repeat
         // check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
+    }
+
+    #[test]
+    #[ignore]
+    fn repeat_1k_inference() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
+        let param = PHMMParams::uniform(0.01);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,
+            20,
+            500,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
+
+        test_inference(
+            &dataset,
+            20,
+            500,
+            PHMMParams::uniform(0.001),
+            "repeat1k/p0001",
+        );
     }
 
     #[test]
