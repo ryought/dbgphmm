@@ -79,6 +79,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         &self,
         reads: ReadCollection<S>,
         parallel: bool,
+        use_hint: bool,
     ) -> ReadCollection<S> {
         let style = ProgressStyle::with_template(
             "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
@@ -89,10 +90,15 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let hints = if parallel {
             reads
                 .par_iter()
+                .enumerate()
                 .progress_with_style(style)
-                .map(|seq| {
-                    self.run_sparse(seq.as_ref())
-                        .to_hint(self.param.n_active_nodes)
+                .map(|(i, seq)| {
+                    let output = if use_hint {
+                        self.run_with_hint(seq.as_ref(), reads.hint(i))
+                    } else {
+                        self.run_sparse(seq.as_ref())
+                    };
+                    output.to_hint(self.param.n_active_nodes)
                 })
                 .collect()
         } else {
@@ -101,8 +107,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 .enumerate()
                 .map(|(i, seq)| {
                     println!("sparse... #{}", i);
-                    self.run_sparse(seq.as_ref())
-                        .to_hint(self.param.n_active_nodes)
+                    if use_hint {
+                        unimplemented!();
+                    }
+                    let output = self.run_sparse(seq.as_ref());
+                    output.to_hint(self.param.n_active_nodes)
                 })
                 .collect()
         };

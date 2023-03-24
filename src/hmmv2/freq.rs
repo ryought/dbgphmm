@@ -55,6 +55,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let backward = self.backward_sparse(&emissions);
         PHMMOutput::new(forward, backward)
     }
+    ///
+    ///
+    ///
+    pub fn run_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMOutput {
+        let forward = self.forward_with_hint(&emissions, hint);
+        let backward = self.backward_with_hint(&emissions, hint);
+        PHMMOutput::new(forward, backward)
+    }
 }
 
 ///

@@ -602,9 +602,10 @@ impl MultiDbg {
         param: PHMMParams,
         reads: ReadCollection<S>,
         parallel: bool,
+        use_hint: bool,
     ) -> ReadCollection<S> {
         let phmm = self.to_uniform_phmm(param);
-        phmm.append_hints(reads, parallel)
+        phmm.append_hints(reads, parallel, use_hint)
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -721,7 +722,7 @@ pub fn infer_posterior_by_extension<
 
         // (3) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        reads = dbg.generate_hints(param, reads, true);
+        reads = dbg.generate_hints(param, reads, true, true);
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
