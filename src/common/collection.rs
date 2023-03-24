@@ -250,6 +250,36 @@ impl<S: Seq> ReadCollection<S> {
     pub fn hint(&self, i: usize) -> &Hint {
         &self.hints.as_ref().unwrap()[i]
     }
+    ///
+    /// Dump FASTA file of reads
+    ///
+    pub fn to_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let file = std::fs::File::create(path).unwrap();
+        let mut writer = bio::io::fasta::Writer::new(file);
+
+        for (i, r) in self.iter().enumerate() {
+            writer.write(&format!("r{}", i), None, r.as_ref())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ReadCollection<Sequence> {
+    ///
+    /// Load FASTA file
+    ///
+    pub fn from_fasta<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = bio::io::fasta::Reader::new(file);
+
+        let reads: Vec<Vec<u8>> = reader
+            .records()
+            .map(|r| r.unwrap().seq().to_vec())
+            .collect();
+
+        Ok(ReadCollection { reads, hints: None })
+    }
 }
 
 impl<S: Seq> std::ops::Index<usize> for ReadCollection<S> {
@@ -823,5 +853,19 @@ mod tests {
         );
         let aligned = s1.to_aligned_str();
         println!("{}\n{}", aligned[0], aligned[1]);
+    }
+    #[test]
+    fn read_collection_fasta() {
+        let r = ReadCollection {
+            reads: vec![b"ATCGGATC".to_vec(), b"TTTTTTA".to_vec(), b"GCTAG".to_vec()],
+            hints: None,
+        };
+        r.to_fasta("tmp.fa").unwrap();
+        r.show_reads();
+
+        let r2 = ReadCollection::from_fasta("tmp.fa").unwrap();
+        r2.show_reads();
+
+        assert_eq!(r, r2);
     }
 }

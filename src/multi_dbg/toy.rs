@@ -276,17 +276,18 @@ pub fn repeat() -> MultiDbg {
     let v_aan = full.add_node(MultiFullNode::new(false));
     let v_ann = full.add_node(MultiFullNode::new(false));
     // edges
+    // e0-e5
     let e_nnnt = full.add_edge(v_nnn, v_nnt, MultiFullEdge::new(b'T', 1));
     let e_nntc = full.add_edge(v_nnt, v_ntc, MultiFullEdge::new(b'C', 1));
     let e_ntcc = full.add_edge(v_ntc, v_tcc, MultiFullEdge::new(b'C', 1));
     let e_tccc = full.add_edge(v_tcc, v_ccc, MultiFullEdge::new(b'C', 1));
     let e_ccca = full.add_edge(v_ccc, v_cca, MultiFullEdge::new(b'A', 1));
     let e_ccag = full.add_edge(v_cca, v_cag, MultiFullEdge::new(b'G', 1));
-
+    // e6-e8
     let e_cagc = full.add_edge(v_cag, v_agc, MultiFullEdge::new(b'C', 3));
     let e_agca = full.add_edge(v_agc, v_gca, MultiFullEdge::new(b'A', 3));
     let e_gcag = full.add_edge(v_gca, v_cag, MultiFullEdge::new(b'G', 3));
-
+    // e9-e14
     let e_cagg = full.add_edge(v_cag, v_agg, MultiFullEdge::new(b'G', 1));
     let e_agga = full.add_edge(v_agg, v_gga, MultiFullEdge::new(b'A', 1));
     let e_ggaa = full.add_edge(v_gga, v_gaa, MultiFullEdge::new(b'A', 1));
@@ -297,6 +298,113 @@ pub fn repeat() -> MultiDbg {
     let compact = MultiDbg::construct_compact_from_full(&full);
     MultiDbg {
         k: 4,
+        full,
+        compact,
+    }
+}
+
+///
+/// ```text
+/// Linear k=5
+///
+/// `TCCCAGCAGCAGCAGGAA`
+///     -->-->-->-->
+/// ```
+///
+/// ```text
+/// k=4
+///
+///   1x  ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐  1x   3x ┌───┐
+///   ┌───┤Ann◄──┤AAn◄──┤GAA◄──┤GGA◄──┤AGG◄───┐   ┌──►AGC├──┐
+///   │   └───┘  └───┘  └───┘  └───┘  └───┘   │   │  └───┘  │
+/// ┌─▼─┐                                   ┌─┴───┴─┐       │
+/// │nnn│                                   │  CAG  │       │ 3x
+/// └─┬─┘                                   └─▲───▲─┘       │
+///   │   ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐   │   │  ┌───┐  │
+///   └───►nnT├──►nTC├──►TCC├──►CCC├──►CCA├───┘   └──┤GCA◄──┘
+///   1x  └───┘  └───┘  └───┘  └───┘  └───┘  1x   3x └───┘
+///
+///
+///
+/// k=5
+///
+///   1x        1x      1x      1x      1x      1x      1x        3x
+/// Annnn     AAnnn   GAAnn   GGAAn   AGGAA   CAGGA   GCAGG     AGCAG
+///       ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐
+///    ┌──┤Annn◄──┤AAnn◄──┤GAAn◄──┤GGAA◄──┤AGGA◄──┤CAGG◄──┤GCAG◄─────┐
+///    │  └────┘  └────┘  └────┘  └────┘  └────┘  └▲───┘  └───┬┘     │
+/// ┌──▼─┐                                         │          │    ┌─┴──┐
+/// │nnnn│                                    CCAGG│     GCAGC│    │AGCA│
+/// └──┬─┘                                      0x │       2x │    └─▲──┘
+///    │  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌┴───┐  ┌───▼┐     │
+///    └──►nnnT├──►nnTC├──►nTCC├──►TCCC├──►CCCA├──►CCAG├──►CAGC├─────┘
+///       └────┘  └────┘  └────┘  └────┘  └────┘  └────┘  └────┘
+/// nnnnT     nnnTC   nnTCC   nTCCC   TCCCA   CCCAG   CCAGC     CAGCA
+///   1x        1x      1x      1x      1x      1x      1x        3x
+///
+///           e4                                  ┌────┐e0┌────┐
+///    ┌──────────────────────────────────────────┤CAGG◄──┤GCAG◄─────┐
+///    │                                          └▲───┘  └───┬┘     │
+/// ┌──▼─┐                                         │          │      │
+/// │nnnn│                                       e2│        e5│    e3│
+/// └──┬─┘                                         │          │      │
+///    │                                          ┌┴───┐  ┌───▼┐     │
+///    └──────────────────────────────────────────►CCAG├──►CAGC├─────┘
+///           e6                                  └────┘e1└────┘
+/// ```
+///
+pub fn repeat_kp1() -> MultiDbg {
+    let mut full = DiGraph::new();
+    // nodes
+    // first half
+    let v_nnnt = full.add_node(MultiFullNode::new(false));
+    let v_nntc = full.add_node(MultiFullNode::new(false));
+    let v_ntcc = full.add_node(MultiFullNode::new(false));
+    let v_tccc = full.add_node(MultiFullNode::new(false));
+    let v_ccca = full.add_node(MultiFullNode::new(false));
+    //
+    let v_ccag = full.add_node(MultiFullNode::new(false));
+    let v_cagc = full.add_node(MultiFullNode::new(false));
+    let v_agca = full.add_node(MultiFullNode::new(false));
+    let v_gcag = full.add_node(MultiFullNode::new(false));
+    let v_cagg = full.add_node(MultiFullNode::new(false));
+    // last half
+    let v_agga = full.add_node(MultiFullNode::new(false));
+    let v_ggaa = full.add_node(MultiFullNode::new(false));
+    let v_gaan = full.add_node(MultiFullNode::new(false));
+    let v_aann = full.add_node(MultiFullNode::new(false));
+    let v_annn = full.add_node(MultiFullNode::new(false));
+    // terminal
+    let v_nnnn = full.add_node(MultiFullNode::new(true));
+
+    // edges
+    // e0-e1
+    let e_annnn = full.add_edge(v_annn, v_nnnn, MultiFullEdge::new(b'n', 1));
+    let e_nnnnt = full.add_edge(v_nnnn, v_nnnt, MultiFullEdge::new(b'T', 1));
+    // e2-e6
+    let e_nnntc = full.add_edge(v_nnnt, v_nntc, MultiFullEdge::new(b'C', 1));
+    let e_nntcc = full.add_edge(v_nntc, v_ntcc, MultiFullEdge::new(b'C', 1));
+    let e_ntccc = full.add_edge(v_ntcc, v_tccc, MultiFullEdge::new(b'C', 1));
+    let e_tccca = full.add_edge(v_tccc, v_ccca, MultiFullEdge::new(b'A', 1));
+    let e_cccag = full.add_edge(v_ccca, v_ccag, MultiFullEdge::new(b'G', 1));
+    // e7-e10
+    let e_gcagg = full.add_edge(v_gcag, v_cagg, MultiFullEdge::new(b'G', 1));
+    let e_gcagc = full.add_edge(v_gcag, v_cagc, MultiFullEdge::new(b'C', 2));
+    let e_ccagg = full.add_edge(v_ccag, v_cagg, MultiFullEdge::new(b'G', 0));
+    let e_ccagc = full.add_edge(v_ccag, v_cagc, MultiFullEdge::new(b'C', 1));
+    // e11-e12
+    let e_cagca = full.add_edge(v_cagc, v_agca, MultiFullEdge::new(b'A', 3));
+    let e_agcag = full.add_edge(v_agca, v_gcag, MultiFullEdge::new(b'G', 3));
+    // e13-e17
+    let e_cagga = full.add_edge(v_cagg, v_agga, MultiFullEdge::new(b'A', 1));
+    let e_aggaa = full.add_edge(v_agga, v_ggaa, MultiFullEdge::new(b'A', 1));
+    let e_ggaan = full.add_edge(v_ggaa, v_gaan, MultiFullEdge::new(b'n', 1));
+    let e_gaann = full.add_edge(v_gaan, v_aann, MultiFullEdge::new(b'n', 1));
+    let e_aannn = full.add_edge(v_aann, v_annn, MultiFullEdge::new(b'n', 1));
+
+    let compact = MultiDbg::construct_compact_from_full(&full);
+    MultiDbg {
+        k: 5,
         full,
         compact,
     }

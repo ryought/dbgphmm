@@ -1,7 +1,7 @@
 //!
 //! table structure for storing transition/edge usages
 //!
-use super::tablev2::MAX_ACTIVE_NODES;
+use super::table::MAX_ACTIVE_NODES;
 use crate::common::Freq;
 use crate::prob::Prob;
 use petgraph::graph::{EdgeIndex, NodeIndex};

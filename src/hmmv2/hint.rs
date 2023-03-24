@@ -2,9 +2,10 @@
 //! Hint information
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::tablev2::{PHMMOutput, MAX_ACTIVE_NODES};
+use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use arrayvec::ArrayVec;
+use indicatif::{ParallelProgressIterator, ProgressStyle};
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -29,11 +30,20 @@ impl Hint {
             v.into_iter()
                 .map(|nodes| {
                     let mut vec = ArrayVec::new();
+                    // TODO
                     vec.try_extend_from_slice(&nodes).unwrap();
                     vec
                 })
                 .collect(),
         )
+    }
+    ///
+    pub fn to_inner(self) -> Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>> {
+        self.0
+    }
+    ///
+    pub fn inner(&self) -> &[ArrayVec<NodeIndex, MAX_ACTIVE_NODES>] {
+        &self.0
     }
     /// Get candidate nodes of `emissions[index]`
     ///
@@ -65,19 +75,46 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Append hint information
     ///
-    /// # Todos
-    ///
-    /// * make parallel by `into_par_iter`
-    ///
-    pub fn append_hints<S: Seq>(&self, reads: ReadCollection<S>) -> ReadCollection<S> {
-        let hints = reads
-            .into_iter()
-            .map(|seq| {
-                self.run_sparse(seq.as_ref())
-                    .to_hint(self.param.n_active_nodes)
-            })
-            .collect();
+    pub fn append_hints<S: Seq>(
+        &self,
+        reads: ReadCollection<S>,
+        parallel: bool,
+        use_hint: bool,
+    ) -> ReadCollection<S> {
+        let style = ProgressStyle::with_template(
+            "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+        )
+        .unwrap()
+        .progress_chars("##-");
 
+        let hints = if parallel {
+            reads
+                .par_iter()
+                .enumerate()
+                .progress_with_style(style)
+                .map(|(i, seq)| {
+                    let output = if use_hint {
+                        self.run_with_hint(seq.as_ref(), reads.hint(i))
+                    } else {
+                        self.run_sparse(seq.as_ref())
+                    };
+                    output.to_hint(self.param.n_active_nodes)
+                })
+                .collect()
+        } else {
+            reads
+                .into_iter()
+                .enumerate()
+                .map(|(i, seq)| {
+                    println!("sparse... #{}", i);
+                    if use_hint {
+                        unimplemented!();
+                    }
+                    let output = self.run_sparse(seq.as_ref());
+                    output.to_hint(self.param.n_active_nodes)
+                })
+                .collect()
+        };
         ReadCollection::from_with_hint(reads.reads, hints)
     }
 }

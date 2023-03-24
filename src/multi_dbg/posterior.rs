@@ -1,7 +1,7 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{CopyNums, MultiDbg};
+use super::{CopyNums, MultiDbg, Path};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -9,8 +9,12 @@ use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::timer;
+use fnv::FnvHashMap as HashMap;
+use indicatif::{ParallelProgressIterator, ProgressStyle};
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
+use rayon::prelude::*;
+use rustflow::min_flow::residue::{ResidueDirection, UpdateInfo};
 
 pub mod test;
 
@@ -25,11 +29,21 @@ pub struct Posterior {
     ///
     /// Collection of sampled copy nums and its score
     ///
-    samples: Vec<(CopyNums, Score)>,
+    samples: Vec<PosteriorSample>,
     ///
     /// Total probability of sampled copy numbers
     ///
     p: Prob,
+}
+
+///
+///
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct PosteriorSample {
+    pub copy_nums: CopyNums,
+    pub score: Score,
+    pub infos: Vec<UpdateInfo>,
 }
 
 impl Posterior {
@@ -45,9 +59,9 @@ impl Posterior {
     ///
     /// Add a sampled copy numbers and its score
     ///
-    pub fn add(&mut self, copy_nums: CopyNums, score: Score) {
-        self.samples.push((copy_nums, score));
-        self.p += score.p();
+    pub fn add(&mut self, sample: PosteriorSample) {
+        self.p += sample.score.p();
+        self.samples.push(sample);
     }
     ///
     /// Check if the copy numbers is stored in the posterior or not
@@ -58,26 +72,31 @@ impl Posterior {
     ///
     ///
     ///
-    pub fn find(&self, copy_nums: &CopyNums) -> Option<&(CopyNums, Score)> {
+    pub fn find(&self, copy_nums: &CopyNums) -> Option<&PosteriorSample> {
         self.samples
             .iter()
-            .find(|(copy_nums_in, _)| copy_nums_in == copy_nums)
+            .find(|sample| &sample.copy_nums == copy_nums)
+    }
+    ///
+    /// Get the best posterior sample with highest score.
+    ///
+    pub fn max_sample(&self) -> &PosteriorSample {
+        self.samples
+            .iter()
+            .max_by_key(|sample| sample.score.p())
+            .unwrap()
     }
     ///
     /// Get the best copy numbers with highest score.
     ///
     pub fn max_copy_nums(&self) -> &CopyNums {
-        let (copy_nums, _score) = self
-            .samples
-            .iter()
-            .max_by_key(|(_copy_nums, score)| score.p())
-            .unwrap();
-        copy_nums
+        let sample = self.max_sample();
+        &sample.copy_nums
     }
     ///
     ///
     ///
-    pub fn samples(&self) -> &[(CopyNums, Score)] {
+    pub fn samples(&self) -> &[PosteriorSample] {
         &self.samples
     }
     ///
@@ -101,7 +120,7 @@ impl Posterior {
         let copy_nums_with_prob: Vec<_> = self
             .samples
             .iter()
-            .map(|(copy_nums, score)| (copy_nums[edge], score.p() / self.p()))
+            .map(|sample| (sample.copy_nums[edge], sample.score.p() / self.p()))
             .collect();
         DiscreteDistribution::from_occurs(&copy_nums_with_prob)
     }
@@ -112,7 +131,7 @@ impl Posterior {
 ///
 /// ```text
 /// Z   -19281.0228
-/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00
+/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00 e1+e2-e3+,e1+e2-
 /// C   -191882.0    [1,2,0,0,1,2,2,1]   likelihood=0.01
 /// ```
 ///
@@ -122,18 +141,26 @@ impl Posterior {
     ///
     pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writeln!(writer, "Z\t{}", self.p.to_log_value())?;
-        for (copy_nums, score) in self
+        for sample in self
             .samples
             .iter()
-            .sorted_by_key(|(_, score)| score.p())
+            .sorted_by_key(|sample| sample.score.p())
             .rev()
         {
             writeln!(
                 writer,
-                "C\t{}\t{}\t{}",
-                score.p().to_log_value(),
-                copy_nums,
-                score,
+                "C\t{}\t{}\t{}\t[{}]",
+                sample.score.p().to_log_value(),
+                sample.copy_nums,
+                sample.score,
+                sample
+                    .infos
+                    .iter()
+                    .map(|info| info
+                        .iter()
+                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+                        .join(""))
+                    .join(",")
             )?
         }
         Ok(())
@@ -170,9 +197,33 @@ impl Posterior {
                     iter.next().unwrap(); // value
                     let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
                     let score: Score = iter.next().unwrap().parse().unwrap();
-
-                    samples.push((copy_nums, score));
+                    let infos: Vec<UpdateInfo> = iter
+                        .next()
+                        .unwrap()
+                        .trim_start_matches('[')
+                        .trim_end_matches(']')
+                        .split_terminator(',')
+                        .map(|s| {
+                            let mut info = Vec::new();
+                            for x in s.split_inclusive(&['+', '-']) {
+                                let index: usize = x
+                                    .trim_start_matches('e')
+                                    .trim_end_matches(&['+', '-'])
+                                    .parse()
+                                    .unwrap();
+                                let dir: ResidueDirection =
+                                    x.rmatches(&['+', '-']).next().unwrap().parse().unwrap();
+                                info.push((EdgeIndex::new(index), dir));
+                            }
+                            info
+                        })
+                        .collect();
                     p += score.p();
+                    samples.push(PosteriorSample {
+                        copy_nums,
+                        score,
+                        infos,
+                    });
                 }
                 _ => {} // ignore
             }
@@ -191,6 +242,98 @@ impl Posterior {
         let file = std::fs::File::open(path).unwrap();
         let reader = std::io::BufReader::new(file);
         Self::from_reader(reader)
+    }
+}
+
+///
+/// benchmark functions for when true genome is available
+///
+impl MultiDbg {
+    ///
+    /// Everytime
+    /// * posterior probability (normalized)
+    /// * likelihood (log)
+    /// * prior (log)
+    /// * genome size
+    ///
+    /// Only if genome is known
+    /// * diff of copynums from true
+    ///
+    pub fn to_inspect_writer<W: std::io::Write>(
+        &self,
+        mut writer: W,
+        posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
+    ) -> std::io::Result<()> {
+        // for each copy nums
+        for (i, sample) in posterior
+            .samples
+            .iter()
+            .sorted_by_key(|sample| sample.score.p())
+            .rev()
+            .enumerate()
+        {
+            let score = &sample.score;
+            let copy_nums = &sample.copy_nums;
+            writeln!(
+                writer,
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}",
+                self.k(),
+                i,
+                (score.p() / posterior.p()).to_value(),
+                score.likelihood.to_log_value(),
+                score.prior.to_log_value(),
+                score.genome_size,
+                copy_nums_true
+                    .map(|copy_nums_true| copy_nums_true.diff(copy_nums))
+                    .unwrap_or(0),
+                copy_nums,
+            )?
+        }
+
+        // for each edges
+        for edge in self.graph_compact().edge_indices() {
+            let p_edge = posterior.p_edge(edge);
+            let copy_num_true = copy_nums_true
+                .map(|copy_num_true| copy_num_true[edge])
+                .unwrap_or(0);
+            writeln!(
+                writer,
+                "{}\tE\te{}\t{}\t{:.5}\t{:.5}\t{:.5}\t{}",
+                self.k(),
+                edge.index(),
+                copy_num_true,
+                p_edge.mean(),
+                p_edge.p_x(copy_num_true).to_value(),
+                p_edge.p_x(0).to_value(),
+                p_edge.to_short_string(),
+            )?
+        }
+
+        Ok(())
+    }
+    ///
+    ///
+    pub fn to_inspect_string(
+        &self,
+        posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
+    ) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_inspect_writer(&mut writer, posterior, copy_nums_true)
+            .unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    ///
+    pub fn to_inspect_file<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_inspect_writer(&mut file, posterior, copy_nums_true)
     }
 }
 
@@ -365,34 +508,81 @@ impl MultiDbg {
         max_cycle_size: usize,
         max_flip: usize,
         max_iter: usize,
+        is_parallel: bool,
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
+        let mut infos = Vec::new();
         let mut dbg = self.clone();
         let mut n_iter = 0;
 
         while n_iter < max_iter {
-            eprintln!("iter #{}", n_iter);
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
-            for (copy_nums, _info) in dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
-            {
-                if !post.contains(&copy_nums) {
-                    // evaluate score
-                    dbg.set_copy_nums(&copy_nums);
-                    let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
-                    post.add(copy_nums, score);
+            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip);
+            eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
+
+            // evaluate all neighbors
+            if is_parallel {
+                let style = ProgressStyle::with_template(
+                    "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+                )
+                .unwrap()
+                .progress_chars("##-");
+
+                let samples: Vec<_> = neighbor_copy_nums
+                    .into_par_iter()
+                    .progress_with_style(style)
+                    .filter_map(|(copy_nums, info)| {
+                        if post.contains(&copy_nums) {
+                            None
+                        } else {
+                            // evaluate score
+                            let mut dbg = self.clone();
+                            dbg.set_copy_nums(&copy_nums);
+                            let score =
+                                dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                            let mut infos = infos.clone();
+                            infos.push(info);
+                            Some(PosteriorSample {
+                                copy_nums,
+                                score,
+                                infos,
+                            })
+                        }
+                    })
+                    .collect();
+                for sample in samples {
+                    post.add(sample);
+                }
+            } else {
+                for (i, (copy_nums, info)) in neighbor_copy_nums.into_iter().enumerate() {
+                    eprintln!("iter#{} neighbor#{}", n_iter, i);
+                    if !post.contains(&copy_nums) {
+                        // evaluate score
+                        dbg.set_copy_nums(&copy_nums);
+                        let score =
+                            dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                        let mut infos = infos.clone();
+                        infos.push(info);
+                        post.add(PosteriorSample {
+                            copy_nums,
+                            score,
+                            infos,
+                        });
+                    }
                 }
             }
 
             // move to highest copy num and continue
             // if self is highest, terminate
-            let next_copy_nums = post.max_copy_nums().clone();
-            if next_copy_nums == copy_nums {
+            let sample = post.max_sample();
+            if sample.copy_nums == copy_nums {
                 break;
             } else {
-                copy_nums = next_copy_nums;
+                copy_nums = sample.copy_nums.clone();
+                infos = sample.infos.clone();
                 n_iter += 1;
             }
         }
@@ -400,35 +590,151 @@ impl MultiDbg {
         post
     }
     ///
+    /// Append hint information for reads in parallel
     ///
+    /// # Procedure
     ///
-    pub fn sample_posterior_with_dataset(
+    /// 1. Convert MultiDbg into PHMM with uniform transition probability
+    /// 2. Run forward/backward on the PHMM and obtain node freqs of each read
+    ///
+    pub fn generate_hints<S: Seq>(
         &self,
-        dataset: &Dataset,
         param: PHMMParams,
-        sigma: usize,
-        max_cycle_size: usize,
-        max_flip: usize,
-        max_iter: usize,
-    ) -> Posterior {
-        self.sample_posterior(
+        reads: ReadCollection<S>,
+        parallel: bool,
+        use_hint: bool,
+    ) -> ReadCollection<S> {
+        let phmm = self.to_uniform_phmm(param);
+        phmm.append_hints(reads, parallel, use_hint)
+    }
+    /// Extend to k+1 by sampled posterior distribution
+    ///
+    /// 1. Purge edges by posterior
+    /// 2. Extend Dbg into k+1
+    /// 3. Convert Hints and Path for k+1 if necessary
+    ///
+    /// # Arguments
+    ///
+    /// * `posterior`: sampled posterior distribution
+    /// * `p0`: remove edge `e` if `P(X(e)=0|R) > p0`
+    /// * `paths` (optional)
+    /// * `reads` (optional)
+    ///
+    pub fn purge_and_extend_with_posterior<S: Seq>(
+        &self,
+        posterior: &Posterior,
+        k_max: usize,
+        p0: Prob,
+        paths: Option<Vec<Path>>,
+        reads: ReadCollection<S>,
+    ) -> (Self, Option<Vec<Path>>, ReadCollection<S>) {
+        // (0)
+        // Set copy number to the most probable one
+        let mut dbg = self.clone();
+        dbg.set_copy_nums(posterior.max_copy_nums());
+        // (1)
+        // Find edges to be purged according to posterior distribution
+        // List edges whose current copynum is 0 and posterior probability P(X=0) is high
+        //
+        let mut edges_purge = Vec::new();
+        for edge in dbg.graph_compact().edge_indices() {
+            if posterior.p_edge_x(edge, 0) > p0 && dbg.copy_num_of_edge_in_compact(edge) == 0 {
+                edges_purge.push(edge);
+            }
+        }
+
+        // (2)
+        // Do purge and extend
+        if reads.has_hint() {
+            let hints = reads.hints.unwrap();
+            let (dbg, paths, hints) =
+                dbg.purge_and_extend(&edges_purge, k_max, true, paths, Some(hints));
+            let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
+            (dbg, paths, reads)
+        } else {
+            let (dbg, paths, _) = dbg.purge_and_extend(&edges_purge, k_max, true, paths, None);
+            let reads = ReadCollection::from(reads.reads);
+            (dbg, paths, reads)
+        }
+    }
+}
+
+///
+/// Get posterior distribution of DBG of k_max
+///
+/// 1. posterior for current k-DBG
+/// 2. purge 0x edges
+/// 3. extend to k+1
+///
+pub fn infer_posterior_by_extension<
+    S: Seq,
+    F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &ReadCollection<S>),
+>(
+    k_max: usize,
+    dbg_init: MultiDbg,
+    // evaluate
+    param: PHMMParams,
+    reads: ReadCollection<S>,
+    genome_size_expected: CopyNum,
+    genome_size_sigma: CopyNum,
+    // neighbor
+    max_cycle_size: usize,
+    max_flip: usize,
+    max_iter: usize,
+    // extend
+    p0: Prob,
+    // callback
+    on_iter: F,
+    // true path if available
+    paths: Option<Vec<Path>>,
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, ReadCollection<S>) {
+    let mut dbg = dbg_init;
+    let mut reads = reads;
+    let mut paths = paths;
+    let mut posterior;
+
+    loop {
+        eprintln!("k={}", dbg.k());
+
+        // (1) posterior
+        let t_start_posterior = std::time::Instant::now();
+        posterior = dbg.sample_posterior(
             param,
-            dataset.reads(),
-            dataset.genome_size(),
-            sigma,
+            &reads,
+            genome_size_expected,
+            genome_size_sigma,
             max_cycle_size,
             max_flip,
             max_iter,
-        )
+            true,
+        );
+        dbg.set_copy_nums(posterior.max_copy_nums());
+        let t_posterior = t_start_posterior.elapsed();
+        eprintln!("posterior t={}ms", t_posterior.as_millis());
+
+        // (2) run callback
+        on_iter(&dbg, &posterior, &paths, &reads);
+
+        if dbg.k() >= k_max {
+            // dbg does not need extension
+            break;
+        }
+
+        // (3) update hints before extending
+        let t_start_hint = std::time::Instant::now();
+        reads = dbg.generate_hints(param, reads, true, true);
+        let t_hint = t_start_hint.elapsed();
+        eprintln!("hint t={}ms", t_hint.as_millis());
+
+        // (4) extend
+        let t_start_extend = std::time::Instant::now();
+        (dbg, paths, reads) =
+            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, reads);
+        let t_extend = t_start_extend.elapsed();
+        eprintln!("extend t={}ms", t_extend.as_millis());
     }
-    /// Extend to k+1 by posterior
-    ///
-    /// * Perform posterior sampling
-    /// * Purge edges by posterior
-    /// * Extend Dbg into k+1
-    /// * Update Hints and Path
-    ///
-    pub fn extend_by_posterior(posterior: &Posterior) {}
+
+    (dbg, posterior, paths, reads)
 }
 
 //
@@ -438,29 +744,41 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ei;
     use crate::prob::p;
 
     #[test]
     fn posterior_dump_load() {
         let mut post = Posterior::new();
-        post.add(
-            vec![1, 1, 2, 2, 0].into(),
-            Score {
+        post.add(PosteriorSample {
+            copy_nums: vec![1, 1, 2, 2, 0].into(),
+            score: Score {
                 likelihood: p(0.6),
                 prior: p(0.3),
                 time: 10,
                 genome_size: 101,
             },
-        );
-        post.add(
-            vec![1, 1, 1, 2, 1].into(),
-            Score {
+            infos: vec![
+                vec![
+                    (ei(0), ResidueDirection::Up),
+                    (ei(121), ResidueDirection::Down),
+                ],
+                vec![
+                    (ei(3), ResidueDirection::Down),
+                    (ei(1), ResidueDirection::Up),
+                ],
+            ],
+        });
+        post.add(PosteriorSample {
+            copy_nums: vec![1, 1, 1, 2, 1].into(),
+            score: Score {
                 likelihood: p(0.003),
                 prior: p(0.2),
                 time: 11,
                 genome_size: 99,
             },
-        );
+            infos: Vec::new(),
+        });
         let s = post.to_string();
         println!("{}", s);
 

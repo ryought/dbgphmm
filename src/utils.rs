@@ -90,6 +90,13 @@ pub fn check_memory_usage() {
     eprintln!("[memory] {} / {}", allocated, resident);
 }
 
+///
+/// get dbgphmm/resources directory
+///
+pub fn resource_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources")
+}
+
 //
 // tests
 //
