@@ -593,7 +593,10 @@ impl MultiDbg {
 /// 2. purge 0x edges
 /// 3. extend to k+1
 ///
-pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Vec<Path>>)>(
+pub fn infer_posterior_by_extension<
+    S: Seq,
+    F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &ReadCollection<S>),
+>(
     k_max: usize,
     dbg_init: MultiDbg,
     // evaluate
@@ -608,7 +611,7 @@ pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Ve
     // extend
     p0: Prob,
     // callback
-    on_extend: F,
+    on_iter: F,
     // true path if available
     paths: Option<Vec<Path>>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, ReadCollection<S>) {
@@ -618,6 +621,10 @@ pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Ve
     let mut posterior;
 
     loop {
+        eprintln!("k={}", dbg.k());
+
+        // (1) posterior
+        let t_start_posterior = std::time::Instant::now();
         posterior = dbg.sample_posterior(
             param,
             &reads,
@@ -628,14 +635,30 @@ pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Ve
             max_iter,
             true,
         );
+        dbg.set_copy_nums(posterior.max_copy_nums());
+        let t_posterior = t_start_posterior.elapsed();
+        eprintln!("posterior t={}ms", t_posterior.as_millis());
+
+        // (2) run callback
+        on_iter(&dbg, &posterior, &paths, &reads);
 
         if dbg.k() >= k_max {
             // dbg does not need extension
             break;
         }
 
+        // (3) update hints before extending
+        let t_start_hint = std::time::Instant::now();
+        reads = dbg.generate_hints(param, reads, true);
+        let t_hint = t_start_hint.elapsed();
+        eprintln!("hint t={}ms", t_hint.as_millis());
+
+        // (4) extend
+        let t_start_extend = std::time::Instant::now();
         (dbg, paths, reads) =
             dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, reads);
+        let t_extend = t_start_extend.elapsed();
+        eprintln!("extend t={}ms", t_extend.as_millis());
     }
 
     (dbg, posterior, paths, reads)

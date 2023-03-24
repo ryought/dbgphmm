@@ -2,10 +2,10 @@
 //! Test of posterior sampling
 //!
 use super::super::{CopyNums, MultiDbg};
-use super::Posterior;
+use super::{infer_posterior_by_extension, Posterior};
 use crate::e2e::Dataset;
 use crate::hmmv2::params::PHMMParams;
-use crate::prob::Prob;
+use crate::prob::{p, Prob};
 use crate::utils::timer;
 
 ///
@@ -70,9 +70,26 @@ fn test_inference(
 ) {
     println!("# started_at={}", chrono::Local::now());
 
-    let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
-    let paths_true = mdbg.paths_from_styled_seqs(dataset.genome()).unwrap();
-    let reads = mdbg.generate_hints(param_infer, dataset.reads().clone(), true);
+    let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
+    let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
+    let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true);
+
+    infer_posterior_by_extension(
+        k_final,
+        dbg,
+        param_infer,
+        reads,
+        dataset.genome_size(),
+        200,
+        10,
+        1,
+        10,
+        p(0.8),
+        |dbg, _, _, _| {
+            println!("callback k={} n_edges={}", dbg.k(), dbg.n_edges_full());
+        },
+        paths_true.ok(),
+    );
 
     println!("# finished_at={}", chrono::Local::now());
 }
@@ -151,7 +168,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn simple_diploid() {
+    fn simple_diploid_posterior() {
         let (genome, genome_size) = genome::diploid(1000, 0, 0.01, 0);
         let param = PHMMParams::uniform(0.005);
         let dataset = generate_dataset(
@@ -171,6 +188,25 @@ mod tests {
             test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "sdip.gfa", true);
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
+    }
+
+    #[test]
+    #[ignore]
+    fn simple_diploid_inference() {
+        let (genome, genome_size) = genome::diploid(1000, 0, 0.01, 0);
+        let param = PHMMParams::uniform(0.005);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,
+            20,
+            500,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
+
+        test_inference(&dataset, 20, 100, PHMMParams::uniform(0.001), "sdip.gfa");
     }
 
     #[test]

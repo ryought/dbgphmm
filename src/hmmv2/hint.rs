@@ -75,10 +75,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Append hint information
     ///
-    /// # Todos
-    ///
-    /// * make parallel by `into_par_iter`
-    ///
     pub fn append_hints<S: Seq>(
         &self,
         reads: ReadCollection<S>,
