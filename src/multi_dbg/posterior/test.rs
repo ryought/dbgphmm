@@ -225,7 +225,7 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        test_inference(&dataset, 20, 100, PHMMParams::uniform(0.001), "sdip/sdip");
+        test_inference(&dataset, 20, 100, PHMMParams::uniform(0.001), "sdip/p0001");
     }
 
     #[test]
