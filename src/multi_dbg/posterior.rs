@@ -29,11 +29,11 @@ pub struct Posterior {
     ///
     /// Collection of sampled copy nums and its score
     ///
-    samples: Vec<PosteriorSample>,
+    pub samples: Vec<PosteriorSample>,
     ///
     /// Total probability of sampled copy numbers
     ///
-    p: Prob,
+    pub p: Prob,
 }
 
 ///
@@ -347,26 +347,26 @@ pub struct Score {
     ///
     /// Likelihood `P(R|G)`
     ///
-    likelihood: Prob,
+    pub likelihood: Prob,
     ///
     /// Prior `P(G)`
     ///
-    prior: Prob,
+    pub prior: Prob,
     ///
     /// Genome size `|G|`
     ///
-    genome_size: CopyNum,
+    pub genome_size: CopyNum,
     ///
     /// Computation time of likelihood
     ///
-    time: u128,
+    pub time: u128,
 }
 
 impl Score {
     ///
     /// Calculate total probability `P(R|G)P(G)`
     ///
-    fn p(&self) -> Prob {
+    pub fn p(&self) -> Prob {
         self.likelihood * self.prior
     }
 }
