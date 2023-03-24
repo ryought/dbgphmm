@@ -286,6 +286,32 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn repeat_u200_inference() {
+        let (genome, genome_size) =
+            genome::tandem_repeat_polyploid_with_unique_homo_ends(200, 10, 0, 200, 2, 0.01, 0);
+        let param = PHMMParams::uniform(0.01);
+        let dataset = generate_dataset(
+            genome.clone(),
+            genome_size,
+            0,
+            20,
+            500,
+            ReadType::FragmentWithRevComp,
+            param,
+        );
+        dataset.show_reads_with_genome();
+
+        test_inference(
+            &dataset,
+            20,
+            500,
+            PHMMParams::uniform(0.001),
+            "repeat_u200/p0001",
+        );
+    }
+
+    #[test]
     fn hint_for_toy() {
         let mdbg = toy::repeat();
         mdbg.show_graph_with_kmer();
