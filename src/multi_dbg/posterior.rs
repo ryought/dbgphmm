@@ -547,7 +547,7 @@ impl MultiDbg {
     /// * `paths` (optional)
     /// * `reads` (optional)
     ///
-    pub fn extend_with_posterior<S: Seq>(
+    pub fn purge_and_extend_with_posterior<S: Seq>(
         &self,
         posterior: &Posterior,
         k_max: usize,
@@ -555,13 +555,17 @@ impl MultiDbg {
         paths: Option<Vec<Path>>,
         reads: ReadCollection<S>,
     ) -> (Self, Option<Vec<Path>>, ReadCollection<S>) {
+        // (0)
+        // Set copy number to the most probable one
+        let mut dbg = self.clone();
+        dbg.set_copy_nums(posterior.max_copy_nums());
         // (1)
         // Find edges to be purged according to posterior distribution
         // List edges whose current copynum is 0 and posterior probability P(X=0) is high
         //
         let mut edges_purge = Vec::new();
-        for edge in self.graph_compact().edge_indices() {
-            if posterior.p_edge_x(edge, 0) > p0 && self.copy_num_of_edge_in_compact(edge) == 0 {
+        for edge in dbg.graph_compact().edge_indices() {
+            if posterior.p_edge_x(edge, 0) > p0 && dbg.copy_num_of_edge_in_compact(edge) == 0 {
                 edges_purge.push(edge);
             }
         }
@@ -570,14 +574,14 @@ impl MultiDbg {
         // Do purge and extend
         if reads.has_hint() {
             let hints = reads.hints.unwrap();
-            let (dbg_kp1, paths, hints) =
-                self.purge_and_extend(&edges_purge, k_max, true, paths, Some(hints));
+            let (dbg, paths, hints) =
+                dbg.purge_and_extend(&edges_purge, k_max, true, paths, Some(hints));
             let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
-            (dbg_kp1, paths, reads)
+            (dbg, paths, reads)
         } else {
-            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, k_max, true, paths, None);
+            let (dbg, paths, _) = dbg.purge_and_extend(&edges_purge, k_max, true, paths, None);
             let reads = ReadCollection::from(reads.reads);
-            (dbg_kp1, paths, reads)
+            (dbg, paths, reads)
         }
     }
 }
@@ -607,13 +611,12 @@ pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Ve
     on_extend: F,
     // true path if available
     paths: Option<Vec<Path>>,
-) -> (MultiDbg, Posterior, Option<Vec<Path>>) {
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, ReadCollection<S>) {
     let mut dbg = dbg_init;
     let mut reads = reads;
     let mut paths = paths;
-
-    /*
     let mut posterior;
+
     loop {
         posterior = dbg.sample_posterior(
             param,
@@ -626,19 +629,16 @@ pub fn infer_posterior_by_extension<S: Seq, F: Fn(MultiDbg, Posterior, Option<Ve
             true,
         );
 
-        while dbg.k() < k_final {
-            // ignore if unneccessary
-            let is_ambiguous = dbg.n_ambiguous_node() > 0;
-            (dbg, paths, reads) = dbg.extend_with_posterior(&posterior, p0, paths, reads);
-            if is_ambiguous {
-                break;
-            }
+        if dbg.k() >= k_max {
+            // dbg does not need extension
+            break;
         }
-    }
-    (dbg, posterior, paths)
-    */
 
-    unimplemented!();
+        (dbg, paths, reads) =
+            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, reads);
+    }
+
+    (dbg, posterior, paths, reads)
 }
 
 //
