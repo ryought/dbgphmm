@@ -8,6 +8,9 @@ edition = "2018"
 name = "dbgphmm"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+python = []
+
 [dev-dependencies]
 test-case = "1.2.3"
 
