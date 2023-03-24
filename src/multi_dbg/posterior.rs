@@ -28,11 +28,20 @@ pub struct Posterior {
     ///
     /// Collection of sampled copy nums and its score
     ///
-    samples: Vec<(CopyNums, Score)>,
+    samples: Vec<PosteriorSample>,
     ///
     /// Total probability of sampled copy numbers
     ///
     p: Prob,
+}
+
+///
+///
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct PosteriorSample {
+    pub copy_nums: CopyNums,
+    pub score: Score,
 }
 
 impl Posterior {
@@ -49,7 +58,7 @@ impl Posterior {
     /// Add a sampled copy numbers and its score
     ///
     pub fn add(&mut self, copy_nums: CopyNums, score: Score) {
-        self.samples.push((copy_nums, score));
+        self.samples.push(PosteriorSample { copy_nums, score });
         self.p += score.p();
     }
     ///
@@ -61,26 +70,26 @@ impl Posterior {
     ///
     ///
     ///
-    pub fn find(&self, copy_nums: &CopyNums) -> Option<&(CopyNums, Score)> {
+    pub fn find(&self, copy_nums: &CopyNums) -> Option<&PosteriorSample> {
         self.samples
             .iter()
-            .find(|(copy_nums_in, _)| copy_nums_in == copy_nums)
+            .find(|sample| &sample.copy_nums == copy_nums)
     }
     ///
     /// Get the best copy numbers with highest score.
     ///
     pub fn max_copy_nums(&self) -> &CopyNums {
-        let (copy_nums, _score) = self
+        let sample = self
             .samples
             .iter()
-            .max_by_key(|(_copy_nums, score)| score.p())
+            .max_by_key(|sample| sample.score.p())
             .unwrap();
-        copy_nums
+        &sample.copy_nums
     }
     ///
     ///
     ///
-    pub fn samples(&self) -> &[(CopyNums, Score)] {
+    pub fn samples(&self) -> &[PosteriorSample] {
         &self.samples
     }
     ///
@@ -104,7 +113,7 @@ impl Posterior {
         let copy_nums_with_prob: Vec<_> = self
             .samples
             .iter()
-            .map(|(copy_nums, score)| (copy_nums[edge], score.p() / self.p()))
+            .map(|sample| (sample.copy_nums[edge], sample.score.p() / self.p()))
             .collect();
         DiscreteDistribution::from_occurs(&copy_nums_with_prob)
     }
@@ -125,18 +134,18 @@ impl Posterior {
     ///
     pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writeln!(writer, "Z\t{}", self.p.to_log_value())?;
-        for (copy_nums, score) in self
+        for sample in self
             .samples
             .iter()
-            .sorted_by_key(|(_, score)| score.p())
+            .sorted_by_key(|sample| sample.score.p())
             .rev()
         {
             writeln!(
                 writer,
                 "C\t{}\t{}\t{}",
-                score.p().to_log_value(),
-                copy_nums,
-                score,
+                sample.score.p().to_log_value(),
+                sample.copy_nums,
+                sample.score,
             )?
         }
         Ok(())
@@ -174,7 +183,7 @@ impl Posterior {
                     let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
                     let score: Score = iter.next().unwrap().parse().unwrap();
 
-                    samples.push((copy_nums, score));
+                    samples.push(PosteriorSample { copy_nums, score });
                     p += score.p();
                 }
                 _ => {} // ignore
@@ -218,13 +227,15 @@ impl MultiDbg {
         copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         // for each copy nums
-        for (i, (copy_nums, score)) in posterior
+        for (i, sample) in posterior
             .samples
             .iter()
-            .sorted_by_key(|(_, score)| score.p())
+            .sorted_by_key(|sample| sample.score.p())
             .rev()
             .enumerate()
         {
+            let score = &sample.score;
+            let copy_nums = &sample.copy_nums;
             writeln!(
                 writer,
                 "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}",
