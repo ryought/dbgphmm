@@ -571,11 +571,11 @@ impl MultiDbg {
         if reads.has_hint() {
             let hints = reads.hints.unwrap();
             let (dbg_kp1, paths, hints) =
-                self.purge_and_extend(&edges_purge, k_max, paths, Some(hints));
+                self.purge_and_extend(&edges_purge, k_max, true, paths, Some(hints));
             let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
             (dbg_kp1, paths, reads)
         } else {
-            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, k_max, paths, None);
+            let (dbg_kp1, paths, _) = self.purge_and_extend(&edges_purge, k_max, true, paths, None);
             let reads = ReadCollection::from(reads.reads);
             (dbg_kp1, paths, reads)
         }
