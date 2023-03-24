@@ -215,7 +215,7 @@ impl MultiDbg {
         &self,
         mut writer: W,
         posterior: &Posterior,
-        copy_nums_true: &CopyNums,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         // for each copy nums
         for (i, (copy_nums, score)) in posterior
@@ -234,7 +234,9 @@ impl MultiDbg {
                 score.likelihood.to_log_value(),
                 score.prior.to_log_value(),
                 score.genome_size,
-                copy_nums.diff(&copy_nums_true),
+                copy_nums_true
+                    .map(|copy_nums_true| copy_nums_true.diff(copy_nums))
+                    .unwrap_or(0),
                 copy_nums,
             )?
         }
@@ -242,7 +244,9 @@ impl MultiDbg {
         // for each edges
         for edge in self.graph_compact().edge_indices() {
             let p_edge = posterior.p_edge(edge);
-            let copy_num_true = copy_nums_true[edge];
+            let copy_num_true = copy_nums_true
+                .map(|copy_num_true| copy_num_true[edge])
+                .unwrap_or(0);
             writeln!(
                 writer,
                 "{}\tE\te{}\t{}\t{:.5}\t{:.5}\t{:.5}\t{}",
@@ -260,7 +264,11 @@ impl MultiDbg {
     }
     ///
     ///
-    pub fn to_inspect_string(&self, posterior: &Posterior, copy_nums_true: &CopyNums) -> String {
+    pub fn to_inspect_string(
+        &self,
+        posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
+    ) -> String {
         let mut writer = Vec::with_capacity(128);
         self.to_inspect_writer(&mut writer, posterior, copy_nums_true)
             .unwrap();
@@ -272,7 +280,7 @@ impl MultiDbg {
         &self,
         path: P,
         posterior: &Posterior,
-        copy_nums_true: &CopyNums,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
         self.to_inspect_writer(&mut file, posterior, copy_nums_true)

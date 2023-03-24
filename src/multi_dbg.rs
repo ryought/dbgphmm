@@ -1573,7 +1573,9 @@ impl MultiDbg {
         while dbg_k.k() < k_max {
             // Extend
             //
+            assert!(dbg_k.is_copy_nums_valid());
             let dbg_kp1 = dbg_k.to_kp1_dbg();
+            assert!(dbg_kp1.is_copy_nums_valid());
             // Convert paths and hints
             //
             // (a) paths

@@ -51,7 +51,11 @@ fn test_posterior(
     let copy_nums_true = mdbg.copy_nums_from_full_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
     mdbg.to_gfa_post_file(gfa_filename, &post);
-    mdbg.to_inspect_file(format!("{}.inspect", gfa_filename), &post, &copy_nums_true);
+    mdbg.to_inspect_file(
+        format!("{}.inspect", gfa_filename),
+        &post,
+        Some(&copy_nums_true),
+    );
 
     println!("# finished_at={}", chrono::Local::now());
 
@@ -66,13 +70,14 @@ fn test_inference(
     k_init: usize,
     k_final: usize,
     param_infer: PHMMParams,
-    gfa_filename: &str,
+    output_prefix: &str,
 ) {
     println!("# started_at={}", chrono::Local::now());
 
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
     let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true);
+    let output: std::path::PathBuf = output_prefix.into();
 
     infer_posterior_by_extension(
         k_final,
@@ -85,8 +90,22 @@ fn test_inference(
         1,
         10,
         p(0.8),
-        |dbg, _, _, _| {
-            println!("callback k={} n_edges={}", dbg.k(), dbg.n_edges_full());
+        |dbg, posterior, paths, reads| {
+            let k = dbg.k();
+            println!("callback k={} n_edges={}", k, dbg.n_edges_full());
+
+            dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", k)));
+            posterior.to_file(output.with_extension(format!("k{}.post", k)));
+            dbg.to_gfa_post_file(output.with_extension(format!("k{}.gfa", k)), posterior);
+
+            let copy_nums_true = paths
+                .as_ref()
+                .map(|paths| dbg.copy_nums_from_full_path(paths));
+            dbg.to_inspect_file(
+                output.with_extension(format!("k{}.inspect", k)),
+                posterior,
+                copy_nums_true.as_ref(),
+            );
         },
         paths_true.ok(),
     );
@@ -206,7 +225,7 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        test_inference(&dataset, 20, 100, PHMMParams::uniform(0.001), "sdip.gfa");
+        test_inference(&dataset, 20, 100, PHMMParams::uniform(0.001), "sdip/sdip");
     }
 
     #[test]
