@@ -1,8 +1,9 @@
 //!
 //! Test of posterior sampling
 //!
-use super::super::{CopyNums, MultiDbg};
+use super::super::{CopyNums, MultiDbg, Path};
 use super::{infer_posterior_by_extension, Posterior};
+use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::e2e::Dataset;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::{p, Prob};
@@ -71,6 +72,11 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     k_final: usize,
     param_infer: PHMMParams,
     output_prefix: P,
+) -> (
+    MultiDbg,
+    Posterior,
+    Option<Vec<Path>>,
+    ReadCollection<PositionedSequence>,
 ) {
     println!("# started_at={}", chrono::Local::now());
 
@@ -79,7 +85,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true, false);
     let output: std::path::PathBuf = output_prefix.as_ref().into();
 
-    infer_posterior_by_extension(
+    let ret = infer_posterior_by_extension(
         k_final,
         dbg,
         param_infer,
@@ -111,6 +117,8 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     );
 
     println!("# finished_at={}", chrono::Local::now());
+
+    ret
 }
 
 ///
@@ -142,6 +150,16 @@ fn check_posterior_highest_at_true(
 ) {
     // (2)
     assert_eq!(posterior.max_copy_nums(), copy_nums_true);
+}
+
+fn check_posterior_highest_at_true_path(
+    dbg: &MultiDbg,
+    posterior: &Posterior,
+    paths_true: &Option<Vec<Path>>,
+) {
+    assert!(paths_true.is_some());
+    let copy_nums_true = dbg.copy_nums_from_full_path(paths_true.as_ref().unwrap());
+    assert_eq!(posterior.max_copy_nums(), &copy_nums_true);
 }
 
 //
@@ -225,7 +243,9 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        test_inference(&dataset, 20, 500, PHMMParams::uniform(0.001), "sdip/p0001");
+        let (dbg, post, paths, _) =
+            test_inference(&dataset, 20, 500, PHMMParams::uniform(0.001), "sdip/p0001");
+        check_posterior_highest_at_true_path(&dbg, &post, &paths);
     }
 
     #[test]
@@ -259,7 +279,7 @@ mod tests {
         // check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
     }
 
-    #[test]
+    // #[test]
     #[ignore]
     fn repeat_1k_inference() {
         let (genome, genome_size) =
@@ -285,7 +305,7 @@ mod tests {
         );
     }
 
-    #[test]
+    // #[test]
     #[ignore]
     fn repeat_u200_inference() {
         let (genome, genome_size) =
