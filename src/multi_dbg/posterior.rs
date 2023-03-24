@@ -14,6 +14,7 @@ use indicatif::{ParallelProgressIterator, ProgressStyle};
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
 use rayon::prelude::*;
+use rustflow::min_flow::residue::{ResidueDirection, UpdateInfo};
 
 pub mod test;
 
@@ -42,6 +43,7 @@ pub struct Posterior {
 pub struct PosteriorSample {
     pub copy_nums: CopyNums,
     pub score: Score,
+    pub infos: Vec<UpdateInfo>,
 }
 
 impl Posterior {
@@ -57,9 +59,9 @@ impl Posterior {
     ///
     /// Add a sampled copy numbers and its score
     ///
-    pub fn add(&mut self, copy_nums: CopyNums, score: Score) {
-        self.samples.push(PosteriorSample { copy_nums, score });
-        self.p += score.p();
+    pub fn add(&mut self, sample: PosteriorSample) {
+        self.p += sample.score.p();
+        self.samples.push(sample);
     }
     ///
     /// Check if the copy numbers is stored in the posterior or not
@@ -76,14 +78,19 @@ impl Posterior {
             .find(|sample| &sample.copy_nums == copy_nums)
     }
     ///
+    /// Get the best posterior sample with highest score.
+    ///
+    pub fn max_sample(&self) -> &PosteriorSample {
+        self.samples
+            .iter()
+            .max_by_key(|sample| sample.score.p())
+            .unwrap()
+    }
+    ///
     /// Get the best copy numbers with highest score.
     ///
     pub fn max_copy_nums(&self) -> &CopyNums {
-        let sample = self
-            .samples
-            .iter()
-            .max_by_key(|sample| sample.score.p())
-            .unwrap();
+        let sample = self.max_sample();
         &sample.copy_nums
     }
     ///
@@ -124,7 +131,7 @@ impl Posterior {
 ///
 /// ```text
 /// Z   -19281.0228
-/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00
+/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00 e1+e2-e3+,e1+e2-
 /// C   -191882.0    [1,2,0,0,1,2,2,1]   likelihood=0.01
 /// ```
 ///
@@ -142,10 +149,18 @@ impl Posterior {
         {
             writeln!(
                 writer,
-                "C\t{}\t{}\t{}",
+                "C\t{}\t{}\t{}\t[{}]",
                 sample.score.p().to_log_value(),
                 sample.copy_nums,
                 sample.score,
+                sample
+                    .infos
+                    .iter()
+                    .map(|info| info
+                        .iter()
+                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+                        .join(""))
+                    .join(",")
             )?
         }
         Ok(())
@@ -182,9 +197,33 @@ impl Posterior {
                     iter.next().unwrap(); // value
                     let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
                     let score: Score = iter.next().unwrap().parse().unwrap();
-
-                    samples.push(PosteriorSample { copy_nums, score });
+                    let infos: Vec<UpdateInfo> = iter
+                        .next()
+                        .unwrap()
+                        .trim_start_matches('[')
+                        .trim_end_matches(']')
+                        .split_terminator(',')
+                        .map(|s| {
+                            let mut info = Vec::new();
+                            for x in s.split_inclusive(&['+', '-']) {
+                                let index: usize = x
+                                    .trim_start_matches('e')
+                                    .trim_end_matches(&['+', '-'])
+                                    .parse()
+                                    .unwrap();
+                                let dir: ResidueDirection =
+                                    x.rmatches(&['+', '-']).next().unwrap().parse().unwrap();
+                                info.push((EdgeIndex::new(index), dir));
+                            }
+                            info
+                        })
+                        .collect();
                     p += score.p();
+                    samples.push(PosteriorSample {
+                        copy_nums,
+                        score,
+                        infos,
+                    });
                 }
                 _ => {} // ignore
             }
@@ -473,6 +512,7 @@ impl MultiDbg {
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
+        let mut infos = Vec::new();
         let mut dbg = self.clone();
         let mut n_iter = 0;
 
@@ -491,10 +531,10 @@ impl MultiDbg {
                 .unwrap()
                 .progress_chars("##-");
 
-                let neighbors_with_score: Vec<_> = neighbor_copy_nums
+                let samples: Vec<_> = neighbor_copy_nums
                     .into_par_iter()
                     .progress_with_style(style)
-                    .filter_map(|(copy_nums, _info)| {
+                    .filter_map(|(copy_nums, info)| {
                         if post.contains(&copy_nums) {
                             None
                         } else {
@@ -503,33 +543,46 @@ impl MultiDbg {
                             dbg.set_copy_nums(&copy_nums);
                             let score =
                                 dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
-                            Some((copy_nums, score))
+                            let mut infos = infos.clone();
+                            infos.push(info);
+                            Some(PosteriorSample {
+                                copy_nums,
+                                score,
+                                infos,
+                            })
                         }
                     })
                     .collect();
-                for (copy_nums, score) in neighbors_with_score {
-                    post.add(copy_nums, score);
+                for sample in samples {
+                    post.add(sample);
                 }
             } else {
-                for (i, (copy_nums, _info)) in neighbor_copy_nums.into_iter().enumerate() {
+                for (i, (copy_nums, info)) in neighbor_copy_nums.into_iter().enumerate() {
                     eprintln!("iter#{} neighbor#{}", n_iter, i);
                     if !post.contains(&copy_nums) {
                         // evaluate score
                         dbg.set_copy_nums(&copy_nums);
                         let score =
                             dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
-                        post.add(copy_nums, score);
+                        let mut infos = infos.clone();
+                        infos.push(info);
+                        post.add(PosteriorSample {
+                            copy_nums,
+                            score,
+                            infos,
+                        });
                     }
                 }
             }
 
             // move to highest copy num and continue
             // if self is highest, terminate
-            let next_copy_nums = post.max_copy_nums().clone();
-            if next_copy_nums == copy_nums {
+            let sample = post.max_sample();
+            if sample.copy_nums == copy_nums {
                 break;
             } else {
-                copy_nums = next_copy_nums;
+                copy_nums = sample.copy_nums.clone();
+                infos = sample.infos.clone();
                 n_iter += 1;
             }
         }
@@ -690,29 +743,41 @@ pub fn infer_posterior_by_extension<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ei;
     use crate::prob::p;
 
     #[test]
     fn posterior_dump_load() {
         let mut post = Posterior::new();
-        post.add(
-            vec![1, 1, 2, 2, 0].into(),
-            Score {
+        post.add(PosteriorSample {
+            copy_nums: vec![1, 1, 2, 2, 0].into(),
+            score: Score {
                 likelihood: p(0.6),
                 prior: p(0.3),
                 time: 10,
                 genome_size: 101,
             },
-        );
-        post.add(
-            vec![1, 1, 1, 2, 1].into(),
-            Score {
+            infos: vec![
+                vec![
+                    (ei(0), ResidueDirection::Up),
+                    (ei(121), ResidueDirection::Down),
+                ],
+                vec![
+                    (ei(3), ResidueDirection::Down),
+                    (ei(1), ResidueDirection::Up),
+                ],
+            ],
+        });
+        post.add(PosteriorSample {
+            copy_nums: vec![1, 1, 1, 2, 1].into(),
+            score: Score {
                 likelihood: p(0.003),
                 prior: p(0.2),
                 time: 11,
                 genome_size: 99,
             },
-        );
+            infos: Vec::new(),
+        });
         let s = post.to_string();
         println!("{}", s);
 
