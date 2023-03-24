@@ -922,14 +922,22 @@ impl MultiDbg {
         edge_in: EdgeIndex,
         edge_out: EdgeIndex,
     ) -> CopyNum {
-        let copy_num_in = self.copy_num(edge_in);
-        let copy_num_outs: ArrayVec<CopyNum, MAX_DEGREE> =
+        // TODO use ArrayVec?
+        let copy_num_ins: Vec<CopyNum> = self
+            .parents_full(node)
+            .map(|(_, _, w)| w.copy_num)
+            .collect();
+        let copy_num_outs: Vec<CopyNum> =
             self.childs_full(node).map(|(_, _, w)| w.copy_num).collect();
-        let out_index = self
+        let index_in = self
+            .parents_full(node)
+            .position(|(edge, _, _)| edge == edge_in)
+            .expect("edge_in is not a parent of node");
+        let index_out = self
             .childs_full(node)
             .position(|(edge, _, _)| edge == edge_out)
             .expect("edge_out is not a child of node");
-        Self::guess_copy_num(copy_num_in, &copy_num_outs, out_index)
+        Self::guess_copy_num(&copy_num_ins, &copy_num_outs)[index_in][index_out]
     }
     /// Assign copy number to the pair of edges incoming/outgoing from the same node.
     /// (used in `guess_copy_num_of_kp1_edge`.)
@@ -937,55 +945,35 @@ impl MultiDbg {
     /// Give the same amount of copy number to all >0x outgoing edge in order of copy numbers of
     /// outgoing edge.
     ///
-    /// ```
-    /// use dbgphmm::multi_dbg::MultiDbg;
-    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 0), 5);
-    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 1), 5);
-    /// assert_eq!(MultiDbg::guess_copy_num(10, &[1, 1, 0], 2), 0);
-    ///
-    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 0), 5);
-    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 1), 4);
-    /// assert_eq!(MultiDbg::guess_copy_num(9, &[1, 1, 0], 2), 0);
-    ///
-    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 1], 0), 0);
-    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 2], 1), 0);
-    /// assert_eq!(MultiDbg::guess_copy_num(1, &[0, 1, 2], 2), 1);
-    ///
-    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 0), 1);
-    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 1), 0);
-    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 2), 2);
-    /// assert_eq!(MultiDbg::guess_copy_num(5, &[2, 0, 9, 7], 3), 2);
-    ///
-    /// assert_eq!(MultiDbg::guess_copy_num(5, &[1], 0), 5);
-    /// ```
     pub fn guess_copy_num(
-        copy_num_in: CopyNum,
+        copy_num_ins: &[CopyNum],
         copy_num_outs: &[CopyNum],
-        out_index: usize,
-    ) -> CopyNum {
-        assert!(out_index < copy_num_outs.len());
-        let n_outs = copy_num_outs.iter().filter(|&c| *c > 0).count();
+    ) -> Vec<Vec<CopyNum>> {
+        let n_in = copy_num_ins.len();
+        let n_out = copy_num_outs.len();
+        assert_eq!(
+            copy_num_ins.iter().sum::<CopyNum>(),
+            copy_num_outs.iter().sum::<CopyNum>()
+        );
 
-        // Determine out_index is k-th element in copy_num_outs?
-        let mut v: ArrayVec<(usize, CopyNum), MAX_DEGREE> =
-            copy_num_outs.iter().copied().enumerate().collect();
-        // reverse sort by copy_num
-        v.sort_by(|(_, copy_num_a), (_, copy_num_b)| copy_num_b.cmp(copy_num_a));
-        let rank = v
-            .iter()
-            .position(|(index, _copy_num)| *index == out_index)
-            .unwrap();
+        // copy_nums[index_in][index_out] is the copy number of k+1 edge (edge_in -> edge_out)
+        let mut copy_nums = vec![vec![0; n_out]; n_in];
+        let mut remain_ins = copy_num_ins.to_owned();
+        let mut remain_outs = copy_num_outs.to_owned();
 
-        let copy_num_out = copy_num_outs[out_index];
-        if copy_num_out == 0 {
-            0
-        } else {
-            let mut copy_num = copy_num_in / n_outs;
-            if rank < copy_num_in % n_outs {
-                copy_num += 1;
+        while remain_ins.iter().any(|&x| x > 0) && remain_outs.iter().any(|&x| x > 0) {
+            for i_in in 0..n_in {
+                for i_out in 0..n_out {
+                    if remain_ins[i_in] > 0 && remain_outs[i_out] > 0 {
+                        copy_nums[i_in][i_out] += 1;
+                        remain_ins[i_in] -= 1;
+                        remain_outs[i_out] -= 1;
+                    }
+                }
             }
-            copy_num
         }
+
+        copy_nums
     }
     /// Get neighboring copy numbers
     ///
@@ -1724,6 +1712,28 @@ mod tests {
         println!("{}", s);
 
         dbg.to_gfa_file("repeat.gfa");
+    }
+    #[test]
+    fn copy_num_guess() {
+        assert_eq!(
+            MultiDbg::guess_copy_num(&[2], &[1, 0, 1]),
+            vec![vec![1, 0, 1]]
+        );
+
+        assert_eq!(
+            MultiDbg::guess_copy_num(&[2, 6, 0, 4], &[12, 0]),
+            vec![vec![2, 0], vec![6, 0], vec![0, 0], vec![4, 0]]
+        );
+
+        assert_eq!(
+            MultiDbg::guess_copy_num(&[2, 6, 0, 4], &[9, 0, 1, 2]),
+            vec![
+                vec![1, 0, 1, 0],
+                vec![5, 0, 0, 1],
+                vec![0, 0, 0, 0],
+                vec![3, 0, 0, 1],
+            ]
+        );
     }
     #[test]
     fn purge_edges_for_toy() {
