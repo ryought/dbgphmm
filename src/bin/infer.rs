@@ -3,7 +3,7 @@ use dbgphmm::{
     e2e::Dataset,
     genome,
     hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_inference,
+    multi_dbg::posterior::test::test_inference_from_dbg,
     multi_dbg::MultiDbg,
     utils::{check_memory_usage, timer},
 };
@@ -11,11 +11,13 @@ use dbgphmm::{
 #[derive(Parser, Debug)]
 struct Opts {
     #[clap(short = 'k')]
-    k_init: usize,
+    k_init: Option<usize>,
     #[clap(short = 'K')]
     k_max: usize,
     #[clap(short = 'p')]
     p_infer: f64,
+    #[clap(long)]
+    dbg: Option<std::path::PathBuf>,
     #[clap(long)]
     dataset_json: std::path::PathBuf,
     #[clap(long)]
@@ -28,9 +30,14 @@ fn main() {
     println!("# opts={:?}", opts);
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
-    test_inference(
+    let dbg = if let Some(dbg_filename) = opts.dbg {
+        MultiDbg::from_dbg_file(dbg_filename)
+    } else {
+        MultiDbg::create_draft_from_dataset(opts.k_init.unwrap(), &dataset)
+    };
+    test_inference_from_dbg(
         &dataset,
-        opts.k_init,
+        dbg,
         opts.k_max,
         PHMMParams::uniform(opts.p_infer),
         opts.output_prefix,

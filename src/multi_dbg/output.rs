@@ -43,7 +43,7 @@
 //! ```
 //!
 use super::posterior::Posterior;
-use super::{MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
+use super::{CopyNums, MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
 use crate::common::{sequence_to_string, CopyNum, NULL_BASE};
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
@@ -442,21 +442,30 @@ impl MultiDbg {
     /// * segment for each edge
     /// * link from in_edge to out_edge of each node
     ///
-    pub fn to_gfa_writer_with<W, F>(&self, mut writer: W, label: F) -> std::io::Result<()>
+    pub fn to_gfa_writer_with<W, FL, FC>(
+        &self,
+        mut writer: W,
+        label: FL,
+        color: FC,
+    ) -> std::io::Result<()>
     where
         W: std::io::Write,
-        F: Fn(EdgeIndex) -> String,
+        FL: Fn(EdgeIndex) -> String,
+        FC: Fn(EdgeIndex) -> (u8, u8, u8),
     {
         for (edge, s, t, weight) in self.edges_compact() {
             let seq = &self.seq_compact(edge);
+            let (r, g, b) = color(edge);
+            let color = format!("#{:02x}{:02x}{:02x}", r, g, b);
             writeln!(
                 writer,
-                "S\t{}\t{}\tDP:f:{}\tLN:i:{}\tLB:Z:{}",
+                "S\t{}\t{}\tDP:f:{}\tLN:i:{}\tLB:Z:{}\tCL:Z:{}",
                 edge.index(),
                 sequence_to_string(&seq),
                 self.copy_num_of_edge_in_compact(edge),
                 seq.len(),
                 label(edge),
+                color,
             )?
         }
         let terminal = self.terminal_node_compact();
@@ -480,9 +489,11 @@ impl MultiDbg {
     /// Default GFA format with sequence in label
     ///
     pub fn to_gfa_writer<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
-        self.to_gfa_writer_with(writer, |e| {
-            sequence_to_string(&self.seq_compact(e)).to_string()
-        })
+        self.to_gfa_writer_with(
+            writer,
+            |e| sequence_to_string(&self.seq_compact(e)).to_string(),
+            |e| (0, 255, 0),
+        )
     }
     ///
     /// create GFA string with `to_gfa_writer`
@@ -506,11 +517,44 @@ impl MultiDbg {
         &self,
         writer: W,
         posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
-        self.to_gfa_writer_with(writer, |e| {
-            let p_edge = posterior.p_edge(e);
-            format!("{:.5}x({})", p_edge.mean(), p_edge.to_short_string())
-        })
+        self.to_gfa_writer_with(
+            writer,
+            |e| {
+                let p_edge = posterior.p_edge(e);
+                match copy_nums_true {
+                    Some(copy_nums_true) => {
+                        format!(
+                            "{:.2}x,{}x({})",
+                            p_edge.mean(),
+                            copy_nums_true[e],
+                            p_edge.to_short_string()
+                        )
+                    }
+                    None => {
+                        format!("{:.2}x,?x({})", p_edge.mean(), p_edge.to_short_string())
+                    }
+                }
+            },
+            |e| match copy_nums_true {
+                Some(copy_nums_true) => {
+                    let copy_num = posterior.p_edge(e).mean();
+                    let copy_num_true = copy_nums_true[e] as f64;
+
+                    if copy_num_true > copy_num {
+                        // red
+                        let r = 255 - ((copy_num_true - copy_num) * 128.0) as u8;
+                        (r, 0, 0)
+                    } else {
+                        // blue
+                        let b = 255 - ((copy_num - copy_num_true) * 128.0) as u8;
+                        (0, 0, b)
+                    }
+                }
+                None => (0, 255, 0),
+            },
+        )
     }
     ///
     /// create GFA-post file with posterior information
@@ -519,9 +563,10 @@ impl MultiDbg {
         &self,
         path: P,
         posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
-        self.to_gfa_post_writer(&mut file, posterior)
+        self.to_gfa_post_writer(&mut file, posterior, copy_nums_true)
     }
 }
 

@@ -51,7 +51,7 @@ pub fn test_posterior(
     // post.to_file("simple.post");
     let copy_nums_true = mdbg.copy_nums_from_full_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
-    mdbg.to_gfa_post_file(gfa_filename, &post);
+    mdbg.to_gfa_post_file(gfa_filename, &post, Some(&copy_nums_true));
     mdbg.to_inspect_file(
         format!("{}.inspect", gfa_filename),
         &post,
@@ -78,9 +78,27 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     Option<Vec<Path>>,
     ReadCollection<PositionedSequence>,
 ) {
+    let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
+    test_inference_from_dbg(dataset, dbg, k_final, param_infer, output_prefix)
+}
+
+///
+///
+///
+pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
+    dataset: &Dataset,
+    dbg: MultiDbg,
+    k_final: usize,
+    param_infer: PHMMParams,
+    output_prefix: P,
+) -> (
+    MultiDbg,
+    Posterior,
+    Option<Vec<Path>>,
+    ReadCollection<PositionedSequence>,
+) {
     println!("# started_at={}", chrono::Local::now());
 
-    let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
     let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true, false);
     let output: std::path::PathBuf = output_prefix.as_ref().into();
@@ -102,11 +120,15 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
 
             dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", k)));
             posterior.to_file(output.with_extension(format!("k{}.post", k)));
-            dbg.to_gfa_post_file(output.with_extension(format!("k{}.gfa", k)), posterior);
 
             let copy_nums_true = paths
                 .as_ref()
                 .map(|paths| dbg.copy_nums_from_full_path(paths));
+            dbg.to_gfa_post_file(
+                output.with_extension(format!("k{}.gfa", k)),
+                posterior,
+                copy_nums_true.as_ref(),
+            );
             dbg.to_inspect_file(
                 output.with_extension(format!("k{}.inspect", k)),
                 posterior,

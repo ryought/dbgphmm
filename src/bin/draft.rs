@@ -71,6 +71,9 @@ fn main() {
     // dataset.show_reads_with_genome();
     let (_, t) = timer(|| dataset.to_json_file(opts.output_prefix.with_extension("json")));
     println!("# dataset dumped in {}ms", t);
+    dataset.to_json_file(opts.output_prefix.with_extension("json"));
+    dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
+    dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
 
     let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(opts.k, &dataset));
     println!("# draft dbg created in {}ms", t);
