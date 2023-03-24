@@ -541,18 +541,20 @@ impl MultiDbg {
                 Some(copy_nums_true) => {
                     let copy_num = posterior.p_edge(e).mean();
                     let copy_num_true = copy_nums_true[e] as f64;
+                    let max = 200_u8;
+                    let half = (max / 2) as f64;
 
-                    if copy_num_true > copy_num {
-                        // red
-                        let r = 255 - ((copy_num_true - copy_num) * 128.0) as u8;
-                        (r, 0, 0)
+                    if copy_num > copy_num_true {
+                        // over-represented: red
+                        let r = (((copy_num - copy_num_true) * half) as u8).clamp(0, max);
+                        (max, max - r, max - r)
                     } else {
-                        // blue
-                        let b = 255 - ((copy_num - copy_num_true) * 128.0) as u8;
-                        (0, 0, b)
+                        // under-represented: blue
+                        let b = (((copy_num_true - copy_num) * half) as u8).clamp(0, max);
+                        (max - b, max - b, max)
                     }
                 }
-                None => (0, 255, 0),
+                None => (0, 0, 0),
             },
         )
     }
