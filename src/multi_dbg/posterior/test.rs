@@ -14,7 +14,7 @@ use crate::utils::timer;
 /// 3. Check the posterior probability of true copynums
 /// 4. Check the posterior probability of copy num of edge of false-kmer
 ///
-fn test_posterior(
+pub fn test_posterior(
     dataset: &Dataset,
     k: usize,
     param_infer: PHMMParams,
@@ -65,19 +65,19 @@ fn test_posterior(
 ///
 ///
 ///
-fn test_inference(
+pub fn test_inference<P: AsRef<std::path::Path>>(
     dataset: &Dataset,
     k_init: usize,
     k_final: usize,
     param_infer: PHMMParams,
-    output_prefix: &str,
+    output_prefix: P,
 ) {
     println!("# started_at={}", chrono::Local::now());
 
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
     let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true, false);
-    let output: std::path::PathBuf = output_prefix.into();
+    let output: std::path::PathBuf = output_prefix.as_ref().into();
 
     infer_posterior_by_extension(
         k_final,
