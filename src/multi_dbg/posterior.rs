@@ -142,6 +142,7 @@ impl Posterior {
     ///
     ///
     pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "Z\t{}", self.p.to_log_value())?;
         for sample in self
             .samples
@@ -268,6 +269,7 @@ impl MultiDbg {
         copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         // for each copy nums
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
         for (i, sample) in posterior
             .samples
             .iter()

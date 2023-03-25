@@ -34,6 +34,7 @@ struct Opts {
 fn main() {
     let opts: Opts = Opts::parse();
     println!("# started_at={}", chrono::Local::now());
+    println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
