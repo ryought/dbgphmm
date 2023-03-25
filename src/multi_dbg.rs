@@ -37,7 +37,10 @@ use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::{
-    base::FlowEdgeBase, enumerate_neighboring_flows, residue::UpdateInfo, Flow,
+    base::FlowEdgeBase,
+    enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
+    residue::{ResidueDirection, UpdateInfo},
+    Flow,
 };
 
 pub mod draft;
@@ -982,6 +985,7 @@ impl MultiDbg {
         &self,
         config: NeighborConfig,
     ) -> Vec<(CopyNums, UpdateInfo)> {
+        // create flow network for rustflow
         let network = self.graph_compact().map(
             |_, _| (),
             |edge, _| {
@@ -990,12 +994,36 @@ impl MultiDbg {
             },
         );
         let copy_nums = self.get_copy_nums();
-        enumerate_neighboring_flows(
+
+        // (1) enumerate all short cycles
+        let mut short_cycles = enumerate_neighboring_flows(
             &network,
             &copy_nums,
             Some(config.max_cycle_size),
             Some(config.max_flip),
-        )
+        );
+
+        // (2) add long cycles for 0x -> 1x
+        if config.use_long_cycles {
+            let mut long_cycles: Vec<_> = self
+                .graph_compact()
+                .edge_indices()
+                .filter(|&e| self.copy_num_of_edge_in_compact(e) == 0)
+                .filter_map(|e| {
+                    find_neighboring_flow_by_edge_change(
+                        &network,
+                        &copy_nums,
+                        e,
+                        ResidueDirection::Up,
+                    )
+                })
+                // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+                .collect();
+
+            short_cycles.append(&mut long_cycles);
+        }
+
+        short_cycles
     }
 }
 
@@ -1004,8 +1032,15 @@ impl MultiDbg {
 ///
 #[derive(Clone, Debug, Copy)]
 pub struct NeighborConfig {
+    /// Max size of cycle (in compact graph) in BFS short-cycle search
+    ///
     max_cycle_size: usize,
+    /// Max number of flips (+/- or -/+ changes) in cycles on compact residue graph
+    ///
     max_flip: usize,
+    /// Augment short cycles with long cycles causing 0x -> 1x change
+    ///
+    use_long_cycles: bool,
 }
 
 ///
@@ -1768,6 +1803,7 @@ mod tests {
         let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
             max_cycle_size: 10,
             max_flip: 0,
+            use_long_cycles: false,
         });
         for (copy_nums, update_info) in neighbors {
             println!("{} {:?}", copy_nums, update_info);
@@ -1777,6 +1813,7 @@ mod tests {
             let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
                 max_cycle_size: 10,
                 max_flip: 0,
+                use_long_cycles: false,
             });
             assert_eq!(neighbors.len(), 8);
         }
@@ -1785,6 +1822,7 @@ mod tests {
             let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
                 max_cycle_size: 10,
                 max_flip: 2,
+                use_long_cycles: false,
             });
             assert_eq!(neighbors.len(), 12);
         }

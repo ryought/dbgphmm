@@ -43,6 +43,7 @@ pub fn test_posterior(
             NeighborConfig {
                 max_cycle_size: 10,
                 max_flip: 1,
+                use_long_cycles: true,
             },
             10,
             true,
@@ -115,6 +116,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         NeighborConfig {
             max_cycle_size: 10,
             max_flip: 1,
+            use_long_cycles: true,
         },
         10,
         p(0.8),
