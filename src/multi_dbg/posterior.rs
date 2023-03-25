@@ -51,14 +51,17 @@ impl PosteriorSample {
     ///
     ///
     pub fn to_infos_string(&self) -> String {
-        self.infos
-            .iter()
-            .map(|info| {
-                info.iter()
-                    .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
-                    .join("")
-            })
-            .join(",")
+        format!(
+            "[{}]",
+            self.infos
+                .iter()
+                .map(|info| {
+                    info.iter()
+                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+                        .join("")
+                })
+                .join(",")
+        )
     }
 }
 
@@ -168,7 +171,7 @@ impl Posterior {
         {
             writeln!(
                 writer,
-                "C\t{}\t{}\t{}\t[{}]",
+                "C\t{}\t{}\t{}\t{}",
                 sample.score.p().to_log_value(),
                 sample.copy_nums,
                 sample.score,
