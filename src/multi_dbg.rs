@@ -1071,6 +1071,27 @@ impl MultiDbg {
             short_cycles.append(&mut long_cycles);
         }
 
+        // (3) add long cycles for reducing high-copy edges
+        if config.use_reducers {
+            let network = self.graph_compact().map(
+                |_, _| (),
+                |edge, _| {
+                    let copy_num = self.copy_num_of_edge_in_compact(edge);
+                    if copy_num > 2 {
+                        // reduceable
+                        FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num, 0.0)
+                    } else {
+                        FlowEdgeBase::new(copy_num, copy_num, 0.0)
+                    }
+                },
+            );
+            let copy_nums = self.get_copy_nums();
+            let mut reducers =
+                enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0));
+
+            short_cycles.append(&mut reducers);
+        }
+
         short_cycles
     }
 }
@@ -1093,6 +1114,10 @@ pub struct NeighborConfig {
     /// because this changes the number of haplotypes.
     ///
     ignore_cycles_passing_terminal: bool,
+    ///
+    /// Long cycle with Down direction only to reduce high copy number edges
+    ///
+    use_reducers: bool,
 }
 
 ///
@@ -1857,6 +1882,7 @@ mod tests {
             max_flip: 0,
             use_long_cycles: false,
             ignore_cycles_passing_terminal: false,
+            use_reducers: false,
         });
         for (copy_nums, update_info) in neighbors {
             println!("{} {:?}", copy_nums, update_info);
@@ -1868,6 +1894,7 @@ mod tests {
                 max_flip: 0,
                 use_long_cycles: false,
                 ignore_cycles_passing_terminal: false,
+                use_reducers: false,
             });
             assert_eq!(neighbors.len(), 8);
         }
@@ -1878,6 +1905,7 @@ mod tests {
                 max_flip: 2,
                 use_long_cycles: false,
                 ignore_cycles_passing_terminal: false,
+                use_reducers: false,
             });
             assert_eq!(neighbors.len(), 12);
         }
