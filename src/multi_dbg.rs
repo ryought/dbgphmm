@@ -904,6 +904,15 @@ impl MultiDbg {
             .sum()
     }
     ///
+    /// Get maximum copy number of edges (k-mers)
+    ///
+    pub fn max_copy_num(&self) -> CopyNum {
+        self.edges_full()
+            .map(|(_, _, _, edge_weight)| edge_weight.copy_num)
+            .max()
+            .unwrap()
+    }
+    ///
     /// Set copy numbers of edges in full according to CopyNums vector
     ///
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
@@ -1026,6 +1035,7 @@ impl MultiDbg {
 
         // (2) add long cycles for 0x -> 1x
         if config.use_long_cycles {
+            let max_copy_num = self.max_copy_num();
             let mut long_cycles: Vec<_> = self
                 .graph_compact()
                 .edge_indices()
@@ -1036,6 +1046,7 @@ impl MultiDbg {
                         &copy_nums,
                         e,
                         ResidueDirection::Up,
+                        |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
                     )
                 })
                 .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
