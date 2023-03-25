@@ -60,8 +60,10 @@ impl Posterior {
     /// Add a sampled copy numbers and its score
     ///
     pub fn add(&mut self, sample: PosteriorSample) {
-        self.p += sample.score.p();
-        self.samples.push(sample);
+        if !self.contains(&sample.copy_nums) {
+            self.p += sample.score.p();
+            self.samples.push(sample);
+        }
     }
     ///
     /// Check if the copy numbers is stored in the posterior or not
