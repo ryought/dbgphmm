@@ -279,6 +279,24 @@ impl MultiDbg {
     ) -> std::io::Result<()> {
         // for each copy nums
         writeln!(writer, "# {}", env!("GIT_HASH"))?;
+        writeln!(
+            writer,
+            "{}\tG\tn_edges_full\t{}",
+            self.k(),
+            self.n_edges_full()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tn_edges_compact\t{}",
+            self.k(),
+            self.n_edges_compact()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tdegree_stats\t{:?}",
+            self.k(),
+            self.degree_stats(),
+        )?;
         for (i, sample) in posterior
             .samples
             .iter()
