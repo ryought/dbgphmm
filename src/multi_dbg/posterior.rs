@@ -46,6 +46,22 @@ pub struct PosteriorSample {
     pub infos: Vec<UpdateInfo>,
 }
 
+impl PosteriorSample {
+    ///
+    ///
+    ///
+    pub fn to_infos_string(&self) -> String {
+        self.infos
+            .iter()
+            .map(|info| {
+                info.iter()
+                    .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+                    .join("")
+            })
+            .join(",")
+    }
+}
+
 impl Posterior {
     ///
     /// Create empty posterior container
@@ -156,14 +172,7 @@ impl Posterior {
                 sample.score.p().to_log_value(),
                 sample.copy_nums,
                 sample.score,
-                sample
-                    .infos
-                    .iter()
-                    .map(|info| info
-                        .iter()
-                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
-                        .join(""))
-                    .join(",")
+                sample.to_infos_string(),
             )?
         }
         Ok(())
@@ -281,7 +290,7 @@ impl MultiDbg {
             let copy_nums = &sample.copy_nums;
             writeln!(
                 writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}",
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}",
                 self.k(),
                 i,
                 (score.p() / posterior.p()).to_value(),
@@ -291,6 +300,7 @@ impl MultiDbg {
                 copy_nums_true
                     .map(|copy_nums_true| copy_nums_true.diff(copy_nums))
                     .unwrap_or(0),
+                sample.to_infos_string(),
                 copy_nums,
             )?
         }
