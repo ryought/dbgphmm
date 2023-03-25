@@ -9,6 +9,7 @@ use dbgphmm::{
 use std::io::Write;
 
 #[derive(Parser, Debug)]
+#[clap(author, about, version = env!("GIT_HASH"))]
 struct Opts {
     #[clap(short)]
     k: usize,
@@ -44,6 +45,7 @@ fn main() {
     let mut log_file = std::fs::File::create(&opts.output_prefix).unwrap();
 
     writeln!(&mut log_file, "# started_at={}", chrono::Local::now());
+    writeln!(&mut log_file, "# git_hash={}", env!("GIT_HASH"));
     writeln!(&mut log_file, "# opts={:?}", opts);
     check_memory_usage();
 

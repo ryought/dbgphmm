@@ -9,6 +9,7 @@ use dbgphmm::{
 };
 
 #[derive(Parser, Debug)]
+#[clap(author, about, version = env!("GIT_HASH"))]
 struct Opts {
     #[clap(short = 'k')]
     k_init: Option<usize>,
