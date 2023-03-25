@@ -1038,7 +1038,15 @@ impl MultiDbg {
                         ResidueDirection::Up,
                     )
                 })
-                // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+                .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+                .filter(|(_copy_nums, info)| {
+                    if config.ignore_cycles_passing_terminal {
+                        info.iter()
+                            .all(|(e, _d)| !self.is_start_or_end_edge_compact(*e))
+                    } else {
+                        true
+                    }
+                })
                 .collect();
 
             short_cycles.append(&mut long_cycles);
@@ -1062,6 +1070,10 @@ pub struct NeighborConfig {
     /// Augment short cycles with long cycles causing 0x -> 1x change
     ///
     use_long_cycles: bool,
+    /// Ignore cyclic paths passing through the terminal node NNN
+    /// because this changes the number of haplotypes.
+    ///
+    ignore_cycles_passing_terminal: bool,
 }
 
 ///
@@ -1825,6 +1837,7 @@ mod tests {
             max_cycle_size: 10,
             max_flip: 0,
             use_long_cycles: false,
+            ignore_cycles_passing_terminal: false,
         });
         for (copy_nums, update_info) in neighbors {
             println!("{} {:?}", copy_nums, update_info);
@@ -1835,6 +1848,7 @@ mod tests {
                 max_cycle_size: 10,
                 max_flip: 0,
                 use_long_cycles: false,
+                ignore_cycles_passing_terminal: false,
             });
             assert_eq!(neighbors.len(), 8);
         }
@@ -1844,6 +1858,7 @@ mod tests {
                 max_cycle_size: 10,
                 max_flip: 2,
                 use_long_cycles: false,
+                ignore_cycles_passing_terminal: false,
             });
             assert_eq!(neighbors.len(), 12);
         }
