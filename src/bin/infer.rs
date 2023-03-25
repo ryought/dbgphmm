@@ -16,6 +16,12 @@ struct Opts {
     k_max: usize,
     #[clap(short = 'p')]
     p_infer: f64,
+    #[clap(short = 's', default_value = "200")]
+    sigma: usize,
+    #[clap(short = 'I', default_value = "10")]
+    max_iter: usize,
+    #[clap(short = 'c', default_value = "10")]
+    max_cycle_size: usize,
     #[clap(long)]
     dbg: Option<std::path::PathBuf>,
     #[clap(long)]
@@ -40,6 +46,9 @@ fn main() {
         dbg,
         opts.k_max,
         PHMMParams::uniform(opts.p_infer),
+        opts.sigma,
+        opts.max_iter,
+        opts.max_cycle_size,
         opts.output_prefix,
     );
 

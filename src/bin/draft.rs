@@ -6,6 +6,7 @@ use dbgphmm::{
     multi_dbg::MultiDbg,
     utils::{check_memory_usage, timer},
 };
+use std::io::Write;
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -40,9 +41,10 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
+    let mut log_file = std::fs::File::create(&opts.output_prefix).unwrap();
 
-    println!("# started_at={}", chrono::Local::now());
-    println!("# opts={:?}", opts);
+    writeln!(&mut log_file, "# started_at={}", chrono::Local::now());
+    writeln!(&mut log_file, "# opts={:?}", opts);
     check_memory_usage();
 
     let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
@@ -66,17 +68,17 @@ fn main() {
             param,
         )
     });
-    println!("# dataset created in {}ms", t);
+    writeln!(&mut log_file, "# dataset created in {}ms", t);
 
     // dataset.show_reads_with_genome();
     let (_, t) = timer(|| dataset.to_json_file(opts.output_prefix.with_extension("json")));
-    println!("# dataset dumped in {}ms", t);
+    writeln!(&mut log_file, "# dataset dumped in {}ms", t);
     dataset.to_json_file(opts.output_prefix.with_extension("json"));
     dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
     dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
 
     let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(opts.k, &dataset));
-    println!("# draft dbg created in {}ms", t);
+    writeln!(&mut log_file, "# draft dbg created in {}ms", t);
     mdbg.to_gfa_file(opts.output_prefix.with_extension("gfa"));
     mdbg.to_dbg_file(opts.output_prefix.with_extension("dbg"));
 
@@ -85,9 +87,9 @@ fn main() {
             mdbg.to_paths_file(opts.output_prefix.with_extension("paths"), &paths_true);
         }
         Err(notfound) => {
-            println!("# kmer notfound {}", notfound);
+            writeln!(&mut log_file, "# kmer notfound {}", notfound);
         }
     };
 
-    println!("# finished_at={}", chrono::Local::now());
+    writeln!(&mut log_file, "# finished_at={}", chrono::Local::now());
 }

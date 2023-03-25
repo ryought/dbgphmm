@@ -75,6 +75,9 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     k_init: usize,
     k_final: usize,
     param_infer: PHMMParams,
+    sigma: CopyNum,        // 200
+    max_iter: usize,       // 10
+    max_cycle_size: usize, // 10
     output_prefix: P,
 ) -> (
     MultiDbg,
@@ -83,7 +86,16 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     ReadCollection<PositionedSequence>,
 ) {
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
-    test_inference_from_dbg(dataset, dbg, k_final, param_infer, output_prefix)
+    test_inference_from_dbg(
+        dataset,
+        dbg,
+        k_final,
+        param_infer,
+        sigma,
+        max_iter,
+        max_cycle_size,
+        output_prefix,
+    )
 }
 
 ///
@@ -94,6 +106,9 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     dbg: MultiDbg,
     k_final: usize,
     param_infer: PHMMParams,
+    sigma: CopyNum,        // 200
+    max_iter: usize,       // 10
+    max_cycle_size: usize, // 10
     output_prefix: P,
 ) -> (
     MultiDbg,
@@ -113,14 +128,14 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         param_infer,
         reads,
         dataset.genome_size(),
-        200,
+        sigma,
         NeighborConfig {
-            max_cycle_size: 10,
+            max_cycle_size,
             max_flip: 1,
             use_long_cycles: true,
             ignore_cycles_passing_terminal: true,
         },
-        10,
+        max_iter,
         p(0.8),
         |dbg, posterior, paths, reads| {
             let k = dbg.k();
@@ -273,8 +288,16 @@ mod tests {
         );
         dataset.show_reads_with_genome();
 
-        let (dbg, post, paths, _) =
-            test_inference(&dataset, 20, 500, PHMMParams::uniform(0.001), "sdip/p0001");
+        let (dbg, post, paths, _) = test_inference(
+            &dataset,
+            20,
+            500,
+            PHMMParams::uniform(0.001),
+            200,
+            10,
+            10,
+            "sdip/p0001",
+        );
         check_posterior_highest_at_true_path(&dbg, &post, &paths);
     }
 
@@ -331,6 +354,9 @@ mod tests {
             20,
             500,
             PHMMParams::uniform(0.001),
+            200,
+            10,
+            10,
             "repeat1k/p0001",
         );
     }
@@ -357,6 +383,9 @@ mod tests {
             20,
             500,
             PHMMParams::uniform(0.001),
+            200,
+            10,
+            10,
             "repeat_u200/p0001",
         );
     }
