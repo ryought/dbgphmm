@@ -382,6 +382,12 @@ impl MultiDbg {
         }
         n
     }
+    /// the number of bases the edge in compact represents?
+    /// (= the number of collapsed edges in full)
+    ///
+    pub fn n_bases(&self, edge_in_compact: EdgeIndex) -> usize {
+        self.edges_in_full(edge_in_compact).len()
+    }
 }
 
 ///
@@ -1035,7 +1041,7 @@ impl MultiDbg {
 
         // (2) add long cycles for 0x -> 1x
         if config.use_long_cycles {
-            let max_copy_num = self.max_copy_num();
+            // let max_copy_num = self.max_copy_num();
             let mut long_cycles: Vec<_> = self
                 .graph_compact()
                 .edge_indices()
@@ -1046,7 +1052,9 @@ impl MultiDbg {
                         &copy_nums,
                         e,
                         ResidueDirection::Up,
-                        |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
+                        // weight function
+                        |e| self.n_bases(e) / self.copy_num_of_edge_in_compact(e),
+                        // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
                     )
                 })
                 .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
