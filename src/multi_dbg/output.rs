@@ -298,8 +298,9 @@ impl MultiDbg {
 
         // compact
         let mut compact = DiGraph::new();
-        for _ in nodes.iter() {
-            compact.add_node(MultiCompactNode::new());
+        for (_, km1mer) in nodes.iter() {
+            let is_terminal = km1mer.iter().all(|&x| x == NULL_BASE);
+            compact.add_node(MultiCompactNode::new(is_terminal));
         }
         for (_, s, t, _, _, edges_in_full) in edges.into_iter() {
             compact.add_edge(s, t, MultiCompactEdge::new(edges_in_full));

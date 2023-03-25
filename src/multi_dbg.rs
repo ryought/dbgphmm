@@ -175,14 +175,17 @@ impl MultiCompactEdge {
 ///
 /// Node of MultiDbg compact graph
 ///
-/// Empty struct
-///
 #[derive(Clone, Debug, PartialEq)]
-pub struct MultiCompactNode {}
+pub struct MultiCompactNode {
+    ///
+    /// if this node corresponds to k-1mer NNN, then true.
+    ///
+    is_terminal: bool,
+}
 
 impl MultiCompactNode {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(is_terminal: bool) -> Self {
+        Self { is_terminal }
     }
 }
 
@@ -323,12 +326,41 @@ impl MultiDbg {
         self.graph_full()[edge_in_full].base
     }
     ///
-    /// Get terminal node (= (k-1)-mer NNN) in full
+    /// Get terminal node (= (k-1)-mer NNN) in full graph
+    ///
+    /// The underlying genome is circular, the terminal node can be missing.
     ///
     pub fn terminal_node_full(&self) -> Option<NodeIndex> {
         self.nodes_full()
             .find(|(_, node_weight)| node_weight.is_terminal)
             .map(|(node, _)| node)
+    }
+    ///
+    /// Get terminal node (= (k-1)-mer NNN) in compact graph
+    ///
+    /// The underlying genome is circular, the terminal node can be missing.
+    ///
+    pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
+        self.nodes_compact()
+            .find(|(_, node_weight)| node_weight.is_terminal)
+            .map(|(node, _)| node)
+    }
+    ///
+    /// Check if an edge in compact graph is either
+    /// * starting edge (source node is terminal NNN)
+    /// * ending edge (target node is terminal NNN)
+    ///
+    pub fn is_start_or_end_edge_compact(&self, edge_in_compact: EdgeIndex) -> bool {
+        match self.terminal_node_compact() {
+            Some(terminal) => {
+                let (s, t) = self
+                    .graph_compact()
+                    .edge_endpoints(edge_in_compact)
+                    .unwrap();
+                s == terminal || t == terminal
+            }
+            None => false,
+        }
     }
     ///
     /// count the number of nodes with (in_degree, out_degree) in graph full
@@ -391,17 +423,6 @@ impl MultiDbg {
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
         node_in_full
-    }
-    ///
-    /// Get terminal node (NNNN) in compact graph
-    ///
-    /// The underlying genome is circular, the terminal node can be missing.
-    ///
-    pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
-        self.graph_compact().node_indices().find(|&node| {
-            let v = self.node_in_compact_to_full(node);
-            self.graph_full()[v].is_terminal
-        })
     }
     ///
     ///
@@ -1374,7 +1395,7 @@ impl MultiDbg {
         full: &DiGraph<MultiFullNode, MultiFullEdge>,
     ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
         compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
-            |_node, _| MultiCompactNode::new(),
+            |_node, node_weight| MultiCompactNode::new(node_weight.is_terminal),
             |_edge, edge_weight| {
                 let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
                 MultiCompactEdge::new(edges)
