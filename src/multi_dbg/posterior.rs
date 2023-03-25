@@ -1,7 +1,7 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{CopyNums, MultiDbg, Path};
+use super::{CopyNums, MultiDbg, NeighborConfig, Path};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -505,8 +505,7 @@ impl MultiDbg {
         reads: &ReadCollection<S>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
-        max_cycle_size: usize,
-        max_flip: usize,
+        neighbor_config: NeighborConfig,
         max_iter: usize,
         is_parallel: bool,
     ) -> Posterior {
@@ -520,7 +519,7 @@ impl MultiDbg {
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
-            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip);
+            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
             eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
             // evaluate all neighbors
@@ -678,8 +677,7 @@ pub fn infer_posterior_by_extension<
     genome_size_expected: CopyNum,
     genome_size_sigma: CopyNum,
     // neighbor
-    max_cycle_size: usize,
-    max_flip: usize,
+    neighbor_config: NeighborConfig,
     max_iter: usize,
     // extend
     p0: Prob,
@@ -703,8 +701,7 @@ pub fn infer_posterior_by_extension<
             &reads,
             genome_size_expected,
             genome_size_sigma,
-            max_cycle_size,
-            max_flip,
+            neighbor_config,
             max_iter,
             true,
         );

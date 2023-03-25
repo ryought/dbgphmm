@@ -980,8 +980,7 @@ impl MultiDbg {
     ///
     pub fn to_neighbor_copy_nums_and_infos(
         &self,
-        max_cycle_size: usize,
-        max_flip: usize,
+        config: NeighborConfig,
     ) -> Vec<(CopyNums, UpdateInfo)> {
         let network = self.graph_compact().map(
             |_, _| (),
@@ -991,8 +990,22 @@ impl MultiDbg {
             },
         );
         let copy_nums = self.get_copy_nums();
-        enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
+        enumerate_neighboring_flows(
+            &network,
+            &copy_nums,
+            Some(config.max_cycle_size),
+            Some(config.max_flip),
+        )
     }
+}
+
+///
+/// Parameters for neighbor search of copy numbers
+///
+#[derive(Clone, Debug, Copy)]
+pub struct NeighborConfig {
+    max_cycle_size: usize,
+    max_flip: usize,
 }
 
 ///
@@ -1752,18 +1765,27 @@ mod tests {
     fn neighbors_for_toy() {
         let mut dbg = toy::intersection();
         dbg.show_graph_with_kmer();
-        let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 0);
+        let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+            max_cycle_size: 10,
+            max_flip: 0,
+        });
         for (copy_nums, update_info) in neighbors {
             println!("{} {:?}", copy_nums, update_info);
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 0);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 10,
+                max_flip: 0,
+            });
             assert_eq!(neighbors.len(), 8);
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 2);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 10,
+                max_flip: 2,
+            });
             assert_eq!(neighbors.len(), 12);
         }
     }

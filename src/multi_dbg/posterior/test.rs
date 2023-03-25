@@ -1,7 +1,7 @@
 //!
 //! Test of posterior sampling
 //!
-use super::super::{CopyNums, MultiDbg, Path};
+use super::super::{CopyNums, MultiDbg, NeighborConfig, Path};
 use super::{infer_posterior_by_extension, Posterior};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::e2e::Dataset;
@@ -40,8 +40,10 @@ pub fn test_posterior(
             &reads,
             dataset.genome_size(),
             200,
-            10,
-            1,
+            NeighborConfig {
+                max_cycle_size: 10,
+                max_flip: 1,
+            },
             10,
             true,
         )
@@ -110,8 +112,10 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         reads,
         dataset.genome_size(),
         200,
-        10,
-        1,
+        NeighborConfig {
+            max_cycle_size: 10,
+            max_flip: 1,
+        },
         10,
         p(0.8),
         |dbg, posterior, paths, reads| {
