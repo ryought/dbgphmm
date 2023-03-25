@@ -993,14 +993,6 @@ impl MultiDbg {
         let copy_nums = self.get_copy_nums();
         enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
     }
-    ///
-    ///
-    pub fn to_neighbor_copy_nums(&self, max_cycle_size: usize, max_flip: usize) -> Vec<CopyNums> {
-        self.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
-            .into_iter()
-            .map(|(copy_nums, _)| copy_nums)
-            .collect()
-    }
 }
 
 ///
@@ -1766,12 +1758,12 @@ mod tests {
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums(10, 0);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 0);
             assert_eq!(neighbors.len(), 8);
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums(10, 2);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 2);
             assert_eq!(neighbors.len(), 12);
         }
     }
