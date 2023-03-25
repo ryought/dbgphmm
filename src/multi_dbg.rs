@@ -1053,7 +1053,7 @@ impl MultiDbg {
                         e,
                         ResidueDirection::Up,
                         // weight function
-                        |e| self.n_bases(e) / self.copy_num_of_edge_in_compact(e),
+                        |e| self.n_bases(e) / (self.copy_num_of_edge_in_compact(e) + 1),
                         // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
                     )
                 })
