@@ -14,14 +14,18 @@ Parsers for dbgphmm output files
 * POST
 * PATHS
 """
-from dataclasses import dataclass
+import csv
+import matplotlib.pyplot as plt
 from typing import List, Tuple, Dict
 import argparse
 from pathlib import Path
+from dataclasses import dataclass
 import re
+import numpy as np
 import glob
-import csv
 csv.field_size_limit(1000000000)
+
+p0 = 0.8
 
 
 def split_at(s: str, delimiter: str) -> List[str]:
@@ -198,11 +202,22 @@ def parse_inspect_files_by_prefix(prefix: Path) -> List[Inspect]:
     return ret
 
 
-def draw_graph_props(inspects):
+def draw_graph_props(inspects: List[Inspect]):
     """
     n_nodes and n_edges etc for all k
+
+    * n_edges/n_nodes in compact/full
+    * degree
+    * average copy_nums
     """
-    pass
+    ks = [inspect.k for inspect in inspects]
+    ns = [int(inspect.props['n_edges_full']) for inspect in inspects]
+    ms = [int(inspect.props['n_edges_compact']) for inspect in inspects]
+    plt.subplot(2, 1, 1)
+    plt.plot(ks, ns, label='n_edges_full')
+    plt.subplot(2, 1, 2)
+    plt.plot(ks, ms, label='n_edges_compact')
+    plt.show()
 
 
 def draw_posterior_of_copy_nums(inspects):
@@ -210,7 +225,73 @@ def draw_posterior_of_copy_nums(inspects):
     * posterior or likelihood of sampled copy numbers
     * n_samples
     """
-    pass
+
+    # posterior
+    plt.subplot(4, 1, 1)
+    plt.ylim(0-0.1, 1+0.1)
+    plt.ylabel('P(X|R)')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    for inspect in inspects:
+        # false copy_nums
+        copy_nums = inspect.copy_nums
+        ks = [inspect.k for c in copy_nums if c.dist_from_true > 0]
+        ps = [c.posterior for c in copy_nums if c.dist_from_true > 0]
+        plt.scatter(ks, ps, c='blue', marker='o', alpha=0.5)
+
+        # true copy_nums
+        ks = [inspect.k for c in copy_nums if c.dist_from_true == 0]
+        ps = [c.posterior for c in copy_nums if c.dist_from_true == 0]
+        plt.scatter(ks, ps, c='red', marker='*', alpha=0.5)
+
+    # likelihood and prior
+    plt.subplot(4, 1, 2)
+    plt.ylabel('log P(R|X)')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    txs, tys = [], []
+    for inspect in inspects:
+        copy_nums = inspect.copy_nums
+        xs += [inspect.k for c in copy_nums]
+        ys += [c.log_likelihood for c in copy_nums]
+        zs += [c.log_prior for c in copy_nums]
+        # true copy_nums only
+        txs += [inspect.k for c in copy_nums if c.dist_from_true == 0]
+        tys += [c.log_likelihood for c in copy_nums if c.dist_from_true == 0]
+    plt.scatter(xs, ys, c=zs, marker='o', alpha=0.5)
+    plt.colorbar(orientation='horizontal', aspect=100, label='log P(X)')
+    plt.scatter(txs, tys, c='red', marker='*', alpha=0.5)
+
+    # genome sizes
+    plt.subplot(4, 1, 3)
+    plt.ylabel('genome size')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        copy_nums = inspect.copy_nums
+        xs += [inspect.k for c in copy_nums]
+        ys += [c.genome_size for c in copy_nums]
+        zs += [c.log_likelihood for c in copy_nums]
+    plt.scatter(xs, ys, c=zs, marker='o', alpha=0.5)
+    plt.colorbar(orientation='horizontal', aspect=100, label='log P(R|X)')
+
+    # samples
+    plt.subplot(4, 1, 4)
+    plt.ylabel('# samples')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs = [inspect.k for inspect in inspects]
+    ys = [len(inspect.copy_nums) for inspect in inspects]
+    plt.scatter(xs, ys)
+
+    plt.tight_layout()
+    plt.show()
 
 
 def draw_posterior_of_edges(inspects):
@@ -218,7 +299,76 @@ def draw_posterior_of_edges(inspects):
     p_zero or p_true of each edge by its true copy num and k
     (k-mer classification result)
     """
-    pass
+
+    # P(X(e)=X_true(e))
+    plt.subplot(4, 1, 1)
+    plt.ylim(0-0.1, 1+0.1)
+    plt.ylabel('P(X(e)=X_true(e))')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        xs += [e.k for e in inspect.edges]
+        ys += [e.p_true for e in inspect.edges]
+        zs += [e.copy_num_true for e in inspect.edges]
+    plt.scatter(xs, ys, c=zs, alpha=0.5)
+    plt.colorbar(orientation='horizontal', aspect=100, label='X_true(e)')
+
+    # P(X(e)=0) for e: X_true(e)=0
+    plt.subplot(4, 1, 2)
+    plt.ylim(0-0.1, 1+0.1)
+    plt.ylabel('P(X(e)=0)')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        xs += [e.k for e in inspect.edges if e.copy_num_true == 0]
+        ys += [e.p_zero for e in inspect.edges if e.copy_num_true == 0]
+    plt.scatter(xs, ys, alpha=0.5, marker='o', label='X_true(e)=0')
+
+    # P(X(e)=0) for e: X_true(e)>0
+    # plt.subplot(3, 1, 2)
+    # plt.ylim(0-0.1, 1+0.1)
+    # plt.ylabel('P(X(e)=0) X_true(e)!=0')
+    # plt.grid(axis='both')
+    # ks = [inspect.k for inspect in inspects]
+    # plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        xs += [e.k for e in inspect.edges if e.copy_num_true > 0]
+        ys += [e.p_zero for e in inspect.edges if e.copy_num_true > 0]
+    plt.scatter(xs, ys, alpha=0.5, marker='x', label='X_true(e)>0')
+    plt.legend()
+
+    #
+    plt.subplot(4, 1, 3)
+    plt.ylabel('# purged edges')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        xs.append(inspect.k)
+        ys.append(
+            len([e for e in inspect.edges if e.copy_num_true == 0 and e.p_zero > p0]))
+    plt.scatter(xs, ys)
+
+    # E[X(e)] vs X_true(e)
+    plt.subplot(4, 1, 4)
+    plt.ylabel('E[X(e)] - X_true(e)')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+    xs, ys, zs = [], [], []
+    for inspect in inspects:
+        xs += [e.k for e in inspect.edges]
+        ys += [e.copy_num_posterior - e.copy_num_true for e in inspect.edges]
+    plt.scatter(xs, ys, alpha=0.5, label='')
+
+    plt.tight_layout()
+    plt.show()
 
 
 def main():
@@ -228,8 +378,10 @@ def main():
     # parser.add_argument('--show', action='store_true')
     args = parser.parse_args()
     inspects = parse_inspect_files_by_prefix(args.prefix)
-    for inspect in inspects:
-        print(inspect.k)
+
+    draw_graph_props(inspects)
+    draw_posterior_of_copy_nums(inspects)
+    draw_posterior_of_edges(inspects)
 
 
 if __name__ == '__main__':
