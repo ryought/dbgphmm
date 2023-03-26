@@ -265,6 +265,14 @@ impl MultiDbg {
     pub fn n_edges_compact(&self) -> usize {
         self.graph_compact().edge_count()
     }
+    ///
+    /// # of edges with base in full graph
+    ///
+    pub fn n_emittable_edges(&self) -> usize {
+        self.edges_full()
+            .filter(|(_, _, _, ew)| !ew.is_null_base())
+            .count()
+    }
     /// Iterator of all nodes in the graph
     /// Item is (node: NodeIndex, node_weight: &MultiFullNode)
     pub fn nodes_full(&self) -> NodesIterator<MultiFullNode> {
