@@ -18,6 +18,15 @@ module load python/3.7.3
 # ./target/release/infer -k 20 -K 40 -p 0.001 --dataset-json r/u200_n10.json --output-prefix r/u200_n10_v3 -I 50
 # ./target/release/infer -k 20 -K 40 -p 0.0001 --dataset-json r/u200_n10.json --output-prefix r/u200_n10_p00001 -I 50
 
-KEY="u10k_n2"
-./target/release/draft -k 20 -C 20 -L 20000 -p 0.005 -U 10000 -N 2 -E 1000 -H 0.03 -P 2 --output-prefix r/$KEY
-./target/release/infer -K 20000 -p 0.001 -I 50 --dataset-json r/$KEY.json --dbg r/$KEY.dbg --output-prefix r/$KEY
+# KEY="u10k_n2"
+# ./target/release/draft -k 20 -C 20 -L 20000 -p 0.005 -U 10000 -N 2 -E 1000 -H 0.03 -P 2 --output-prefix r/$KEY
+# ./target/release/infer -K 20000 -p 0.001 -I 50 --dataset-json r/$KEY.json --dbg r/$KEY.dbg --output-prefix r/$KEY
+
+# ./target/release/infer -K 20000 -p 0.001 -I 50 -c 5 --dataset-json r/u10k_n2.json --dbg r/u10k_n2.dbg --output-prefix r/u10k_n2_c5
+# ./target/release/infer -k 20 -K 40 -p 0.001 --dataset-json r/u200_n10.json --output-prefix r/u200_n10_reducer -I 50
+
+# ./target/release/draft -k 32 -C 20 -L 20000 -p 0.001 -U 10000 -N 10 -E 1000 -H 0.02 -P 2 --output-prefix r/u10k_n10
+# ./target/release/infer -K 20000 -p 0.0001 -I 50 --dataset-json r/u10k_n10.json --dbg r/u10k_n10.dbg --output-prefix r/u10k_n10
+
+./target/release/draft -k 32 -C 20 -L 2000 -p 0.001 -U 1000 -N 10 -E 500 -H 0.02 -P 2 --output-prefix r/u1k_n10
+./target/release/infer -K 2000 -p 0.0001 -I 50 --dataset-json r/u1k_n10.json --output-prefix r/u1k_n10
