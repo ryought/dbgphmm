@@ -41,6 +41,11 @@ def split_at(s: str, delimiter: str) -> List[str]:
         for i in range(len(xs))
     ]
 
+def option_int(s: str) -> int:
+    return -1 if s == '?' else int(s)
+
+def option_float(s: str) -> float:
+    return -1.0 if s == '?' else float(s)
 
 @dataclass(frozen=True)
 class Update:
@@ -117,7 +122,7 @@ class CopyNums:
             log_likelihood=float(t[4]),
             log_prior=float(t[5]),
             genome_size=int(t[6]),
-            dist_from_true=int(t[7]),
+            dist_from_true=option_int(t[7]),
             infos=infos,
             copy_nums=copy_nums,
         )
@@ -146,9 +151,9 @@ class Edge:
         return Edge(
             k=int(t[0]),
             id=int(t[2].lstrip('e')),
-            copy_num_true=int(t[3]),
+            copy_num_true=option_int(t[3]),
             copy_num_posterior=float(t[4]),
-            p_true=float(t[5]),
+            p_true=option_float(t[5]),
             p_zero=float(t[6]),
             distribution=t[7],
         )
@@ -410,7 +415,7 @@ def draw_posterior_of_edges(inspects, filename=None):
 def inspect_false_positives(inspects):
     for inspect in inspects:
         for edge in inspect.edges:
-            if edge.copy_num_true and edge.p_zero > p0:
+            if edge.copy_num_true > 0 and edge.p_zero > p0:
                 print('k={} edge={}'.format(inspect.k, edge))
 
 
