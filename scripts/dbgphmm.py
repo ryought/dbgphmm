@@ -372,12 +372,18 @@ def draw_posterior_of_edges(inspects, filename=None):
     plt.grid(axis='both')
     ks = [inspect.k for inspect in inspects]
     plt.xticks(ks, rotation=90)
-    xs, ys, zs = [], [], []
+    xs, y1s, y2s = [], [], []
     for inspect in inspects:
         xs.append(inspect.k)
-        ys.append(
+        # true positive
+        y1s.append(
             len([e for e in inspect.edges if e.copy_num_true == 0 and e.p_zero > p0]))
-    plt.scatter(xs, ys)
+        # false positive
+        y2s.append(
+            len([e for e in inspect.edges if e.copy_num_true > 0 and e.p_zero > p0]))
+    plt.scatter(xs, y1s, marker='o', label='X_true(e)=0')
+    plt.scatter(xs, y2s, marker='x', label='X_true(e)>0')
+    plt.legend()
 
     # E[X(e)] vs X_true(e)
     plt.subplot(4, 1, 4)
