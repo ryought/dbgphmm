@@ -1066,7 +1066,7 @@ impl MultiDbg {
                         // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
                     )
                 })
-                .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+                // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
                 .filter(|(_copy_nums, info)| {
                     if config.ignore_cycles_passing_terminal {
                         info.iter()

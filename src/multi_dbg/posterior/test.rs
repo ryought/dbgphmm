@@ -134,7 +134,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
             max_cycle_size,
             max_flip: 1,
             use_long_cycles: true,
-            ignore_cycles_passing_terminal: true,
+            ignore_cycles_passing_terminal: false,
             use_reducers: true,
         },
         max_iter,

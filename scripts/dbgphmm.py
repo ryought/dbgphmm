@@ -401,26 +401,36 @@ def draw_posterior_of_edges(inspects, filename=None):
         plt.show()
 
 
+def inspect_false_positives(inspects):
+    for inspect in inspects:
+        for edge in inspect.edges:
+            if edge.copy_num_true and edge.p_zero > p0:
+                print('k={} edge={}'.format(inspect.k, edge))
+
+
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('prefix', type=Path, help='prefix of output data')
-    # parser.add_argument('--backward', action='store_true')
+    parser.add_argument('--draw', action='store_true')
     # parser.add_argument('--show', action='store_true')
     args = parser.parse_args()
     inspects = parse_inspect_files_by_prefix(args.prefix)
 
-    draw_graph_props(
-        inspects,
-        filename=str(args.prefix) + '.graph_props.pdf',
-    )
-    draw_posterior_of_copy_nums(
-        inspects,
-        filename=str(args.prefix) + '.post_copy_nums.pdf',
-    )
-    draw_posterior_of_edges(
-        inspects,
-        filename=str(args.prefix) + '.post_edges.pdf',
-    )
+    if args.draw:
+        draw_graph_props(
+            inspects,
+            filename=str(args.prefix) + '.graph_props.pdf',
+        )
+        draw_posterior_of_copy_nums(
+            inspects,
+            filename=str(args.prefix) + '.post_copy_nums.pdf',
+        )
+        draw_posterior_of_edges(
+            inspects,
+            filename=str(args.prefix) + '.post_edges.pdf',
+        )
+    else:
+        inspect_false_positives(inspects)
 
 
 if __name__ == '__main__':
