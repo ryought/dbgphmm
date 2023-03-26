@@ -202,7 +202,7 @@ def parse_inspect_files_by_prefix(prefix: Path) -> List[Inspect]:
     return ret
 
 
-def draw_graph_props(inspects: List[Inspect]):
+def draw_graph_props(inspects: List[Inspect], filename=None):
     """
     n_nodes and n_edges etc for all k
 
@@ -210,23 +210,40 @@ def draw_graph_props(inspects: List[Inspect]):
     * degree
     * average copy_nums
     """
+    plt.figure(figsize=(10, 10))
     ks = [inspect.k for inspect in inspects]
     ns = [int(inspect.props['n_edges_full']) for inspect in inspects]
     ms = [int(inspect.props['n_edges_compact']) for inspect in inspects]
     plt.subplot(2, 1, 1)
-    plt.plot(ks, ns, label='n_edges_full')
+    plt.plot(ks, ns, label='n_edges_full', marker='o')
+    plt.ylabel('n_edges_full')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+
     plt.subplot(2, 1, 2)
-    plt.plot(ks, ms, label='n_edges_compact')
-    plt.show()
+    plt.plot(ks, ms, label='n_edges_compact', marker='o')
+    plt.ylabel('n_edges_compact')
+    plt.grid(axis='both')
+    ks = [inspect.k for inspect in inspects]
+    plt.xticks(ks, rotation=90)
+
+    if filename:
+        plt.savefig(filename)
+        plt.clf()
+        plt.close()
+    else:
+        plt.show()
 
 
-def draw_posterior_of_copy_nums(inspects):
+def draw_posterior_of_copy_nums(inspects, filename=None):
     """
     * posterior or likelihood of sampled copy numbers
     * n_samples
     """
 
     # posterior
+    plt.figure(figsize=(10, 10))
     plt.subplot(4, 1, 1)
     plt.ylim(0-0.1, 1+0.1)
     plt.ylabel('P(X|R)')
@@ -291,14 +308,21 @@ def draw_posterior_of_copy_nums(inspects):
     plt.scatter(xs, ys)
 
     plt.tight_layout()
-    plt.show()
+
+    if filename:
+        plt.savefig(filename)
+        plt.clf()
+        plt.close()
+    else:
+        plt.show()
 
 
-def draw_posterior_of_edges(inspects):
+def draw_posterior_of_edges(inspects, filename=None):
     """
     p_zero or p_true of each edge by its true copy num and k
     (k-mer classification result)
     """
+    plt.figure(figsize=(10, 10))
 
     # P(X(e)=X_true(e))
     plt.subplot(4, 1, 1)
@@ -368,7 +392,13 @@ def draw_posterior_of_edges(inspects):
     plt.scatter(xs, ys, alpha=0.5, label='')
 
     plt.tight_layout()
-    plt.show()
+
+    if filename:
+        plt.savefig(filename)
+        plt.clf()
+        plt.close()
+    else:
+        plt.show()
 
 
 def main():
@@ -379,9 +409,18 @@ def main():
     args = parser.parse_args()
     inspects = parse_inspect_files_by_prefix(args.prefix)
 
-    draw_graph_props(inspects)
-    draw_posterior_of_copy_nums(inspects)
-    draw_posterior_of_edges(inspects)
+    draw_graph_props(
+        inspects,
+        filename=str(args.prefix) + '.graph_props.pdf',
+    )
+    draw_posterior_of_copy_nums(
+        inspects,
+        filename=str(args.prefix) + '.post_copy_nums.pdf',
+    )
+    draw_posterior_of_edges(
+        inspects,
+        filename=str(args.prefix) + '.post_edges.pdf',
+    )
 
 
 if __name__ == '__main__':
