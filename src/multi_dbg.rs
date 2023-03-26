@@ -1038,6 +1038,7 @@ impl MultiDbg {
             Some(config.max_cycle_size),
             Some(config.max_flip),
         );
+        eprintln!("short_cycles: {}", short_cycles.len());
 
         // (2) add long cycles for 0x -> 1x
         if config.use_long_cycles {
@@ -1068,6 +1069,7 @@ impl MultiDbg {
                 })
                 .collect();
 
+            eprintln!("long_cycles: {}", long_cycles.len());
             short_cycles.append(&mut long_cycles);
         }
 
@@ -1089,6 +1091,7 @@ impl MultiDbg {
             let mut reducers =
                 enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0));
 
+            eprintln!("reducers: {}", reducers.len());
             short_cycles.append(&mut reducers);
         }
 
