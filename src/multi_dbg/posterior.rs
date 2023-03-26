@@ -550,6 +550,14 @@ impl MultiDbg {
         let mut dbg = self.clone();
         let mut n_iter = 0;
 
+        // calculate initial score
+        let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+        post.add(PosteriorSample {
+            copy_nums: copy_nums.clone(),
+            score,
+            infos: Vec::new(),
+        });
+
         while n_iter < max_iter {
             // calculate scores of new neighboring copynums of current copynum
             //
