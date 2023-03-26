@@ -15,9 +15,11 @@ Parsers for dbgphmm output files
 * PATHS
 """
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple, Dict
 import argparse
-from enum import Enum
+from pathlib import Path
+import re
+import glob
 import csv
 csv.field_size_limit(1000000000)
 
@@ -148,13 +150,86 @@ class Edge:
         )
 
 
+@dataclass(frozen=True)
+class Inspect:
+    k: int
+    copy_nums: List[CopyNums]
+    edges: List[Edge]
+    props: Dict[str, str]
+
+
+def parse_inspect_file(filename: Path, k: int) -> Inspect:
+    """
+    Parse INSPECT tsv file
+    """
+    cs = []
+    es = []
+    gs = {}
+    with open(filename) as f:
+        for line in f:
+            s = line.rstrip().split('\t')
+            if s[0][0] == '#':
+                continue
+            if s:
+                if s[1] == 'C':
+                    cs.append(CopyNums.parse(line))
+                elif s[1] == 'E':
+                    es.append(Edge.parse(line))
+                elif s[1] == 'G':
+                    key = s[2]
+                    value = s[3]
+                    gs[key] = value
+    return Inspect(
+        k=k,
+        copy_nums=cs,
+        edges=es,
+        props=gs,
+    )
+
+
+def parse_inspect_files_by_prefix(prefix: Path) -> List[Inspect]:
+    ret = []
+    for filename in glob.glob(str(prefix) + '*.inspect'):
+        m = re.match('.*k(\d+).*', filename)
+        k = int(m.group(1))
+        inspect = parse_inspect_file(filename, k)
+        ret.append(inspect)
+    ret.sort(key=lambda i: i.k)
+    return ret
+
+
+def draw_graph_props(inspects):
+    """
+    n_nodes and n_edges etc for all k
+    """
+    pass
+
+
+def draw_posterior_of_copy_nums(inspects):
+    """
+    * posterior or likelihood of sampled copy numbers
+    * n_samples
+    """
+    pass
+
+
+def draw_posterior_of_edges(inspects):
+    """
+    p_zero or p_true of each edge by its true copy num and k
+    (k-mer classification result)
+    """
+    pass
+
+
 def main():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('filename', type=str, help='')
-    parser.add_argument('--backward', action='store_true')
-    parser.add_argument('--show', action='store_true')
+    parser.add_argument('prefix', type=Path, help='prefix of output data')
+    # parser.add_argument('--backward', action='store_true')
+    # parser.add_argument('--show', action='store_true')
     args = parser.parse_args()
-    pass
+    inspects = parse_inspect_files_by_prefix(args.prefix)
+    for inspect in inspects:
+        print(inspect.k)
 
 
 if __name__ == '__main__':
