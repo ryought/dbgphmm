@@ -1114,21 +1114,21 @@ impl MultiDbg {
 pub struct NeighborConfig {
     /// Max size of cycle (in compact graph) in BFS short-cycle search
     ///
-    max_cycle_size: usize,
+    pub max_cycle_size: usize,
     /// Max number of flips (+/- or -/+ changes) in cycles on compact residue graph
     ///
-    max_flip: usize,
+    pub max_flip: usize,
     /// Augment short cycles with long cycles causing 0x -> 1x change
     ///
-    use_long_cycles: bool,
+    pub use_long_cycles: bool,
     /// Ignore cyclic paths passing through the terminal node NNN
     /// because this changes the number of haplotypes.
     ///
-    ignore_cycles_passing_terminal: bool,
+    pub ignore_cycles_passing_terminal: bool,
     ///
     /// Long cycle with Down direction only to reduce high copy number edges
     ///
-    use_reducers: bool,
+    pub use_reducers: bool,
 }
 
 ///
