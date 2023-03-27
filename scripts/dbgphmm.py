@@ -110,12 +110,25 @@ class CopyNums:
         ...     copy_nums=[1,1,1,1,2],
         ... )
         True
+        >>> c = CopyNums.parse('20\tC\t5\t0.8\t-100\t-50\t100\t2\t[]\t[1,1,1,1,2]')
+        >>> c == CopyNums(
+        ...     k=20,
+        ...     id=5,
+        ...     posterior=0.8,
+        ...     log_likelihood=-100.0,
+        ...     log_prior=-50.0,
+        ...     genome_size=100,
+        ...     dist_from_true=2,
+        ...     infos=[],
+        ...     copy_nums=[1,1,1,1,2],
+        ... )
+        True
         """
         t = s.split()
         assert(t[1] == 'C')
         infos = [
             [Update.parse(u) for u in split_at(info, 'e')]
-            for info in t[8].lstrip('[').rstrip(']').split(',')
+            for info in t[8].lstrip('[').rstrip(']').split(',') if len(info) != 0
         ]
         copy_nums = list(map(int, t[9].lstrip('[').rstrip(']').split(',')))
         return CopyNums(
