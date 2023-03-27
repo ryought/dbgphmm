@@ -15,7 +15,7 @@ then
   do
     echo $N
     # pjsub -x N=$N -N N$N -j -o n/N$N scripts/n.sh
-    pjsub -x N=$N -N piN$N -j -o n/piN$N scripts/n.sh
+    pjsub -x N=$N -N v4piN$N -j scripts/n.sh
   done
 else
   #
@@ -27,5 +27,7 @@ else
   # ./target/release/draft -k 20 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 -P 2 --output-prefix n/p01_u500_n$N
   # ./target/release/infer -k 20 -K 1000 -p 0.0001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n$N
   # ./target/release/infer -k 20 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi
-  ./target/release/infer -k 20 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v2
+  # ./target/release/infer -k 20 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v2
+  # ./target/release/infer -k 40 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v3
+  ./target/release/infer -k 40 -K 1000 -p 0.001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v4
 fi
