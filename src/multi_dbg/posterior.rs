@@ -288,6 +288,7 @@ impl MultiDbg {
         copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         // for each copy nums
+        // TODO clean up using key value format
         writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(
             writer,
@@ -740,7 +741,8 @@ pub fn infer_posterior_by_extension<
     k_max: usize,
     dbg_init: MultiDbg,
     // evaluate
-    param: PHMMParams,
+    param_infer: PHMMParams,
+    param_error: PHMMParams,
     reads: ReadCollection<S>,
     genome_size_expected: CopyNum,
     genome_size_sigma: CopyNum,
@@ -765,7 +767,7 @@ pub fn infer_posterior_by_extension<
         // (1) posterior
         let t_start_posterior = std::time::Instant::now();
         posterior = dbg.sample_posterior(
-            param,
+            param_infer,
             &reads,
             genome_size_expected,
             genome_size_sigma,
@@ -787,7 +789,7 @@ pub fn infer_posterior_by_extension<
 
         // (3) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        reads = dbg.generate_hints(param, reads, true, true);
+        reads = dbg.generate_hints(param_infer, reads, true, true);
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
@@ -798,6 +800,21 @@ pub fn infer_posterior_by_extension<
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
     }
+
+    // final run using p_error
+    let t_start_posterior = std::time::Instant::now();
+    posterior = dbg.sample_posterior(
+        param_error,
+        &reads,
+        genome_size_expected,
+        genome_size_sigma,
+        neighbor_config,
+        max_iter,
+        true,
+    );
+    dbg.set_copy_nums(posterior.max_copy_nums());
+    let t_posterior = t_start_posterior.elapsed();
+    eprintln!("posterior_final t={}ms", t_posterior.as_millis());
 
     (dbg, posterior, paths, reads)
 }

@@ -76,6 +76,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     k_init: usize,
     k_final: usize,
     param_infer: PHMMParams,
+    param_error: PHMMParams,
     sigma: CopyNum,        // 200
     max_iter: usize,       // 10
     max_cycle_size: usize, // 10
@@ -92,6 +93,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
         dbg,
         k_final,
         param_infer,
+        param_error,
         sigma,
         max_iter,
         max_cycle_size,
@@ -106,10 +108,11 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     dataset: &Dataset,
     dbg: MultiDbg,
     k_final: usize,
-    param_infer: PHMMParams,
-    sigma: CopyNum,        // 200
-    max_iter: usize,       // 10
-    max_cycle_size: usize, // 10
+    param_infer: PHMMParams, // virtual error rate
+    param_error: PHMMParams, // actual error rate of reads
+    sigma: CopyNum,          // 200
+    max_iter: usize,         // 10
+    max_cycle_size: usize,   // 10
     output_prefix: P,
 ) -> (
     MultiDbg,
@@ -123,10 +126,11 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true, false);
     let output: std::path::PathBuf = output_prefix.as_ref().into();
 
-    let ret = infer_posterior_by_extension(
+    let (dbg, posterior, paths, reads) = infer_posterior_by_extension(
         k_final,
         dbg,
         param_infer,
+        param_error,
         reads,
         dataset.genome_size(),
         sigma,
@@ -163,9 +167,24 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         paths_true.ok(),
     );
 
+    // output final
+    let copy_nums_true = paths
+        .as_ref()
+        .map(|paths| dbg.copy_nums_from_full_path(paths));
+    dbg.to_gfa_post_file(
+        output.with_extension("final.gfa"),
+        &posterior,
+        copy_nums_true.as_ref(),
+    );
+    dbg.to_inspect_file(
+        output.with_extension("final.inspect"),
+        &posterior,
+        copy_nums_true.as_ref(),
+    );
+
     println!("# finished_at={}", chrono::Local::now());
 
-    ret
+    (dbg, posterior, paths, reads)
 }
 
 ///
@@ -295,6 +314,7 @@ mod tests {
             20,
             500,
             PHMMParams::uniform(0.001),
+            PHMMParams::uniform(0.005),
             200,
             10,
             10,
@@ -356,6 +376,7 @@ mod tests {
             20,
             500,
             PHMMParams::uniform(0.001),
+            PHMMParams::uniform(0.005),
             200,
             10,
             10,
@@ -385,6 +406,7 @@ mod tests {
             20,
             500,
             PHMMParams::uniform(0.001),
+            PHMMParams::uniform(0.005),
             200,
             10,
             10,

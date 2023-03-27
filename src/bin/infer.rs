@@ -15,6 +15,8 @@ struct Opts {
     k_init: Option<usize>,
     #[clap(short = 'K')]
     k_max: usize,
+    #[clap(short = 'e')]
+    p_error: f64,
     #[clap(short = 'p')]
     p_infer: f64,
     #[clap(short = 's', default_value = "200")]
@@ -48,6 +50,7 @@ fn main() {
         dbg,
         opts.k_max,
         PHMMParams::uniform(opts.p_infer),
+        PHMMParams::uniform(opts.p_error),
         opts.sigma,
         opts.max_iter,
         opts.max_cycle_size,
