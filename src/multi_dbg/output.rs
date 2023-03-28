@@ -157,6 +157,7 @@ impl MultiDbg {
     /// C 1,1,1,0,0,0,0,0,1
     /// ```
     pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "K\t{}", self.k())?;
         for (node, weight) in self.nodes_compact() {
             writeln!(writer, "N\t{}\t{}", node.index(), self.km1mer_compact(node))?
@@ -298,8 +299,9 @@ impl MultiDbg {
 
         // compact
         let mut compact = DiGraph::new();
-        for _ in nodes.iter() {
-            compact.add_node(MultiCompactNode::new());
+        for (_, km1mer) in nodes.iter() {
+            let is_terminal = km1mer.iter().all(|&x| x == NULL_BASE);
+            compact.add_node(MultiCompactNode::new(is_terminal));
         }
         for (_, s, t, _, _, edges_in_full) in edges.into_iter() {
             compact.add_edge(s, t, MultiCompactEdge::new(edges_in_full));

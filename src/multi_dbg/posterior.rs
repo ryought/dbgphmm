@@ -1,7 +1,7 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{CopyNums, MultiDbg, Path};
+use super::{CopyNums, MultiDbg, NeighborConfig, Path};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -46,6 +46,25 @@ pub struct PosteriorSample {
     pub infos: Vec<UpdateInfo>,
 }
 
+impl PosteriorSample {
+    ///
+    ///
+    ///
+    pub fn to_infos_string(&self) -> String {
+        format!(
+            "[{}]",
+            self.infos
+                .iter()
+                .map(|info| {
+                    info.iter()
+                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+                        .join("")
+                })
+                .join(",")
+        )
+    }
+}
+
 impl Posterior {
     ///
     /// Create empty posterior container
@@ -60,8 +79,10 @@ impl Posterior {
     /// Add a sampled copy numbers and its score
     ///
     pub fn add(&mut self, sample: PosteriorSample) {
-        self.p += sample.score.p();
-        self.samples.push(sample);
+        if !self.contains(&sample.copy_nums) {
+            self.p += sample.score.p();
+            self.samples.push(sample);
+        }
     }
     ///
     /// Check if the copy numbers is stored in the posterior or not
@@ -140,6 +161,7 @@ impl Posterior {
     ///
     ///
     pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "Z\t{}", self.p.to_log_value())?;
         for sample in self
             .samples
@@ -149,18 +171,11 @@ impl Posterior {
         {
             writeln!(
                 writer,
-                "C\t{}\t{}\t{}\t[{}]",
+                "C\t{}\t{}\t{}\t{}",
                 sample.score.p().to_log_value(),
                 sample.copy_nums,
                 sample.score,
-                sample
-                    .infos
-                    .iter()
-                    .map(|info| info
-                        .iter()
-                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
-                        .join(""))
-                    .join(",")
+                sample.to_infos_string(),
             )?
         }
         Ok(())
@@ -245,6 +260,13 @@ impl Posterior {
     }
 }
 
+fn format_option_copy_num<T: std::fmt::Display>(o: Option<T>) -> String {
+    match o {
+        Some(i) => format!("{}", i),
+        None => format!("?"),
+    }
+}
+
 ///
 /// benchmark functions for when true genome is available
 ///
@@ -266,6 +288,44 @@ impl MultiDbg {
         copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         // for each copy nums
+        // TODO clean up using key value format
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
+        writeln!(
+            writer,
+            "{}\tG\tn_edges_full\t{}",
+            self.k(),
+            self.n_edges_full()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tn_edges_compact\t{}",
+            self.k(),
+            self.n_edges_compact()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tn_nodes_full\t{}",
+            self.k(),
+            self.n_nodes_full()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tn_nodes_compact\t{}",
+            self.k(),
+            self.n_nodes_compact()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tn_emittable_edges\t{}",
+            self.k(),
+            self.n_emittable_edges()
+        )?;
+        writeln!(
+            writer,
+            "{}\tG\tdegree_stats\t{:?}",
+            self.k(),
+            self.degree_stats(),
+        )?;
         for (i, sample) in posterior
             .samples
             .iter()
@@ -277,16 +337,17 @@ impl MultiDbg {
             let copy_nums = &sample.copy_nums;
             writeln!(
                 writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}",
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}",
                 self.k(),
                 i,
                 (score.p() / posterior.p()).to_value(),
                 score.likelihood.to_log_value(),
                 score.prior.to_log_value(),
                 score.genome_size,
-                copy_nums_true
-                    .map(|copy_nums_true| copy_nums_true.diff(copy_nums))
-                    .unwrap_or(0),
+                format_option_copy_num(
+                    copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
+                ),
+                sample.to_infos_string(),
                 copy_nums,
             )?
         }
@@ -294,17 +355,17 @@ impl MultiDbg {
         // for each edges
         for edge in self.graph_compact().edge_indices() {
             let p_edge = posterior.p_edge(edge);
-            let copy_num_true = copy_nums_true
-                .map(|copy_num_true| copy_num_true[edge])
-                .unwrap_or(0);
+            let copy_num_true = copy_nums_true.map(|copy_num_true| copy_num_true[edge]);
             writeln!(
                 writer,
                 "{}\tE\te{}\t{}\t{:.5}\t{:.5}\t{:.5}\t{}",
                 self.k(),
                 edge.index(),
-                copy_num_true,
+                format_option_copy_num(copy_num_true),
                 p_edge.mean(),
-                p_edge.p_x(copy_num_true).to_value(),
+                format_option_copy_num(
+                    copy_num_true.map(|copy_num_true| p_edge.p_x(copy_num_true).to_value())
+                ),
                 p_edge.p_x(0).to_value(),
                 p_edge.to_short_string(),
             )?
@@ -505,8 +566,7 @@ impl MultiDbg {
         reads: &ReadCollection<S>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
-        max_cycle_size: usize,
-        max_flip: usize,
+        neighbor_config: NeighborConfig,
         max_iter: usize,
         is_parallel: bool,
     ) -> Posterior {
@@ -516,11 +576,19 @@ impl MultiDbg {
         let mut dbg = self.clone();
         let mut n_iter = 0;
 
+        // calculate initial score
+        let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+        post.add(PosteriorSample {
+            copy_nums: copy_nums.clone(),
+            score,
+            infos: Vec::new(),
+        });
+
         while n_iter < max_iter {
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
-            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip);
+            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
             eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
             // evaluate all neighbors
@@ -673,13 +741,13 @@ pub fn infer_posterior_by_extension<
     k_max: usize,
     dbg_init: MultiDbg,
     // evaluate
-    param: PHMMParams,
+    param_infer: PHMMParams,
+    param_error: PHMMParams,
     reads: ReadCollection<S>,
     genome_size_expected: CopyNum,
     genome_size_sigma: CopyNum,
     // neighbor
-    max_cycle_size: usize,
-    max_flip: usize,
+    neighbor_config: NeighborConfig,
     max_iter: usize,
     // extend
     p0: Prob,
@@ -699,12 +767,11 @@ pub fn infer_posterior_by_extension<
         // (1) posterior
         let t_start_posterior = std::time::Instant::now();
         posterior = dbg.sample_posterior(
-            param,
+            param_infer,
             &reads,
             genome_size_expected,
             genome_size_sigma,
-            max_cycle_size,
-            max_flip,
+            neighbor_config,
             max_iter,
             true,
         );
@@ -722,7 +789,7 @@ pub fn infer_posterior_by_extension<
 
         // (3) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        reads = dbg.generate_hints(param, reads, true, true);
+        reads = dbg.generate_hints(param_infer, reads, true, true);
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
@@ -733,6 +800,21 @@ pub fn infer_posterior_by_extension<
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
     }
+
+    // final run using p_error
+    let t_start_posterior = std::time::Instant::now();
+    posterior = dbg.sample_posterior(
+        param_error,
+        &reads,
+        genome_size_expected,
+        genome_size_sigma,
+        neighbor_config,
+        max_iter,
+        true,
+    );
+    dbg.set_copy_nums(posterior.max_copy_nums());
+    let t_posterior = t_start_posterior.elapsed();
+    eprintln!("posterior_final t={}ms", t_posterior.as_millis());
 
     (dbg, posterior, paths, reads)
 }

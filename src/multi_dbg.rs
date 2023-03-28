@@ -37,7 +37,10 @@ use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::{
-    base::FlowEdgeBase, enumerate_neighboring_flows, residue::UpdateInfo, Flow,
+    base::FlowEdgeBase,
+    enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
+    residue::{ResidueDirection, UpdateInfo},
+    Flow,
 };
 
 pub mod draft;
@@ -172,14 +175,17 @@ impl MultiCompactEdge {
 ///
 /// Node of MultiDbg compact graph
 ///
-/// Empty struct
-///
 #[derive(Clone, Debug, PartialEq)]
-pub struct MultiCompactNode {}
+pub struct MultiCompactNode {
+    ///
+    /// if this node corresponds to k-1mer NNN, then true.
+    ///
+    is_terminal: bool,
+}
 
 impl MultiCompactNode {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(is_terminal: bool) -> Self {
+        Self { is_terminal }
     }
 }
 
@@ -259,6 +265,14 @@ impl MultiDbg {
     pub fn n_edges_compact(&self) -> usize {
         self.graph_compact().edge_count()
     }
+    ///
+    /// # of edges with base in full graph
+    ///
+    pub fn n_emittable_edges(&self) -> usize {
+        self.edges_full()
+            .filter(|(_, _, _, ew)| !ew.is_null_base())
+            .count()
+    }
     /// Iterator of all nodes in the graph
     /// Item is (node: NodeIndex, node_weight: &MultiFullNode)
     pub fn nodes_full(&self) -> NodesIterator<MultiFullNode> {
@@ -320,12 +334,41 @@ impl MultiDbg {
         self.graph_full()[edge_in_full].base
     }
     ///
-    /// Get terminal node (= (k-1)-mer NNN) in full
+    /// Get terminal node (= (k-1)-mer NNN) in full graph
+    ///
+    /// The underlying genome is circular, the terminal node can be missing.
     ///
     pub fn terminal_node_full(&self) -> Option<NodeIndex> {
         self.nodes_full()
             .find(|(_, node_weight)| node_weight.is_terminal)
             .map(|(node, _)| node)
+    }
+    ///
+    /// Get terminal node (= (k-1)-mer NNN) in compact graph
+    ///
+    /// The underlying genome is circular, the terminal node can be missing.
+    ///
+    pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
+        self.nodes_compact()
+            .find(|(_, node_weight)| node_weight.is_terminal)
+            .map(|(node, _)| node)
+    }
+    ///
+    /// Check if an edge in compact graph is either
+    /// * starting edge (source node is terminal NNN)
+    /// * ending edge (target node is terminal NNN)
+    ///
+    pub fn is_start_or_end_edge_compact(&self, edge_in_compact: EdgeIndex) -> bool {
+        match self.terminal_node_compact() {
+            Some(terminal) => {
+                let (s, t) = self
+                    .graph_compact()
+                    .edge_endpoints(edge_in_compact)
+                    .unwrap();
+                s == terminal || t == terminal
+            }
+            None => false,
+        }
     }
     ///
     /// count the number of nodes with (in_degree, out_degree) in graph full
@@ -346,6 +389,12 @@ impl MultiDbg {
             }
         }
         n
+    }
+    /// the number of bases the edge in compact represents?
+    /// (= the number of collapsed edges in full)
+    ///
+    pub fn n_bases(&self, edge_in_compact: EdgeIndex) -> usize {
+        self.edges_in_full(edge_in_compact).len()
     }
 }
 
@@ -388,17 +437,6 @@ impl MultiDbg {
         let first_child_edge = ew.edges_in_full[0];
         let (node_in_full, _) = self.graph_full().edge_endpoints(first_child_edge).unwrap();
         node_in_full
-    }
-    ///
-    /// Get terminal node (NNNN) in compact graph
-    ///
-    /// The underlying genome is circular, the terminal node can be missing.
-    ///
-    pub fn terminal_node_compact(&self) -> Option<NodeIndex> {
-        self.graph_compact().node_indices().find(|&node| {
-            let v = self.node_in_compact_to_full(node);
-            self.graph_full()[v].is_terminal
-        })
     }
     ///
     ///
@@ -880,6 +918,15 @@ impl MultiDbg {
             .sum()
     }
     ///
+    /// Get maximum copy number of edges (k-mers)
+    ///
+    pub fn max_copy_num(&self) -> CopyNum {
+        self.edges_full()
+            .map(|(_, _, _, edge_weight)| edge_weight.copy_num)
+            .max()
+            .unwrap()
+    }
+    ///
     /// Set copy numbers of edges in full according to CopyNums vector
     ///
     pub fn set_copy_nums(&mut self, copy_nums: &CopyNums) {
@@ -980,9 +1027,9 @@ impl MultiDbg {
     ///
     pub fn to_neighbor_copy_nums_and_infos(
         &self,
-        max_cycle_size: usize,
-        max_flip: usize,
+        config: NeighborConfig,
     ) -> Vec<(CopyNums, UpdateInfo)> {
+        // create flow network for rustflow
         let network = self.graph_compact().map(
             |_, _| (),
             |edge, _| {
@@ -991,16 +1038,97 @@ impl MultiDbg {
             },
         );
         let copy_nums = self.get_copy_nums();
-        enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
+
+        // (1) enumerate all short cycles
+        let mut short_cycles = enumerate_neighboring_flows(
+            &network,
+            &copy_nums,
+            Some(config.max_cycle_size),
+            Some(config.max_flip),
+        );
+        eprintln!("short_cycles: {}", short_cycles.len());
+
+        // (2) add long cycles for 0x -> 1x
+        if config.use_long_cycles {
+            // let max_copy_num = self.max_copy_num();
+            let mut long_cycles: Vec<_> = self
+                .graph_compact()
+                .edge_indices()
+                .filter(|&e| self.copy_num_of_edge_in_compact(e) == 0)
+                .filter_map(|e| {
+                    find_neighboring_flow_by_edge_change(
+                        &network,
+                        &copy_nums,
+                        e,
+                        ResidueDirection::Up,
+                        // weight function
+                        |e| self.n_bases(e) / (self.copy_num_of_edge_in_compact(e) + 1),
+                        // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
+                    )
+                })
+                // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+                .filter(|(_copy_nums, info)| {
+                    if config.ignore_cycles_passing_terminal {
+                        info.iter()
+                            .all(|(e, _d)| !self.is_start_or_end_edge_compact(*e))
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+
+            eprintln!("long_cycles: {}", long_cycles.len());
+            short_cycles.append(&mut long_cycles);
+        }
+
+        // (3) add long cycles for reducing high-copy edges
+        if config.use_reducers {
+            let network = self.graph_compact().map(
+                |_, _| (),
+                |edge, _| {
+                    let copy_num = self.copy_num_of_edge_in_compact(edge);
+                    if copy_num > 2 {
+                        // reduceable
+                        FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num, 0.0)
+                    } else {
+                        FlowEdgeBase::new(copy_num, copy_num, 0.0)
+                    }
+                },
+            );
+            let copy_nums = self.get_copy_nums();
+            let mut reducers =
+                enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0));
+
+            eprintln!("reducers: {}", reducers.len());
+            short_cycles.append(&mut reducers);
+        }
+
+        short_cycles
     }
+}
+
+///
+/// Parameters for neighbor search of copy numbers
+///
+#[derive(Clone, Debug, Copy)]
+pub struct NeighborConfig {
+    /// Max size of cycle (in compact graph) in BFS short-cycle search
     ///
+    pub max_cycle_size: usize,
+    /// Max number of flips (+/- or -/+ changes) in cycles on compact residue graph
     ///
-    pub fn to_neighbor_copy_nums(&self, max_cycle_size: usize, max_flip: usize) -> Vec<CopyNums> {
-        self.to_neighbor_copy_nums_and_infos(max_cycle_size, max_flip)
-            .into_iter()
-            .map(|(copy_nums, _)| copy_nums)
-            .collect()
-    }
+    pub max_flip: usize,
+    /// Augment short cycles with long cycles causing 0x -> 1x change
+    ///
+    pub use_long_cycles: bool,
+    /// Ignore cyclic paths passing through the terminal node NNN
+    /// because this changes the number of haplotypes.
+    ///
+    pub ignore_cycles_passing_terminal: bool,
+    ///
+    /// Long cycle with Down direction only to reduce high copy number edges
+    ///
+    pub use_reducers: bool,
 }
 
 ///
@@ -1334,7 +1462,7 @@ impl MultiDbg {
         full: &DiGraph<MultiFullNode, MultiFullEdge>,
     ) -> DiGraph<MultiCompactNode, MultiCompactEdge> {
         compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal).map(
-            |_node, _| MultiCompactNode::new(),
+            |_node, node_weight| MultiCompactNode::new(node_weight.is_terminal),
             |_edge, edge_weight| {
                 let edges = edge_weight.into_iter().map(|(edge, _)| *edge).collect();
                 MultiCompactEdge::new(edges)
@@ -1760,18 +1888,36 @@ mod tests {
     fn neighbors_for_toy() {
         let mut dbg = toy::intersection();
         dbg.show_graph_with_kmer();
-        let neighbors = dbg.to_neighbor_copy_nums_and_infos(10, 0);
+        let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+            max_cycle_size: 10,
+            max_flip: 0,
+            use_long_cycles: false,
+            ignore_cycles_passing_terminal: false,
+            use_reducers: false,
+        });
         for (copy_nums, update_info) in neighbors {
             println!("{} {:?}", copy_nums, update_info);
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums(10, 0);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 10,
+                max_flip: 0,
+                use_long_cycles: false,
+                ignore_cycles_passing_terminal: false,
+                use_reducers: false,
+            });
             assert_eq!(neighbors.len(), 8);
         }
 
         {
-            let neighbors = dbg.to_neighbor_copy_nums(10, 2);
+            let neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 10,
+                max_flip: 2,
+                use_long_cycles: false,
+                ignore_cycles_passing_terminal: false,
+                use_reducers: false,
+            });
             assert_eq!(neighbors.len(), 12);
         }
     }

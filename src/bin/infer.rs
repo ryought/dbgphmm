@@ -9,13 +9,22 @@ use dbgphmm::{
 };
 
 #[derive(Parser, Debug)]
+#[clap(author, about, version = env!("GIT_HASH"))]
 struct Opts {
     #[clap(short = 'k')]
     k_init: Option<usize>,
     #[clap(short = 'K')]
     k_max: usize,
+    #[clap(short = 'e')]
+    p_error: f64,
     #[clap(short = 'p')]
     p_infer: f64,
+    #[clap(short = 's', default_value = "200")]
+    sigma: usize,
+    #[clap(short = 'I', default_value = "10")]
+    max_iter: usize,
+    #[clap(short = 'c', default_value = "10")]
+    max_cycle_size: usize,
     #[clap(long)]
     dbg: Option<std::path::PathBuf>,
     #[clap(long)]
@@ -27,6 +36,7 @@ struct Opts {
 fn main() {
     let opts: Opts = Opts::parse();
     println!("# started_at={}", chrono::Local::now());
+    println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
@@ -40,6 +50,10 @@ fn main() {
         dbg,
         opts.k_max,
         PHMMParams::uniform(opts.p_infer),
+        PHMMParams::uniform(opts.p_error),
+        opts.sigma,
+        opts.max_iter,
+        opts.max_cycle_size,
         opts.output_prefix,
     );
 
