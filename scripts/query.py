@@ -1,48 +1,56 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from dbgphmm import *
+import argparse
 
-inspects = parse_inspect_files_by_prefix('n/p01_u500_n4_pi_v2')
 
-for inspect in inspects:
-    if inspect.k == 50:
-        print(inspect.k)
-        x0 = inspect.copy_nums[0].copy_nums
+def main():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('prefix', type=Path, help='prefix of output data')
+    parser.add_argument('k', type=int)
+    parser.add_argument('x', type=str, choices=['x0', 'xT'])
+    parser.add_argument('--update', type=str)
+    args = parser.parse_args()
+
+    k = args.k
+    inspect = parse_inspect_file(
+        str(args.prefix) + '.k{}.inspect'.format(k), k)
+
+    print(inspect.k)
+
+    if args.x == 'x0':
         for c in inspect.copy_nums:
-            print(c.infos)
             if len(c.infos) == 0:
-                xi = c.copy_nums
+                c0 = c
+    elif args.x == 'xT':
+        c0 = inspect.copy_nums[0]
+    else:
+        raise Exception()
 
-        x = inspect.copy_nums[0].copy_nums.copy()
-        ups = [23]
-        downs = [1, 55, 58, 21, 37]
+    x0 = c0.copy_nums
+    print('c0=', c0)
+    print('x0=', x0)
 
-        for i in (ups + downs):
-            print('x[{}]={}'.format(i, x[i]))
+    x = x0.copy()
 
-        for i in ups:
-            x[i] += 1
-        for i in downs:
-            x[i] -= 1
+    for update in Update.parse_list(args.update):
+        if update.is_up:
+            x[update.edge] += 1
+        else:
+            x[update.edge] -= 1
 
-        for i in (ups + downs):
-            print('x[{}]={}'.format(i, x[i]))
+    print('x =', x)
 
-        xa = xi.copy()
-        for i in ups:
-            xa[i] += 1
-        for i in downs:
-            xa[i] -= 1
+    for c in inspect.copy_nums:
+        if c.copy_nums == x:
+            print('c =', c)
+            break
+    else:
+        print('c not found')
 
-        print('x =', x)
-        print('x0=', x0)
-        print('xi=', xi)
-        print('xa=', xa)
 
-        for c in inspect.copy_nums:
-            if c.copy_nums == x0:
-                print('x0 found', c.id)
-            if c.copy_nums == x:
-                print('x found', c.id)
-            if c.copy_nums == xi:
-                print('xi found', c.id)
-            if c.copy_nums == xa:
-                print('xa found', c.id)
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+    main()
