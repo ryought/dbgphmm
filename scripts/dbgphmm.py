@@ -216,9 +216,10 @@ def parse_inspect_files_by_prefix(prefix: Path) -> List[Inspect]:
     ret = []
     for filename in glob.glob(str(prefix) + '*.inspect'):
         m = re.match('.*k(\d+).*', filename)
-        k = int(m.group(1))
-        inspect = parse_inspect_file(filename, k)
-        ret.append(inspect)
+        if m:
+            k = int(m.group(1))
+            inspect = parse_inspect_file(filename, k)
+            ret.append(inspect)
     ret.sort(key=lambda i: i.k)
     return ret
 
@@ -445,6 +446,8 @@ def main():
     # parser.add_argument('--show', action='store_true')
     args = parser.parse_args()
     inspects = parse_inspect_files_by_prefix(args.prefix)
+    if len(inspects) == 0:
+        raise Exception('no inspect file found')
 
     if args.draw:
         draw_graph_props(
