@@ -326,8 +326,9 @@ mod tests {
     #[test]
     #[ignore]
     fn repeat_1k_posterior() {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
+        );
         let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
             genome.clone(),
@@ -357,8 +358,9 @@ mod tests {
     // #[test]
     #[ignore]
     fn repeat_1k_inference() {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(100, 10, 0, 300, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
+        );
         let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
             genome.clone(),
@@ -387,8 +389,9 @@ mod tests {
     // #[test]
     #[ignore]
     fn repeat_u200_inference() {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(200, 10, 0, 200, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            200, 10, 0, 0.0, 0, 200, 2, 0.01, 0,
+        );
         let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
             genome.clone(),

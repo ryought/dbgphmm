@@ -11,13 +11,10 @@ use dbgphmm::kmer::common::kmers_to_string_pretty;
 use dbgphmm::kmer::VecKmer;
 use dbgphmm::prelude::*;
 use dbgphmm::utils::{check_memory_usage, timer};
-use git_version::git_version;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
-
-const GIT_VERSION: &str = git_version!();
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -84,7 +81,7 @@ fn main() {
     let opts: Opts = Opts::parse();
 
     println!("# started_at={}", chrono::Local::now());
-    println!("# version={}", GIT_VERSION);
+    println!("# version={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
     check_memory_usage();
 
@@ -93,6 +90,8 @@ fn main() {
             opts.unit_size,
             opts.n_unit,
             opts.seed,
+            0.0, // hap[0] is exact tandem repeat
+            0,   //
             opts.end_length,
             opts.n_haplotypes,
             opts.hap_divergence,

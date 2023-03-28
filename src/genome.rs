@@ -191,6 +191,8 @@ pub fn tandem_repeat_polyploid_with_unique_homo_ends(
     unit_size: usize,
     n_unit: usize,
     unit_seed: u64,
+    divergence_init: f64,
+    div_init_seed: u64,
     end_length: usize,
     n_haplotypes: usize,
     divergence_between_haplotypes: f64,
@@ -199,6 +201,14 @@ pub fn tandem_repeat_polyploid_with_unique_homo_ends(
     // base tandem repeats
     let unit = generate(unit_size, unit_seed);
     let tandem_repeat = tandem_repeat(&unit, n_unit);
+
+    // initial divergence
+    let (tandem_repeat, ops) = random_mutation(
+        &tandem_repeat,
+        MutationProfile::uniform(divergence_init),
+        div_init_seed,
+    );
+    println!("[genome] ops hap[0] {:?}", ops);
 
     // unique ends
     let prefix = generate(end_length, unit_seed.wrapping_add(1));
@@ -214,12 +224,13 @@ pub fn tandem_repeat_polyploid_with_unique_homo_ends(
 
     // add other mutated haplotypes
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
-    for _ in 1..n_haplotypes {
-        let (tandem_repeat_mut, _ops) = random_mutation_with_rng(
+    for i in 1..n_haplotypes {
+        let (tandem_repeat_mut, ops) = random_mutation_with_rng(
             &tandem_repeat,
             MutationProfile::uniform(divergence_between_haplotypes),
             &mut rng,
         );
+        println!("[genome] ops hap[{}] {:?}", i, ops);
         let hap = join(prefix.clone(), join(tandem_repeat_mut, suffix.clone()));
         genome_size += hap.len();
         genome.push(StyledSequence::linear(hap));
@@ -500,7 +511,8 @@ mod tests {
     }
     #[test]
     fn genome_tandem_repeat_unique_homo_ends() {
-        let (g, gs) = tandem_repeat_polyploid_with_unique_homo_ends(10, 5, 0, 10, 4, 0.05, 0);
+        let (g, gs) =
+            tandem_repeat_polyploid_with_unique_homo_ends(10, 5, 0, 0.0, 0, 10, 4, 0.05, 0);
         show_genome(&g, gs);
         assert_eq!(
             g,

@@ -67,7 +67,7 @@ mod tests {
                 &mut rng,
                 &[(b'a', Prob::from_prob(0.5)), (b'b', Prob::from_prob(0.5))],
             );
-            // println!("{:?}", picked);
+            println!("{:?}", picked);
         }
     }
 }

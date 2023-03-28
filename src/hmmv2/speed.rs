@@ -28,26 +28,29 @@ mod tests {
     /// unit 1kb x 1000 times = 1MB diploid
     fn g1m() -> (Genome, usize) {
         let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-            1_000, 1_000, 0, 1_000, 2, 0.01, 0,
+            1_000, 1_000, 0, 0.0, 0, 1_000, 2, 0.01, 0,
         );
         (genome, genome_size)
     }
     /// unit 20b x 50 times = 1kB diploid
     fn g1k() -> (Genome, usize) {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(20, 50, 0, 50, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            20, 50, 0, 0.0, 0, 50, 2, 0.01, 0,
+        );
         (genome, genome_size)
     }
     /// unit 20b x 500 times = 1kB diploid
     fn g10k() -> (Genome, usize) {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(20, 500, 0, 50, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            20, 500, 0, 0.0, 0, 50, 2, 0.01, 0,
+        );
         (genome, genome_size)
     }
     /// unit 1kB x 1 times = 1kB diploid (unique sequence)
     fn gu1k() -> (Genome, usize) {
-        let (genome, genome_size) =
-            genome::tandem_repeat_polyploid_with_unique_homo_ends(1000, 1, 0, 50, 2, 0.01, 0);
+        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            1000, 1, 0, 0.0, 0, 50, 2, 0.01, 0,
+        );
         (genome, genome_size)
     }
 

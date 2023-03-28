@@ -28,6 +28,8 @@ struct Opts {
     end_length: usize,
     #[clap(short = 'H')]
     hap_divergence: f64,
+    #[clap(long = "H0")]
+    hap_init_divergence: f64,
     #[clap(short = 'P')]
     n_haplotypes: usize,
     // output
@@ -53,6 +55,8 @@ fn main() {
         opts.unit_size,
         opts.n_unit,
         0,
+        opts.hap_init_divergence,
+        1,
         opts.end_length,
         opts.n_haplotypes,
         opts.hap_divergence,
@@ -72,7 +76,7 @@ fn main() {
     });
     writeln!(&mut log_file, "# dataset created in {}ms", t);
 
-    // dataset.show_reads_with_genome();
+    dataset.show_reads_with_genome();
     let (_, t) = timer(|| dataset.to_json_file(opts.output_prefix.with_extension("json")));
     writeln!(&mut log_file, "# dataset dumped in {}ms", t);
     dataset.to_json_file(opts.output_prefix.with_extension("json"));

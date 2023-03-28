@@ -45,7 +45,6 @@ fixedbitset = "*"
 # pyo3 = { version = "0.17.1", features = ["extension-module"] }
 pyo3 = { version = "0.17.1" }
 chrono = "*"
-git-version = "*"
 indicatif = { version = "*", features = ["rayon"] }
 
 [package.metadata.maturin]
