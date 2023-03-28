@@ -76,6 +76,16 @@ class Update:
             is_up=is_up,
         )
 
+    def parse_list(s):
+        """
+        >>> Update.parse_list("e21+e5+e7-")
+        [Update(edge=21, is_up=True), Update(edge=5, is_up=True), Update(edge=7, is_up=False)]
+        """
+        if s:
+            return [Update.parse(u) for u in split_at(s, 'e')]
+        else:
+            return []
+
 
 @dataclass(frozen=True)
 class CopyNums:
@@ -127,7 +137,7 @@ class CopyNums:
         t = s.split()
         assert(t[1] == 'C')
         infos = [
-            [Update.parse(u) for u in split_at(info, 'e')]
+            Update.parse_list(info)
             for info in t[8].lstrip('[').rstrip(']').split(',') if len(info) != 0
         ]
         copy_nums = list(map(int, t[9].lstrip('[').rstrip(']').split(',')))
