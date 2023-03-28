@@ -17,7 +17,7 @@ mod tests {
     use crate::genome;
     use crate::hmmv2::common::PModel;
     use crate::hmmv2::sample::State;
-    use crate::hmmv2::tablev2::PHMMTable;
+    use crate::hmmv2::table::PHMMTable;
     use crate::multi_dbg::MultiDbg;
     use crate::prelude::*;
     use crate::prob::{lp, p};

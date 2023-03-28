@@ -23,7 +23,7 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
-use super::tablev2::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
+use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::collection::Bases;
 use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
@@ -53,6 +53,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn run_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
         let forward = self.forward_sparse(&emissions);
         let backward = self.backward_sparse(&emissions);
+        PHMMOutput::new(forward, backward)
+    }
+    ///
+    ///
+    ///
+    pub fn run_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMOutput {
+        let forward = self.forward_with_hint(&emissions, hint);
+        let backward = self.backward_with_hint(&emissions, hint);
         PHMMOutput::new(forward, backward)
     }
 }

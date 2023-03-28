@@ -11,6 +11,7 @@ use crate::prob::Prob;
 use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::visit::{IntoNodeReferences, NodeRef};
 pub use petgraph::Direction;
 
 pub trait SeqGraph {
@@ -62,6 +63,24 @@ pub trait SeqGraph {
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
     ///
     fn to_phmm(&self, param: PHMMParams) -> PModel;
+    /// Create node for uniform PHMM
+    ///
+    /// initial probability of node `v` =
+    ///   `1 / n_emittable_nodes` (if `v` is emittable)
+    ///   `0` (otherwise)
+    ///
+    fn to_uniform_phmm_node(&self, node: NodeIndex, n_emittable_nodes: usize) -> PNode;
+    /// Create edge for uniform PHMM
+    ///
+    /// transition probability of edge `(s,t)` =
+    ///   `1 / n_emittable_childs` (if `t` is emittable)
+    ///   `0` (otherwise)
+    ///
+    fn to_uniform_phmm_edge(&self, edge: EdgeIndex) -> PEdge;
+    /// Craete uniform PHMM for creating hint of reads
+    ///
+    ///
+    fn to_uniform_phmm(&self, param: PHMMParams) -> PModel;
 }
 
 impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
@@ -170,6 +189,45 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             |v, _| self.to_phmm_node(v, total_copy_num),
             // edge converter
             |e, _| self.to_phmm_edge(e),
+        );
+        PModel { param, graph }
+    }
+    fn to_uniform_phmm_node(&self, node: NodeIndex, n_emittable_nodes: usize) -> PNode {
+        let node_weight = self.node_weight(node).unwrap();
+        let init_prob = if node_weight.is_emittable() {
+            Prob::one() / Prob::from_prob(n_emittable_nodes as f64)
+        } else {
+            Prob::from_prob(0.0)
+        };
+        PNode::new(
+            node_weight.copy_num(),
+            init_prob,
+            node_weight.is_emittable(),
+            node_weight.base(),
+        )
+    }
+    fn to_uniform_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
+        let (parent, child) = self.edge_endpoints(edge).unwrap();
+        let n_emittable_childs = self
+            .neighbors_directed(parent, Direction::Outgoing)
+            .filter(|&v| self.node_weight(v).unwrap().is_emittable())
+            .count();
+        let is_emittable = self.node_weight(child).unwrap().is_emittable();
+        let trans_prob = if is_emittable {
+            Prob::one() / Prob::from_prob(n_emittable_childs as f64)
+        } else {
+            Prob::from_prob(0.0)
+        };
+        PEdge::new(trans_prob)
+    }
+    fn to_uniform_phmm(&self, param: PHMMParams) -> PModel {
+        let n_emittable_nodes = self
+            .node_references()
+            .filter(|&v| v.weight().is_emittable())
+            .count();
+        let graph = self.map(
+            |v, _| self.to_uniform_phmm_node(v, n_emittable_nodes),
+            |e, _| self.to_uniform_phmm_edge(e),
         );
         PModel { param, graph }
     }

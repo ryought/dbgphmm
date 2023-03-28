@@ -11,7 +11,7 @@ pub mod params;
 pub mod q;
 pub mod sample;
 pub mod speed;
-pub mod tablev2;
+pub mod table;
 pub mod tests;
 pub mod tests_dbg;
 pub mod trans_table;

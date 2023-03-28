@@ -82,7 +82,7 @@ impl DiscreteDistribution {
         self.hashmap
             .keys()
             .sorted()
-            .map(|&x| format!("p(x={})={:.3}", x, self.p_x(x).to_value()))
+            .map(|&x| format!("p({})={:.3}", x, self.p_x(x).to_value()))
             .join(",")
     }
 }

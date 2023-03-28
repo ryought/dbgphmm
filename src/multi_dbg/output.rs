@@ -43,7 +43,7 @@
 //! ```
 //!
 use super::posterior::Posterior;
-use super::{MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
+use super::{CopyNums, MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
 use crate::common::{sequence_to_string, CopyNum, NULL_BASE};
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
@@ -157,6 +157,7 @@ impl MultiDbg {
     /// C 1,1,1,0,0,0,0,0,1
     /// ```
     pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "K\t{}", self.k())?;
         for (node, weight) in self.nodes_compact() {
             writeln!(writer, "N\t{}\t{}", node.index(), self.km1mer_compact(node))?
@@ -298,8 +299,9 @@ impl MultiDbg {
 
         // compact
         let mut compact = DiGraph::new();
-        for _ in nodes.iter() {
-            compact.add_node(MultiCompactNode::new());
+        for (_, km1mer) in nodes.iter() {
+            let is_terminal = km1mer.iter().all(|&x| x == NULL_BASE);
+            compact.add_node(MultiCompactNode::new(is_terminal));
         }
         for (_, s, t, _, _, edges_in_full) in edges.into_iter() {
             compact.add_edge(s, t, MultiCompactEdge::new(edges_in_full));
@@ -442,21 +444,30 @@ impl MultiDbg {
     /// * segment for each edge
     /// * link from in_edge to out_edge of each node
     ///
-    pub fn to_gfa_writer_with<W, F>(&self, mut writer: W, label: F) -> std::io::Result<()>
+    pub fn to_gfa_writer_with<W, FL, FC>(
+        &self,
+        mut writer: W,
+        label: FL,
+        color: FC,
+    ) -> std::io::Result<()>
     where
         W: std::io::Write,
-        F: Fn(EdgeIndex) -> String,
+        FL: Fn(EdgeIndex) -> String,
+        FC: Fn(EdgeIndex) -> (u8, u8, u8),
     {
         for (edge, s, t, weight) in self.edges_compact() {
             let seq = &self.seq_compact(edge);
+            let (r, g, b) = color(edge);
+            let color = format!("#{:02x}{:02x}{:02x}", r, g, b);
             writeln!(
                 writer,
-                "S\t{}\t{}\tDP:f:{}\tLN:i:{}\tLB:Z:{}",
+                "S\t{}\t{}\tDP:f:{}\tLN:i:{}\tLB:Z:{}\tCL:Z:{}",
                 edge.index(),
                 sequence_to_string(&seq),
                 self.copy_num_of_edge_in_compact(edge),
                 seq.len(),
                 label(edge),
+                color,
             )?
         }
         let terminal = self.terminal_node_compact();
@@ -480,9 +491,11 @@ impl MultiDbg {
     /// Default GFA format with sequence in label
     ///
     pub fn to_gfa_writer<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
-        self.to_gfa_writer_with(writer, |e| {
-            sequence_to_string(&self.seq_compact(e)).to_string()
-        })
+        self.to_gfa_writer_with(
+            writer,
+            |e| sequence_to_string(&self.seq_compact(e)).to_string(),
+            |e| (0, 255, 0),
+        )
     }
     ///
     /// create GFA string with `to_gfa_writer`
@@ -506,11 +519,46 @@ impl MultiDbg {
         &self,
         writer: W,
         posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
-        self.to_gfa_writer_with(writer, |e| {
-            let p_edge = posterior.p_edge(e);
-            format!("{:.5}x({})", p_edge.mean(), p_edge.to_short_string())
-        })
+        self.to_gfa_writer_with(
+            writer,
+            |e| {
+                let p_edge = posterior.p_edge(e);
+                match copy_nums_true {
+                    Some(copy_nums_true) => {
+                        format!(
+                            "{:.2}x,{}x({})",
+                            p_edge.mean(),
+                            copy_nums_true[e],
+                            p_edge.to_short_string()
+                        )
+                    }
+                    None => {
+                        format!("{:.2}x,?x({})", p_edge.mean(), p_edge.to_short_string())
+                    }
+                }
+            },
+            |e| match copy_nums_true {
+                Some(copy_nums_true) => {
+                    let copy_num = posterior.p_edge(e).mean();
+                    let copy_num_true = copy_nums_true[e] as f64;
+                    let max = 200_u8;
+                    let half = (max / 2) as f64;
+
+                    if copy_num > copy_num_true {
+                        // over-represented: red
+                        let r = (((copy_num - copy_num_true) * half) as u8).clamp(0, max);
+                        (max, max - r, max - r)
+                    } else {
+                        // under-represented: blue
+                        let b = (((copy_num_true - copy_num) * half) as u8).clamp(0, max);
+                        (max - b, max - b, max)
+                    }
+                }
+                None => (0, 0, 0),
+            },
+        )
     }
     ///
     /// create GFA-post file with posterior information
@@ -519,9 +567,10 @@ impl MultiDbg {
         &self,
         path: P,
         posterior: &Posterior,
+        copy_nums_true: Option<&CopyNums>,
     ) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
-        self.to_gfa_post_writer(&mut file, posterior)
+        self.to_gfa_post_writer(&mut file, posterior, copy_nums_true)
     }
 }
 

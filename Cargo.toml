@@ -3,10 +3,14 @@ name = "dbgphmm"
 version = "0.1.0"
 authors = ["Ryo Nakabayashi <ryonakabayashi@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [lib]
 name = "dbgphmm"
 crate-type = ["cdylib", "rlib"]
+
+[features]
+python = []
 
 [dev-dependencies]
 test-case = "1.2.3"
@@ -23,6 +27,7 @@ log = "0.4"
 env_logger = "0.8.4"
 petgraph_algos = { git = "https://github.com/ryought/petgraph_algos" }
 rustflow = { git = "https://github.com/ryought/rustflow" }
+# rustflow = { path = "../rustflow" }
 sparsevec = { git = "https://github.com/ryought/sparsevec" }
 libm = "*"
 histo = "0.1.0"
@@ -41,6 +46,7 @@ fixedbitset = "*"
 pyo3 = { version = "0.17.1" }
 chrono = "*"
 git-version = "*"
+indicatif = { version = "*", features = ["rayon"] }
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module

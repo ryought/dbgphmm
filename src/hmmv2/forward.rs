@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Hint;
-use super::tablev2::{PHMMTable, PHMMTables};
+use super::table::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
 use crate::utils::timer_us;
