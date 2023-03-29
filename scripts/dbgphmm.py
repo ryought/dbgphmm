@@ -237,6 +237,7 @@ def parse_inspect_files_by_prefix(prefix: Path) -> List[Inspect]:
 def plt_common_settings(plt, inspects, prob=False):
     ks = [inspect.k for inspect in inspects]
     plt.xscale('log')
+    plt.xlabel('k')
     plt.xticks(ks, ks, rotation=90, fontsize=5)
     plt.grid(axis='both')
     if prob:
@@ -290,21 +291,24 @@ def draw_posterior_of_copy_nums(inspects, filename=None):
     plt.subplot(4, 1, 1)
     plt.ylabel('P(X|R)')
     plt_common_settings(plt, inspects, prob=True)
+    fks, fps = [], []
+    tks, tps = [], []
     for inspect in inspects:
         # false copy_nums
         copy_nums = inspect.copy_nums
-        ks = [inspect.k for c in copy_nums if c.dist_from_true != 0]
-        ps = [c.posterior for c in copy_nums if c.dist_from_true != 0]
-        plt.scatter(ks, ps, c='blue', marker='o', alpha=0.5)
-
+        fks += [inspect.k for c in copy_nums if c.dist_from_true != 0]
+        fps += [c.posterior for c in copy_nums if c.dist_from_true != 0]
         # true copy_nums
-        ks = [inspect.k for c in copy_nums if c.dist_from_true == 0]
-        ps = [c.posterior for c in copy_nums if c.dist_from_true == 0]
-        plt.scatter(ks, ps, c='red', marker='*', alpha=0.5)
+        tks += [inspect.k for c in copy_nums if c.dist_from_true == 0]
+        tps += [c.posterior for c in copy_nums if c.dist_from_true == 0]
+    plt.scatter(fks, fps, c='blue', marker='o', alpha=0.5, label='X')
+    plt.scatter(tks, tps, c='red', marker='*', alpha=0.5, label='X_true')
+    plt.legend()
 
     # likelihood and prior
     plt.subplot(4, 1, 2)
     plt.ylabel('log P(R|X)')
+    plt.xlabel('k')
     plt_common_settings(plt, inspects)
     xs, ys, zs = [], [], []
     txs, tys = [], []
