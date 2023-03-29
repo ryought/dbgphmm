@@ -51,4 +51,8 @@ fn main() {
             }
         }
     }
+
+    // TODO
+    // solve bipartite graph matching and determine the best correspondence between haplotype and
+    // path
 }
