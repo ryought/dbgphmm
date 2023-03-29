@@ -623,6 +623,19 @@ impl MultiDbg {
             .map(|circuit| self.circuit_to_styled_seq(&circuit))
             .collect()
     }
+    ///
+    /// Dump fasta of Eulerian traverse
+    ///
+    pub fn to_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let file = std::fs::File::create(path).unwrap();
+        let mut writer = bio::io::fasta::Writer::new(file);
+
+        for (i, s) in self.to_styled_seqs().iter().enumerate() {
+            writer.write(&format!("p{}", i), Some(&s.style().to_string()), s.seq())?;
+        }
+
+        Ok(())
+    }
     /// Path (in compact graph) validity check
     ///
     pub fn is_valid_compact_path(&self, path_in_compact: &[EdgeIndex]) -> bool {
