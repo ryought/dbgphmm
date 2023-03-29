@@ -1,16 +1,16 @@
-prefix="n/p01_u500_n3"
+prefix="n/p1_u500_n4"
 
 module load samtools
 
 seqkit faidx $prefix.genome.fa g0:301-800 > $prefix.unit.fa
 samtools faidx $prefix.unit.fa
 
-minimap2 -cx asm10 --cs -a $prefix.unit.fa $prefix.reads.fa > $prefix.reads.sam
+minimap2 -cx asm20 --cs -a $prefix.unit.fa $prefix.reads.fa > $prefix.reads.sam
 samtools view -bS $prefix.reads.sam > $prefix.reads.bam
 samtools sort $prefix.reads.bam > $prefix.reads.sorted.bam
 samtools index $prefix.reads.sorted.bam
 
-minimap2 -cx asm10 --cs -a $prefix.unit.fa $prefix.genome.fa > $prefix.genome.sam
+minimap2 -cx asm20 --cs -a $prefix.unit.fa $prefix.genome.fa > $prefix.genome.sam
 samtools view -bS $prefix.genome.sam > $prefix.genome.bam
 samtools sort $prefix.genome.bam > $prefix.genome.sorted.bam
 samtools index $prefix.genome.sorted.bam
