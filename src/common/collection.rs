@@ -13,6 +13,7 @@
 //! * `Reads`: read collections
 //!
 use crate::common::CopyNum;
+pub use crate::genome::Genome;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use crate::hmmv2::hint::Hint;
 use crate::kmer::kmer::KmerLike;
@@ -92,16 +93,6 @@ impl<T: AsRef<Bases> + Sync + Clone> Seq for T {}
 /// useful in displaying
 pub fn sequence_to_string<T: AsRef<Bases>>(seq: &T) -> &str {
     std::str::from_utf8(seq.as_ref()).unwrap()
-}
-
-/// Type of Genome, the collection of sequences.
-pub type Genome = Vec<StyledSequence>;
-
-///
-/// calculate genome size of the given genome.
-///
-pub fn genome_size(genome: &Genome) -> usize {
-    genome.iter().map(|seq| seq.len()).sum()
 }
 
 ///
@@ -799,7 +790,7 @@ mod tests {
     }
     #[test]
     fn starts_and_ends() {
-        let genome = vec![
+        let genome = Genome::new(vec![
             // hap0
             StyledSequence::new(b"ATCGATTTAGC".to_vec(), SeqStyle::Linear),
             // hap1
@@ -810,7 +801,7 @@ mod tests {
             // hap3
             // circular does not have start/end
             StyledSequence::new(b"GGGCGGCTGCTG".to_vec(), SeqStyle::Circular),
-        ];
+        ]);
         let (starts, ends) = starts_and_ends_of_genome::<VecKmer>(&genome, 4);
         for (kmer, copy_num) in starts.iter() {
             println!("start {} x{}", kmer, copy_num);

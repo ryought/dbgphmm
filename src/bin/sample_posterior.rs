@@ -85,7 +85,7 @@ fn main() {
     println!("# opts={:?}", opts);
     check_memory_usage();
 
-    let (genome, genome_size) = if opts.use_homo_ends {
+    let genome = if opts.use_homo_ends {
         genome::tandem_repeat_polyploid_with_unique_homo_ends(
             opts.unit_size,
             opts.n_unit,
@@ -111,14 +111,13 @@ fn main() {
             opts.seed,
         )
     };
+    let genome_size = genome.genome_size();
 
-    // let (genome, genome_size) = genome::tandem_repeat_diploid_example_ins();
     let coverage = opts.coverage;
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, mut dbg) = if opts.use_fragment_read {
         let dataset = generate_dataset(
             genome.clone(),
-            genome_size,
             opts.seed, // read seed
             coverage,
             opts.read_length,
@@ -143,7 +142,6 @@ fn main() {
     } else {
         let dataset = generate_dataset(
             genome.clone(),
-            genome_size,
             opts.seed, // read seed
             coverage,
             genome_size * 2,
