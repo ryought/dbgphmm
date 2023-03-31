@@ -30,7 +30,7 @@ fn main() {
     let s = dbg.to_styled_seqs();
 
     for (i, s) in dbg.to_styled_seqs().into_iter().enumerate() {
-        for (j, g) in dataset.genome().iter().enumerate() {
+        for (j, g) in dataset.genome().into_iter().enumerate() {
             let x = s.seq();
             let y = g.seq();
 

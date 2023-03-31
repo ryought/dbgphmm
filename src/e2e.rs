@@ -4,7 +4,6 @@
 //! * generate genome
 //! * generate reads
 //!
-use crate::common::collection::genome_size;
 use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
@@ -92,7 +91,7 @@ impl Dataset {
         self.reads().show_reads()
     }
     pub fn show_genome(&self) {
-        genome::show_genome(self.genome())
+        self.genome().show()
     }
     ///
     ///
@@ -142,7 +141,7 @@ impl Dataset {
         let file = std::fs::File::create(path).unwrap();
         let mut writer = io::fasta::Writer::new(file);
 
-        for (i, g) in self.genome().iter().enumerate() {
+        for (i, g) in self.genome().into_iter().enumerate() {
             writer.write(&format!("g{}", i), Some(&g.style().to_string()), g.seq())?;
         }
 
@@ -220,7 +219,6 @@ impl Experiment {
 
 pub fn generate_dataset(
     genome: Genome,
-    genome_size: usize,
     read_seed: u64,
     coverage: usize,
     read_length: usize,
@@ -228,6 +226,7 @@ pub fn generate_dataset(
     phmm_params: PHMMParams,
 ) -> Dataset {
     let g = GenomeGraph::from_styled_seqs(&genome);
+    let genome_size = genome.genome_size();
     let profile = match read_type {
         ReadType::FragmentWithRevComp => ReadProfile {
             has_revcomp: true,
@@ -299,7 +298,6 @@ pub fn generate_dataset(
 
 pub fn generate_experiment(
     genome: Genome,
-    genome_size: usize,
     read_seed: u64,
     phmm_params: PHMMParams,
     coverage: usize,
@@ -310,7 +308,6 @@ pub fn generate_experiment(
 ) -> Experiment {
     let dataset = generate_dataset(
         genome,
-        genome_size,
         read_seed,
         coverage,
         read_length,
@@ -335,7 +332,6 @@ pub fn generate_experiment(
 
 pub fn generate_experiment_with_draft(
     genome: Genome,
-    genome_size: usize,
     read_seed: u64,
     phmm_params: PHMMParams,
     coverage: usize,
@@ -346,7 +342,6 @@ pub fn generate_experiment_with_draft(
 ) -> Experiment {
     let dataset = generate_dataset(
         genome,
-        genome_size,
         read_seed,
         coverage,
         read_length,
@@ -380,14 +375,12 @@ pub fn generate_experiment_with_draft(
 ///
 pub fn generate_full_length_experiment(
     genome: Genome,
-    genome_size: usize,
     read_seed: u64,
     phmm_params: PHMMParams,
     coverage: usize,
 ) -> Experiment {
     generate_experiment(
         genome,
-        genome_size,
         read_seed,
         phmm_params,
         coverage,
@@ -404,11 +397,10 @@ pub fn generate_full_length_experiment(
 /// * p=0.1% 20x full length reads
 ///
 pub fn generate_simple_genome_mock() -> Experiment {
-    let (genome, genome_size) = genome::simple(100, 5);
+    let genome = genome::simple(100, 5);
     let param = PHMMParams::uniform(0.001);
     generate_experiment_with_draft(
         genome,
-        genome_size,
         0,
         param,
         20, // coverage is 20x
@@ -425,11 +417,10 @@ pub fn generate_simple_genome_mock() -> Experiment {
 /// * p=0.1% 20x fragment reads 50bp fixed length reads
 ///
 pub fn generate_simple_genome_fragment_dataset() -> Dataset {
-    let (genome, genome_size) = genome::simple(200, 5);
+    let genome = genome::simple(200, 5);
     let param = PHMMParams::uniform(0.001);
     generate_dataset(
         genome,
-        genome_size,
         0,
         20, // coverage (20x)
         50, // length (50bp)
@@ -444,12 +435,10 @@ pub fn generate_simple_genome_fragment_dataset() -> Dataset {
 /// * p=0.1% 20x fragment reads 50bp fixed length reads
 ///
 pub fn generate_tandem_repeat_fragment_dataset() -> Dataset {
-    let (genome, genome_size) =
-        genome::tandem_repeat_haploid_with_unique_ends(40, 4, 0.01, 0, 0, 20);
+    let genome = genome::tandem_repeat_haploid_with_unique_ends(40, 4, 0.01, 0, 0, 20);
     let param = PHMMParams::uniform(0.001);
     generate_dataset(
         genome,
-        genome_size,
         0,
         20, // coverage (20x)
         50, // length (50bp)
@@ -462,11 +451,10 @@ pub fn generate_tandem_repeat_fragment_dataset() -> Dataset {
 /// 1000bp tandem repeat example
 ///
 pub fn generate_small_tandem_repeat() -> Experiment {
-    let (genome, genome_size) = genome::tandem_repeat_haploid(100, 10, 0.01, 0, 0);
+    let genome = genome::tandem_repeat_haploid(100, 10, 0.01, 0, 0);
     let param = PHMMParams::uniform(0.001);
     generate_experiment_with_draft(
         genome,
-        genome_size,
         0,
         param,
         10, // coverage
@@ -481,12 +469,11 @@ pub fn generate_small_tandem_repeat() -> Experiment {
 /// "-c 20 -l 100 -p 0.01 --k-init 12 --k-final 100 -U 50 -N 20 -E 50 -P 2 -D 0.05 -H 0.05 --sigma 100 -m 10 --use-fragment-read";;
 ///
 pub fn generate_difficult_diploid_tandem_repeat_dataset() -> Dataset {
-    let (genome, genome_size) =
+    let genome =
         genome::tandem_repeat_polyploid_with_unique_ends(50, 20, 0.05, 0, 0, 50, 2, 0.05, 0);
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
-        genome.clone(),
-        genome_size,
+        genome,
         0,  // read seed
         20, // coverage
         100,
@@ -499,12 +486,12 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset() -> Dataset {
 ///
 ///
 pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset {
-    let (genome, genome_size) =
+    let genome =
         genome::tandem_repeat_polyploid_with_unique_ends(50, 20, 0.05, 0, 0, 50, 2, 0.05, 0);
+    let genome_size = genome.genome_size();
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
-        genome.clone(),
-        genome_size,
+        genome,
         0,  // read seed
         20, // coverage
         genome_size * 2,
@@ -525,11 +512,11 @@ pub fn generate_difficult_diploid_tandem_repeat_dataset_full_length() -> Dataset
 ///
 pub fn generate_500bp_case_dataset() -> Dataset {
     let seed = 1;
-    let (genome, genome_size) = genome::tandem_repeat_500bp();
+    let genome = genome::tandem_repeat_500bp();
+    let genome_size = genome.genome_size();
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
-        genome.clone(),
-        genome_size,
+        genome,
         seed,
         20, // coverage
         genome_size * 2,
@@ -553,13 +540,12 @@ pub fn generate_small_case_dataset(
     del_g: bool,
     p: f64,
 ) -> Dataset {
-    let (genome, genome_size) =
-        genome::tandem_repeat_small(20, a, b, c, d, mut_cg, ins_t, mut_ac, del_a, del_g);
+    let genome = genome::tandem_repeat_small(20, a, b, c, d, mut_cg, ins_t, mut_ac, del_a, del_g);
+    let genome_size = genome.genome_size();
     let seed = 1;
     let param = PHMMParams::uniform(p);
     generate_dataset(
-        genome.clone(),
-        genome_size,
+        genome,
         seed,
         20, // coverage
         genome_size * 2,
@@ -570,14 +556,13 @@ pub fn generate_small_case_dataset(
 
 pub fn generate_tandem_repeat_1kbp() -> Dataset {
     let seed = 1;
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_ends(
+    let genome = genome::tandem_repeat_polyploid_with_unique_ends(
         50, 20, 0.0, seed, seed, 50, 2, 0.01, seed,
     );
     let seed = 1;
     let param = PHMMParams::uniform(0.01);
     generate_dataset(
-        genome.clone(),
-        genome_size,
+        genome,
         seed,
         20, // coverage
         200,
@@ -600,7 +585,7 @@ mod tests {
     #[test]
     fn e2e_dataset_serialize_test() {
         let d = Dataset {
-            genome: vec![StyledSequence::linear(b"ATCGTTCTTC".to_vec())],
+            genome: Genome::new(vec![StyledSequence::linear(b"ATCGTTCTTC".to_vec())]),
             genome_size: 10,
             reads: PositionedReads::from(vec![
                 PositionedSequence::new(
@@ -631,8 +616,10 @@ mod tests {
 
         // json
         let json = serde_json::to_string(&d).unwrap();
-        println!("{}", json);
+        let json_true = "{\"genome\":[\"L:ATCGTTCTTC\"],\"genome_size\":10,\"reads\":{\"reads\":[\"ATCGT:+:0-0,0-1,0-2,0-3,0-3\",\"TTTCG:-:1-10,1-9,1-8,1-6,1-5\"]},\"phmm_params\":{\"p_mismatch\":\"-4.605170185988091(0.0100)\",\"p_match\":\"-0.01005033585350145(0.9900)\",\"p_random\":\"-1.3862943611198906(0.2500)\",\"p_gap_open\":\"-4.605170185988091(0.0100)\",\"p_gap_ext\":\"-4.605170185988091(0.0100)\",\"p_end\":\"-11.512925464970229(0.0000)\",\"p_MM\":\"-0.02021291145121407(0.9800)\",\"p_IM\":\"-0.02021291145121407(0.9800)\",\"p_DM\":\"-0.02021291145121407(0.9800)\",\"p_MI\":\"-4.605170185988091(0.0100)\",\"p_II\":\"-4.605170185988091(0.0100)\",\"p_DI\":\"-4.605170185988091(0.0100)\",\"p_MD\":\"-4.605170185988091(0.0100)\",\"p_ID\":\"-4.605170185988091(0.0100)\",\"p_DD\":\"-4.605170185988091(0.0100)\",\"n_active_nodes\":40,\"n_warmup\":50,\"n_max_gaps\":4}}";
+        println!("{:?}", json);
         assert_eq!(d, serde_json::from_str(&json).unwrap());
+        assert_eq!(json, json_true);
 
         // fasta
         d.to_genome_fasta("d.genome.fasta");
@@ -641,13 +628,12 @@ mod tests {
     #[test]
     fn e2e_dataset_read_with_genome_visualization_test() {
         println!("generating genome");
-        let (genome, genome_size) =
+        let genome =
             genome::tandem_repeat_polyploid_with_unique_ends(50, 4, 0.05, 0, 0, 50, 2, 0.05, 0);
         println!("generating reads");
         let param = PHMMParams::uniform(0.01);
         let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
+            genome,
             0,  // read seed
             20, // coverage
             100,

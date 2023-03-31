@@ -79,7 +79,7 @@ mod tests {
     #[test]
     #[ignore]
     fn from_styled_seqs_large() {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             1_000, 1_000, 0, 0.0, 0, 1_000, 2, 0.01, 0,
         );
         let (mdbg, t) = timer(|| MultiDbg::create_from_styled_seqs(40, &genome));

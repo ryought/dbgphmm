@@ -26,32 +26,22 @@ mod tests {
     use std::io::prelude::*;
 
     /// unit 1kb x 1000 times = 1MB diploid
-    fn g1m() -> (Genome, usize) {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+    fn g1m() -> Genome {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(
             1_000, 1_000, 0, 0.0, 0, 1_000, 2, 0.01, 0,
-        );
-        (genome, genome_size)
+        )
     }
     /// unit 20b x 50 times = 1kB diploid
-    fn g1k() -> (Genome, usize) {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-            20, 50, 0, 0.0, 0, 50, 2, 0.01, 0,
-        );
-        (genome, genome_size)
+    fn g1k() -> Genome {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(20, 50, 0, 0.0, 0, 50, 2, 0.01, 0)
     }
     /// unit 20b x 500 times = 1kB diploid
-    fn g10k() -> (Genome, usize) {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-            20, 500, 0, 0.0, 0, 50, 2, 0.01, 0,
-        );
-        (genome, genome_size)
+    fn g10k() -> Genome {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(20, 500, 0, 0.0, 0, 50, 2, 0.01, 0)
     }
     /// unit 1kB x 1 times = 1kB diploid (unique sequence)
-    fn gu1k() -> (Genome, usize) {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-            1000, 1, 0, 0.0, 0, 50, 2, 0.01, 0,
-        );
-        (genome, genome_size)
+    fn gu1k() -> Genome {
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(1000, 1, 0, 0.0, 0, 50, 2, 0.01, 0)
     }
 
     /// Forward/backward table
@@ -222,7 +212,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_g1m() {
-        let (genome, genome_size) = g1m();
+        let genome = g1m();
         let k = 40;
         let (dbg, time): (SimpleDbg<VecKmer>, _) =
             timer(|| SimpleDbg::from_styled_seqs(k, &genome));
@@ -260,7 +250,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_g10k() {
-        let (genome, genome_size) = g10k();
+        let genome = g10k();
         let k = 40;
         let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, &genome);
         println!("{:?}", dbg.degree_stats());
@@ -268,8 +258,7 @@ mod tests {
         let phmm = dbg.to_phmm(param);
 
         let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
+            genome,
             0,
             2, // 2x
             500,
@@ -282,7 +271,7 @@ mod tests {
     #[test]
     #[ignore = "39sec"]
     fn test_g1k() {
-        let (genome, genome_size) = g1k();
+        let genome = g1k();
         let k = 40;
         let (dbg, time): (SimpleDbg<VecKmer>, _) =
             timer(|| SimpleDbg::from_styled_seqs(k, &genome));
@@ -302,7 +291,6 @@ mod tests {
         // fragment reads
         let dataset = generate_dataset(
             genome.clone(),
-            genome_size,
             0,
             2, // 2x
             500,

@@ -243,17 +243,9 @@ mod tests {
     #[test]
     #[ignore]
     fn simple_haploid() {
-        let (genome, genome_size) = genome::simple(1000, 0);
+        let genome = genome::simple(1000, 0);
         let param = PHMMParams::uniform(0.005);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         // without hints
@@ -272,17 +264,9 @@ mod tests {
     #[test]
     #[ignore]
     fn simple_diploid_posterior() {
-        let (genome, genome_size) = genome::diploid(1000, 0, 0.01, 0);
+        let genome = genome::diploid(1000, 0, 0.01, 0);
         let param = PHMMParams::uniform(0.005);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         // if without hint, 35sec
@@ -296,17 +280,9 @@ mod tests {
     #[test]
     #[ignore]
     fn simple_diploid_inference() {
-        let (genome, genome_size) = genome::diploid(1000, 0, 0.01, 0);
+        let genome = genome::diploid(1000, 0, 0.01, 0);
         let param = PHMMParams::uniform(0.005);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         let (dbg, post, paths, _) = test_inference(
@@ -326,19 +302,11 @@ mod tests {
     #[test]
     #[ignore]
     fn repeat_1k_posterior() {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
         );
         let param = PHMMParams::uniform(0.01);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         // if without hint, 35sec
@@ -358,19 +326,11 @@ mod tests {
     // #[test]
     #[ignore]
     fn repeat_1k_inference() {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
         );
         let param = PHMMParams::uniform(0.01);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         test_inference(
@@ -389,19 +349,11 @@ mod tests {
     // #[test]
     #[ignore]
     fn repeat_u200_inference() {
-        let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             200, 10, 0, 0.0, 0, 200, 2, 0.01, 0,
         );
         let param = PHMMParams::uniform(0.01);
-        let dataset = generate_dataset(
-            genome.clone(),
-            genome_size,
-            0,
-            20,
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
         dataset.show_reads_with_genome();
 
         test_inference(

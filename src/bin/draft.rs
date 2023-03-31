@@ -51,7 +51,7 @@ fn main() {
     writeln!(&mut log_file, "# opts={:?}", opts);
     check_memory_usage();
 
-    let (genome, genome_size) = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+    let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
         opts.unit_size,
         opts.n_unit,
         0,
@@ -65,8 +65,7 @@ fn main() {
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, t) = timer(|| {
         generate_dataset(
-            genome.clone(),
-            genome_size,
+            genome,
             0,
             opts.coverage,
             opts.read_length,
