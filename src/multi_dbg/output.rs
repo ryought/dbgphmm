@@ -45,6 +45,10 @@
 use super::posterior::Posterior;
 use super::{CopyNums, MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
 use crate::common::{sequence_to_string, CopyNum, NULL_BASE};
+use flate2::bufread::GzDecoder;
+use flate2::write::GzEncoder;
+
+use flate2::Compression;
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 
@@ -129,8 +133,15 @@ impl MultiDbg {
     /// create DBG file with `to_dbg_writer`
     ///
     pub fn to_dbg_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(path).unwrap();
-        self.to_dbg_writer(&mut file)
+        let mut file = std::fs::File::create(path.as_ref()).unwrap();
+
+        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+            let mut writer = GzEncoder::new(file, Compression::default());
+            self.to_dbg_writer(&mut writer)?;
+            writer.try_finish()
+        } else {
+            self.to_dbg_writer(&mut file)
+        }
     }
     /// DBG format
     ///
@@ -323,9 +334,15 @@ impl MultiDbg {
     /// parse DBG file with `from_dbg_reader`
     ///
     pub fn from_dbg_file<P: AsRef<std::path::Path>>(path: P) -> Self {
-        let file = std::fs::File::open(path).unwrap();
+        let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
-        Self::from_dbg_reader(reader)
+
+        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+            let decoder = GzDecoder::new(reader);
+            Self::from_dbg_reader(std::io::BufReader::new(decoder))
+        } else {
+            Self::from_dbg_reader(reader)
+        }
     }
 }
 
@@ -656,5 +673,15 @@ mod tests {
         println!("{}", s);
 
         dbg.to_gfa_file("repeat.gfa");
+    }
+    #[test]
+    fn dbg_gz_compressed() {
+        let dbg_a = toy::repeat();
+        dbg_a.show_graph_with_kmer();
+        dbg_a.to_dbg_file("repeat.gfa.gz");
+
+        let dbg_b = MultiDbg::from_dbg_file("repeat.gfa.gz");
+        dbg_b.show_graph_with_kmer();
+        // assert!(dbg_b.is_equal(&dbg_a));
     }
 }
