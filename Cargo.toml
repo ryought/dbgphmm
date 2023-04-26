@@ -47,6 +47,8 @@ pyo3 = { version = "0.17.1" }
 chrono = "*"
 indicatif = { version = "*", features = ["rayon"] }
 flate2 = "1.0.25"
+ndarray = "*"
+ndarray-linalg = { version = "*", features = ["openblas-system"] }
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module
