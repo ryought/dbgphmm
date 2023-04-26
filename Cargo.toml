@@ -10,7 +10,9 @@ name = "dbgphmm"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["ndarray-linalg/openblas-system"]
 python = []
+intel = ["ndarray-linalg/intel-mkl-system"]
 
 [dev-dependencies]
 test-case = "1.2.3"
@@ -48,7 +50,7 @@ chrono = "*"
 indicatif = { version = "*", features = ["rayon"] }
 flate2 = "1.0.25"
 ndarray = "*"
-ndarray-linalg = { version = "*", features = ["openblas-system"] }
+ndarray-linalg = { version = "*", default-features = false }
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module
