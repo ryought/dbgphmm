@@ -802,25 +802,31 @@ impl MultiDbg {
         // add +1
         let t = self.terminal_node_compact().unwrap_or(NodeIndex::new(0));
         laplacian[[t.index(), t.index()]] += 1.0;
-        // println!("L={}", laplacian);
+        println!("L={}", laplacian);
         let (sign, ln) = laplacian.sln_det().unwrap();
-        // println!("{} {}", sign, ln);
-        // println!("detL={}", sign * ln.exp());
+        println!("{} {}", sign, ln);
+        println!("detL={}", sign * ln.exp());
 
         //
         // PartB:
         //
-        let mut ret = sign * ln;
+        let mut ret = if ln == f64::NEG_INFINITY {
+            f64::NEG_INFINITY
+        } else {
+            sign * ln
+        };
         for (i, _) in self.nodes_compact() {
             let c: CopyNum = self
                 .childs_compact(i)
                 .map(|(e, _, _)| self.copy_num_of_edge_in_compact(e))
                 .sum();
-            ret += log_factorial(c - 1);
+            if c > 0 {
+                ret += log_factorial(c - 1);
 
-            for (e, _, _) in self.childs_compact(i) {
-                let c = self.copy_num_of_edge_in_compact(e);
-                ret -= log_factorial(c);
+                for (e, _, _) in self.childs_compact(i) {
+                    let c = self.copy_num_of_edge_in_compact(e);
+                    ret -= log_factorial(c);
+                }
             }
         }
 
@@ -2405,9 +2411,34 @@ mod tests {
     }
     #[test]
     fn n_euler_circuits_test() {
-        let dbg = toy::repeat();
-        dbg.show_graph_with_kmer();
-        let n = dbg.n_euler_circuits();
-        println!("n={}", n.exp());
+        {
+            let dbg = toy::repeat();
+            dbg.show_graph_with_kmer();
+            let n = dbg.n_euler_circuits();
+            println!("n={}", n.exp());
+            assert!((n.exp() - 1.0).abs() < 0.0001);
+        }
+
+        {
+            let mut dbg = toy::one_in_n_repeat();
+            dbg.show_graph_with_kmer();
+            let n = dbg.n_euler_circuits();
+            println!("n={}", n.exp());
+            assert!((n.exp() - 5.0).abs() < 0.0001);
+
+            dbg.set_copy_nums(&CopyNums::new(dbg.n_edges_compact(), 0));
+            dbg.show_graph_with_kmer();
+            let n = dbg.n_euler_circuits();
+            println!("n={}", n.exp());
+            assert!((n.exp() - 0.0).abs() < 0.0001);
+        }
+
+        {
+            let dbg = toy::two_components();
+            dbg.show_graph_with_kmer();
+            let n = dbg.n_euler_circuits();
+            println!("n={}", n.exp());
+            // FIXME separate for connected components
+        }
     }
 }
