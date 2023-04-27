@@ -434,8 +434,8 @@ impl Score {
     ///
     pub fn p(&self) -> Prob {
         // FIXME
-        // self.likelihood * self.prior * Prob::from_log_prob(self.n_euler_circuits)
-        self.likelihood * self.prior
+        self.likelihood * self.prior * Prob::from_log_prob(self.n_euler_circuits)
+        // self.likelihood * self.prior
     }
 }
 
