@@ -90,5 +90,8 @@ mod tests {
         // ~182ms
         println!("created map in {}ms", t);
         println!("m {}", m.len());
+
+        let (n, t) = timer(|| mdbg.n_euler_circuits());
+        println!("n_euler={} in {}ms", n, t);
     }
 }

@@ -802,10 +802,10 @@ impl MultiDbg {
         // add +1
         let t = self.terminal_node_compact().unwrap_or(NodeIndex::new(0));
         laplacian[[t.index(), t.index()]] += 1.0;
-        println!("L={}", laplacian);
+        // println!("L={}", laplacian);
         let (sign, ln) = laplacian.sln_det().unwrap();
-        println!("{} {}", sign, ln);
-        println!("detL={}", sign * ln.exp());
+        // println!("{} {}", sign, ln);
+        // println!("detL={}", sign * ln.exp());
 
         //
         // PartB:

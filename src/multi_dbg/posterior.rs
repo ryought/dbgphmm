@@ -337,12 +337,13 @@ impl MultiDbg {
             let copy_nums = &sample.copy_nums;
             writeln!(
                 writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 self.k(),
                 i,
                 (score.p() / posterior.p()).to_value(),
                 score.likelihood.to_log_value(),
                 score.prior.to_log_value(),
+                score.n_euler_circuits,
                 score.genome_size,
                 format_option_copy_num(
                     copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
@@ -418,6 +419,10 @@ pub struct Score {
     ///
     pub genome_size: CopyNum,
     ///
+    /// Number of Euler circuits of DBG
+    ///
+    pub n_euler_circuits: f64,
+    ///
     /// Computation time of likelihood
     ///
     pub time: u128,
@@ -428,6 +433,8 @@ impl Score {
     /// Calculate total probability `P(R|G)P(G)`
     ///
     pub fn p(&self) -> Prob {
+        // FIXME
+        // self.likelihood * self.prior * Prob::from_log_prob(self.n_euler_circuits)
         self.likelihood * self.prior
     }
 }
@@ -436,8 +443,8 @@ impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "likelihood={},prior={},genome_size={},time={}",
-            self.likelihood, self.prior, self.genome_size, self.time
+            "likelihood={},prior={},genome_size={},n_euler_circuits={},time={}",
+            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time
         )
     }
 }
@@ -448,6 +455,7 @@ impl std::str::FromStr for Score {
         let mut likelihood = None;
         let mut prior = None;
         let mut genome_size = None;
+        let mut n_euler_circuits = None;
         let mut time = None;
 
         for e in s.split(',') {
@@ -464,6 +472,9 @@ impl std::str::FromStr for Score {
                 "genome_size" => {
                     genome_size = Some(value.parse().unwrap());
                 }
+                "n_euler_circuits" => {
+                    n_euler_circuits = Some(value.parse().unwrap());
+                }
                 "time" => {
                     time = Some(value.parse().unwrap());
                 }
@@ -475,6 +486,7 @@ impl std::str::FromStr for Score {
             likelihood: likelihood.unwrap(),
             prior: prior.unwrap(),
             genome_size: genome_size.unwrap(),
+            n_euler_circuits: n_euler_circuits.unwrap(),
             time: time.unwrap(),
         })
     }
@@ -525,6 +537,7 @@ impl MultiDbg {
             likelihood,
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
+            n_euler_circuits: self.n_euler_circuits(),
             time,
         }
     }
@@ -839,6 +852,7 @@ mod tests {
                 prior: p(0.3),
                 time: 10,
                 genome_size: 101,
+                n_euler_circuits: 10.0,
             },
             infos: vec![
                 vec![
@@ -858,6 +872,7 @@ mod tests {
                 prior: p(0.2),
                 time: 11,
                 genome_size: 99,
+                n_euler_circuits: 10.0,
             },
             infos: Vec::new(),
         });
@@ -876,6 +891,7 @@ mod tests {
             prior: Prob::from_prob(0.5),
             genome_size: 111,
             time: 102,
+            n_euler_circuits: 10.0,
         };
         let t = a.to_string();
         println!("{}", t);
