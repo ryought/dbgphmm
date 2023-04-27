@@ -97,6 +97,17 @@ pub fn resource_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources")
 }
 
+///
+/// calculate `log(n!)` by `log(n) + log(n-1) + ... + log(1)`
+///
+pub fn log_factorial(n: usize) -> f64 {
+    let mut ret = 0.0;
+    for i in (1..=n).rev() {
+        ret += (i as f64).ln();
+    }
+    ret
+}
+
 //
 // tests
 //
@@ -136,6 +147,25 @@ mod tests {
         {
             let xs: Vec<usize> = Vec::new();
             assert_eq!(all_same_value(xs.iter()), None);
+        }
+    }
+
+    #[test]
+    fn log_factorial_test() {
+        println!("log(0!)={}", log_factorial(0));
+        println!("log(1!)={}", log_factorial(1));
+        println!("log(2!)={}", log_factorial(2));
+        println!("log(4!)={}", log_factorial(4));
+
+        for n in 0..10 {
+            let t: usize = (1..=n).product();
+            println!("n={} n!={}", n, t);
+            let lf = log_factorial(n);
+            let t_approx = lf.exp();
+            println!("n!~{}", t_approx);
+            let diff = (t_approx - t as f64).abs();
+            println!("diff={}", diff);
+            assert!(diff < 0.00001);
         }
     }
 }
