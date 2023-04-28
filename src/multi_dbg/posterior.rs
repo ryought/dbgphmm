@@ -533,11 +533,13 @@ impl MultiDbg {
         genome_size_sigma: CopyNum,
     ) -> Score {
         let (likelihood, time) = timer(|| self.to_likelihood(param, reads));
+        let (n_euler_circuits, time_euler) = timer(|| self.n_euler_circuits());
+        eprintln!("time_euler={}", time_euler);
         Score {
             likelihood,
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
-            n_euler_circuits: self.n_euler_circuits(),
+            n_euler_circuits,
             time,
         }
     }
