@@ -50,7 +50,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         dbg.set_node_copy_nums(&copy_nums);
         let phmm = dbg.to_phmm(params);
 
-        phmm.append_hints(reads, false, false)
+        phmm.append_hints(reads, false)
     }
     ///
     /// Find copy nums in which all edges have non-zero copynum

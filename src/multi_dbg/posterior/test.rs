@@ -29,7 +29,7 @@ pub fn test_posterior(
     // mdbg.to_paths_file("simple.paths", &paths_true);
 
     let reads = if use_hint {
-        mdbg.generate_hints(param_infer, dataset.reads().clone(), true, false)
+        mdbg.generate_hints(param_infer, dataset.reads().clone(), false)
     } else {
         dataset.reads().clone()
     };
@@ -123,7 +123,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     println!("# started_at={}", chrono::Local::now());
 
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
-    let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), true, false);
+    let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), false);
     let output: std::path::PathBuf = output_prefix.as_ref().into();
 
     let (dbg, posterior, paths, reads) = infer_posterior_by_extension(
@@ -379,7 +379,7 @@ mod tests {
 
         // (1) read from first
         let reads = ReadCollection::from(vec![b"CCCAG".to_vec()]);
-        let reads_with_hint = mdbg.generate_hints(param, reads, false, false);
+        let reads_with_hint = mdbg.generate_hints(param, reads, false);
         for (r, h) in reads_with_hint.iter_with_hint() {
             println!("{} {:?}", r.to_str(), h);
         }
@@ -393,7 +393,7 @@ mod tests {
 
         // (2) read from repetitive
         let reads = ReadCollection::from(vec![b"GCAGCAGG".to_vec()]);
-        let reads_with_hint = mdbg.generate_hints(param, reads, false, false);
+        let reads_with_hint = mdbg.generate_hints(param, reads, false);
         for (r, h) in reads_with_hint.iter_with_hint() {
             println!("{} {:?}", r.to_str(), h);
         }

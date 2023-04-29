@@ -78,7 +78,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     pub fn append_hints<S: Seq>(
         &self,
         reads: ReadCollection<S>,
-        parallel: bool,
         use_hint: bool,
     ) -> ReadCollection<S> {
         let style = ProgressStyle::with_template(
@@ -87,34 +86,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         .unwrap()
         .progress_chars("##-");
 
-        let hints = if parallel {
-            reads
-                .par_iter()
-                .enumerate()
-                .progress_with_style(style)
-                .map(|(i, seq)| {
-                    let output = if use_hint {
-                        self.run_with_hint(seq.as_ref(), reads.hint(i))
-                    } else {
-                        self.run_sparse(seq.as_ref())
-                    };
-                    output.to_hint(self.param.n_active_nodes)
-                })
-                .collect()
-        } else {
-            reads
-                .into_iter()
-                .enumerate()
-                .map(|(i, seq)| {
-                    println!("sparse... #{}", i);
-                    if use_hint {
-                        unimplemented!();
-                    }
-                    let output = self.run_sparse(seq.as_ref());
-                    output.to_hint(self.param.n_active_nodes)
-                })
-                .collect()
-        };
+        let hints = reads
+            .par_iter()
+            .enumerate()
+            .progress_with_style(style)
+            .map(|(i, seq)| {
+                let output = if use_hint {
+                    self.run_with_hint(seq.as_ref(), reads.hint(i))
+                } else {
+                    self.run_sparse(seq.as_ref())
+                };
+                output.to_hint(self.param.n_active_nodes)
+            })
+            .collect();
         ReadCollection::from_with_hint(reads.reads, hints)
     }
 }
