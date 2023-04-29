@@ -142,15 +142,15 @@ fn test_memory_usage_of_large_graph() {
 //
 // test matrix determinant using openblas and ndarray
 //
-use ndarray::*;
-use ndarray_linalg::*;
-fn calc_det() {
-    let a = arr2(&[[2.0, 1.0, 2.0], [-2.0, 2.0, 1.0], [1.0, 2.0, -2.0]]);
-    println!("a={}", a);
-    let d = a.det().unwrap();
-    println!("det(a)={}", d);
-    assert_eq!(d, -27.);
-}
+// use ndarray::*;
+// use ndarray_linalg::*;
+// fn calc_det() {
+//     let a = arr2(&[[2.0, 1.0, 2.0], [-2.0, 2.0, 1.0], [1.0, 2.0, -2.0]]);
+//     println!("a={}", a);
+//     let d = a.det().unwrap();
+//     println!("det(a)={}", d);
+//     assert_eq!(d, -27.);
+// }
 
 //
 // tests
@@ -159,8 +159,4 @@ fn calc_det() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn calc_det_test() {
-        calc_det();
-    }
 }

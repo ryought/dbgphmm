@@ -33,8 +33,7 @@ use crate::utils::log_factorial;
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
-use ndarray::prelude::*;
-use ndarray_linalg::solve::Determinant;
+use nalgebra::*;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
@@ -775,7 +774,7 @@ impl MultiDbg {
         //
         // PartA: create laplacian matrix L
         //
-        let mut laplacian: Array2<f64> = Array::zeros((n, n));
+        let mut laplacian = DMatrix::<f64>::zeros(n, n);
         // (1) diag (degree) matrix
         // L[i,i] += (total copy numbers of node i)
         for (i, _) in self.nodes_compact() {
@@ -784,7 +783,7 @@ impl MultiDbg {
                 .map(|(e, _, _)| self.copy_num_of_edge_in_compact(e))
                 .sum();
             // println!("i={} c={}", i.index(), c);
-            laplacian[[i.index(), i.index()]] = c as f64;
+            laplacian[(i.index(), i.index())] = c as f64;
         }
         // (2) subtract adjacency matrix a_ij
         // L[i,j] -= (total copy numbers of edges i->j)
@@ -796,25 +795,22 @@ impl MultiDbg {
                     .map(|e| self.copy_num_of_edge_in_compact(e.id()))
                     .sum();
                 // println!("i={} j={} c={}", i.index(), j.index(), c);
-                laplacian[[i.index(), j.index()]] -= c as f64;
+                laplacian[(i.index(), j.index())] -= c as f64;
             }
         }
         // add +1
         let t = self.terminal_node_compact().unwrap_or(NodeIndex::new(0));
-        laplacian[[t.index(), t.index()]] += 1.0;
+        laplacian[(t.index(), t.index())] += 1.0;
         // println!("L={}", laplacian);
-        let (sign, ln) = laplacian.sln_det().unwrap();
+        // let det = laplacian.determinant();
+        let det = laplacian.cholesky().unwrap().ln_determinant();
         // println!("{} {}", sign, ln);
         // println!("detL={}", sign * ln.exp());
 
         //
         // PartB:
         //
-        let mut ret = if ln == f64::NEG_INFINITY {
-            f64::NEG_INFINITY
-        } else {
-            sign * ln
-        };
+        let mut ret = det.ln();
         for (i, _) in self.nodes_compact() {
             let c: CopyNum = self
                 .childs_compact(i)
