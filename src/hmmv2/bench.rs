@@ -56,9 +56,9 @@ mod tests {
         let (experiment, phmm) = simple_genome();
         let read = experiment.reads()[0].as_ref();
         let o = phmm.run(read);
-        let hint = o.to_hint(10);
+        let hint = o.to_mapping(10);
         b.iter(|| {
-            let forward = phmm.forward_with_hint(read, &hint);
+            let forward = phmm.forward_with_mapping(read, &hint);
         });
     }
 }

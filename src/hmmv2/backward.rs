@@ -3,7 +3,7 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
+use super::hint::Mapping;
 use super::table::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
@@ -54,7 +54,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     ///
     ///
-    pub fn backward_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMTables {
+    pub fn backward_with_mapping<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        mapping: &Mapping,
+    ) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
@@ -75,7 +79,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     } else {
                         r.last_table()
                     };
-                    let table = self.b_step(i, emission, table_prev, hint.nodes(i), false, false);
+                    let table =
+                        self.b_step(i, emission, table_prev, mapping.nodes(i), false, false);
                     r.tables.push(table);
                     r
                 });
@@ -576,14 +581,14 @@ mod tests {
         // read1
         let read1 = b"CGATC";
         let o = phmm.run(read1);
-        let hint = o.to_hint(5);
+        let hint = o.to_mapping(5);
         println!("{:?}", hint);
         println!("{:?}", hint.len());
 
         println!("backward...");
         let r1 = phmm.backward(read1);
         println!("backward with hint...");
-        let r2 = phmm.backward_with_hint(read1, &hint);
+        let r2 = phmm.backward_with_mapping(read1, &hint);
         println!("r1.first_table");
         println!("{}", r1.first_table());
         println!("r2.first_table");

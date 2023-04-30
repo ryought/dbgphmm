@@ -15,7 +15,7 @@
 use crate::common::CopyNum;
 pub use crate::genome::Genome;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
-use crate::hmmv2::hint::Hint;
+use crate::hmmv2::hint::Mapping;
 use crate::kmer::kmer::KmerLike;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;

@@ -15,23 +15,23 @@ use serde::{Deserialize, Serialize};
 ///
 /// Mapping information for reads
 ///
-pub type Mappings = Vec<Hint>;
+pub type Mappings = Vec<Mapping>;
 
-/// Hint for a emission sequence
+/// Mapping: Hint/Cache of mapping for a emission sequence
 ///
 /// Define candidate nodes for each emission
 ///
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Hint {
+pub struct Mapping {
     nodes: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>,
     probs: Vec<ArrayVec<Prob, MAX_ACTIVE_NODES>>,
 }
 
-impl Hint {
+impl Mapping {
     /// Constructor from vec of arrayvecs
     ///
     pub fn new(nodes: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>) -> Self {
-        Hint {
+        Mapping {
             nodes,
             probs: vec![],
         }
@@ -40,7 +40,7 @@ impl Hint {
     /// Constructor from vec of vecs
     ///
     pub fn from(v: Vec<Vec<NodeIndex>>) -> Self {
-        Hint {
+        Mapping {
             nodes: v
                 .into_iter()
                 .map(|nodes| {
@@ -75,15 +75,15 @@ impl Hint {
 
 impl PHMMOutput {
     ///
-    /// Create Hint of this emission sequence
+    /// Create Mapping of this emission sequence
     ///
-    pub fn to_hint(&self, n_active_nodes: usize) -> Hint {
+    pub fn to_mapping(&self, n_active_nodes: usize) -> Mapping {
         let ret = self
             .iter_emit_probs()
             .skip(1)
             .map(|state_probs| state_probs.top_nodes(n_active_nodes))
             .collect();
-        Hint::new(ret)
+        Mapping::new(ret)
     }
 }
 
@@ -101,11 +101,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .progress_with_style(progress_common_style())
             .map(|(i, seq)| {
                 let output = if let Some(mappings) = mappings {
-                    self.run_with_hint(seq.as_ref(), &mappings[i])
+                    self.run_with_mapping(seq.as_ref(), &mappings[i])
                 } else {
                     self.run_sparse(seq.as_ref())
                 };
-                output.to_hint(self.param.n_active_nodes)
+                output.to_mapping(self.param.n_active_nodes)
             })
             .collect()
     }

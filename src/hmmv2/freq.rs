@@ -22,7 +22,7 @@
 //!     NodeFreq[v] = Pr(the expected usage of node v)
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::{Hint, Mappings};
+use super::hint::{Mapping, Mappings};
 use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::collection::Bases;
@@ -58,9 +58,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     ///
     ///
-    pub fn run_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMOutput {
-        let forward = self.forward_with_hint(&emissions, hint);
-        let backward = self.backward_with_hint(&emissions, hint);
+    pub fn run_with_mapping<X: AsRef<Bases>>(&self, emissions: X, mapping: &Mapping) -> PHMMOutput {
+        let forward = self.forward_with_mapping(&emissions, mapping);
+        let backward = self.backward_with_mapping(&emissions, mapping);
         PHMMOutput::new(forward, backward)
     }
 }
@@ -173,7 +173,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 if let Some(mappings) = mappings {
                     // let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
                     // forward.full_prob()
-                    self.forward_with_hint_score_only(seq.as_ref(), &mappings[i])
+                    self.forward_with_mapping_score_only(seq.as_ref(), &mappings[i])
                 } else {
                     self.forward_sparse_score_only(seq.as_ref())
                 }

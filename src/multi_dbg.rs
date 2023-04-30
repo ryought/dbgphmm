@@ -24,7 +24,7 @@ use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{
     common::PModel,
-    hint::{Hint, Mappings},
+    hint::{Mapping, Mappings},
     params::PHMMParams,
     table::MAX_ACTIVE_NODES,
 };
@@ -1422,8 +1422,8 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn hint_kp1_from_hint_k(&self, hint_k: Hint) -> Hint {
-        Hint::new(
+    pub fn hint_kp1_from_hint_k(&self, hint_k: Mapping) -> Mapping {
+        Mapping::new(
             hint_k
                 .to_inner()
                 .into_iter()
@@ -1853,8 +1853,8 @@ impl PurgeEdgeMap {
     pub fn path(&self, path_in_full: &[EdgeIndex]) -> Option<Vec<EdgeIndex>> {
         path_in_full.iter().map(|&e| self.full(e)).collect()
     }
-    pub fn hint(&self, hint: &Hint) -> Hint {
-        Hint::new(
+    pub fn hint(&self, hint: &Mapping) -> Mapping {
+        Mapping::new(
             hint.inner()
                 .into_iter()
                 .map(|nodes| {
@@ -2222,7 +2222,7 @@ mod tests {
 
             // purge repetitive edges
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(0)])];
-            let hints = vec![Hint::from(vec![
+            let hints = vec![Mapping::from(vec![
                 vec![
                     ni(2), // nTCC -> nnTCC ni(3)
                     ni(3), // TCCC -> nTCCC ni(4)
@@ -2255,7 +2255,7 @@ mod tests {
                 assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints,
-                    vec![Hint::from(vec![
+                    vec![Mapping::from(vec![
                         vec![ni(3), ni(4)],
                         vec![ni(4), ni(5)],
                         vec![ni(7)],
@@ -2296,7 +2296,7 @@ mod tests {
                 assert_eq!(paths_k10, Some(vec![dbg_k10.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints_k10,
-                    vec![Hint::from(vec![
+                    vec![Mapping::from(vec![
                         // 10-mers ending with..
                         vec![ni(13), ni(0)], // nnTCC and nTCCC
                         vec![ni(0), ni(1)],  // nTCCC and TCCCA
@@ -2317,7 +2317,7 @@ mod tests {
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(1), ei(1), ei(1), ei(0)])];
             let genome = vec![StyledSequence::linear(b"TCCCAGCAGCAGCAGGAA".to_vec())];
             assert_eq!(paths, dbg_k.paths_from_styled_seqs(&genome).unwrap());
-            let hints = vec![Hint::from(vec![
+            let hints = vec![Mapping::from(vec![
                 vec![
                     ni(2), // nTCC -> nnTCC ni(3)
                     ni(3), // TCCC -> nTCCC ni(4)
@@ -2344,7 +2344,7 @@ mod tests {
                 ei(0),
                 ei(4),
             ])];
-            let hints_k5 = vec![Hint::from(vec![
+            let hints_k5 = vec![Mapping::from(vec![
                 vec![ni(3), ni(4)],
                 vec![ni(4), ni(5)],
                 vec![ni(10), ni(8), ni(9), ni(7)],
@@ -2391,7 +2391,7 @@ mod tests {
                 );
                 assert_eq!(
                     hints_k10,
-                    vec![Hint::from(vec![
+                    vec![Mapping::from(vec![
                         // 10-mers ending with..
                         vec![ni(31), ni(0)], // nTCC and TCCC
                         vec![ni(0), ni(1)],  // TCCC and CCCA

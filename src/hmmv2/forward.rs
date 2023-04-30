@@ -3,7 +3,7 @@
 //!
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
+use super::hint::Mapping;
 use super::table::{PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
@@ -45,9 +45,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
     }
     ///
-    /// Run Forward algorithm to the emissions using hint information
+    /// Run Forward algorithm to the emissions using hint/mapping information
     ///
-    pub fn forward_with_hint<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> PHMMTables {
+    pub fn forward_with_mapping<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        mapping: &Mapping,
+    ) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
@@ -63,18 +67,22 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     r.last_table()
                 };
-                let table = self.f_step(i, emission, table_prev, hint.nodes(i), false, false);
+                let table = self.f_step(i, emission, table_prev, mapping.nodes(i), false, false);
                 r.tables.push(table);
                 r
             })
     }
     ///
-    /// Run Forward algorithm to the emissions using hint information and returns score only (drops intermediate result PHMMTable)
+    /// Run Forward algorithm to the emissions using hint/mapping information and returns score only (drops intermediate result PHMMTable)
     ///
-    pub fn forward_with_hint_score_only<X: AsRef<Bases>>(&self, emissions: X, hint: &Hint) -> Prob {
+    pub fn forward_with_mapping_score_only<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        mapping: &Mapping,
+    ) -> Prob {
         let mut table = self.f_init(true);
         for (i, &emission) in emissions.as_ref().into_iter().enumerate() {
-            table = self.f_step(i, emission, &table, hint.nodes(i), false, false);
+            table = self.f_step(i, emission, &table, mapping.nodes(i), false, false);
         }
         table.e
     }
@@ -523,12 +531,12 @@ mod tests {
         // read1
         let read1 = b"CGATC";
         let o = phmm.run(read1);
-        let hint = o.to_hint(3);
+        let hint = o.to_mapping(3);
         println!("{:?}", hint);
         println!("{:?}", hint.len());
         assert_eq!(
             hint,
-            Hint::from(vec![
+            Mapping::from(vec![
                 vec![ni(3), ni(2), ni(4)],
                 vec![ni(4), ni(3), ni(5)],
                 vec![ni(5), ni(6), ni(4)],
@@ -538,7 +546,7 @@ mod tests {
         );
 
         let r1 = phmm.forward(read1);
-        let r2 = phmm.forward_with_hint(read1, &hint);
+        let r2 = phmm.forward_with_mapping(read1, &hint);
         println!("{}", r1.last_table());
         println!("{}", r2.last_table());
         let p1 = r1.full_prob();
@@ -558,13 +566,13 @@ mod tests {
         let hints: Vec<_> = exp
             .reads()
             .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
+            .map(|read| phmm.run(read.as_ref()).to_mapping(10))
             .collect();
 
         // run
         for (i, read) in exp.reads().iter().enumerate() {
             let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
+            let r2 = phmm.forward_with_mapping(read.as_ref(), &hints[i]);
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={}", p1, p2);
@@ -590,13 +598,13 @@ mod tests {
         let hints: Vec<_> = dataset
             .reads()
             .iter()
-            .map(|read| phmm.run(read.as_ref()).to_hint(10))
+            .map(|read| phmm.run(read.as_ref()).to_mapping(10))
             .collect();
 
         // run
         for (i, read) in dataset.reads().iter().enumerate() {
             let r1 = phmm.forward(read.as_ref());
-            let r2 = phmm.forward_with_hint(read.as_ref(), &hints[i]);
+            let r2 = phmm.forward_with_mapping(read.as_ref(), &hints[i]);
             let p1 = r1.full_prob();
             let p2 = r2.full_prob();
             println!("p(dense)={} p(hint)={}", p1, p2);

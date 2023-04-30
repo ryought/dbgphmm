@@ -7,7 +7,7 @@ use crate::dbg::dbg::NodeCopyNums;
 use crate::distribution::normal;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::hmmv2::common::PModel;
-use crate::hmmv2::hint::Hint;
+use crate::hmmv2::hint::Mapping;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::State;
 use crate::hmmv2::table::PHMMOutput;
