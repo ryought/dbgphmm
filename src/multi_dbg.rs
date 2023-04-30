@@ -2396,5 +2396,6 @@ mod tests {
 
         let n = dbg.n_euler_circuits();
         println!("n={}", n);
+        assert!((n - 61.6).abs() < 0.1);
     }
 }
