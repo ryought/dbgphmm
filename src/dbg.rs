@@ -11,8 +11,6 @@ pub mod compare;
 pub mod debug;
 pub mod draft;
 pub mod flow_intersection;
-pub mod greedy;
-pub mod hint;
 pub mod intersections;
 pub mod json;
 pub mod mocks;
