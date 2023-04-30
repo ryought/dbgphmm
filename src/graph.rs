@@ -4,6 +4,7 @@ pub use bipartite::Bipartite;
 pub mod compact;
 pub mod cycle;
 pub mod cycle_space;
+pub mod euler;
 pub mod genome_graph;
 pub mod iterators;
 pub mod mocks;

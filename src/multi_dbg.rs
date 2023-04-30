@@ -20,6 +20,7 @@ use crate::common::{
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
+use crate::graph::euler::euler_circuit_count;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{common::PModel, hint::Hint, params::PHMMParams, table::MAX_ACTIVE_NODES};
@@ -28,13 +29,10 @@ use crate::kmer::{
     kmer::styled_sequence_to_kmers,
     veckmer::VecKmer,
 };
-use crate::utils::log_factorial;
 
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
-use ndarray::prelude::*;
-use ndarray_linalg::solve::Determinant;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
@@ -770,67 +768,11 @@ impl MultiDbg {
     /// see [Kingsford2010](https://doi.org/10.1186/1471-2105-11-21)
     ///
     pub fn n_euler_circuits(&self) -> f64 {
-        let n = self.n_nodes_compact();
+        let graph = self
+            .graph_compact()
+            .map(|_, _| (), |e, _| self.copy_num_of_edge_in_compact(e));
 
-        //
-        // PartA: create laplacian matrix L
-        //
-        let mut laplacian: Array2<f64> = Array::zeros((n, n));
-        // (1) diag (degree) matrix
-        // L[i,i] += (total copy numbers of node i)
-        for (i, _) in self.nodes_compact() {
-            let c: CopyNum = self
-                .childs_compact(i)
-                .map(|(e, _, _)| self.copy_num_of_edge_in_compact(e))
-                .sum();
-            // println!("i={} c={}", i.index(), c);
-            laplacian[[i.index(), i.index()]] = c as f64;
-        }
-        // (2) subtract adjacency matrix a_ij
-        // L[i,j] -= (total copy numbers of edges i->j)
-        for (i, _) in self.nodes_compact() {
-            for (j, _) in self.nodes_compact() {
-                let c: CopyNum = self
-                    .graph_compact()
-                    .edges_connecting(i, j)
-                    .map(|e| self.copy_num_of_edge_in_compact(e.id()))
-                    .sum();
-                // println!("i={} j={} c={}", i.index(), j.index(), c);
-                laplacian[[i.index(), j.index()]] -= c as f64;
-            }
-        }
-        // add +1
-        let t = self.terminal_node_compact().unwrap_or(NodeIndex::new(0));
-        laplacian[[t.index(), t.index()]] += 1.0;
-        // println!("L={}", laplacian);
-        let (sign, ln) = laplacian.sln_det().unwrap();
-        // println!("{} {}", sign, ln);
-        // println!("detL={}", sign * ln.exp());
-
-        //
-        // PartB:
-        //
-        let mut ret = if ln == f64::NEG_INFINITY {
-            f64::NEG_INFINITY
-        } else {
-            sign * ln
-        };
-        for (i, _) in self.nodes_compact() {
-            let c: CopyNum = self
-                .childs_compact(i)
-                .map(|(e, _, _)| self.copy_num_of_edge_in_compact(e))
-                .sum();
-            if c > 0 {
-                ret += log_factorial(c - 1);
-
-                for (e, _, _) in self.childs_compact(i) {
-                    let c = self.copy_num_of_edge_in_compact(e);
-                    ret -= log_factorial(c);
-                }
-            }
-        }
-
-        ret
+        euler_circuit_count(&graph)
     }
 }
 
@@ -1881,6 +1823,8 @@ mod tests {
     use super::*;
     use crate::common::{ei, ni};
     use crate::dbg::mocks as dbgmocks;
+    use crate::e2e::{generate_dataset, ReadType};
+    use crate::genome;
     use crate::kmer::veckmer::kmer;
 
     #[test]
@@ -2410,7 +2354,7 @@ mod tests {
         }
     }
     #[test]
-    fn n_euler_circuits_test() {
+    fn n_euler_circuits_test_toy() {
         {
             let dbg = toy::repeat();
             dbg.show_graph_with_kmer();
@@ -2440,5 +2384,17 @@ mod tests {
             println!("n={}", n.exp());
             // FIXME separate for connected components
         }
+    }
+    #[test]
+    fn n_euler_circuits_test_large() {
+        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
+        );
+        let param = PHMMParams::uniform(0.01);
+        let dataset = generate_dataset(genome, 0, 20, 500, ReadType::FragmentWithRevComp, param);
+        let dbg = MultiDbg::create_draft_from_dataset(20, &dataset);
+
+        let n = dbg.n_euler_circuits();
+        println!("n={}", n);
     }
 }
