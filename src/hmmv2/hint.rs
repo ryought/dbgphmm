@@ -12,6 +12,11 @@ use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+///
+/// Mapping information for reads
+///
+pub type Mappings = Vec<Hint>;
+
 /// Hint for a emission sequence
 ///
 /// Define candidate nodes for each emission
@@ -84,26 +89,24 @@ impl PHMMOutput {
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
-    /// Append hint information
     ///
-    pub fn append_hints<S: Seq>(
+    pub fn generate_mappings<S: Seq>(
         &self,
-        reads: ReadCollection<S>,
-        use_hint: bool,
-    ) -> ReadCollection<S> {
-        let hints = reads
+        reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
+    ) -> Mappings {
+        reads
             .par_iter()
             .enumerate()
             .progress_with_style(progress_common_style())
             .map(|(i, seq)| {
-                let output = if use_hint {
-                    self.run_with_hint(seq.as_ref(), reads.hint(i))
+                let output = if let Some(mappings) = mappings {
+                    self.run_with_hint(seq.as_ref(), &mappings[i])
                 } else {
                     self.run_sparse(seq.as_ref())
                 };
                 output.to_hint(self.param.n_active_nodes)
             })
-            .collect();
-        ReadCollection::from_with_hint(reads.reads, hints)
+            .collect()
     }
 }

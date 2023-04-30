@@ -132,8 +132,6 @@ pub fn starts_and_ends_of_genome<K: KmerLike>(
 pub struct ReadCollection<S: Seq> {
     #[serde_as(as = "Vec<StoreableType>")]
     pub reads: Vec<S>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<Vec<Hint>>,
 }
 
 //
@@ -187,25 +185,11 @@ pub type PositionedReads = ReadCollection<PositionedSequence>;
 impl<S: Seq> ReadCollection<S> {
     /// Constructor of reads
     pub fn from(reads: Vec<S>) -> Self {
-        ReadCollection { reads, hints: None }
-    }
-    pub fn from_with_hint(reads: Vec<S>, hints: Vec<Hint>) -> Self {
-        assert_eq!(reads.len(), hints.len());
-        for i in 0..reads.len() {
-            assert_eq!(reads[i].as_ref().len(), hints[i].len());
-        }
-        ReadCollection {
-            reads,
-            hints: Some(hints),
-        }
+        ReadCollection { reads }
     }
     /// get an iterator over the reads
     pub fn iter(&self) -> impl Iterator<Item = &S> + '_ {
         self.reads.iter()
-    }
-    /// get an iterator over the reads and hints
-    pub fn iter_with_hint(&self) -> impl Iterator<Item = (&S, &Hint)> + '_ {
-        self.reads.iter().zip(self.hints.as_ref().unwrap().iter())
     }
     /// the number of reads.
     pub fn len(&self) -> usize {
@@ -230,16 +214,6 @@ impl<S: Seq> ReadCollection<S> {
         for (i, read) in self.iter().enumerate() {
             println!("# read#{}\t{}", i, read.to_str());
         }
-    }
-    ///
-    /// This read collection have hint or not
-    ///
-    pub fn has_hint(&self) -> bool {
-        self.hints.is_some()
-    }
-    ///
-    pub fn hint(&self, i: usize) -> &Hint {
-        &self.hints.as_ref().unwrap()[i]
     }
     ///
     /// Dump FASTA file of reads
@@ -269,7 +243,7 @@ impl ReadCollection<Sequence> {
             .map(|r| r.unwrap().seq().to_vec())
             .collect();
 
-        Ok(ReadCollection { reads, hints: None })
+        Ok(ReadCollection { reads })
     }
 }
 
@@ -726,26 +700,6 @@ mod tests {
             println!("{:?}", reads2);
             assert_eq!(reads, reads2);
         }
-
-        {
-            // with hints
-            let reads = ReadCollection::from_with_hint(
-                vec![b"AT".to_vec(), b"T".to_vec()],
-                vec![
-                    Hint::from(vec![vec![ni(0), ni(1)], vec![ni(1), ni(2)]]),
-                    Hint::from(vec![vec![ni(3), ni(9)]]),
-                ],
-            );
-            let json = serde_json::to_string(&reads).unwrap();
-            println!("{}", json);
-            assert_eq!(
-                json,
-                "{\"reads\":[\"AT\",\"T\"],\"hints\":[[[0,1],[1,2]],[[3,9]]]}"
-            );
-            let reads2: Reads = serde_json::from_str(&json).unwrap();
-            println!("{:?}", reads2);
-            assert_eq!(reads, reads2);
-        }
     }
     #[test]
     fn styled_seq_serialize() {
@@ -849,7 +803,6 @@ mod tests {
     fn read_collection_fasta() {
         let r = ReadCollection {
             reads: vec![b"ATCGGATC".to_vec(), b"TTTTTTA".to_vec(), b"GCTAG".to_vec()],
-            hints: None,
         };
         r.to_fasta("tmp.fa").unwrap();
         r.show_reads();

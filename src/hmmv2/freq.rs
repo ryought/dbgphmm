@@ -22,7 +22,7 @@
 //!     NodeFreq[v] = Pr(the expected usage of node v)
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use super::hint::Hint;
+use super::hint::{Hint, Mappings};
 use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::collection::Bases;
@@ -161,15 +161,19 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// This function does not run backward. Running forward is enough to calculate the full
     /// probability P(R|G).
     ///
-    pub fn to_full_prob_reads<S: Seq>(&self, reads: &ReadCollection<S>) -> Prob {
+    pub fn to_full_prob_reads<S: Seq>(
+        &self,
+        reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
+    ) -> Prob {
         reads
             .into_par_iter()
             .enumerate()
             .map(|(i, seq)| {
-                if reads.has_hint() {
+                if let Some(mappings) = mappings {
                     // let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
                     // forward.full_prob()
-                    self.forward_with_hint_score_only(seq.as_ref(), reads.hint(i))
+                    self.forward_with_hint_score_only(seq.as_ref(), &mappings[i])
                 } else {
                     self.forward_sparse_score_only(seq.as_ref())
                 }

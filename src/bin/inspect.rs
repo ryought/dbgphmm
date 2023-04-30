@@ -33,7 +33,13 @@ fn main() {
     println!("k={} |E|={}", dbg.k(), dbg.n_edges_full());
 
     // original
-    let score = dbg.to_score(params, dataset.reads(), dataset.genome_size(), opts.sigma);
+    let score = dbg.to_score(
+        params,
+        dataset.reads(),
+        None,
+        dataset.genome_size(),
+        opts.sigma,
+    );
     let likelihood = dbg.to_phmm(params).to_full_prob_parallel(dataset.reads());
     println!(
         "orig\t{}\t{}\t{}\t{}",
@@ -50,7 +56,13 @@ fn main() {
         .expect("k-mer in genome is missing");
     let copy_nums_true = dbg.copy_nums_from_full_path(paths_true);
     dbg.set_copy_nums(&copy_nums_true);
-    let score = dbg.to_score(params, dataset.reads(), dataset.genome_size(), opts.sigma);
+    let score = dbg.to_score(
+        params,
+        dataset.reads(),
+        None,
+        dataset.genome_size(),
+        opts.sigma,
+    );
     let likelihood = dbg.to_phmm(params).to_full_prob_parallel(dataset.reads());
     println!(
         "true\t{}\t{}\t{}\t{}",

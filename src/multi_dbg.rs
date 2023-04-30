@@ -22,7 +22,12 @@ use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
-use crate::hmmv2::{common::PModel, hint::Hint, params::PHMMParams, table::MAX_ACTIVE_NODES};
+use crate::hmmv2::{
+    common::PModel,
+    hint::{Hint, Mappings},
+    params::PHMMParams,
+    table::MAX_ACTIVE_NODES,
+};
 use crate::kmer::{
     common::{kmers_to_string, KmerLike, NullableKmer},
     kmer::styled_sequence_to_kmers,
@@ -1767,8 +1772,8 @@ impl MultiDbg {
         k_max: usize,
         stop_when_ambiguous: bool,
         paths: Option<Vec<Path>>,
-        hints: Option<Vec<Hint>>,
-    ) -> (Self, Option<Vec<Path>>, Option<Vec<Hint>>) {
+        mappings: &Mappings,
+    ) -> (Self, Option<Vec<Path>>, Mappings) {
         let mut dbg_k = self.clone();
 
         //
@@ -1777,8 +1782,7 @@ impl MultiDbg {
         let m = dbg_k.purge_edges(&edges_in_compact_to_purge);
         let mut paths: Option<Vec<Path>> =
             paths.and_then(|paths| paths.into_iter().map(|path| m.path(&path)).collect());
-        let mut hints: Option<Vec<Hint>> =
-            hints.map(|hints| hints.into_iter().map(|hint| m.hint(&hint)).collect());
+        let mut mappings: Mappings = mappings.into_iter().map(|hint| m.hint(&hint)).collect();
 
         // (2) Extend DBG
         //
@@ -1797,13 +1801,11 @@ impl MultiDbg {
                     .map(|path| dbg_kp1.path_kp1_from_path_k(&path))
                     .collect()
             });
-            // (b) hints
-            hints = hints.map(|hints| {
-                hints
-                    .into_iter()
-                    .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
-                    .collect()
-            });
+            // (b) mappings
+            mappings = mappings
+                .into_iter()
+                .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
+                .collect();
 
             //
             let is_ambiguous = dbg_k.n_ambiguous_node() > 0;
@@ -1813,7 +1815,7 @@ impl MultiDbg {
             }
         }
 
-        (dbg_k, paths, hints)
+        (dbg_k, paths, mappings)
     }
 }
 
@@ -2237,13 +2239,8 @@ mod tests {
             println!("{:?} {:?}", paths, hints);
 
             {
-                let (dbg_kp1, paths, hints) = dbg_k.purge_and_extend(
-                    &[ei(1)],
-                    5,
-                    false,
-                    Some(paths.clone()),
-                    Some(hints.clone()),
-                );
+                let (dbg_kp1, paths, hints) =
+                    dbg_k.purge_and_extend(&[ei(1)], 5, false, Some(paths.clone()), &hints);
                 println!("### k+1");
                 dbg_kp1.show_graph_with_kmer();
                 assert_eq!(dbg_kp1.k(), 5);
@@ -2258,11 +2255,11 @@ mod tests {
                 assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints,
-                    Some(vec![Hint::from(vec![
+                    vec![Hint::from(vec![
                         vec![ni(3), ni(4)],
                         vec![ni(4), ni(5)],
                         vec![ni(7)],
-                    ])])
+                    ])]
                 );
             }
 
@@ -2273,7 +2270,7 @@ mod tests {
                     10,
                     true, // there is no ambiguity from k=4 to k=10, so k=k_max can be reached
                     Some(paths.clone()),
-                    Some(hints.clone()),
+                    &hints,
                 );
                 dbg_k10.show_graph_with_kmer();
                 println!("paths={:?}", paths_k10);
@@ -2299,12 +2296,12 @@ mod tests {
                 assert_eq!(paths_k10, Some(vec![dbg_k10.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints_k10,
-                    Some(vec![Hint::from(vec![
+                    vec![Hint::from(vec![
                         // 10-mers ending with..
                         vec![ni(13), ni(0)], // nnTCC and nTCCC
                         vec![ni(0), ni(1)],  // nTCCC and TCCCA
                         vec![ni(3)],         // CCAGG
-                    ])])
+                    ])]
                 );
             }
         }
@@ -2356,7 +2353,7 @@ mod tests {
             {
                 println!("### k+1");
                 let (dbg_kp1, paths_kp1, hints_kp1) =
-                    dbg_k.purge_and_extend(&[], 5, false, Some(paths.clone()), Some(hints.clone()));
+                    dbg_k.purge_and_extend(&[], 5, false, Some(paths.clone()), &hints);
                 dbg_kp1.show_graph_with_kmer();
                 println!("paths={:?}", paths_kp1);
                 println!("hints={:?}", hints_kp1);
@@ -2365,27 +2362,22 @@ mod tests {
                 assert!(dbg_kp1.is_copy_nums_valid());
                 assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
                 assert_eq!(paths_kp1.unwrap(), paths_k5);
-                assert_eq!(hints_kp1.unwrap(), hints_k5);
+                assert_eq!(hints_kp1, hints_k5);
 
                 // there is ambiguity when kp1=5 so output is same even if k_max=10.
                 let (dbg_kp1, paths_kp1, hints_kp1) =
-                    dbg_k.purge_and_extend(&[], 10, true, Some(paths.clone()), Some(hints.clone()));
+                    dbg_k.purge_and_extend(&[], 10, true, Some(paths.clone()), &hints);
                 assert_eq!(dbg_kp1.k(), 5);
                 assert!(dbg_kp1.is_copy_nums_valid());
                 assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
                 assert_eq!(paths_kp1.unwrap(), paths_k5);
-                assert_eq!(hints_kp1.unwrap(), hints_k5);
+                assert_eq!(hints_kp1, hints_k5);
             }
 
             {
                 println!("### k=10");
-                let (dbg_k10, paths_k10, hints_k10) = dbg_k.purge_and_extend(
-                    &[],
-                    10,
-                    false,
-                    Some(paths.clone()),
-                    Some(hints.clone()),
-                );
+                let (dbg_k10, paths_k10, hints_k10) =
+                    dbg_k.purge_and_extend(&[], 10, false, Some(paths.clone()), &hints);
                 dbg_k10.show_graph_with_kmer();
                 println!("paths={:?}", paths_k10);
                 println!("hints={:?}", hints_k10);
@@ -2399,12 +2391,12 @@ mod tests {
                 );
                 assert_eq!(
                     hints_k10,
-                    Some(vec![Hint::from(vec![
+                    vec![Hint::from(vec![
                         // 10-mers ending with..
                         vec![ni(31), ni(0)], // nTCC and TCCC
                         vec![ni(0), ni(1)],  // TCCC and CCCA
                         vec![ni(3), ni(11), ni(9), ni(4), ni(12), ni(10)]  // CAGG and CAGC
-                    ])])
+                    ])]
                 );
             }
         }

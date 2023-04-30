@@ -5,6 +5,7 @@ use super::super::{CopyNums, MultiDbg, NeighborConfig, Path};
 use super::{infer_posterior_by_extension, Posterior};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::e2e::Dataset;
+use crate::hmmv2::hint::Mappings;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::{p, Prob};
 use crate::utils::timer;
@@ -20,7 +21,6 @@ pub fn test_posterior(
     k: usize,
     param_infer: PHMMParams,
     gfa_filename: &str,
-    use_hint: bool,
 ) -> (MultiDbg, Posterior, CopyNums) {
     println!("# started_at={}", chrono::Local::now());
 
@@ -28,16 +28,13 @@ pub fn test_posterior(
     let paths_true = mdbg.paths_from_styled_seqs(dataset.genome()).unwrap();
     // mdbg.to_paths_file("simple.paths", &paths_true);
 
-    let reads = if use_hint {
-        mdbg.generate_hints(param_infer, dataset.reads().clone(), false)
-    } else {
-        dataset.reads().clone()
-    };
+    let mappings = mdbg.generate_mappings(param_infer, dataset.reads(), None);
 
     let (post, t) = timer(|| {
         mdbg.sample_posterior(
             param_infer,
-            &reads,
+            dataset.reads(),
+            &mappings,
             dataset.genome_size(),
             200,
             NeighborConfig {
@@ -48,7 +45,6 @@ pub fn test_posterior(
                 use_reducers: true,
             },
             10,
-            true,
         )
     });
     println!("sampled in {}ms", t);
@@ -81,12 +77,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     max_iter: usize,       // 10
     max_cycle_size: usize, // 10
     output_prefix: P,
-) -> (
-    MultiDbg,
-    Posterior,
-    Option<Vec<Path>>,
-    ReadCollection<PositionedSequence>,
-) {
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
     test_inference_from_dbg(
         dataset,
@@ -114,24 +105,18 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     max_iter: usize,         // 10
     max_cycle_size: usize,   // 10
     output_prefix: P,
-) -> (
-    MultiDbg,
-    Posterior,
-    Option<Vec<Path>>,
-    ReadCollection<PositionedSequence>,
-) {
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     println!("# started_at={}", chrono::Local::now());
 
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
-    let reads = dbg.generate_hints(param_infer, dataset.reads().clone(), false);
     let output: std::path::PathBuf = output_prefix.as_ref().into();
 
-    let (dbg, posterior, paths, reads) = infer_posterior_by_extension(
+    let (dbg, posterior, paths, mappings) = infer_posterior_by_extension(
         k_final,
         dbg,
         param_infer,
         param_error,
-        reads,
+        dataset.reads(),
         dataset.genome_size(),
         sigma,
         NeighborConfig {
@@ -143,7 +128,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         },
         max_iter,
         p(0.8),
-        |dbg, posterior, paths, reads| {
+        |dbg, posterior, paths, _mappings| {
             let k = dbg.k();
             println!("callback k={} n_edges={}", k, dbg.n_edges_full());
 
@@ -184,7 +169,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
 
     println!("# finished_at={}", chrono::Local::now());
 
-    (dbg, posterior, paths, reads)
+    (dbg, posterior, paths, mappings)
 }
 
 ///
@@ -250,13 +235,7 @@ mod tests {
 
         // without hints
         let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa", false);
-        check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
-        check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
-
-        // with hints
-        let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa", true);
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "shap.gfa");
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
     }
@@ -272,7 +251,7 @@ mod tests {
         // if without hint, 35sec
         // if with hint, 10sec
         let (mdbg, post, copy_nums_true) =
-            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "sdip.gfa", true);
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "sdip.gfa");
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
     }
@@ -311,13 +290,8 @@ mod tests {
 
         // if without hint, 35sec
         // if with hint, 10sec
-        let (mdbg, post, copy_nums_true) = test_posterior(
-            &dataset,
-            20,
-            PHMMParams::uniform(0.001),
-            "repeat1k.gfa",
-            true,
-        );
+        let (mdbg, post, copy_nums_true) =
+            test_posterior(&dataset, 20, PHMMParams::uniform(0.001), "repeat1k.gfa");
         check_posterior_non_zero_edges(&mdbg, &post, &copy_nums_true);
         // below is not satisfied in tandem repeat
         // check_posterior_highest_at_true(&mdbg, &post, &copy_nums_true);
@@ -379,11 +353,9 @@ mod tests {
 
         // (1) read from first
         let reads = ReadCollection::from(vec![b"CCCAG".to_vec()]);
-        let reads_with_hint = mdbg.generate_hints(param, reads, false);
-        for (r, h) in reads_with_hint.iter_with_hint() {
-            println!("{} {:?}", r.to_str(), h);
-        }
-        let hint = reads_with_hint.hint(0);
+        let mappings = mdbg.generate_mappings(param, &reads, None);
+        let hint = &mappings[0];
+        println!("hint={:?}", hint);
         // most probable node for bases[i] is v[i+1]
         assert_eq!(hint.nodes(0)[0], ni(1));
         assert_eq!(hint.nodes(1)[0], ni(2));
@@ -393,11 +365,8 @@ mod tests {
 
         // (2) read from repetitive
         let reads = ReadCollection::from(vec![b"GCAGCAGG".to_vec()]);
-        let reads_with_hint = mdbg.generate_hints(param, reads, false);
-        for (r, h) in reads_with_hint.iter_with_hint() {
-            println!("{} {:?}", r.to_str(), h);
-        }
-        let hint = reads_with_hint.hint(0);
+        let mappings = mdbg.generate_mappings(param, &reads, None);
+        let hint = &mappings[0];
         assert_eq!(hint.nodes(0)[0], ni(8));
         assert_eq!(hint.nodes(1)[0], ni(6));
         assert_eq!(hint.nodes(2)[0], ni(7));

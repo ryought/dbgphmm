@@ -106,21 +106,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         phmm.to_full_prob_parallel(seqs)
     }
     ///
-    /// Convert dbg into phmm and calculate full probability
-    /// (Likelihood)
-    ///
-    pub fn to_full_prob_with_hint<S>(
-        &self,
-        param: PHMMParams,
-        seqs_and_hints: &ReadCollection<S>,
-    ) -> Prob
-    where
-        S: Seq,
-    {
-        let phmm = self.to_phmm(param);
-        phmm.to_full_prob_reads(seqs_and_hints)
-    }
-    ///
     ///
     ///
     pub fn to_prior_prob(&self, genome_size_expected: CopyNum, genome_size_sigma: CopyNum) -> Prob {
@@ -162,20 +147,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         T::Item: Seq,
     {
         let (p_rg, time) = timer(|| self.to_full_prob(param, seqs));
-        let p_g = self.to_prior_prob(genome_size_expected, genome_size_sigma);
-        EvalResult::new(p_rg, p_g, self.genome_size(), time)
-    }
-    ///
-    ///
-    ///
-    pub fn evaluate_with_hint<S: Seq>(
-        &self,
-        param: PHMMParams,
-        seqs_and_hints: &ReadCollection<S>,
-        genome_size_expected: CopyNum,
-        genome_size_sigma: CopyNum,
-    ) -> EvalResult {
-        let (p_rg, time) = timer(|| self.to_full_prob_with_hint(param, seqs_and_hints));
         let p_g = self.to_prior_prob(genome_size_expected, genome_size_sigma);
         EvalResult::new(p_rg, p_g, self.genome_size(), time)
     }
