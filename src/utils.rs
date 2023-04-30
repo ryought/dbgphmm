@@ -1,3 +1,5 @@
+use indicatif::ProgressStyle;
+
 pub fn is_equal_as_set<T: PartialEq>(xs: &[T], ys: &[T]) -> bool {
     xs.iter().all(|x| ys.contains(x)) && ys.iter().all(|y| xs.contains(y))
 }
@@ -106,6 +108,14 @@ pub fn log_factorial(n: usize) -> f64 {
         ret += (i as f64).ln();
     }
     ret
+}
+
+pub fn progress_common_style() -> ProgressStyle {
+    ProgressStyle::with_template(
+        "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )
+    .unwrap()
+    .progress_chars("##-")
 }
 
 //

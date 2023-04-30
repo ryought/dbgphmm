@@ -4,8 +4,10 @@
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
+use crate::prob::Prob;
+use crate::utils::progress_common_style;
 use arrayvec::ArrayVec;
-use indicatif::{ParallelProgressIterator, ProgressStyle};
+use indicatif::ParallelProgressIterator;
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -15,19 +17,27 @@ use serde::{Deserialize, Serialize};
 /// Define candidate nodes for each emission
 ///
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Hint(Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>);
+pub struct Hint {
+    nodes: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>,
+    probs: Vec<ArrayVec<Prob, MAX_ACTIVE_NODES>>,
+}
 
 impl Hint {
     /// Constructor from vec of arrayvecs
     ///
-    pub fn new(v: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>) -> Self {
-        Hint(v)
+    pub fn new(nodes: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>) -> Self {
+        Hint {
+            nodes,
+            probs: vec![],
+        }
     }
+    ///
     /// Constructor from vec of vecs
     ///
     pub fn from(v: Vec<Vec<NodeIndex>>) -> Self {
-        Hint(
-            v.into_iter()
+        Hint {
+            nodes: v
+                .into_iter()
                 .map(|nodes| {
                     let mut vec = ArrayVec::new();
                     // TODO
@@ -35,25 +45,26 @@ impl Hint {
                     vec
                 })
                 .collect(),
-        )
+            probs: vec![],
+        }
     }
     ///
     pub fn to_inner(self) -> Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>> {
-        self.0
+        self.nodes
     }
     ///
     pub fn inner(&self) -> &[ArrayVec<NodeIndex, MAX_ACTIVE_NODES>] {
-        &self.0
+        &self.nodes
     }
     /// Get candidate nodes of `emissions[index]`
     ///
     pub fn nodes(&self, index: usize) -> &[NodeIndex] {
-        &self.0[index]
+        &self.nodes[index]
     }
     /// Length of the read (emission sequence)
     ///
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.nodes.len()
     }
 }
 
@@ -80,16 +91,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         reads: ReadCollection<S>,
         use_hint: bool,
     ) -> ReadCollection<S> {
-        let style = ProgressStyle::with_template(
-            "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-        )
-        .unwrap()
-        .progress_chars("##-");
-
         let hints = reads
             .par_iter()
             .enumerate()
-            .progress_with_style(style)
+            .progress_with_style(progress_common_style())
             .map(|(i, seq)| {
                 let output = if use_hint {
                     self.run_with_hint(seq.as_ref(), reads.hint(i))
