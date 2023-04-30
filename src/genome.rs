@@ -258,7 +258,7 @@ pub fn tandem_repeat_polyploid_with_unique_homo_ends(
         MutationProfile::uniform(divergence_init),
         div_init_seed,
     );
-    println!("[genome] ops hap[0] {:?}", ops);
+    // println!("[genome] ops hap[0] {:?}", ops);
 
     // unique ends
     let prefix = generate(end_length, unit_seed.wrapping_add(1));

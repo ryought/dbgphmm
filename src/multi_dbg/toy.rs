@@ -410,6 +410,168 @@ pub fn repeat_kp1() -> MultiDbg {
     }
 }
 
+/// k=3 DBG
+///
+/// ```text
+/// GGACGT GGACGT GGACGT GGACGT GGAAGT
+///                                x
+/// ```
+///
+/// |              | sequence | abundance |
+/// | ------------ | -------- | --------- |
+/// | unit         | `GGACGT` | 4         |
+/// | mutated unit | `GGAAGT` | 1         |
+///
+/// ```text
+///      nnG 1x       ┌──┐    Tnn 1x
+///     ┌─────────────┤nn◀─────────────┐
+///     │             └──┘             │
+///   ┌─▼┐                            ┌┴─┐
+///   │nG│                            │Tn│
+///   └─┬┘                            └▲─┘
+///  nGG│                              │GTn
+///   1x│                              │1x
+///   ┌─▼┐ TGG 4x     ┌──┐ GTG 4x     ┌┴─┐
+///   │GG◀────────────┤TG◀────────────┤GT│
+///   └─┬┘            └──┘            └▲─▲
+///  GGA│                              │ │
+///   5x│                              │ │
+///   ┌─▼┐ GAC  ┌──┐ ACG  ┌──┐ CGT     │ │
+///   │GA├──────▶AC├──────▶CG├─────────┘ │
+///   └─┬┘  4x  └──┘  4x  └──┘  4x       │
+///  GAA│                                │
+///   1x│                                │
+///     │  GAA  ┌──┐ AAG  ┌──┐ AGT       │
+///     └───────▶AA├──────▶AG├───────────┘
+///         1x  └──┘  1x  └──┘  1x
+/// ```
+///
+pub fn one_in_n_repeat() -> MultiDbg {
+    let mut full = DiGraph::new();
+    // Nodes
+    let v_nn = full.add_node(MultiFullNode::new(true));
+    // in
+    let v_ng = full.add_node(MultiFullNode::new(false));
+    // major unit
+    let v_gg = full.add_node(MultiFullNode::new(false));
+    let v_ga = full.add_node(MultiFullNode::new(false));
+    let v_ac = full.add_node(MultiFullNode::new(false));
+    let v_cg = full.add_node(MultiFullNode::new(false));
+    let v_gt = full.add_node(MultiFullNode::new(false));
+    let v_tg = full.add_node(MultiFullNode::new(false));
+    // mutated unit
+    let v_aa = full.add_node(MultiFullNode::new(false));
+    let v_ag = full.add_node(MultiFullNode::new(false));
+    // out
+    let v_tn = full.add_node(MultiFullNode::new(false));
+
+    // Edges
+    let e_nng = full.add_edge(v_nn, v_ng, MultiFullEdge::new(b'C', 1));
+    let e_ngg = full.add_edge(v_ng, v_gg, MultiFullEdge::new(b'C', 1));
+    // major
+    let e_gga = full.add_edge(v_gg, v_ga, MultiFullEdge::new(b'A', 5));
+    let e_gac = full.add_edge(v_ga, v_ac, MultiFullEdge::new(b'C', 4));
+    let e_acg = full.add_edge(v_ac, v_cg, MultiFullEdge::new(b'G', 4));
+    let e_cgt = full.add_edge(v_cg, v_gt, MultiFullEdge::new(b'T', 4));
+    let e_gtg = full.add_edge(v_gt, v_tg, MultiFullEdge::new(b'G', 4));
+    let e_tgg = full.add_edge(v_tg, v_gg, MultiFullEdge::new(b'G', 4));
+    // mutated
+    let e_gaa = full.add_edge(v_ga, v_aa, MultiFullEdge::new(b'A', 1));
+    let e_aag = full.add_edge(v_aa, v_ag, MultiFullEdge::new(b'G', 1));
+    let e_agt = full.add_edge(v_ag, v_gt, MultiFullEdge::new(b'T', 1));
+    // out
+    let e_gtn = full.add_edge(v_gt, v_tn, MultiFullEdge::new(b'n', 1));
+    let e_tnn = full.add_edge(v_tn, v_nn, MultiFullEdge::new(b'n', 1));
+
+    let compact = MultiDbg::construct_compact_from_full(&full);
+    MultiDbg {
+        k: 3,
+        full,
+        compact,
+    }
+}
+
+/// k=3 DBG
+///
+/// ```text
+/// Linear
+///     ACTTG
+///     AATTG
+/// Circular
+///     CAGG
+/// ```
+///
+/// ```text
+///         Gnn 2x   ┌──┐ TGn 2x
+///        ┌─────────┤Gn◀────────┐
+///        │         └──┘        │           ┌──┐ GCA ┌──┐
+///       ┌▼─┐                 ┌─┴┐          │CA◀─────┤GC│
+///       │nn│                 │TG│          └┬─┘  2x └─▲┘
+///       └┬─┘                 └─▲┘        CAG│2x       │GGC 2x
+///  nnA 2x│                     │TTG 2x     ┌▼─┐ AGG ┌─┴┐
+///       ┌▼─┐nAC┌──┐ACT┌──┐CTT┌─┴┐          │AG├─────▶GG│
+///       │nA├───▶AC├───▶CT├───▶TT│          └──┘  2x └──┘
+///       └┬─┘ 1x└──┘ 1x└──┘ 1x└─▲┘
+///        │                     │
+///  nAA 1x│  nAA┌──┐AAT┌──┐ATT  │
+///        └─────▶AA├───▶AT├─────┘
+///            1x└──┘ 1x└──┘ 1x
+/// ```
+///
+pub fn two_components() -> MultiDbg {
+    let mut full = DiGraph::new();
+
+    // Nodes
+    // component1
+    // common
+    let v_nn = full.add_node(MultiFullNode::new(true));
+    let v_na = full.add_node(MultiFullNode::new(false));
+    // branch1 or branch2
+    let v_tt = full.add_node(MultiFullNode::new(false));
+    let v_tg = full.add_node(MultiFullNode::new(false));
+    let v_gn = full.add_node(MultiFullNode::new(false));
+    // branch1
+    let v_ac = full.add_node(MultiFullNode::new(false));
+    let v_ct = full.add_node(MultiFullNode::new(false));
+    // branch2
+    let v_aa = full.add_node(MultiFullNode::new(false));
+    let v_at = full.add_node(MultiFullNode::new(false));
+    // component2
+    let v_ca = full.add_node(MultiFullNode::new(false));
+    let v_ag = full.add_node(MultiFullNode::new(false));
+    let v_gg = full.add_node(MultiFullNode::new(false));
+    let v_gc = full.add_node(MultiFullNode::new(false));
+
+    // Edges
+    // component1
+    // common
+    let e_nna = full.add_edge(v_nn, v_na, MultiFullEdge::new(b'A', 2));
+    // branch1
+    let e_nac = full.add_edge(v_na, v_ac, MultiFullEdge::new(b'C', 1));
+    let e_act = full.add_edge(v_ac, v_ct, MultiFullEdge::new(b'T', 1));
+    let e_ctt = full.add_edge(v_ct, v_tt, MultiFullEdge::new(b'T', 1));
+    // branch2
+    let e_naa = full.add_edge(v_na, v_aa, MultiFullEdge::new(b'A', 1));
+    let e_aat = full.add_edge(v_aa, v_at, MultiFullEdge::new(b'T', 1));
+    let e_att = full.add_edge(v_at, v_tt, MultiFullEdge::new(b'T', 1));
+    // common
+    let e_ttg = full.add_edge(v_tt, v_tg, MultiFullEdge::new(b'G', 2));
+    let e_tgn = full.add_edge(v_tg, v_gn, MultiFullEdge::new(b'n', 2));
+    let e_gnn = full.add_edge(v_gn, v_nn, MultiFullEdge::new(b'n', 2));
+    // component2
+    let e_cag = full.add_edge(v_ca, v_ag, MultiFullEdge::new(b'G', 2));
+    let e_agg = full.add_edge(v_ag, v_gg, MultiFullEdge::new(b'G', 2));
+    let e_ggc = full.add_edge(v_gg, v_gc, MultiFullEdge::new(b'C', 2));
+    let e_gca = full.add_edge(v_gc, v_ca, MultiFullEdge::new(b'A', 2));
+
+    let compact = MultiDbg::construct_compact_from_full(&full);
+    MultiDbg {
+        k: 3,
+        full,
+        compact,
+    }
+}
+
 //
 // tests
 //

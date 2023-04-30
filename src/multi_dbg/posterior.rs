@@ -8,9 +8,9 @@ use crate::e2e::Dataset;
 use crate::hist::DiscreteDistribution;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
-use crate::utils::timer;
+use crate::utils::{progress_common_style, timer};
 use fnv::FnvHashMap as HashMap;
-use indicatif::{ParallelProgressIterator, ProgressStyle};
+use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use petgraph::graph::EdgeIndex;
 use rayon::prelude::*;
@@ -337,12 +337,13 @@ impl MultiDbg {
             let copy_nums = &sample.copy_nums;
             writeln!(
                 writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 self.k(),
                 i,
                 (score.p() / posterior.p()).to_value(),
                 score.likelihood.to_log_value(),
                 score.prior.to_log_value(),
+                score.n_euler_circuits,
                 score.genome_size,
                 format_option_copy_num(
                     copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
@@ -418,6 +419,10 @@ pub struct Score {
     ///
     pub genome_size: CopyNum,
     ///
+    /// Number of Euler circuits of DBG
+    ///
+    pub n_euler_circuits: f64,
+    ///
     /// Computation time of likelihood
     ///
     pub time: u128,
@@ -428,7 +433,9 @@ impl Score {
     /// Calculate total probability `P(R|G)P(G)`
     ///
     pub fn p(&self) -> Prob {
-        self.likelihood * self.prior
+        // FIXME
+        self.likelihood * self.prior * Prob::from_log_prob(self.n_euler_circuits)
+        // self.likelihood * self.prior
     }
 }
 
@@ -436,8 +443,8 @@ impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "likelihood={},prior={},genome_size={},time={}",
-            self.likelihood, self.prior, self.genome_size, self.time
+            "likelihood={},prior={},genome_size={},n_euler_circuits={},time={}",
+            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time
         )
     }
 }
@@ -448,6 +455,7 @@ impl std::str::FromStr for Score {
         let mut likelihood = None;
         let mut prior = None;
         let mut genome_size = None;
+        let mut n_euler_circuits = None;
         let mut time = None;
 
         for e in s.split(',') {
@@ -464,6 +472,9 @@ impl std::str::FromStr for Score {
                 "genome_size" => {
                     genome_size = Some(value.parse().unwrap());
                 }
+                "n_euler_circuits" => {
+                    n_euler_circuits = Some(value.parse().unwrap());
+                }
                 "time" => {
                     time = Some(value.parse().unwrap());
                 }
@@ -475,6 +486,7 @@ impl std::str::FromStr for Score {
             likelihood: likelihood.unwrap(),
             prior: prior.unwrap(),
             genome_size: genome_size.unwrap(),
+            n_euler_circuits: n_euler_circuits.unwrap(),
             time: time.unwrap(),
         })
     }
@@ -525,6 +537,7 @@ impl MultiDbg {
             likelihood,
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
+            n_euler_circuits: self.n_euler_circuits(),
             time,
         }
     }
@@ -593,15 +606,9 @@ impl MultiDbg {
 
             // evaluate all neighbors
             if is_parallel {
-                let style = ProgressStyle::with_template(
-                    "[{elapsed_precise}/{eta_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-");
-
                 let samples: Vec<_> = neighbor_copy_nums
                     .into_par_iter()
-                    .progress_with_style(style)
+                    .progress_with_style(progress_common_style())
                     .filter_map(|(copy_nums, info)| {
                         if post.contains(&copy_nums) {
                             None
@@ -669,11 +676,10 @@ impl MultiDbg {
         &self,
         param: PHMMParams,
         reads: ReadCollection<S>,
-        parallel: bool,
         use_hint: bool,
     ) -> ReadCollection<S> {
         let phmm = self.to_uniform_phmm(param);
-        phmm.append_hints(reads, parallel, use_hint)
+        phmm.append_hints(reads, use_hint)
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -789,7 +795,7 @@ pub fn infer_posterior_by_extension<
 
         // (3) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        reads = dbg.generate_hints(param_infer, reads, true, true);
+        reads = dbg.generate_hints(param_infer, reads, true);
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
@@ -839,6 +845,7 @@ mod tests {
                 prior: p(0.3),
                 time: 10,
                 genome_size: 101,
+                n_euler_circuits: 10.0,
             },
             infos: vec![
                 vec![
@@ -858,6 +865,7 @@ mod tests {
                 prior: p(0.2),
                 time: 11,
                 genome_size: 99,
+                n_euler_circuits: 10.0,
             },
             infos: Vec::new(),
         });
@@ -876,6 +884,7 @@ mod tests {
             prior: Prob::from_prob(0.5),
             genome_size: 111,
             time: 102,
+            n_euler_circuits: 10.0,
         };
         let t = a.to_string();
         println!("{}", t);
