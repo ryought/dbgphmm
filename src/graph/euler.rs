@@ -90,8 +90,8 @@ pub fn euler_circuit_count(graph: &DiGraph<(), usize>) -> f64 {
     graph.retain_edges(|g, e| g[e] > 0);
     graph.retain_nodes(|g, v| g.edges_directed(v, Direction::Outgoing).count() > 0);
 
-    println!("cc={}", connected_components(&graph));
-    println!("cc={:?}", tarjan_scc(&graph));
+    // println!("cc={}", connected_components(&graph));
+    // println!("cc={:?}", tarjan_scc(&graph));
 
     let mut ret = 0.0;
     let n = graph.node_count();
@@ -103,7 +103,7 @@ pub fn euler_circuit_count(graph: &DiGraph<(), usize>) -> f64 {
     for component in tarjan_scc(&graph) {
         let h = subgraph(&graph, &component);
         let count = euler_circuit_count_in_connected(&h);
-        println!("compont={:?} count={}", component, count.exp());
+        // println!("compont={:?} count={}", component, count.exp());
         ret += count;
     }
 
