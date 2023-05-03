@@ -104,7 +104,7 @@ impl Mapping {
     ///
     pub fn to_nodes_string(&self, index: usize) -> String {
         izip!(&self.nodes[index], &self.probs[index])
-            .map(|(n, p)| format!("v{}:{:.3}", n.index(), p.to_value()))
+            .map(|(n, p)| format!("{}:{:.1}", n.index(), p.to_value() * 100.0))
             .join(",")
     }
 }
@@ -135,7 +135,29 @@ impl PHMMOutput {
 ///
 /// Mapping information for reads
 ///
-pub type Mappings = Vec<Mapping>;
+#[derive(Clone, Debug, PartialEq)]
+pub struct Mappings(Vec<Mapping>);
+
+impl Mappings {
+    pub fn new(v: Vec<Mapping>) -> Self {
+        Mappings(v)
+    }
+}
+
+impl std::ops::Index<usize> for Mappings {
+    type Output = Mapping;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<'a> IntoIterator for &'a Mappings {
+    type Item = &'a Mapping;
+    type IntoIter = std::slice::Iter<'a, Mapping>;
+    fn into_iter(self) -> std::slice::Iter<'a, Mapping> {
+        self.0.iter()
+    }
+}
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
@@ -146,19 +168,58 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         reads: &ReadCollection<S>,
         mappings: Option<&Mappings>,
     ) -> Mappings {
-        reads
-            .par_iter()
-            .enumerate()
-            .progress_with_style(progress_common_style())
-            .map(|(i, seq)| {
-                let output = if let Some(mappings) = mappings {
-                    self.run_with_mapping(seq.as_ref(), &mappings[i])
-                } else {
-                    self.run_sparse(seq.as_ref())
-                };
-                output.to_mapping(self.param.n_active_nodes)
-            })
-            .collect()
+        Mappings(
+            reads
+                .par_iter()
+                .enumerate()
+                .progress_with_style(progress_common_style())
+                .map(|(i, seq)| {
+                    let output = if let Some(mappings) = mappings {
+                        self.run_with_mapping(seq.as_ref(), &mappings[i])
+                    } else {
+                        self.run_sparse(seq.as_ref())
+                    };
+                    output.to_mapping(self.param.n_active_nodes)
+                })
+                .collect(),
+        )
+    }
+}
+
+///
+/// Mapping file (.MAP file) dump/load functions
+///
+impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
+    ///
+    /// Default MAP format
+    ///
+    pub fn to_map_writer<W: std::io::Write, S: Seq>(
+        &self,
+        writer: W,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+    ) -> std::io::Result<()> {
+        unimplemented!();
+    }
+    ///
+    /// create MAP string using `to_map_writer`
+    ///
+    pub fn to_map_string<S: Seq>(&self, reads: &ReadCollection<S>, mappings: &Mappings) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_map_writer(&mut writer, reads, mappings).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create MAP file using `to_map_writer`
+    ///
+    pub fn to_map_file<P: AsRef<std::path::Path>, S: Seq>(
+        &self,
+        path: P,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_map_writer(&mut file, reads, mappings)
     }
 }
 
