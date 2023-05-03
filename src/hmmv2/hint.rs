@@ -82,7 +82,6 @@ impl Mapping {
                 .rev()
                 .take(MAX_ACTIVE_NODES)
                 .collect();
-            println!("vs={:?}", vs);
             ret.push(vs);
         }
         Mapping::from_nodes_and_probs(&ret)
