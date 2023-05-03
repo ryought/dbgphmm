@@ -2147,7 +2147,7 @@ mod tests {
 
             // purge repetitive edges
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(0)])];
-            let mappings = Mappings::new(vec![Mapping::from_nodes_and_probs(vec![
+            let mappings = Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                 vec![
                     (ni(2), p(0.7)), // nTCC -> nnTCC ni(3)
                     (ni(3), p(0.3)), // TCCC -> nTCCC ni(4)
@@ -2180,7 +2180,7 @@ mod tests {
                 assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     mappings,
-                    Mappings::new(vec![Mapping::from_nodes_and_probs(vec![
+                    Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                         vec![(ni(3), p(0.7)), (ni(4), p(0.3))],
                         vec![(ni(4), p(0.8)), (ni(5), p(0.2))],
                         vec![(ni(7), p(0.4))],
@@ -2221,7 +2221,7 @@ mod tests {
                 assert_eq!(paths_k10, Some(vec![dbg_k10.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     mappings_k10,
-                    Mappings::new(vec![Mapping::from_nodes_and_probs(vec![
+                    Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                         // 10-mers ending with..
                         vec![(ni(13), p(0.7)), (ni(0), p(0.3))], // nnTCC and nTCCC
                         vec![(ni(0), p(0.8)), (ni(1), p(0.2))],  // nTCCC and TCCCA
@@ -2242,7 +2242,7 @@ mod tests {
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(1), ei(1), ei(1), ei(0)])];
             let genome = vec![StyledSequence::linear(b"TCCCAGCAGCAGCAGGAA".to_vec())];
             assert_eq!(paths, dbg_k.paths_from_styled_seqs(&genome).unwrap());
-            let mappings = Mappings::new(vec![Mapping::from_nodes_and_probs(vec![
+            let mappings = Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                 vec![
                     (ni(2), p(0.7)), // nTCC -> nnTCC ni(3)
                     (ni(3), p(0.3)), // TCCC -> nTCCC ni(4)
@@ -2269,7 +2269,7 @@ mod tests {
                 ei(0),
                 ei(4),
             ])];
-            let mappings_k5 = Mappings::new(vec![Mapping::from_nodes_and_probs(vec![
+            let mappings_k5 = Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                 vec![(ni(3), p(0.7)), (ni(4), p(0.3))],
                 vec![(ni(4), p(0.8)), (ni(5), p(0.2))],
                 vec![
