@@ -34,6 +34,7 @@ use crate::kmer::{
     kmer::styled_sequence_to_kmers,
     veckmer::VecKmer,
 };
+use crate::utils::timer;
 
 use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
@@ -1351,10 +1352,10 @@ impl MultiDbg {
     ///
     /// node in k-HMM == edge in k-HMM == node in k+1 DBG
     ///
-    pub fn hint_kp1_from_hint_k(&self, hint_k: &Mapping) -> Mapping {
+    pub fn hint_kp1_from_hint_k(&self, hint_k: Mapping) -> Mapping {
         hint_k.map_nodes(|node_in_k_hmm| {
             let node_in_kp1 = node_in_k_hmm;
-            let mut nodes_in_kp1_hmm = Vec::new();
+            let mut nodes_in_kp1_hmm = ArrayVec::new();
             for (edge_in_kp1, _, _) in self.parents_full(node_in_kp1) {
                 nodes_in_kp1_hmm.push(NodeIndex::new(edge_in_kp1.index()));
             }
@@ -1690,7 +1691,7 @@ impl MultiDbg {
         k_max: usize,
         stop_when_ambiguous: bool,
         paths: Option<Vec<Path>>,
-        mappings: &Mappings,
+        mappings: Mappings,
     ) -> (Self, Option<Vec<Path>>, Mappings) {
         let mut dbg_k = self.clone();
 
@@ -1703,7 +1704,7 @@ impl MultiDbg {
         let mut mappings = Mappings::new(
             mappings
                 .into_iter()
-                .map(|hint| m.update_mapping(&hint))
+                .map(|hint| m.update_mapping(hint))
                 .collect(),
         );
 
@@ -1712,24 +1713,39 @@ impl MultiDbg {
         while dbg_k.k() < k_max {
             // Extend
             //
+            let t_a0 = std::time::Instant::now();
             assert!(dbg_k.is_copy_nums_valid());
             let dbg_kp1 = dbg_k.to_kp1_dbg();
+            let t_a = t_a0.elapsed();
             assert!(dbg_kp1.is_copy_nums_valid());
             // Convert paths and hints
             //
             // (a) paths
+            let t_b0 = std::time::Instant::now();
             paths = paths.map(|paths| {
                 paths
                     .into_iter()
                     .map(|path| dbg_kp1.path_kp1_from_path_k(&path))
                     .collect()
             });
+            let t_b = t_b0.elapsed();
+
             // (b) mappings
+            let t_c0 = std::time::Instant::now();
             mappings = Mappings::new(
                 mappings
                     .into_iter()
                     .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
                     .collect(),
+            );
+            let t_c = t_c0.elapsed();
+
+            println!(
+                "extend k={} in a={} b={} c={}",
+                dbg_k.k(),
+                t_a.as_millis(),
+                t_b.as_millis(),
+                t_c.as_millis()
             );
 
             //
@@ -1784,13 +1800,14 @@ impl PurgeEdgeMap {
     ///
     /// Convert Mapping
     ///
-    pub fn update_mapping(&self, mapping: &Mapping) -> Mapping {
+    pub fn update_mapping(&self, mapping: Mapping) -> Mapping {
         mapping.map_nodes(|node| {
             let edge = EdgeIndex::new(node.index());
-            match self.full(edge) {
-                Some(edge_after) => vec![NodeIndex::new(edge_after.index())],
-                None => vec![],
+            let mut nodes = ArrayVec::new();
+            if let Some(edge_after) = self.full(edge) {
+                nodes.push(NodeIndex::new(edge_after.index()));
             }
+            nodes
         })
     }
 }

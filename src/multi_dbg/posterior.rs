@@ -714,7 +714,7 @@ impl MultiDbg {
         k_max: usize,
         p0: Prob,
         paths: Option<Vec<Path>>,
-        mappings: &Mappings,
+        mappings: Mappings,
     ) -> (Self, Option<Vec<Path>>, Mappings) {
         // (0)
         // Set copy number to the most probable one
@@ -804,7 +804,7 @@ pub fn infer_posterior_by_extension<
         // (4) extend
         let t_start_extend = std::time::Instant::now();
         (dbg, paths, mappings) =
-            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, &mappings);
+            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, mappings);
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
 

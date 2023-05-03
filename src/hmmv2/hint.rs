@@ -25,20 +25,20 @@ use serde::{Deserialize, Serialize};
 ///
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Mapping {
-    pub nodes: Vec<Vec<NodeIndex>>,
-    pub probs: Vec<Vec<Prob>>,
+    pub nodes: Vec<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>,
+    pub probs: Vec<ArrayVec<Prob, MAX_ACTIVE_NODES>>,
 }
 
 impl Mapping {
     ///
     /// Constructor from vec of vecs
     ///
-    pub fn from_nodes_and_probs(vs: &Vec<Vec<(NodeIndex, Prob)>>) -> Self {
+    pub fn from_nodes_and_probs(vs: &Vec<ArrayVec<(NodeIndex, Prob), MAX_ACTIVE_NODES>>) -> Self {
         Mapping {
             nodes: vs
                 .iter()
                 .map(|v| {
-                    let mut vec = Vec::new();
+                    let mut vec = ArrayVec::new();
                     for (node, _) in v.iter() {
                         vec.push(*node);
                     }
@@ -48,7 +48,7 @@ impl Mapping {
             probs: vs
                 .iter()
                 .map(|v| {
-                    let mut vec = Vec::new();
+                    let mut vec = ArrayVec::new();
                     for (_, prob) in v.iter() {
                         vec.push(*prob);
                     }
@@ -63,23 +63,32 @@ impl Mapping {
     /// # TODO
     /// * depends on n_active_nodes
     ///
-    pub fn map_nodes<'a, F>(&self, node_map: F) -> Self
+    pub fn map_nodes<'a, F>(mut self, node_map: F) -> Self
     where
-        F: Fn(NodeIndex) -> Vec<NodeIndex>,
+        F: Fn(NodeIndex) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES>,
     {
         let mut ret = Vec::new();
         for (ns, ps) in izip!(&self.nodes, &self.probs) {
-            let mut m: HashMap<NodeIndex, Prob> = HashMap::default();
-            for (&node, &prob) in izip!(ns, ps) {
-                let nodes_after = node_map(node);
-                for &node_after in nodes_after.iter() {
-                    *m.entry(node_after).or_insert(Prob::zero()) += prob / nodes_after.len();
-                }
-            }
-            let vs: Vec<_> = m
+            // let mut m: HashMap<NodeIndex, Prob> = HashMap::default();
+            // for (&node, &prob) in izip!(ns, ps) {
+            //     let nodes_after = node_map(node);
+            //     for &node_after in nodes_after.iter() {
+            //         *m.entry(node_after).or_insert(Prob::zero()) += prob / nodes_after.len();
+            //     }
+            // }
+
+            let vs: ArrayVec<_, MAX_ACTIVE_NODES> = izip!(ns, ps)
                 .into_iter()
-                .sorted_by_key(|(_, prob)| *prob)
-                .rev()
+                .flat_map(|(&node, &prob)| {
+                    let nodes_after = node_map(node);
+                    let c = nodes_after.len();
+                    nodes_after
+                        .into_iter()
+                        .map(|node_after| (node_after, prob))
+                        .collect::<Vec<_>>()
+                })
+                // .sorted_by_key(|(_, prob)| *prob)
+                // .rev()
                 .take(MAX_ACTIVE_NODES)
                 .collect();
             ret.push(vs);
@@ -147,6 +156,14 @@ impl std::ops::Index<usize> for Mappings {
     type Output = Mapping;
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+
+impl IntoIterator for Mappings {
+    type Item = Mapping;
+    type IntoIter = std::vec::IntoIter<Mapping>;
+    fn into_iter(self) -> std::vec::IntoIter<Mapping> {
+        self.0.into_iter()
     }
 }
 

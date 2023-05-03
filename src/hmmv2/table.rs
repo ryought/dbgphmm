@@ -117,7 +117,10 @@ impl PHMMTable {
     ///
     /// Pick up top-scored nodes
     ///
-    pub fn top_nodes_with_prob(&self, n_nodes: usize) -> Vec<(NodeIndex, Prob)> {
+    pub fn top_nodes_with_prob(
+        &self,
+        n_nodes: usize,
+    ) -> ArrayVec<(NodeIndex, Prob), MAX_ACTIVE_NODES> {
         let v = self.to_nodevec();
         v.to_top_k_indexes(n_nodes)
             .into_iter()

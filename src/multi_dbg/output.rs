@@ -46,7 +46,9 @@ use super::posterior::Posterior;
 use super::{CopyNums, MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
 use crate::common::{sequence_to_string, CopyNum, ReadCollection, Seq, NULL_BASE};
 use crate::hmmv2::hint::{Mapping, Mappings};
+use crate::hmmv2::table::MAX_ACTIVE_NODES;
 use crate::prob::Prob;
+use arrayvec::ArrayVec;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 
@@ -500,9 +502,9 @@ impl MultiDbg {
         reader: R,
         reads: &ReadCollection<S>,
     ) -> Mappings {
-        let mut ret: Vec<Vec<Vec<(NodeIndex, Prob)>>> = vec![];
+        let mut ret: Vec<Vec<ArrayVec<(NodeIndex, Prob), MAX_ACTIVE_NODES>>> = vec![];
         for (_, read) in reads.into_iter().enumerate() {
-            ret.push(vec![vec![]; read.as_ref().len()]);
+            ret.push(vec![]);
         }
         for line in reader.lines() {
             let text = line.unwrap();
@@ -513,7 +515,7 @@ impl MultiDbg {
                 let i: usize = iter.next().unwrap().parse().unwrap();
                 let j: usize = iter.next().unwrap().parse().unwrap();
                 iter.next().unwrap(); // base
-                let p: Vec<(NodeIndex, Prob)> = iter
+                let p: ArrayVec<(NodeIndex, Prob), MAX_ACTIVE_NODES> = iter
                     .next()
                     .unwrap()
                     .split(',')
@@ -524,7 +526,7 @@ impl MultiDbg {
                         (NodeIndex::new(v), Prob::from_prob(p / 100.0))
                     })
                     .collect();
-                ret[i][j] = p;
+                ret[i].push(p);
             }
         }
 
