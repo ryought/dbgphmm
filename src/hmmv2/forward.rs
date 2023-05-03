@@ -534,15 +534,16 @@ mod tests {
         let hint = o.to_mapping(3);
         println!("{:?}", hint);
         println!("{:?}", hint.len());
+        println!("{}", hint);
         assert_eq!(
-            hint,
-            Mapping::from(vec![
+            hint.nodes,
+            vec![
                 vec![ni(3), ni(2), ni(4)],
                 vec![ni(4), ni(3), ni(5)],
                 vec![ni(5), ni(6), ni(4)],
                 vec![ni(6), ni(7), ni(5)],
                 vec![ni(7), ni(8), ni(6)],
-            ])
+            ]
         );
 
         let r1 = phmm.forward(read1);

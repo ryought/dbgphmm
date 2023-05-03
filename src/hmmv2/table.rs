@@ -114,6 +114,16 @@ impl PHMMTable {
     pub fn top_nodes(&self, n_nodes: usize) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
         self.to_nodevec().to_top_k_indexes(n_nodes)
     }
+    ///
+    /// Pick up top-scored nodes
+    ///
+    pub fn top_nodes_with_prob(&self, n_nodes: usize) -> Vec<(NodeIndex, Prob)> {
+        let v = self.to_nodevec();
+        v.to_top_k_indexes(n_nodes)
+            .into_iter()
+            .map(|i| (i, v[i]))
+            .collect()
+    }
     /// Diff of two PHMMTables
     ///
     /// sum of |log(pa)-log(pb)|

@@ -1319,7 +1319,8 @@ impl MultiDbg {
 
         path
     }
-    /// Upconvert edge subset in k MultiDbg into edge subset in k+1 MultiDbg with corresponding
+    ///
+    /// Upconvert Mapping (edge subset) in k MultiDbg into edge subset in k+1 MultiDbg with corresponding
     /// emissions.
     ///
     /// edge_set_k is a set of edges in k MultiDbg.
@@ -1348,42 +1349,17 @@ impl MultiDbg {
     ///             ▼
     /// ```
     ///
-    pub fn edge_set_kp1_from_edge_set_k(&self, edge_set_k: &[EdgeIndex]) -> Vec<EdgeIndex> {
-        let mut edge_set = Vec::new();
-        let to_node_in_kp1 = |edge: EdgeIndex| NodeIndex::new(edge.index());
-
-        for &edge_in_k in edge_set_k {
-            let node = to_node_in_kp1(edge_in_k);
-            for (edge_in_kp1, _, _) in self.parents_full(node) {
-                edge_set.push(edge_in_kp1);
-            }
-        }
-
-        edge_set
-    }
-    ///
-    ///
+    /// node in k-HMM == edge in k-HMM == node in k+1 DBG
     ///
     pub fn hint_kp1_from_hint_k(&self, hint_k: Mapping) -> Mapping {
-        Mapping::new(
-            hint_k
-                .to_inner()
-                .into_iter()
-                .map(|nodes| {
-                    // 1
-                    let edges: Vec<EdgeIndex> = nodes
-                        .into_iter()
-                        .map(|node_in_hmm| EdgeIndex::new(node_in_hmm.index()))
-                        .collect();
-
-                    self.edge_set_kp1_from_edge_set_k(&edges)
-                        .into_iter()
-                        .map(|e| NodeIndex::new(e.index()))
-                        .take(MAX_ACTIVE_NODES)
-                        .collect::<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>()
-                })
-                .collect(),
-        )
+        hint_k.map_nodes(|node_in_k_hmm| {
+            let node_in_kp1 = node_in_k_hmm;
+            let mut nodes_in_kp1_hmm = Vec::new();
+            for (edge_in_kp1, _, _) in self.parents_full(node_in_kp1) {
+                nodes_in_kp1_hmm.push(NodeIndex::new(edge_in_kp1.index()));
+            }
+            nodes_in_kp1_hmm
+        })
     }
     ///
     /// self and other is the same dbg, ignoring the node index.
@@ -1723,8 +1699,11 @@ impl MultiDbg {
         //
         let m = dbg_k.purge_edges(&edges_in_compact_to_purge);
         let mut paths: Option<Vec<Path>> =
-            paths.and_then(|paths| paths.into_iter().map(|path| m.path(&path)).collect());
-        let mut mappings: Mappings = mappings.into_iter().map(|hint| m.hint(&hint)).collect();
+            paths.and_then(|paths| paths.into_iter().map(|path| m.update_path(&path)).collect());
+        let mut mappings: Mappings = mappings
+            .into_iter()
+            .map(|hint| m.update_mapping(&hint))
+            .collect();
 
         // (2) Extend DBG
         //
@@ -1792,26 +1771,23 @@ impl PurgeEdgeMap {
             .copied()
             .unwrap_or(Some(edge_in_full))
     }
-    pub fn path(&self, path_in_full: &[EdgeIndex]) -> Option<Vec<EdgeIndex>> {
+    ///
+    /// Convert Path = Vec<EdgeIndex> using edge-map before-and-after edge purging.
+    ///
+    pub fn update_path(&self, path_in_full: &[EdgeIndex]) -> Option<Vec<EdgeIndex>> {
         path_in_full.iter().map(|&e| self.full(e)).collect()
     }
-    pub fn hint(&self, hint: &Mapping) -> Mapping {
-        Mapping::new(
-            hint.inner()
-                .into_iter()
-                .map(|nodes| {
-                    nodes
-                        .into_iter()
-                        .filter_map(|node| {
-                            let edge = EdgeIndex::new(node.index());
-                            self.full(edge)
-                                .map(|edge_after| NodeIndex::new(edge_after.index()))
-                        })
-                        .take(MAX_ACTIVE_NODES)
-                        .collect::<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>>()
-                })
-                .collect(),
-        )
+    ///
+    /// Convert Mapping
+    ///
+    pub fn update_mapping(&self, mapping: &Mapping) -> Mapping {
+        mapping.map_nodes(|node| {
+            let edge = EdgeIndex::new(node.index());
+            match self.full(edge) {
+                Some(edge_after) => vec![NodeIndex::new(edge_after.index())],
+                None => vec![],
+            }
+        })
     }
 }
 
@@ -1828,6 +1804,7 @@ mod tests {
     use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
     use crate::kmer::veckmer::kmer;
+    use crate::prob::p;
 
     #[test]
     fn convert_from_dbg() {
@@ -2166,18 +2143,18 @@ mod tests {
 
             // purge repetitive edges
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(0)])];
-            let hints = vec![Mapping::from(vec![
+            let hints = vec![Mapping::from_nodes_and_probs(vec![
                 vec![
-                    ni(2), // nTCC -> nnTCC ni(3)
-                    ni(3), // TCCC -> nTCCC ni(4)
+                    (ni(2), p(0.7)), // nTCC -> nnTCC ni(3)
+                    (ni(3), p(0.3)), // TCCC -> nTCCC ni(4)
                 ],
                 vec![
-                    ni(3), // TCCC -> nTCCC ni(4)
-                    ni(4), // CCCA -> TCCCA ni(5)
+                    (ni(3), p(0.8)), // TCCC -> nTCCC ni(4)
+                    (ni(4), p(0.2)), // CCCA -> TCCCA ni(5)
                 ],
                 vec![
-                    ni(6), // CAGC -> none
-                    ni(9), // CAGG -> CCAGG ni(7)
+                    (ni(6), p(0.6)), // CAGC -> none
+                    (ni(9), p(0.4)), // CAGG -> CCAGG ni(7)
                 ],
             ])];
             println!("{:?} {:?}", paths, hints);
@@ -2199,10 +2176,10 @@ mod tests {
                 assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints,
-                    vec![Mapping::from(vec![
-                        vec![ni(3), ni(4)],
-                        vec![ni(4), ni(5)],
-                        vec![ni(7)],
+                    vec![Mapping::from_nodes_and_probs(vec![
+                        vec![(ni(3), p(0.7)), (ni(4), p(0.3))],
+                        vec![(ni(4), p(0.8)), (ni(5), p(0.2))],
+                        vec![(ni(7), p(0.4))],
                     ])]
                 );
             }
@@ -2240,11 +2217,11 @@ mod tests {
                 assert_eq!(paths_k10, Some(vec![dbg_k10.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     hints_k10,
-                    vec![Mapping::from(vec![
+                    vec![Mapping::from_nodes_and_probs(vec![
                         // 10-mers ending with..
-                        vec![ni(13), ni(0)], // nnTCC and nTCCC
-                        vec![ni(0), ni(1)],  // nTCCC and TCCCA
-                        vec![ni(3)],         // CCAGG
+                        vec![(ni(13), p(0.7)), (ni(0), p(0.3))], // nnTCC and nTCCC
+                        vec![(ni(0), p(0.8)), (ni(1), p(0.2))],  // nTCCC and TCCCA
+                        vec![(ni(3), p(0.4))],                   // CCAGG
                     ])]
                 );
             }
@@ -2261,18 +2238,18 @@ mod tests {
             let paths = vec![dbg_k.to_path_in_full(&[ei(2), ei(1), ei(1), ei(1), ei(0)])];
             let genome = vec![StyledSequence::linear(b"TCCCAGCAGCAGCAGGAA".to_vec())];
             assert_eq!(paths, dbg_k.paths_from_styled_seqs(&genome).unwrap());
-            let hints = vec![Mapping::from(vec![
+            let hints = vec![Mapping::from_nodes_and_probs(vec![
                 vec![
-                    ni(2), // nTCC -> nnTCC ni(3)
-                    ni(3), // TCCC -> nTCCC ni(4)
+                    (ni(2), p(0.7)), // nTCC -> nnTCC ni(3)
+                    (ni(3), p(0.3)), // TCCC -> nTCCC ni(4)
                 ],
                 vec![
-                    ni(3), // TCCC -> nTCCC ni(4)
-                    ni(4), // CCCA -> TCCCA ni(5)
+                    (ni(3), p(0.8)), // TCCC -> nTCCC ni(4)
+                    (ni(4), p(0.2)), // CCCA -> TCCCA ni(5)
                 ],
                 vec![
-                    ni(6), // CAGC -> CCAGC ni(10) or GCAGC ni(8)
-                    ni(9), // CAGG -> CCAGG ni(9)  or GCAGG ni(7)
+                    (ni(6), p(0.6)), // CAGC -> CCAGC ni(10) or GCAGC ni(8)
+                    (ni(9), p(0.4)), // CAGG -> CCAGG ni(9)  or GCAGG ni(7)
                 ],
             ])];
 
@@ -2288,10 +2265,15 @@ mod tests {
                 ei(0),
                 ei(4),
             ])];
-            let hints_k5 = vec![Mapping::from(vec![
-                vec![ni(3), ni(4)],
-                vec![ni(4), ni(5)],
-                vec![ni(10), ni(8), ni(9), ni(7)],
+            let hints_k5 = vec![Mapping::from_nodes_and_probs(vec![
+                vec![(ni(3), p(0.7)), (ni(4), p(0.3))],
+                vec![(ni(4), p(0.8)), (ni(5), p(0.2))],
+                vec![
+                    (ni(10), p(0.6) / 2),
+                    (ni(8), p(0.6) / 2),
+                    (ni(9), p(0.4) / 2),
+                    (ni(7), p(0.4) / 2),
+                ],
             ])];
 
             {
@@ -2333,14 +2315,20 @@ mod tests {
                     paths_k10.unwrap(),
                     dbg_k10.paths_from_styled_seqs(&genome).unwrap()
                 );
+                for m in hints_k10.iter() {
+                    println!("m={}", m);
+                }
                 assert_eq!(
-                    hints_k10,
-                    vec![Mapping::from(vec![
-                        // 10-mers ending with..
-                        vec![ni(31), ni(0)], // nTCC and TCCC
-                        vec![ni(0), ni(1)],  // TCCC and CCCA
-                        vec![ni(3), ni(11), ni(9), ni(4), ni(12), ni(10)]  // CAGG and CAGC
-                    ])]
+                    hints_k10[0].nodes(0),
+                    vec![ni(31), ni(0)], // nTCC and TCCC
+                );
+                assert_eq!(
+                    hints_k10[0].nodes(1),
+                    vec![ni(0), ni(1)], // TCCC and CCCA
+                );
+                assert_eq!(
+                    hints_k10[0].nodes(2),
+                    vec![ni(3), ni(4), ni(11), ni(9), ni(12), ni(10)] // CAGG and CAGC
                 );
             }
         }
