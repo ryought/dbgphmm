@@ -172,6 +172,28 @@ impl<'a> std::iter::Product<&'a Self> for Prob {
     }
 }
 
+//
+// Prob mul/div usize
+//
+
+impl std::ops::Mul<usize> for Prob {
+    type Output = Self;
+    fn mul(self, rhs: usize) -> Self {
+        Prob(self.0 + (rhs as f64).ln())
+    }
+}
+
+impl std::ops::Div<usize> for Prob {
+    type Output = Self;
+    fn div(self, rhs: usize) -> Self {
+        if rhs == 0 {
+            panic!("zero division error")
+        } else {
+            Prob(self.0 - (rhs as f64).ln())
+        }
+    }
+}
+
 /// for approx `assert_abs_diff_eq`
 impl AbsDiffEq for Prob {
     type Epsilon = f64;
@@ -366,5 +388,25 @@ mod tests {
 
         assert_eq!(f64::INFINITY, p0.log_diff(p1));
         assert_eq!(f64::INFINITY, p1.log_diff(p0));
+    }
+    #[test]
+    fn prob_muldiv_usize() {
+        assert_eq!(p(0.0), p(1.0) * 0);
+        assert_eq!(p(1.0), p(1.0) * 1);
+        assert_eq!(p(2.0), p(1.0) * 2);
+        assert_eq!(p(1.0), p(1.0) / 1);
+        assert_eq!(p(0.5), p(1.0) / 2);
+
+        assert_eq!(p(0.0), p(0.5) * 0);
+        assert_eq!(p(0.5), p(0.5) * 1);
+        assert_eq!(p(1.0), p(0.5) * 2);
+        assert_eq!(p(0.5), p(0.5) / 1);
+        assert_eq!(p(0.1), p(0.5) / 5);
+
+        assert_eq!(p(0.0), p(0.0) * 0);
+        assert_eq!(p(0.0), p(0.0) * 1);
+        assert_eq!(p(0.0), p(0.0) * 2);
+        assert_eq!(p(0.0), p(0.0) / 1);
+        assert_eq!(p(0.0), p(0.0) / 2);
     }
 }
