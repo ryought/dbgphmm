@@ -128,7 +128,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         },
         max_iter,
         p(0.8),
-        |dbg, posterior, paths, _mappings| {
+        |dbg, posterior, paths, mappings| {
             let k = dbg.k();
             println!("callback k={} n_edges={}", k, dbg.n_edges_full());
 
@@ -147,6 +147,11 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
                 output.with_extension(format!("k{}.inspect", k)),
                 posterior,
                 copy_nums_true.as_ref(),
+            );
+            dbg.to_map_file(
+                output.with_extension(format!("k{}.map", k)),
+                dataset.reads(),
+                mappings,
             );
         },
         paths_true.ok(),
