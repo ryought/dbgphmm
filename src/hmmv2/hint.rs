@@ -33,15 +33,6 @@ impl Mapping {
     ///
     /// Constructor from vec of vecs
     ///
-    pub fn from_nodes_only(nodes: Vec<Vec<NodeIndex>>) -> Self {
-        Mapping {
-            nodes,
-            probs: vec![],
-        }
-    }
-    ///
-    /// Constructor from vec of vecs
-    ///
     pub fn from_nodes_and_probs(vs: Vec<Vec<(NodeIndex, Prob)>>) -> Self {
         Mapping {
             nodes: vs
@@ -108,15 +99,20 @@ impl Mapping {
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
+    ///
+    /// String representations of nodes and probs of `emissions[index]`
+    ///
+    pub fn to_nodes_string(&self, index: usize) -> String {
+        izip!(&self.nodes[index], &self.probs[index])
+            .map(|(n, p)| format!("v{}:{:.3}", n.index(), p.to_value()))
+            .join(",")
+    }
 }
 
 impl std::fmt::Display for Mapping {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for i in 0..self.len() {
-            let s = izip!(&self.nodes[i], &self.probs[i])
-                .map(|(n, p)| format!("v{}:{:.3}", n.index(), p.to_value()))
-                .join(",");
-            writeln!(f, "{}\t{}", i, s)?;
+            writeln!(f, "{}\t{}", i, self.to_nodes_string(i))?;
         }
         Ok(())
     }
