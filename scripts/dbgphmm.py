@@ -13,6 +13,7 @@ Parsers for dbgphmm output files
 * GFA
 * POST
 * PATHS
+* MAP
 """
 import csv
 import matplotlib.pyplot as plt

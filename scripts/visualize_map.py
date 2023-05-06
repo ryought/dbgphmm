@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import re
 import numpy as np
 import glob
+import networkx as nx
 csv.field_size_limit(1000000000)
 
 
@@ -78,26 +79,78 @@ def jaccards(map_a, map_b):
     return ret
 
 
+def parse_dbg_file(filename: Path):
+    """
+    """
+    g = nx.MultiDiGraph()
+    with open(filename) as f:
+        for line in f:
+            if line[0] == '#':
+                continue
+            s = line.rstrip().split('\t')
+            if s[0] == 'K':
+                k = int(s[1])
+            elif s[0] == 'N':
+                node = int(s[1])
+                kmer = s[2]
+                g.add_node(node, id=node, kmer=kmer)
+            elif s[0] == 'E':
+                edge = int(s[1])
+                source = int(s[2])
+                target = int(s[3])
+                kmer = s[4]
+                copy_num = int(s[5])
+                full_edges = [int(t) for t in s[6].split(',')]
+                g.add_edge(source, target, id=edge, kmer=kmer,
+                           copy_num=copy_num, full_edges=full_edges)
+    return g
+
+
+def edge_map(dbg):
+    ret = {}
+    for (s, t, w) in dbg.edges(data=True):
+        E = w['id']
+        for (i, e) in enumerate(w['full_edges']):
+            ret[e] = (E, i)
+    return ret
+
+
+def to_compact_edge(emits, edge_map):
+    """
+    hogefuga
+    """
+    return [edge_map[e.node] for e in emits]
+
+
 def main():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('map_a', type=Path, help='MAP file')
-    parser.add_argument('map_b', type=Path, help='MAP file')
+    parser.add_argument('--map_a', type=Path, help='MAP file')
+    parser.add_argument('--map_b', type=Path, help='MAP file')
+    parser.add_argument('--dbg', type=Path, help='DBG file')
     # parser.add_argument('--query', action='store_true')
     args = parser.parse_args()
 
-    map_a = parse_map_file(args.map_a)
-    map_b = parse_map_file(args.map_b)
-    assert(len(map_a) == len(map_b))
-    n = len(map_a)
-    for i in range(n):
-        assert(len(map_a[i]) == len(map_b[i]))
+    dbg = parse_dbg_file(args.dbg)
+    m = edge_map(dbg)
+    print(m)
 
-    js = jaccards(map_a, map_b)
-    for j in range(len(js[0])):
-        print(j, js[0][j])
-    # for i in range(10):
-    #     plt.plot(js[i])
-    # plt.show()
+    if True:
+        map_a = parse_map_file(args.map_a)
+        map_b = parse_map_file(args.map_b)
+        assert(len(map_a) == len(map_b))
+        n = len(map_a)
+        for i in range(n):
+            assert(len(map_a[i]) == len(map_b[i]))
+
+        js = jaccards(map_a, map_b)
+        i = 0
+        for j in range(len(js[i])):
+            print(j, js[i][j])
+            print(sorted(to_compact_edge(map_a[i][j], m)))
+            print(sorted(to_compact_edge(map_b[i][j], m)))
+        # for i in range(10):
+        #     plt.plot(js[i])
+        # plt.show()
 
 
 if __name__ == '__main__':
