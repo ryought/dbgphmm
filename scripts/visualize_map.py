@@ -146,8 +146,12 @@ def main():
         i = 0
         for j in range(len(js[i])):
             print(j, js[i][j])
-            print(sorted(to_compact_edge(map_a[i][j], m)))
-            print(sorted(to_compact_edge(map_b[i][j], m)))
+            # sort by position in compacted graph
+            # print(sorted(to_compact_edge(map_a[i][j], m)))
+            # print(sorted(to_compact_edge(map_b[i][j], m)))
+            # sort by estimated state probability
+            print(to_compact_edge(map_a[i][j], m))
+            print(to_compact_edge(map_b[i][j], m))
         # for i in range(10):
         #     plt.plot(js[i])
         # plt.show()
