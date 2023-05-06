@@ -48,9 +48,9 @@ fn main() {
         score,
         dbg.get_copy_nums()
     );
-    println!("orig\tmapping...");
-    let mappings = dbg.generate_mappings(params, dataset.reads(), None);
-    dbg.to_map_file("orig.map", dataset.reads(), &mappings);
+    // println!("orig\tmapping...");
+    // let mappings = dbg.generate_mappings(params, dataset.reads(), None);
+    // dbg.to_map_file("orig.map", dataset.reads(), &mappings);
 
     // println!("orig\tncc={}", connected_components(dbg.graph_compact()));
 

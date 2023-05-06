@@ -67,6 +67,42 @@ pub fn test_posterior(
 ///
 ///
 ///
+pub fn test_posterior_from_true<P: AsRef<std::path::Path>>(
+    dataset: &Dataset,
+    mut dbg: MultiDbg,
+    sigma: CopyNum,
+    inspect_filename: P,
+    param: PHMMParams,
+) -> (MultiDbg, Posterior, CopyNums) {
+    let paths_true = dbg.paths_from_styled_seqs(dataset.genome()).unwrap();
+    let copy_nums_true = dbg.copy_nums_from_full_path(&paths_true);
+    dbg.set_copy_nums(&copy_nums_true);
+    let mappings = dbg.generate_mappings(dataset.params(), dataset.reads(), None);
+
+    let post = dbg.sample_posterior(
+        param,
+        dataset.reads(),
+        &mappings,
+        dataset.genome_size(),
+        sigma,
+        NeighborConfig {
+            max_cycle_size: 10,
+            // full=15 short=10
+            max_flip: 2,
+            use_long_cycles: true,
+            ignore_cycles_passing_terminal: false,
+            use_reducers: true,
+        },
+        10,
+    );
+    dbg.to_inspect_file(inspect_filename, &post, Some(&copy_nums_true));
+
+    (dbg, post, copy_nums_true)
+}
+
+///
+///
+///
 pub fn test_inference<P: AsRef<std::path::Path>>(
     dataset: &Dataset,
     k_init: usize,
