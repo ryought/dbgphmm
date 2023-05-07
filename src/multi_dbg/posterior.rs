@@ -6,6 +6,7 @@ use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection
 use crate::distribution::normal;
 use crate::e2e::Dataset;
 use crate::hist::DiscreteDistribution;
+use crate::hmmv2::hint::Mappings;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::{progress_common_style, timer};
@@ -407,7 +408,7 @@ impl MultiDbg {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Score {
     ///
-    /// Likelihood `P(R|G)`
+    /// Likelihood `P(R|X)`
     ///
     pub likelihood: Prob,
     ///
@@ -419,23 +420,27 @@ pub struct Score {
     ///
     pub genome_size: CopyNum,
     ///
-    /// Number of Euler circuits of DBG
+    /// Number of Euler circuits of DBG (stored in log)
+    ///
+    /// `P(X) = P(G) * n_euler_circuits`
     ///
     pub n_euler_circuits: f64,
     ///
-    /// Computation time of likelihood
+    /// Computation time of likelihood (alignment)
     ///
-    pub time: u128,
+    pub time_likelihood: u128,
+    ///
+    /// Computation time of n_euler_circuit (mainly matrix determinant)
+    ///
+    pub time_euler: u128,
 }
 
 impl Score {
     ///
-    /// Calculate total probability `P(R|G)P(G)`
+    /// Calculate total probability `P(R|X)P(X)`
     ///
     pub fn p(&self) -> Prob {
-        // FIXME
         self.likelihood * self.prior * Prob::from_log_prob(self.n_euler_circuits)
-        // self.likelihood * self.prior
     }
 }
 
@@ -443,8 +448,8 @@ impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "likelihood={},prior={},genome_size={},n_euler_circuits={},time={}",
-            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time
+            "likelihood={},prior={},genome_size={},n_euler_circuits={},time_likelihood={},time_euler={}",
+            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time_likelihood, self.time_euler
         )
     }
 }
@@ -456,7 +461,8 @@ impl std::str::FromStr for Score {
         let mut prior = None;
         let mut genome_size = None;
         let mut n_euler_circuits = None;
-        let mut time = None;
+        let mut time_likelihood = None;
+        let mut time_euler = None;
 
         for e in s.split(',') {
             let mut it = e.split('=');
@@ -475,8 +481,11 @@ impl std::str::FromStr for Score {
                 "n_euler_circuits" => {
                     n_euler_circuits = Some(value.parse().unwrap());
                 }
-                "time" => {
-                    time = Some(value.parse().unwrap());
+                "time_likelihood" => {
+                    time_likelihood = Some(value.parse().unwrap());
+                }
+                "time_euler" => {
+                    time_euler = Some(value.parse().unwrap());
                 }
                 _ => {}
             }
@@ -487,7 +496,8 @@ impl std::str::FromStr for Score {
             prior: prior.unwrap(),
             genome_size: genome_size.unwrap(),
             n_euler_circuits: n_euler_circuits.unwrap(),
-            time: time.unwrap(),
+            time_likelihood: time_likelihood.unwrap(),
+            time_euler: time_euler.unwrap(),
         })
     }
 }
@@ -518,9 +528,14 @@ impl MultiDbg {
     ///
     /// convert MultiDbg into Profile HMM (PHMMModel) and calculate the full probability of reads.
     ///
-    pub fn to_likelihood<S: Seq>(&self, param: PHMMParams, reads: &ReadCollection<S>) -> Prob {
+    pub fn to_likelihood<S: Seq>(
+        &self,
+        param: PHMMParams,
+        reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
+    ) -> Prob {
         let phmm = self.to_phmm(param);
-        phmm.to_full_prob_reads(reads)
+        phmm.to_full_prob_reads(reads, mappings)
     }
     ///
     /// Calculate the score `P(R|G)P(G)` (by prior `P(G)` from genome size and likelihood `P(R|G)` from reads) of this MultiDbg.
@@ -529,22 +544,29 @@ impl MultiDbg {
         &self,
         param: PHMMParams,
         reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Score {
-        let (likelihood, time) = timer(|| self.to_likelihood(param, reads));
+        let (likelihood, time_likelihood) = timer(|| self.to_likelihood(param, reads, mappings));
+        let (n_euler_circuits, time_euler) = timer(|| self.n_euler_circuits());
         Score {
             likelihood,
             prior: self.to_prior(genome_size_expected, genome_size_sigma),
             genome_size: self.genome_size(),
-            n_euler_circuits: self.n_euler_circuits(),
-            time,
+            n_euler_circuits,
+            time_likelihood,
+            time_euler,
         }
     }
 }
 
 ///
 /// Posterior sampling function
+///
+/// * Mapping: `generate_hints`
+/// * Sampling: `sample_posterior`
+/// * Upgrading: `purge_and_extend_with_posterior`
 ///
 impl MultiDbg {
     ///
@@ -577,11 +599,11 @@ impl MultiDbg {
         &self,
         param: PHMMParams,
         reads: &ReadCollection<S>,
+        mappings: &Mappings,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
         neighbor_config: NeighborConfig,
         max_iter: usize,
-        is_parallel: bool,
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
@@ -590,7 +612,13 @@ impl MultiDbg {
         let mut n_iter = 0;
 
         // calculate initial score
-        let score = dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+        let score = dbg.to_score(
+            param,
+            reads,
+            Some(mappings),
+            genome_size_expected,
+            genome_size_sigma,
+        );
         post.add(PosteriorSample {
             copy_nums: copy_nums.clone(),
             score,
@@ -605,49 +633,35 @@ impl MultiDbg {
             eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
             // evaluate all neighbors
-            if is_parallel {
-                let samples: Vec<_> = neighbor_copy_nums
-                    .into_par_iter()
-                    .progress_with_style(progress_common_style())
-                    .filter_map(|(copy_nums, info)| {
-                        if post.contains(&copy_nums) {
-                            None
-                        } else {
-                            // evaluate score
-                            let mut dbg = self.clone();
-                            dbg.set_copy_nums(&copy_nums);
-                            let score =
-                                dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
-                            let mut infos = infos.clone();
-                            infos.push(info);
-                            Some(PosteriorSample {
-                                copy_nums,
-                                score,
-                                infos,
-                            })
-                        }
-                    })
-                    .collect();
-                for sample in samples {
-                    post.add(sample);
-                }
-            } else {
-                for (i, (copy_nums, info)) in neighbor_copy_nums.into_iter().enumerate() {
-                    eprintln!("iter#{} neighbor#{}", n_iter, i);
-                    if !post.contains(&copy_nums) {
+            let samples: Vec<_> = neighbor_copy_nums
+                .into_par_iter()
+                .progress_with_style(progress_common_style())
+                .filter_map(|(copy_nums, info)| {
+                    if post.contains(&copy_nums) {
+                        None
+                    } else {
                         // evaluate score
+                        let mut dbg = self.clone();
                         dbg.set_copy_nums(&copy_nums);
-                        let score =
-                            dbg.to_score(param, reads, genome_size_expected, genome_size_sigma);
+                        let score = dbg.to_score(
+                            param,
+                            reads,
+                            Some(mappings),
+                            genome_size_expected,
+                            genome_size_sigma,
+                        );
                         let mut infos = infos.clone();
                         infos.push(info);
-                        post.add(PosteriorSample {
+                        Some(PosteriorSample {
                             copy_nums,
                             score,
                             infos,
-                        });
+                        })
                     }
-                }
+                })
+                .collect();
+            for sample in samples {
+                post.add(sample);
             }
 
             // move to highest copy num and continue
@@ -672,14 +686,15 @@ impl MultiDbg {
     /// 1. Convert MultiDbg into PHMM with uniform transition probability
     /// 2. Run forward/backward on the PHMM and obtain node freqs of each read
     ///
-    pub fn generate_hints<S: Seq>(
+    pub fn generate_mappings<S: Seq>(
         &self,
-        param: PHMMParams,
-        reads: ReadCollection<S>,
-        use_hint: bool,
-    ) -> ReadCollection<S> {
+        mut param: PHMMParams,
+        reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
+    ) -> Mappings {
+        param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        phmm.append_hints(reads, use_hint)
+        phmm.generate_mappings(reads, mappings)
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -694,18 +709,19 @@ impl MultiDbg {
     /// * `paths` (optional)
     /// * `reads` (optional)
     ///
-    pub fn purge_and_extend_with_posterior<S: Seq>(
+    pub fn purge_and_extend_with_posterior(
         &self,
         posterior: &Posterior,
         k_max: usize,
         p0: Prob,
         paths: Option<Vec<Path>>,
-        reads: ReadCollection<S>,
-    ) -> (Self, Option<Vec<Path>>, ReadCollection<S>) {
+        mappings: &Mappings,
+    ) -> (Self, Option<Vec<Path>>, Mappings) {
         // (0)
         // Set copy number to the most probable one
         let mut dbg = self.clone();
         dbg.set_copy_nums(posterior.max_copy_nums());
+
         // (1)
         // Find edges to be purged according to posterior distribution
         // List edges whose current copynum is 0 and posterior probability P(X=0) is high
@@ -719,17 +735,9 @@ impl MultiDbg {
 
         // (2)
         // Do purge and extend
-        if reads.has_hint() {
-            let hints = reads.hints.unwrap();
-            let (dbg, paths, hints) =
-                dbg.purge_and_extend(&edges_purge, k_max, true, paths, Some(hints));
-            let reads = ReadCollection::from_with_hint(reads.reads, hints.unwrap());
-            (dbg, paths, reads)
-        } else {
-            let (dbg, paths, _) = dbg.purge_and_extend(&edges_purge, k_max, true, paths, None);
-            let reads = ReadCollection::from(reads.reads);
-            (dbg, paths, reads)
-        }
+        let (dbg, paths, mappings) =
+            dbg.purge_and_extend(&edges_purge, k_max, true, paths, mappings);
+        (dbg, paths, mappings)
     }
 }
 
@@ -742,14 +750,15 @@ impl MultiDbg {
 ///
 pub fn infer_posterior_by_extension<
     S: Seq,
-    F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &ReadCollection<S>),
+    F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &Mappings),
 >(
     k_max: usize,
     dbg_init: MultiDbg,
     // evaluate
     param_infer: PHMMParams,
     param_error: PHMMParams,
-    reads: ReadCollection<S>,
+    reads: &ReadCollection<S>,
+    // prior
     genome_size_expected: CopyNum,
     genome_size_sigma: CopyNum,
     // neighbor
@@ -761,50 +770,55 @@ pub fn infer_posterior_by_extension<
     on_iter: F,
     // true path if available
     paths: Option<Vec<Path>>,
-) -> (MultiDbg, Posterior, Option<Vec<Path>>, ReadCollection<S>) {
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let mut dbg = dbg_init;
-    let mut reads = reads;
+    let mut mappings = dbg.generate_mappings(param_infer, reads, None);
     let mut paths = paths;
     let mut posterior;
 
     loop {
         eprintln!("k={}", dbg.k());
 
-        // (1) posterior
+        // (2) posterior
         let t_start_posterior = std::time::Instant::now();
         posterior = dbg.sample_posterior(
             param_infer,
             &reads,
+            &mappings,
             genome_size_expected,
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            true,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
         eprintln!("posterior t={}ms", t_posterior.as_millis());
 
-        // (2) run callback
-        on_iter(&dbg, &posterior, &paths, &reads);
+        // (3) run callback
+        on_iter(&dbg, &posterior, &paths, &mappings);
 
         if dbg.k() >= k_max {
             // dbg does not need extension
             break;
         }
 
-        // (3) update hints before extending
-        let t_start_hint = std::time::Instant::now();
-        reads = dbg.generate_hints(param_infer, reads, true);
-        let t_hint = t_start_hint.elapsed();
-        eprintln!("hint t={}ms", t_hint.as_millis());
-
         // (4) extend
         let t_start_extend = std::time::Instant::now();
-        (dbg, paths, reads) =
-            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, reads);
+        (dbg, paths, mappings) =
+            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, &mappings);
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
+
+        // (1) update hints before extending
+        let t_start_hint = std::time::Instant::now();
+        if dbg.k() < 100 {
+            mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
+                                                                        // is not used
+        } else {
+            mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
+        }
+        let t_hint = t_start_hint.elapsed();
+        eprintln!("hint t={}ms", t_hint.as_millis());
     }
 
     // final run using p_error
@@ -812,17 +826,17 @@ pub fn infer_posterior_by_extension<
     posterior = dbg.sample_posterior(
         param_error,
         &reads,
+        &mappings,
         genome_size_expected,
         genome_size_sigma,
         neighbor_config,
         max_iter,
-        true,
     );
     dbg.set_copy_nums(posterior.max_copy_nums());
     let t_posterior = t_start_posterior.elapsed();
     eprintln!("posterior_final t={}ms", t_posterior.as_millis());
 
-    (dbg, posterior, paths, reads)
+    (dbg, posterior, paths, mappings)
 }
 
 //
@@ -843,9 +857,10 @@ mod tests {
             score: Score {
                 likelihood: p(0.6),
                 prior: p(0.3),
-                time: 10,
+                time_likelihood: 10,
                 genome_size: 101,
                 n_euler_circuits: 10.0,
+                time_euler: 12,
             },
             infos: vec![
                 vec![
@@ -863,9 +878,10 @@ mod tests {
             score: Score {
                 likelihood: p(0.003),
                 prior: p(0.2),
-                time: 11,
+                time_likelihood: 11,
                 genome_size: 99,
                 n_euler_circuits: 10.0,
+                time_euler: 12,
             },
             infos: Vec::new(),
         });
@@ -883,8 +899,9 @@ mod tests {
             likelihood: Prob::from_prob(0.3),
             prior: Prob::from_prob(0.5),
             genome_size: 111,
-            time: 102,
+            time_likelihood: 102,
             n_euler_circuits: 10.0,
+            time_euler: 100,
         };
         let t = a.to_string();
         println!("{}", t);

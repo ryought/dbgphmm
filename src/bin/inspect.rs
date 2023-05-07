@@ -26,14 +26,20 @@ fn main() {
     println!("# opts={:?}", opts);
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
-    let mut params = dataset.params();
-    println!("params={}", params);
-    params.n_warmup = 80;
     let mut dbg = MultiDbg::from_dbg_file(opts.dbg);
     println!("k={} |E|={}", dbg.k(), dbg.n_edges_full());
+    let mut params = dataset.params();
+    params.n_warmup = dbg.k() + 5;
+    println!("params={}", params);
 
     // original
-    let score = dbg.to_score(params, dataset.reads(), dataset.genome_size(), opts.sigma);
+    let score = dbg.to_score(
+        params,
+        dataset.reads(),
+        None,
+        dataset.genome_size(),
+        opts.sigma,
+    );
     let likelihood = dbg.to_phmm(params).to_full_prob_parallel(dataset.reads());
     println!(
         "orig\t{}\t{}\t{}\t{}",
@@ -42,6 +48,10 @@ fn main() {
         score,
         dbg.get_copy_nums()
     );
+    // println!("orig\tmapping...");
+    // let mappings = dbg.generate_mappings(params, dataset.reads(), None);
+    // dbg.to_map_file("orig.map", dataset.reads(), &mappings);
+
     // println!("orig\tncc={}", connected_components(dbg.graph_compact()));
 
     // true
@@ -50,7 +60,13 @@ fn main() {
         .expect("k-mer in genome is missing");
     let copy_nums_true = dbg.copy_nums_from_full_path(paths_true);
     dbg.set_copy_nums(&copy_nums_true);
-    let score = dbg.to_score(params, dataset.reads(), dataset.genome_size(), opts.sigma);
+    let score = dbg.to_score(
+        params,
+        dataset.reads(),
+        None,
+        dataset.genome_size(),
+        opts.sigma,
+    );
     let likelihood = dbg.to_phmm(params).to_full_prob_parallel(dataset.reads());
     println!(
         "true\t{}\t{}\t{}\t{}",
@@ -59,6 +75,9 @@ fn main() {
         score,
         copy_nums_true
     );
+    println!("true\tmapping...");
+    let mappings = dbg.generate_mappings(params, dataset.reads(), None);
+    dbg.to_map_file("true.map", dataset.reads(), &mappings);
     // println!("true\tncc={}", connected_components(dbg.graph_compact()));
 
     // for (copy_nums, info) in dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {

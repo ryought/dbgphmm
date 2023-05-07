@@ -44,7 +44,9 @@
 //!
 use super::posterior::Posterior;
 use super::{CopyNums, MultiCompactEdge, MultiCompactNode, MultiDbg, MultiFullEdge, MultiFullNode};
-use crate::common::{sequence_to_string, CopyNum, NULL_BASE};
+use crate::common::{sequence_to_string, CopyNum, ReadCollection, Seq, NULL_BASE};
+use crate::hmmv2::hint::{Mapping, Mappings};
+use crate::prob::Prob;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 
@@ -440,6 +442,120 @@ impl MultiDbg {
 }
 
 ///
+/// Mapping file (.MAP format file) dump/load functions
+///
+impl MultiDbg {
+    ///
+    /// create MAP file with [`MultiDbg::to_map_writer`]
+    ///
+    pub fn to_map_file<F: AsRef<std::path::Path>, S: Seq>(
+        &self,
+        filename: F,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(filename).unwrap();
+        self.to_map_writer(&mut file, reads, mappings)
+    }
+    ///
+    /// create MAP string with [`MultiDbg::to_map_writer`]
+    ///
+    pub fn to_map_string<S: Seq>(&self, reads: &ReadCollection<S>, mappings: &Mappings) -> String {
+        let mut writer = Vec::with_capacity(128);
+        self.to_map_writer(&mut writer, reads, mappings).unwrap();
+        String::from_utf8(writer).unwrap()
+    }
+    ///
+    /// create MAP file
+    ///
+    pub fn to_map_writer<W: std::io::Write, S: Seq>(
+        &self,
+        mut writer: W,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+    ) -> std::io::Result<()> {
+        // header
+        writeln!(writer, "# read\tpos\tbase\tnodes_and_probs")?;
+
+        // body
+        for (i, read) in reads.iter().enumerate() {
+            for (j, &base) in read.as_ref().into_iter().enumerate() {
+                writeln!(
+                    writer,
+                    "{}\t{}\t{}\t{}",
+                    i,
+                    j,
+                    base as char,
+                    mappings[i].to_nodes_string(j)
+                )?;
+            }
+        }
+        Ok(())
+    }
+    ///
+    ///
+    ///
+    pub fn from_map_reader<R: std::io::BufRead, S: Seq>(
+        &self,
+        reader: R,
+        reads: &ReadCollection<S>,
+    ) -> Mappings {
+        let mut ret: Vec<Vec<Vec<(NodeIndex, Prob)>>> = vec![];
+        for (_, read) in reads.into_iter().enumerate() {
+            ret.push(vec![vec![]; read.as_ref().len()]);
+        }
+        for line in reader.lines() {
+            let text = line.unwrap();
+            let first_char = text.chars().nth(0).unwrap();
+            if first_char != '#' {
+                let mut iter = text.split_whitespace();
+
+                let i: usize = iter.next().unwrap().parse().unwrap();
+                let j: usize = iter.next().unwrap().parse().unwrap();
+                iter.next().unwrap(); // base
+                let p: Vec<(NodeIndex, Prob)> = iter
+                    .next()
+                    .unwrap()
+                    .split(',')
+                    .map(|s| {
+                        let mut sp = s.split(':');
+                        let v: usize = sp.next().unwrap().parse().unwrap();
+                        let p: f64 = sp.next().unwrap().parse().unwrap();
+                        (NodeIndex::new(v), Prob::from_prob(p / 100.0))
+                    })
+                    .collect();
+                ret[i][j] = p;
+            }
+        }
+
+        let mut ms = vec![];
+        for (i, _read) in reads.into_iter().enumerate() {
+            let m = Mapping::from_nodes_and_probs(&ret[i]);
+            ms.push(m);
+        }
+        Mappings::new(ms)
+    }
+    ///
+    /// parse MAP string with [`MultiDbg::from_map_reader`]
+    ///
+    pub fn from_map_str<S: Seq>(&self, s: &str, reads: &ReadCollection<S>) -> Mappings {
+        self.from_map_reader(s.as_bytes(), reads)
+    }
+    ///
+    /// parse MAP file with [`MultiDbg::from_map_reader`]
+    ///
+    pub fn from_map_file<P: AsRef<std::path::Path>, S: Seq>(
+        &self,
+        path: P,
+        reads: &ReadCollection<S>,
+    ) -> Mappings {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        self.from_map_reader(reader, reads)
+    }
+}
+
+///
 /// GFA format
 ///
 impl MultiDbg {
@@ -641,6 +757,7 @@ impl std::fmt::Display for MultiFullNode {
 mod tests {
     use super::super::toy;
     use super::*;
+    use crate::hmmv2::params::PHMMParams;
 
     fn assert_dbg_dumpload_is_correct(dbg: MultiDbg) {
         dbg.show_graph_with_kmer();
@@ -683,5 +800,26 @@ mod tests {
         let dbg_b = MultiDbg::from_dbg_file("repeat.gfa.gz");
         dbg_b.show_graph_with_kmer();
         // assert!(dbg_b.is_equal(&dbg_a));
+    }
+    #[test]
+    fn map() {
+        let dbg = toy::intersection();
+        dbg.show_graph_with_kmer();
+        let reads = ReadCollection {
+            reads: vec![b"GATCC".to_vec(), b"TATCA".to_vec()],
+        };
+        let param = PHMMParams::default();
+        let mappings = dbg.generate_mappings(param, &reads, None);
+        let s = dbg.to_map_string(&reads, &mappings);
+        println!("{}", s);
+
+        let mappings2 = dbg.from_map_str(&s, &reads);
+        println!("{}", mappings2[0]);
+        println!("{}", mappings2[1]);
+        for (i, read) in reads.into_iter().enumerate() {
+            for j in 0..read.len() {
+                assert_eq!(mappings[i].nodes(j), mappings2[i].nodes(j));
+            }
+        }
     }
 }
