@@ -44,9 +44,16 @@ impl Prob {
         self.0
     }
     ///
-    /// Is `p == 0` or not?
+    /// Is `p == 0` or not? (log p = -inf)
+    ///
     pub fn is_zero(self) -> bool {
         self.0.is_infinite() && self.0.is_sign_negative()
+    }
+    ///
+    /// Is `p == 1`? (log p = 0)
+    ///
+    pub fn is_one(self) -> bool {
+        self.0 == 0.0
     }
     ///
     /// prob=0.0
@@ -121,24 +128,27 @@ impl std::ops::Add for Prob {
         if x == y {
             Prob(x + 2f64.ln())
         } else if x > y {
-            Prob(x + ((y - x).exp() + 1.0).ln())
+            Prob(x + (y - x).exp().ln_1p())
         } else {
-            Prob(y + ((x - y).exp() + 1.0).ln())
+            Prob(y + (x - y).exp().ln_1p())
         }
     }
 }
+
 impl std::ops::Mul for Prob {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
         Prob(self.0 + other.0)
     }
 }
+
 impl std::ops::Div for Prob {
     type Output = Self;
     fn div(self, other: Self) -> Self {
         Prob(self.0 - other.0)
     }
 }
+
 // assign
 impl std::ops::AddAssign for Prob {
     fn add_assign(&mut self, other: Self) {
