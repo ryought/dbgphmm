@@ -98,6 +98,7 @@ class CopyNums:
     posterior: float
     log_likelihood: float
     log_prior: float
+    log_euler: float
     genome_size: int
     dist_from_true: int
     infos: List[List[Update]]
@@ -105,13 +106,14 @@ class CopyNums:
 
     def parse(s):
         """
-        >>> c = CopyNums.parse('20\tC\t5\t0.8\t-100\t-50\t100\t2\t[e21-e52+,e2+e5-]\t[1,1,1,1,2]')
+        >>> c = CopyNums.parse('20\tC\t5\t0.8\t-100\t-50\t92.2\t100\t2\t[e21-e52+,e2+e5-]\t[1,1,1,1,2]')
         >>> c == CopyNums(
         ...     k=20,
         ...     id=5,
         ...     posterior=0.8,
         ...     log_likelihood=-100.0,
         ...     log_prior=-50.0,
+        ...     log_euler=92.2,
         ...     genome_size=100,
         ...     dist_from_true=2,
         ...     infos=[
@@ -121,13 +123,14 @@ class CopyNums:
         ...     copy_nums=[1,1,1,1,2],
         ... )
         True
-        >>> c = CopyNums.parse('20\tC\t5\t0.8\t-100\t-50\t100\t2\t[]\t[1,1,1,1,2]')
+        >>> c = CopyNums.parse('20\tC\t5\t0.8\t-100\t-50\t30\t100\t2\t[]\t[1,1,1,1,2]')
         >>> c == CopyNums(
         ...     k=20,
         ...     id=5,
         ...     posterior=0.8,
         ...     log_likelihood=-100.0,
         ...     log_prior=-50.0,
+        ...     log_euler=30.0,
         ...     genome_size=100,
         ...     dist_from_true=2,
         ...     infos=[],
@@ -139,17 +142,18 @@ class CopyNums:
         assert(t[1] == 'C')
         infos = [
             Update.parse_list(info)
-            for info in t[8].lstrip('[').rstrip(']').split(',') if len(info) != 0
+            for info in t[9].lstrip('[').rstrip(']').split(',') if len(info) != 0
         ]
-        copy_nums = list(map(int, t[9].lstrip('[').rstrip(']').split(',')))
+        copy_nums = list(map(int, t[10].lstrip('[').rstrip(']').split(',')))
         return CopyNums(
             k=int(t[0]),
             id=int(t[2]),
             posterior=float(t[3]),
             log_likelihood=float(t[4]),
             log_prior=float(t[5]),
-            genome_size=int(t[6]),
-            dist_from_true=option_int(t[7]),
+            log_euler=float(t[6]),
+            genome_size=int(t[7]),
+            dist_from_true=option_int(t[8]),
             infos=infos,
             copy_nums=copy_nums,
         )
