@@ -792,7 +792,11 @@ pub fn infer_posterior_by_extension<
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
-        eprintln!("posterior t={}ms", t_posterior.as_millis());
+        eprintln!(
+            "posterior sampling k={} t={}ms",
+            dbg.k(),
+            t_posterior.as_millis()
+        );
 
         // (3) run callback
         on_iter(&dbg, &posterior, &paths, &mappings);
