@@ -629,6 +629,66 @@ impl MultiDbg {
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
+
+            //
+            // [1] partial search
+            //
+            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 5,
+                max_flip: 2,
+                use_long_cycles: true,
+                ignore_cycles_passing_terminal: true,
+                use_reducers: false,
+            });
+            eprintln!(
+                "iter partial#{} n_neighbors={}",
+                n_iter,
+                neighbor_copy_nums.len()
+            );
+            let samples: Vec<_> = neighbor_copy_nums
+                .into_par_iter()
+                .progress_with_style(progress_common_style())
+                .filter_map(|(copy_nums, info)| {
+                    if post.contains(&copy_nums) {
+                        None
+                    } else {
+                        // evaluate score
+                        let mut dbg = self.clone();
+                        dbg.set_copy_nums(&copy_nums);
+                        let score = dbg.to_score(
+                            param,
+                            reads,
+                            Some(mappings),
+                            genome_size_expected,
+                            genome_size_sigma,
+                        );
+                        let mut infos = infos.clone();
+                        infos.push(info);
+                        Some(PosteriorSample {
+                            copy_nums,
+                            score,
+                            infos,
+                        })
+                    }
+                })
+                .collect();
+            for sample in samples {
+                post.add(sample);
+            }
+            // move to highest copy num and continue
+            // if better copynums was found, move to it.
+            let sample = post.max_sample();
+            if sample.copy_nums != copy_nums {
+                eprintln!("iter#{} early terminate", n_iter);
+                copy_nums = sample.copy_nums.clone();
+                infos = sample.infos.clone();
+                n_iter += 1;
+                continue;
+            }
+
+            //
+            // [2] full search
+            //
             let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
             eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
