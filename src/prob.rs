@@ -478,4 +478,26 @@ mod tests {
             }
         })
     }
+
+    use rand::prelude::*;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+    #[bench]
+    fn prob_add_zero(b: &mut Bencher) {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+        let n = 100;
+        let m = 10;
+        let mut xs = vec![Prob::zero(); n];
+        for _ in 0..m {
+            let i: usize = rng.gen_range(1..n);
+            xs[i] = Prob::one();
+        }
+        println!("xs={:?}", xs);
+        let mut r = Prob::one();
+        b.iter(|| {
+            for i in 1..n {
+                r += xs[i];
+            }
+        });
+        println!("r={}", r);
+    }
 }
