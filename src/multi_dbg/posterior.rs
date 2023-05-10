@@ -631,6 +631,46 @@ impl MultiDbg {
             dbg.set_copy_nums(&copy_nums);
 
             //
+            // [0] rescue 0x -> 1x changes
+            //
+            let neighbor_copy_nums: Vec<_> = dbg
+                .to_neighbor_copy_nums_and_infos(NeighborConfig {
+                    max_cycle_size: 10,
+                    max_flip: 2,
+                    use_long_cycles: true,
+                    ignore_cycles_passing_terminal: true,
+                    use_reducers: false,
+                })
+                .into_iter()
+                .filter(|(_, info)| !dbg.is_passing_terminal(&info))
+                .filter(|(_, info)| dbg.has_zero_to_one_change(&info))
+                .collect();
+            eprintln!(
+                "iter rescue #{} n_neighbors={}",
+                n_iter,
+                neighbor_copy_nums.len()
+            );
+            match dbg.sample_posterior_once(
+                neighbor_copy_nums,
+                &mut post,
+                &infos,
+                param,
+                reads,
+                mappings,
+                genome_size_expected,
+                genome_size_sigma,
+            ) {
+                Some(sample) => {
+                    eprintln!("iter#{} rescue early terminate", n_iter);
+                    copy_nums = sample.copy_nums;
+                    infos = sample.infos;
+                    n_iter += 1;
+                    continue;
+                }
+                None => {}
+            }
+
+            //
             // [1] partial search
             //
             let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
@@ -656,7 +696,7 @@ impl MultiDbg {
                 genome_size_sigma,
             ) {
                 Some(sample) => {
-                    eprintln!("iter#{} early terminate", n_iter);
+                    eprintln!("iter#{} partial early terminate", n_iter);
                     copy_nums = sample.copy_nums;
                     infos = sample.infos;
                     n_iter += 1;
