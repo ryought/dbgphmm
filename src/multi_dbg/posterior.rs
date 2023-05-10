@@ -667,7 +667,11 @@ impl MultiDbg {
                     n_iter += 1;
                     continue;
                 }
-                None => {}
+                None => {
+                    if dbg.k() < 64 {
+                        break;
+                    }
+                }
             }
 
             //
