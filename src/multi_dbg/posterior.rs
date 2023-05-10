@@ -645,45 +645,24 @@ impl MultiDbg {
                 n_iter,
                 neighbor_copy_nums.len()
             );
-            let samples: Vec<_> = neighbor_copy_nums
-                .into_par_iter()
-                .progress_with_style(progress_common_style())
-                .filter_map(|(copy_nums, info)| {
-                    if post.contains(&copy_nums) {
-                        None
-                    } else {
-                        // evaluate score
-                        let mut dbg = self.clone();
-                        dbg.set_copy_nums(&copy_nums);
-                        let score = dbg.to_score(
-                            param,
-                            reads,
-                            Some(mappings),
-                            genome_size_expected,
-                            genome_size_sigma,
-                        );
-                        let mut infos = infos.clone();
-                        infos.push(info);
-                        Some(PosteriorSample {
-                            copy_nums,
-                            score,
-                            infos,
-                        })
-                    }
-                })
-                .collect();
-            for sample in samples {
-                post.add(sample);
-            }
-            // move to highest copy num and continue
-            // if better copynums was found, move to it.
-            let sample = post.max_sample();
-            if sample.copy_nums != copy_nums {
-                eprintln!("iter#{} early terminate", n_iter);
-                copy_nums = sample.copy_nums.clone();
-                infos = sample.infos.clone();
-                n_iter += 1;
-                continue;
+            match dbg.sample_posterior_once(
+                neighbor_copy_nums,
+                &mut post,
+                &infos,
+                param,
+                reads,
+                mappings,
+                genome_size_expected,
+                genome_size_sigma,
+            ) {
+                Some(sample) => {
+                    eprintln!("iter#{} early terminate", n_iter);
+                    copy_nums = sample.copy_nums;
+                    infos = sample.infos;
+                    n_iter += 1;
+                    continue;
+                }
+                None => {}
             }
 
             //
@@ -692,51 +671,82 @@ impl MultiDbg {
             let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
             eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
-            // evaluate all neighbors
-            let samples: Vec<_> = neighbor_copy_nums
-                .into_par_iter()
-                .progress_with_style(progress_common_style())
-                .filter_map(|(copy_nums, info)| {
-                    if post.contains(&copy_nums) {
-                        None
-                    } else {
-                        // evaluate score
-                        let mut dbg = self.clone();
-                        dbg.set_copy_nums(&copy_nums);
-                        let score = dbg.to_score(
-                            param,
-                            reads,
-                            Some(mappings),
-                            genome_size_expected,
-                            genome_size_sigma,
-                        );
-                        let mut infos = infos.clone();
-                        infos.push(info);
-                        Some(PosteriorSample {
-                            copy_nums,
-                            score,
-                            infos,
-                        })
-                    }
-                })
-                .collect();
-            for sample in samples {
-                post.add(sample);
-            }
-
-            // move to highest copy num and continue
-            // if self is highest, terminate
-            let sample = post.max_sample();
-            if sample.copy_nums == copy_nums {
-                break;
-            } else {
-                copy_nums = sample.copy_nums.clone();
-                infos = sample.infos.clone();
-                n_iter += 1;
+            match dbg.sample_posterior_once(
+                neighbor_copy_nums,
+                &mut post,
+                &infos,
+                param,
+                reads,
+                mappings,
+                genome_size_expected,
+                genome_size_sigma,
+            ) {
+                Some(sample) => {
+                    eprintln!("iter#{} early terminate", n_iter);
+                    copy_nums = sample.copy_nums;
+                    infos = sample.infos;
+                    n_iter += 1;
+                }
+                None => {
+                    break;
+                }
             }
         }
 
         post
+    }
+    ///
+    ///
+    ///
+    pub fn sample_posterior_once<S: Seq>(
+        &self,
+        neighbors: Vec<(CopyNums, UpdateInfo)>,
+        posterior: &mut Posterior,
+        infos_init: &[UpdateInfo],
+        param: PHMMParams,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> Option<PosteriorSample> {
+        let samples: Vec<_> = neighbors
+            .into_par_iter()
+            .progress_with_style(progress_common_style())
+            .filter_map(|(copy_nums, info)| {
+                if posterior.contains(&copy_nums) {
+                    None
+                } else {
+                    // evaluate score
+                    let mut dbg = self.clone();
+                    dbg.set_copy_nums(&copy_nums);
+                    let score = dbg.to_score(
+                        param,
+                        reads,
+                        Some(mappings),
+                        genome_size_expected,
+                        genome_size_sigma,
+                    );
+                    let mut infos = infos_init.to_owned();
+                    infos.push(info);
+                    Some(PosteriorSample {
+                        copy_nums,
+                        score,
+                        infos,
+                    })
+                }
+            })
+            .collect();
+        for sample in samples {
+            posterior.add(sample);
+        }
+        // move to highest copy num and continue
+        // if better copynums was found, move to it.
+        let sample = posterior.max_sample();
+        if sample.copy_nums != self.get_copy_nums() {
+            Some(sample.clone())
+        } else {
+            None
+        }
     }
     ///
     /// Append hint information for reads in parallel
