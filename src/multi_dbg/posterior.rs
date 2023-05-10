@@ -636,7 +636,7 @@ impl MultiDbg {
             let neighbor_copy_nums: Vec<_> = dbg
                 .to_neighbor_copy_nums_and_infos(NeighborConfig {
                     max_cycle_size: 10,
-                    max_flip: 2,
+                    max_flip: 4,
                     use_long_cycles: true,
                     ignore_cycles_passing_terminal: true,
                     use_reducers: false,
