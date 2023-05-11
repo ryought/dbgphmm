@@ -571,6 +571,7 @@ dependencies = [
  "log",
  "ndarray",
  "ndarray-linalg",
+ "once_cell",
  "petgraph",
  "petgraph_algos",
  "pyo3",

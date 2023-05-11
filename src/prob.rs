@@ -26,6 +26,33 @@ pub fn lp(lp: f64) -> Prob {
     Prob::from_log_prob(lp)
 }
 
+use once_cell::sync::Lazy;
+const MAX_PRECALCULATED_X: usize = 10;
+static ys: Lazy<[f64; MAX_PRECALCULATED_X]> = Lazy::new(|| {
+    let mut v = [0f64; MAX_PRECALCULATED_X];
+    for x in 0..MAX_PRECALCULATED_X {
+        v[x] = (x as f64).ln();
+    }
+    v
+});
+
+///
+/// Faster cached log function `(x as f64).ln()`
+///
+#[inline]
+pub fn ln_int(x: usize) -> f64 {
+    // if x is small, return the precalculated
+    if x < MAX_PRECALCULATED_X {
+        ys[x]
+    } else {
+        (x as f64).ln()
+    }
+}
+
+pub fn ln_int0(x: usize) -> f64 {
+    (x as f64).ln()
+}
+
 impl Prob {
     pub fn from_prob(value: f64) -> Prob {
         Prob(value.ln())
@@ -44,9 +71,16 @@ impl Prob {
         self.0
     }
     ///
-    /// Is `p == 0` or not?
+    /// Is `p == 0` or not? (log p = -inf)
+    ///
     pub fn is_zero(self) -> bool {
         self.0.is_infinite() && self.0.is_sign_negative()
+    }
+    ///
+    /// Is `p == 1`? (log p = 0)
+    ///
+    pub fn is_one(self) -> bool {
+        self.0 == 0.0
     }
     ///
     /// prob=0.0
@@ -118,27 +152,33 @@ impl std::ops::Add for Prob {
     fn add(self, other: Self) -> Self {
         let x = self.0;
         let y = other.0;
-        if x == y {
+        let (x, y) = if x >= y { (x, y) } else { (y, x) };
+        if y == f64::NEG_INFINITY {
+            // x + 0 = x
+            Prob(x)
+        } else if x == y {
+            // x + x = 2x
             Prob(x + 2f64.ln())
-        } else if x > y {
-            Prob(x + ((y - x).exp() + 1.0).ln())
         } else {
-            Prob(y + ((x - y).exp() + 1.0).ln())
+            Prob(x + (y - x).exp().ln_1p())
         }
     }
 }
+
 impl std::ops::Mul for Prob {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
         Prob(self.0 + other.0)
     }
 }
+
 impl std::ops::Div for Prob {
     type Output = Self;
     fn div(self, other: Self) -> Self {
         Prob(self.0 - other.0)
     }
 }
+
 // assign
 impl std::ops::AddAssign for Prob {
     fn add_assign(&mut self, other: Self) {
@@ -408,5 +448,56 @@ mod tests {
         assert_eq!(p(0.0), p(0.0) * 2);
         assert_eq!(p(0.0), p(0.0) / 1);
         assert_eq!(p(0.0), p(0.0) / 2);
+    }
+    #[test]
+    fn const_log_int() {
+        for x in 0..100 {
+            println!("{}", ln_int(x));
+            assert_eq!(ln_int(x), (x as f64).ln());
+        }
+    }
+    use test::Bencher;
+    #[bench]
+    fn usize_log_cached(b: &mut Bencher) {
+        // precalculation
+        test::black_box(ln_int(0));
+        b.iter(|| {
+            let mut r = 0.0;
+            for x in 0..10 {
+                // r += ln_int(test::black_box(x));
+                r += ys[x];
+            }
+        })
+    }
+    #[bench]
+    fn usize_log_normal(b: &mut Bencher) {
+        b.iter(|| {
+            let mut r = 0.0;
+            for x in 0..10 {
+                r += (test::black_box(x) as f64).ln();
+            }
+        })
+    }
+
+    use rand::prelude::*;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+    #[bench]
+    fn prob_add_zero(b: &mut Bencher) {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(0);
+        let n = 100;
+        let m = 10;
+        let mut xs = vec![Prob::zero(); n];
+        for _ in 0..m {
+            let i: usize = rng.gen_range(1..n);
+            xs[i] = Prob::one();
+        }
+        println!("xs={:?}", xs);
+        let mut r = Prob::one();
+        b.iter(|| {
+            for i in 1..n {
+                r += xs[i];
+            }
+        });
+        println!("r={}", r);
     }
 }

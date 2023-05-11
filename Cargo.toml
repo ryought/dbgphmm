@@ -51,6 +51,7 @@ fixedbitset = "*"
 pyo3 = { version = "0.17.1" }
 chrono = "*"
 indicatif = { version = "*", features = ["rayon"] }
+once_cell = "*"
 flate2 = "1.0.25"
 ndarray = "*"
 ndarray-linalg = { version = "*", default-features = false }
