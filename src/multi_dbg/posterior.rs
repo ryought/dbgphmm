@@ -753,6 +753,7 @@ impl MultiDbg {
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
     ) -> Option<PosteriorSample> {
+        let t_start = std::time::Instant::now();
         let samples: Vec<_> = neighbors
             .into_par_iter()
             .progress_with_style(progress_common_style())
@@ -780,6 +781,15 @@ impl MultiDbg {
                 }
             })
             .collect();
+        let time = t_start.elapsed().as_millis();
+        println!(
+            "sampled n_samples={} k={} n_reads={} total_bases={} in t={}ms",
+            samples.len(),
+            self.k(),
+            reads.len(),
+            reads.total_bases(),
+            time
+        );
         for sample in samples {
             posterior.add(sample);
         }
@@ -808,7 +818,15 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        phmm.generate_mappings(reads, mappings)
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings));
+        println!(
+            "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
+            self.k(),
+            reads.len(),
+            reads.total_bases(),
+            time
+        );
+        map
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
