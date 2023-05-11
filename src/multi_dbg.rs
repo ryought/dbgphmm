@@ -1732,6 +1732,7 @@ impl MultiDbg {
         // (2) Extend DBG
         //
         while dbg_k.k() < k_max {
+            println!("k={}", dbg_k.k());
             // Extend
             //
             assert!(dbg_k.is_copy_nums_valid());
