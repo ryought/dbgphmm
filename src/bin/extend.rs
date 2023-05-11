@@ -2,6 +2,7 @@ use clap::Parser;
 use dbgphmm::{
     e2e::Dataset,
     genome,
+    hmmv2::hint::Mappings,
     hmmv2::params::PHMMParams,
     multi_dbg::posterior::test::test_inference_from_dbg,
     multi_dbg::MultiDbg,
@@ -29,6 +30,7 @@ fn main() {
     let dataset = Dataset::from_json_file(opts.dataset_json);
     let dbg = MultiDbg::create_draft_from_dataset(opts.k_init, &dataset);
     let mappings = dbg.generate_mappings(dataset.params(), dataset.reads(), None);
+    // dbg.purge_and_extend(&[], opts.k_max, false, None, &Mappings::new(vec![]));
     dbg.purge_and_extend(&[], opts.k_max, false, None, &mappings);
 
     println!("# finished_at={}", chrono::Local::now());

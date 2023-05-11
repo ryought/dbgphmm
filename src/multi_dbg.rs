@@ -1732,28 +1732,35 @@ impl MultiDbg {
         // (2) Extend DBG
         //
         while dbg_k.k() < k_max {
-            println!("k={}", dbg_k.k());
+            println!("k={} n_edges={}", dbg_k.k(), dbg_k.n_edges_full());
             // Extend
             //
             assert!(dbg_k.is_copy_nums_valid());
+            let t_dbg = std::time::Instant::now();
             let dbg_kp1 = dbg_k.to_kp1_dbg();
+            println!("extend::dbg in {}ms", t_dbg.elapsed().as_millis());
             assert!(dbg_kp1.is_copy_nums_valid());
             // Convert paths and hints
             //
             // (a) paths
+            let t_path = std::time::Instant::now();
             paths = paths.map(|paths| {
                 paths
                     .into_iter()
                     .map(|path| dbg_kp1.path_kp1_from_path_k(&path))
                     .collect()
             });
+            println!("extend::path in {}ms", t_path.elapsed().as_millis());
             // (b) mappings
+            let t_map = std::time::Instant::now();
             mappings = Mappings::new(
                 mappings
                     .into_iter()
                     .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
                     .collect(),
             );
+            println!("extend::map in {}ms", t_map.elapsed().as_millis());
+            // (b) mappings
 
             //
             let is_ambiguous = dbg_k.n_ambiguous_node() > 0;
