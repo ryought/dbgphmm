@@ -521,7 +521,7 @@ impl MultiDbg {
             self.genome_size() as f64,
             genome_size_expected as f64,
             genome_size_sigma as f64,
-        )
+        ) / Prob::from_log_prob(self.genome_size() as f64)
     }
     ///
     /// Calculate the likelihood `P(R|G)`
