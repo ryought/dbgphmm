@@ -922,7 +922,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            dbg.k() < 64,
+            dbg.k() < 40,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
