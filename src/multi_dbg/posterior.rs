@@ -604,6 +604,7 @@ impl MultiDbg {
         genome_size_sigma: CopyNum,
         neighbor_config: NeighborConfig,
         max_iter: usize,
+        rescue_only: bool,
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
@@ -668,7 +669,7 @@ impl MultiDbg {
                     continue;
                 }
                 None => {
-                    if dbg.k() < 64 {
+                    if rescue_only {
                         break;
                     }
                 }
@@ -921,6 +922,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
+            dbg.k() < 64,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
@@ -967,6 +969,7 @@ pub fn infer_posterior_by_extension<
         genome_size_sigma,
         neighbor_config,
         max_iter,
+        false,
     );
     dbg.set_copy_nums(posterior.max_copy_nums());
     let t_posterior = t_start_posterior.elapsed();
