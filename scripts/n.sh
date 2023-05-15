@@ -14,10 +14,13 @@ then
 
   cargo build --release --features intel --no-default-features
   mkdir -p n
-  for N in 1 2 3 4 5 6
+  # for N in 1 2 3 4 5 6
+  # for N in 7 8 9 10 11 12
+  for N in 10 11 12
   do
     echo $N
-    pjsub -x N=$N -N p01_n$N -j scripts/n.sh
+    # add git hash
+    pjsub -x N=$N -N e_p01_n$N -j scripts/n.sh
   done
 else
   #
@@ -36,10 +39,7 @@ else
   # p01
   ./target/release/draft -k 40 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n/p01_u500_n$N
   ./target/release/infer -k 40 -K 1000 -p 0.0001 -e 0.001 -I 50 -s 500 --dataset-json n/p01_u500_n$N.json --output-prefix n/s500_p01_u500_n$N
-  # ./target/release/infer -k 40 -K 1000 -p 0.0001 -e 0.001 -I 50 -s 500 --dataset-json n/p01_u500_n$N.json --output-prefix n/s500_L_p01_u500_n$N
-
-  # ./target/release/draft -k 40 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 --H0 0.0 -P 2 --output-prefix n/p01_u500_H0_n$N
-  # ./target/release/infer -k 40 -K 1000 -p 0.000001 -e 0.001 -I 50 --dataset-json n/p01_u500_H0_n$N.json --output-prefix n/L_p01_u500_H0_n$N
+  # ./target/release/infer -k 40 -K 1000 -p 0.001 -e 0.001 -I 50 -s 500 --dataset-json n/p01_u500_n$N.json --output-prefix n/f_s500_p01_u500_n$N
 
   # p1
   # ./target/release/draft -k 16 -C 20 -L 1000 -p 0.01 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n/p1_u500_n$N
