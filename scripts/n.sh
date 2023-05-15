@@ -19,8 +19,18 @@ then
   for N in 10 11 12
   do
     echo $N
+<<<<<<< Updated upstream
     # add git hash
     pjsub -x N=$N -N e_p01_n$N -j scripts/n.sh
+=======
+    # Name:
+    # - key
+    # - git-hash
+    # Parameter:
+    # - N
+    # Compile before run
+    pjsub -x N=$N -N p01_n$N -j scripts/n.sh
+>>>>>>> Stashed changes
   done
 else
   #
@@ -35,6 +45,9 @@ else
   # ./target/release/infer -k 20 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi
   # ./target/release/infer -k 20 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v2
   # ./target/release/infer -k 40 -K 1000 -p 0.00001 -I 50 --dataset-json n/p01_u500_n$N.json --output-prefix n/p01_u500_n${N}_pi_v3
+
+  # store correspondence output-data and day-or-parameters
+  #
 
   # p01
   ./target/release/draft -k 40 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n/p01_u500_n$N
