@@ -626,15 +626,16 @@ impl MultiDbg {
             infos: Vec::new(),
         });
 
-        while n_iter < max_iter {
+        'outer: while n_iter < max_iter {
+            println!("n_iter={}", n_iter);
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
 
+            // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            //
-            let neighbor_copy_nums: Vec<_> = dbg
+            let rescue_neighbors: Vec<_> = dbg
                 .to_neighbor_copy_nums_and_infos(NeighborConfig {
                     max_cycle_size: 10,
                     max_flip: 4,
@@ -646,96 +647,57 @@ impl MultiDbg {
                 .filter(|(_, info)| !dbg.is_passing_terminal(&info))
                 .filter(|(_, info)| dbg.has_zero_to_one_change(&info))
                 .collect();
-            eprintln!(
-                "iter rescue #{} n_neighbors={}",
-                n_iter,
-                neighbor_copy_nums.len()
-            );
-            match dbg.sample_posterior_once(
-                neighbor_copy_nums,
-                &mut post,
-                &infos,
-                param,
-                reads,
-                mappings,
-                genome_size_expected,
-                genome_size_sigma,
-            ) {
-                Some(sample) => {
-                    eprintln!("iter#{} rescue early terminate", n_iter);
-                    copy_nums = sample.copy_nums;
-                    infos = sample.infos;
-                    n_iter += 1;
-                    continue;
-                }
-                None => {
-                    if rescue_only {
-                        break;
-                    }
-                }
-            }
-
-            //
             // [1] partial search
-            //
-            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+            let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
                 max_cycle_size: 5,
                 max_flip: 2,
                 use_long_cycles: true,
                 ignore_cycles_passing_terminal: true,
                 use_reducers: false,
             });
-            eprintln!(
-                "iter partial#{} n_neighbors={}",
-                n_iter,
-                neighbor_copy_nums.len()
-            );
-            match dbg.sample_posterior_once(
-                neighbor_copy_nums,
-                &mut post,
-                &infos,
-                param,
-                reads,
-                mappings,
-                genome_size_expected,
-                genome_size_sigma,
-            ) {
-                Some(sample) => {
-                    eprintln!("iter#{} partial early terminate", n_iter);
-                    copy_nums = sample.copy_nums;
-                    infos = sample.infos;
-                    n_iter += 1;
-                    continue;
-                }
-                None => {}
-            }
-
-            //
             // [2] full search
-            //
-            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
-            eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
+            let full_neighbors = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
+            let neighbor_copy_nums_set = if rescue_only {
+                vec![rescue_neighbors]
+            } else {
+                vec![rescue_neighbors, partial_neighbors, full_neighbors]
+            };
 
-            match dbg.sample_posterior_once(
-                neighbor_copy_nums,
-                &mut post,
-                &infos,
-                param,
-                reads,
-                mappings,
-                genome_size_expected,
-                genome_size_sigma,
-            ) {
-                Some(sample) => {
-                    eprintln!("iter#{} early terminate", n_iter);
-                    copy_nums = sample.copy_nums;
-                    infos = sample.infos;
-                    n_iter += 1;
-                }
-                None => {
-                    break;
+            // B. Try each neighbor and move to the better neighbor if found.
+            //
+            for (i, neighbor_copy_nums) in neighbor_copy_nums_set.into_iter().enumerate() {
+                eprintln!(
+                    "iter #{}-set{} n_neighbors={}",
+                    n_iter,
+                    i,
+                    neighbor_copy_nums.len()
+                );
+                match dbg.sample_posterior_once(
+                    neighbor_copy_nums,
+                    &mut post,
+                    &infos,
+                    param,
+                    reads,
+                    mappings,
+                    genome_size_expected,
+                    genome_size_sigma,
+                ) {
+                    Some(sample) => {
+                        eprintln!("iter #{}-set{} early terminate", n_iter, i);
+                        copy_nums = sample.copy_nums;
+                        infos = sample.infos;
+                        n_iter += 1;
+                        continue 'outer;
+                    }
+                    None => {}
                 }
             }
+
+            // C. if no better neighbor could not be found (i.e. current copynums is local optimum)
+            // terminate sampling.
+            //
+            eprintln!("iter #{} not found", n_iter);
+            break 'outer;
         }
 
         post
