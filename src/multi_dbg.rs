@@ -21,6 +21,7 @@ use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
+use crate::graph::k_shortest::k_shortest_cycle;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{
@@ -45,7 +46,7 @@ use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, Parent
 use rustflow::min_flow::{
     base::{FlowEdgeBase, FlowGraph},
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
-    residue::{ResidueDirection, UpdateInfo},
+    residue::{flow_to_residue_convex, residue_graph_cycle_to_flow, ResidueDirection, UpdateInfo},
     Flow,
 };
 
@@ -987,7 +988,7 @@ impl MultiDbg {
     ///
     /// = copy number of the first corresponding edge in full graph
     ///
-    fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
+    pub fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
         let edge_in_full = self.graph_compact()[edge_in_compact].edges_in_full()[0];
         self.graph_full()[edge_in_full].copy_num
     }
@@ -1093,6 +1094,48 @@ impl MultiDbg {
             },
         );
         network
+    }
+    /// Rescue neighbors
+    ///
+    /// 0x
+    ///
+    pub fn to_rescue_neighbors(
+        &self,
+        edge: EdgeIndex,
+        k: usize,
+        not_make_new_zero_edge: bool,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let copy_nums = self.get_copy_nums();
+        let network = self.graph_compact().map(
+            |_, _| (),
+            |edge, _| {
+                let copy_num = self.copy_num_of_edge_in_compact(edge);
+                if copy_num == 0 {
+                    FlowEdgeBase::new(0, copy_num.saturating_add(1), 0.0)
+                } else if not_make_new_zero_edge {
+                    FlowEdgeBase::new(1, copy_num.saturating_add(1), 0.0)
+                } else {
+                    FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+                }
+            },
+        );
+        let rg = flow_to_residue_convex(&network, &copy_nums);
+        let edge_in_rg = rg
+            .edge_indices()
+            .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)
+            .unwrap();
+        let cycles = k_shortest_cycle(
+            &rg,
+            edge_in_rg,
+            k,
+            |e| self.n_bases(rg[e].target),
+            |_, _| true,
+        );
+
+        cycles
+            .into_iter()
+            .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
+            .collect()
     }
     ///
     ///

@@ -45,7 +45,7 @@ impl PartialOrd for PathWithScore {
 //
 
 ///
-/// Get k-th shortest cycle
+/// Get 1st to k-th shortest cycle starting from `edge`
 ///
 /// [k shortest path routing - wikipedia](https://en.wikipedia.org/wiki/K_shortest_path_routing)
 ///
@@ -70,6 +70,7 @@ where
         let (_, u) = graph.edge_endpoints(*path.last().unwrap()).unwrap();
         count[u.index()] += 1;
         if u == s {
+            // println!("found! {} {:?}", score, path);
             cycles.push(path.clone());
         }
         if count[u.index()] < k {
@@ -82,6 +83,7 @@ where
             }
         }
     }
+    // println!("{} cycles found", cycles.len());
 
     cycles
 }

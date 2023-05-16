@@ -25,17 +25,18 @@ fn main() {
     // let dataset = Dataset::from_json_file(&opts.dataset);
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
 
-    let neighbor_copy_nums: Vec<_> = dbg
-        .to_neighbor_copy_nums_and_infos(NeighborConfig {
-            max_cycle_size: 50,
-            max_flip: 4,
-            use_long_cycles: true,
-            ignore_cycles_passing_terminal: true,
-            use_reducers: false,
-        })
-        .into_iter()
-        .filter(|(_, info)| !dbg.is_passing_terminal(&info))
-        .filter(|(_, info)| dbg.has_zero_to_one_change(&info))
-        .collect();
-    println!("n_cycles={}", neighbor_copy_nums.len());
+    for (edge, _, _, _) in dbg.edges_compact() {
+        if dbg.copy_num_of_edge_in_compact(edge) == 0 {
+            let neighbor_copy_nums: Vec<_> = dbg
+                .to_rescue_neighbors(edge, 5, false)
+                .into_iter()
+                .filter(|(_, info)| !dbg.is_passing_terminal(&info))
+                .filter(|(_, info)| dbg.has_zero_to_one_change(&info))
+                .collect();
+            println!("e{} n_cycles={}", edge.index(), neighbor_copy_nums.len());
+            for (c, i) in neighbor_copy_nums {
+                println!("{:?}", i);
+            }
+        }
+    }
 }
