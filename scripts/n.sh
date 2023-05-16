@@ -14,15 +14,10 @@ then
 
   cargo build --release --features intel --no-default-features
   mkdir -p n
-  # for N in 1 2 3 4 5 6
-  # for N in 7 8 9 10 11 12
-  for N in 10 11 12
+  for N in 1 2 3 4 5 6 7 8 9 10 11 12
+  # for N in 10 11 12
   do
     echo $N
-<<<<<<< Updated upstream
-    # add git hash
-    pjsub -x N=$N -N e_p01_n$N -j scripts/n.sh
-=======
     # Name:
     # - key
     # - git-hash
@@ -30,7 +25,6 @@ then
     # - N
     # Compile before run
     pjsub -x N=$N -N p01_n$N -j scripts/n.sh
->>>>>>> Stashed changes
   done
 else
   #
