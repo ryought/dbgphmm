@@ -42,6 +42,7 @@ use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
+use petgraph_algos::common::is_edge_simple;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::{
     base::{FlowEdgeBase, FlowGraph},
@@ -1096,10 +1097,26 @@ impl MultiDbg {
         network
     }
     /// Rescue neighbors
+    /// 0x
+    pub fn to_rescue_neighbors(
+        &self,
+        k: usize,
+        not_make_new_zero_edge: bool,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let mut ret = vec![];
+        for (edge, _, _, _) in self.edges_compact() {
+            if self.copy_num_of_edge_in_compact(edge) == 0 {
+                for n in self.to_rescue_neighbors_for_edge(edge, k, not_make_new_zero_edge) {
+                    ret.push(n);
+                }
+            }
+        }
+        ret
+    }
+    /// Rescue neighbors
     ///
     /// 0x
-    ///
-    pub fn to_rescue_neighbors(
+    pub fn to_rescue_neighbors_for_edge(
         &self,
         edge: EdgeIndex,
         k: usize,
@@ -1119,6 +1136,7 @@ impl MultiDbg {
                 }
             },
         );
+        // println!("{:?}", petgraph::dot::Dot::with_config(&network, &[]));
         let rg = flow_to_residue_convex(&network, &copy_nums);
         let edge_in_rg = rg
             .edge_indices()
@@ -1134,6 +1152,7 @@ impl MultiDbg {
 
         cycles
             .into_iter()
+            .filter(|cycle| is_edge_simple(&rg, &cycle))
             .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
             .collect()
     }
