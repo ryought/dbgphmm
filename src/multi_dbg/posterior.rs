@@ -784,7 +784,7 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        let ((map, freqs), time) = timer(|| phmm.generate_mappings_and_node_freqs(reads, mappings));
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings));
         println!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),
@@ -793,13 +793,17 @@ impl MultiDbg {
             time
         );
 
-        let show_freq = true;
+        // For debugging
+        let show_freq = false;
         if show_freq {
+            let freqs = self.mappings_to_freqs(&map);
+            let copy_num = self.min_squared_error_copy_nums_from_freqs(&freqs, 20.0);
             for edge_compact in self.graph_compact().edge_indices() {
                 println!(
-                    "e{} {}x",
+                    "e{} {}x {}x",
                     edge_compact.index(),
-                    self.copy_num_of_edge_in_compact(edge_compact)
+                    self.copy_num_of_edge_in_compact(edge_compact),
+                    copy_num[edge_compact]
                 );
                 for (i, &edge_full) in self.edges_in_full(edge_compact).iter().enumerate() {
                     println!("\t{} {}", i, freqs[NodeIndex::new(edge_full.index())]);

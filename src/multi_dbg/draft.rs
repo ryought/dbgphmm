@@ -1,13 +1,137 @@
 //!
 //! Constructor of draft dbg from reads or genomes
 //!
-use super::MultiDbg;
+use super::{CopyNums, MultiDbg};
 use crate::common::collection::starts_and_ends_of_genome;
-use crate::common::{Seq, StyledSequence};
+use crate::common::{CopyNum, Freq, Seq, StyledSequence};
 use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
 use crate::e2e::Dataset;
+use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::utils::timer;
+use itertools::izip;
+use petgraph::graph::NodeIndex;
+use rustflow::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, FlowEdge};
+
+///
+/// Edge attribute for min_squared_error_copy_nums_from_freqs
+///
+/// FlowEdge
+/// If this node has fixed_copy_num,
+/// * demand = fixed_copy_num
+/// * capacity = fixed_copy_num
+///
+/// Otherwise,
+/// * demand = 0
+/// * capacity = +inf
+///
+/// ConvexCost
+/// * cost = |c - f|^2
+///
+#[derive(Clone, Debug)]
+pub struct MinSquaredErrorCopyNumAndFreq {
+    ///
+    ///
+    freqs: Vec<Freq>,
+    ///
+    ///
+    fixed_copy_num: Option<CopyNum>,
+}
+
+impl MinSquaredErrorCopyNumAndFreq {
+    ///
+    /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
+    ///
+    pub fn new(freqs: Vec<Freq>, fixed_copy_num: Option<CopyNum>) -> Self {
+        MinSquaredErrorCopyNumAndFreq {
+            freqs,
+            fixed_copy_num,
+        }
+    }
+}
+
+///
+/// maximum copy number
+///
+/// this corresponds to the capacity of edbg min-flow calculation.
+///
+pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
+
+impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
+    fn demand(&self) -> usize {
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => 0,
+        }
+    }
+    fn capacity(&self) -> usize {
+        match self.fixed_copy_num {
+            Some(fixed_copy_num) => fixed_copy_num,
+            None => MAX_COPY_NUM_OF_EDGE,
+        }
+    }
+}
+
+///
+/// Use edbg edge (with a freq) in min-flow.
+///
+/// if the kmer corresponding to the edge is not emittable, the cost
+/// should be ignored.
+///
+impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
+    fn convex_cost(&self, copy_num: usize) -> f64 {
+        self.freqs
+            .iter()
+            .map(|&freq| (copy_num as f64 - freq).powi(2))
+            .sum()
+    }
+}
+
+impl MultiDbg {
+    ///
+    ///
+    ///
+    pub fn mappings_to_freqs(&self, mappings: &Mappings) -> NodeFreqs {
+        // freq is defined for each nodes in hmm (= edges in dbg)
+        let mut freqs: NodeFreqs = NodeFreqs::new(self.n_edges_full(), 0.0, true);
+        for mapping in mappings {
+            for i in 0..mapping.len() {
+                for (&node, prob) in izip!(&mapping.nodes[i], &mapping.probs[i]) {
+                    freqs[node] += prob.to_value();
+                }
+            }
+        }
+        freqs
+    }
+    ///
+    ///
+    ///
+    pub fn min_squared_error_copy_nums_from_freqs(
+        &self,
+        freqs: &NodeFreqs,
+        coverage: f64,
+    ) -> CopyNums {
+        let net = self.graph_compact().map(
+            |_, _| (),
+            |edge_in_comapct, _| {
+                let freqs_of_edge = self
+                    .edges_in_full(edge_in_comapct)
+                    .iter()
+                    .filter_map(|&edge_in_full| {
+                        if self.graph_full()[edge_in_full].is_null_base() {
+                            None
+                        } else {
+                            Some(freqs[NodeIndex::new(edge_in_full.index())] / coverage)
+                        }
+                    })
+                    .collect();
+                MinSquaredErrorCopyNumAndFreq::new(freqs_of_edge, None)
+            },
+        );
+
+        min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved")
+    }
+}
 
 impl MultiDbg {
     ///
