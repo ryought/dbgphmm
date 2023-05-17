@@ -638,12 +638,12 @@ impl MultiDbg {
             let rescue_neighbors: Vec<_> = dbg
                 .to_rescue_neighbors(10, true)
                 .into_iter()
-                .filter(|(_, info)| !dbg.is_passing_terminal(&info))
+                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
                 .collect();
             let rescue_neighbors_allow_zero: Vec<_> = dbg
                 .to_rescue_neighbors(10, false)
                 .into_iter()
-                .filter(|(_, info)| !dbg.is_passing_terminal(&info))
+                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
                 .collect();
             // [1] partial search
             let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {

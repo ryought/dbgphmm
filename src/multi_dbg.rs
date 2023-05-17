@@ -47,7 +47,10 @@ use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, Parent
 use rustflow::min_flow::{
     base::{FlowEdgeBase, FlowGraph},
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
-    residue::{flow_to_residue_convex, residue_graph_cycle_to_flow, ResidueDirection, UpdateInfo},
+    residue::{
+        flow_to_residue_convex, is_meaningful_move_on_residue_graph, residue_graph_cycle_to_flow,
+        ResidueDirection, UpdateInfo,
+    },
     Flow,
 };
 
@@ -1147,7 +1150,10 @@ impl MultiDbg {
             edge_in_rg,
             k,
             |e| self.n_bases(rg[e].target),
-            |_, _| true,
+            |path, edge| {
+                let last_edge = path.last().copied().unwrap();
+                is_meaningful_move_on_residue_graph(&rg, last_edge, edge)
+            },
         );
 
         cycles

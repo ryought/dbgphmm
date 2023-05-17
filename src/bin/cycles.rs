@@ -14,6 +14,12 @@ use petgraph::algo::connected_components;
 struct Opts {
     #[clap(long)]
     dbg: std::path::PathBuf,
+    #[clap(long, default_value = "10")]
+    k_shortest: usize,
+    #[clap(long)]
+    prohibit_zero_copy: bool,
+    #[clap(long)]
+    exclude_passing_terminal: bool,
 }
 
 fn main() {
@@ -28,14 +34,15 @@ fn main() {
     for (edge, _, _, _) in dbg.edges_compact() {
         if dbg.copy_num_of_edge_in_compact(edge) == 0 {
             let neighbor_copy_nums: Vec<_> = dbg
-                .to_rescue_neighbors_for_edge(edge, 5, false)
+                .to_rescue_neighbors_for_edge(edge, opts.k_shortest, opts.prohibit_zero_copy)
                 .into_iter()
-                .filter(|(_, info)| !dbg.is_passing_terminal(&info))
-                .filter(|(_, info)| dbg.has_zero_to_one_change(&info))
+                .filter(|(_, info)| {
+                    !opts.exclude_passing_terminal || !dbg.is_passing_terminal(&info)
+                })
                 .collect();
             println!("e{} n_cycles={}", edge.index(), neighbor_copy_nums.len());
             for (c, i) in neighbor_copy_nums {
-                println!("{:?}", i);
+                println!("\t{:?}", i);
             }
         }
     }
