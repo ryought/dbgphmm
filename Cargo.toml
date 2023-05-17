@@ -55,6 +55,7 @@ once_cell = "*"
 flate2 = "1.0.25"
 ndarray = "*"
 ndarray-linalg = { version = "*", default-features = false }
+num-traits = "*"
 
 [package.metadata.maturin]
 # /python/dbgphmm as root of python module

@@ -1,6 +1,4 @@
 #![feature(test)]
-#![feature(vec_retain_mut)]
-#![feature(int_abs_diff)]
 #![feature(step_trait)]
 #![feature(is_some_and)]
 pub mod common;

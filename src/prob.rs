@@ -54,9 +54,13 @@ pub fn ln_int0(x: usize) -> f64 {
 }
 
 impl Prob {
+    ///
+    ///
     pub fn from_prob(value: f64) -> Prob {
         Prob(value.ln())
     }
+    ///
+    ///
     pub fn from_log_prob(log_value: f64) -> Prob {
         Prob(log_value)
     }
@@ -127,6 +131,29 @@ impl Default for Prob {
     }
 }
 
+///
+/// Prob has multiplicative identity element
+/// `num_traits::One`
+///
+impl num_traits::One for Prob {
+    fn one() -> Self {
+        Prob::one()
+    }
+}
+
+///
+/// Prob has additive identity element
+/// `num_traits::Zero`
+///
+impl num_traits::Zero for Prob {
+    fn zero() -> Self {
+        Prob::zero()
+    }
+    fn is_zero(&self) -> bool {
+        Prob::is_zero(*self)
+    }
+}
+
 // display
 impl std::fmt::Display for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -141,14 +168,18 @@ impl FromStr for Prob {
     }
 }
 
-// operators
+/// Addition of two probabilities `px + py` in log space
+///
+/// If `px > py`:
+///
+/// ```text
+/// log(exp(x) + exp(y))
+///  = log(exp(x) (1 + exp(y-x)))
+///  = log(exp(x)) + log(1 + exp(y-x))
+///  = x + log(1 + exp(y-x))
+/// ```
 impl std::ops::Add for Prob {
     type Output = Self;
-    /// Given x>y
-    /// log(exp(x) + exp(y))
-    /// = log(exp(x) (1 + exp(y-x)))
-    /// = log(exp(x)) + log(1 + exp(y-x))
-    /// = x + log(1 + exp(y-x))
     fn add(self, other: Self) -> Self {
         let x = self.0;
         let y = other.0;
@@ -165,6 +196,11 @@ impl std::ops::Add for Prob {
     }
 }
 
+/// Multiplication of two probabilities `px * py` in log space
+///
+/// ```text
+/// log(px * py) = log(px) + log(py)
+/// ```
 impl std::ops::Mul for Prob {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
@@ -172,6 +208,11 @@ impl std::ops::Mul for Prob {
     }
 }
 
+/// Division of two probabilities `px / py` in log space
+///
+/// ```text
+/// log(px / py) = log(px) - log(py)
+/// ```
 impl std::ops::Div for Prob {
     type Output = Self;
     fn div(self, other: Self) -> Self {
@@ -216,6 +257,8 @@ impl<'a> std::iter::Product<&'a Self> for Prob {
 // Prob mul/div usize
 //
 
+/// Multiplication of Prob and usize `p * c`
+///
 impl std::ops::Mul<usize> for Prob {
     type Output = Self;
     fn mul(self, rhs: usize) -> Self {
@@ -223,6 +266,8 @@ impl std::ops::Mul<usize> for Prob {
     }
 }
 
+/// Division of Prob and usize `p / c`
+///
 impl std::ops::Div<usize> for Prob {
     type Output = Self;
     fn div(self, rhs: usize) -> Self {

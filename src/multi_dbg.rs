@@ -21,6 +21,7 @@ use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
+use crate::graph::k_shortest::k_shortest_cycle;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{
@@ -41,11 +42,15 @@ use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
 use petgraph::Direction;
+use petgraph_algos::common::is_edge_simple;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::{
-    base::FlowEdgeBase,
+    base::{FlowEdgeBase, FlowGraph},
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
-    residue::{ResidueDirection, UpdateInfo},
+    residue::{
+        flow_to_residue_convex, is_meaningful_move_on_residue_graph, residue_graph_cycle_to_flow,
+        ResidueDirection, UpdateInfo,
+    },
     Flow,
 };
 
@@ -987,7 +992,7 @@ impl MultiDbg {
     ///
     /// = copy number of the first corresponding edge in full graph
     ///
-    fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
+    pub fn copy_num_of_edge_in_compact(&self, edge_in_compact: EdgeIndex) -> CopyNum {
         let edge_in_full = self.graph_compact()[edge_in_compact].edges_in_full()[0];
         self.graph_full()[edge_in_full].copy_num
     }
@@ -1060,6 +1065,30 @@ impl MultiDbg {
         &self,
         config: NeighborConfig,
     ) -> Vec<(CopyNums, UpdateInfo)> {
+        // (1) enumerate all short cycles
+        let mut short_cycles = self.to_short_neighbors(config.max_cycle_size, config.max_flip);
+        eprintln!("short_cycles: {}", short_cycles.len());
+
+        // (2) add long cycles for 0x -> 1x
+        if config.use_long_cycles {
+            let mut long_cycles = self.to_long_neighbors();
+            eprintln!("long_cycles: {}", long_cycles.len());
+            short_cycles.append(&mut long_cycles);
+        }
+
+        // (3) add long cycles for reducing high-copy edges
+        if config.use_reducers {
+            let mut reducers = self.to_reducer_neighbors();
+            eprintln!("reducers: {}", reducers.len());
+            short_cycles.append(&mut reducers);
+        }
+
+        short_cycles
+    }
+    ///
+    /// Create flow network `FlowGraph` for enumerating neighboring copy numbers (flow)
+    ///
+    pub fn to_flow_network(&self) -> FlowGraph<usize> {
         // create flow network for rustflow
         let network = self.graph_compact().map(
             |_, _| (),
@@ -1068,73 +1097,134 @@ impl MultiDbg {
                 FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
             },
         );
+        network
+    }
+    /// Rescue neighbors
+    /// 0x
+    pub fn to_rescue_neighbors(
+        &self,
+        k: usize,
+        not_make_new_zero_edge: bool,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let mut ret = vec![];
+        for (edge, _, _, _) in self.edges_compact() {
+            if self.copy_num_of_edge_in_compact(edge) == 0 {
+                for n in self.to_rescue_neighbors_for_edge(edge, k, not_make_new_zero_edge) {
+                    ret.push(n);
+                }
+            }
+        }
+        ret
+    }
+    /// Rescue neighbors
+    ///
+    /// 0x
+    pub fn to_rescue_neighbors_for_edge(
+        &self,
+        edge: EdgeIndex,
+        k: usize,
+        not_make_new_zero_edge: bool,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let copy_nums = self.get_copy_nums();
+        let network = self.graph_compact().map(
+            |_, _| (),
+            |edge, _| {
+                let copy_num = self.copy_num_of_edge_in_compact(edge);
+                if copy_num == 0 {
+                    FlowEdgeBase::new(0, copy_num.saturating_add(1), 0.0)
+                } else if not_make_new_zero_edge {
+                    FlowEdgeBase::new(1, copy_num.saturating_add(1), 0.0)
+                } else {
+                    FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
+                }
+            },
+        );
+        // println!("{:?}", petgraph::dot::Dot::with_config(&network, &[]));
+        let rg = flow_to_residue_convex(&network, &copy_nums);
+        let edge_in_rg = rg
+            .edge_indices()
+            .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)
+            .unwrap();
+        let cycles = k_shortest_cycle(
+            &rg,
+            edge_in_rg,
+            k,
+            |e| self.n_bases(rg[e].target),
+            |path, edge| {
+                let last_edge = path.last().copied().unwrap();
+                is_meaningful_move_on_residue_graph(&rg, last_edge, edge)
+            },
+        );
+
+        cycles
+            .into_iter()
+            .filter(|cycle| is_edge_simple(&rg, &cycle))
+            .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
+            .collect()
+    }
+    ///
+    ///
+    ///
+    pub fn to_short_neighbors(
+        &self,
+        max_cycle_size: usize,
+        max_flip: usize,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let network = self.to_flow_network();
         let copy_nums = self.get_copy_nums();
 
-        // (1) enumerate all short cycles
-        let mut short_cycles = enumerate_neighboring_flows(
-            &network,
-            &copy_nums,
-            Some(config.max_cycle_size),
-            Some(config.max_flip),
+        enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
+    }
+    ///
+    ///
+    ///
+    pub fn to_long_neighbors(&self) -> Vec<(CopyNums, UpdateInfo)> {
+        let network = self.to_flow_network();
+        let copy_nums = self.get_copy_nums();
+
+        // let max_copy_num = self.max_copy_num();
+        self.graph_compact()
+            .edge_indices()
+            .filter(|&e| self.copy_num_of_edge_in_compact(e) == 0)
+            .filter_map(|e| {
+                find_neighboring_flow_by_edge_change(
+                    &network,
+                    &copy_nums,
+                    e,
+                    ResidueDirection::Up,
+                    // weight function
+                    |e| self.n_bases(e) / (self.copy_num_of_edge_in_compact(e) + 1),
+                    // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
+                )
+            })
+            // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
+            .filter(|(_copy_nums, info)| !self.is_passing_terminal(&info))
+            .collect()
+    }
+    pub fn to_reducer_neighbors(&self) -> Vec<(CopyNums, UpdateInfo)> {
+        let network = self.graph_compact().map(
+            |_, _| (),
+            |edge, _| {
+                let copy_num = self.copy_num_of_edge_in_compact(edge);
+                if copy_num > 2 {
+                    // reduceable
+                    FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num, 0.0)
+                } else {
+                    FlowEdgeBase::new(copy_num, copy_num, 0.0)
+                }
+            },
         );
-        eprintln!("short_cycles: {}", short_cycles.len());
-
-        // (2) add long cycles for 0x -> 1x
-        if config.use_long_cycles {
-            // let max_copy_num = self.max_copy_num();
-            let mut long_cycles: Vec<_> = self
-                .graph_compact()
-                .edge_indices()
-                .filter(|&e| self.copy_num_of_edge_in_compact(e) == 0)
-                .filter_map(|e| {
-                    find_neighboring_flow_by_edge_change(
-                        &network,
-                        &copy_nums,
-                        e,
-                        ResidueDirection::Up,
-                        // weight function
-                        |e| self.n_bases(e) / (self.copy_num_of_edge_in_compact(e) + 1),
-                        // |e| max_copy_num - self.copy_num_of_edge_in_compact(e),
-                    )
-                })
-                // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
-                .filter(|(_copy_nums, info)| {
-                    if config.ignore_cycles_passing_terminal {
-                        info.iter()
-                            .all(|(e, _d)| !self.is_start_or_end_edge_compact(*e))
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-
-            eprintln!("long_cycles: {}", long_cycles.len());
-            short_cycles.append(&mut long_cycles);
-        }
-
-        // (3) add long cycles for reducing high-copy edges
-        if config.use_reducers {
-            let network = self.graph_compact().map(
-                |_, _| (),
-                |edge, _| {
-                    let copy_num = self.copy_num_of_edge_in_compact(edge);
-                    if copy_num > 2 {
-                        // reduceable
-                        FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num, 0.0)
-                    } else {
-                        FlowEdgeBase::new(copy_num, copy_num, 0.0)
-                    }
-                },
-            );
-            let copy_nums = self.get_copy_nums();
-            let mut reducers =
-                enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0));
-
-            eprintln!("reducers: {}", reducers.len());
-            short_cycles.append(&mut reducers);
-        }
-
-        short_cycles
+        let copy_nums = self.get_copy_nums();
+        enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0))
+    }
+    pub fn is_passing_terminal(&self, info: &UpdateInfo) -> bool {
+        info.iter()
+            .any(|&(edge, _)| self.is_start_or_end_edge_compact(edge))
+    }
+    pub fn has_zero_to_one_change(&self, info: &UpdateInfo) -> bool {
+        info.iter().any(|&(edge, dir)| {
+            self.copy_num_of_edge_in_compact(edge) == 0 && dir == ResidueDirection::Up
+        })
     }
 }
 

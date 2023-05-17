@@ -604,6 +604,7 @@ impl MultiDbg {
         genome_size_sigma: CopyNum,
         neighbor_config: NeighborConfig,
         max_iter: usize,
+        rescue_only: bool,
     ) -> Posterior {
         let mut post = Posterior::new();
         let mut copy_nums = self.get_copy_nums();
@@ -625,58 +626,147 @@ impl MultiDbg {
             infos: Vec::new(),
         });
 
-        while n_iter < max_iter {
+        'outer: while n_iter < max_iter {
+            println!("n_iter={}", n_iter);
             // calculate scores of new neighboring copynums of current copynum
             //
             dbg.set_copy_nums(&copy_nums);
-            let neighbor_copy_nums = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
-            eprintln!("iter#{} n_neighbors={}", n_iter, neighbor_copy_nums.len());
 
-            // evaluate all neighbors
-            let samples: Vec<_> = neighbor_copy_nums
-                .into_par_iter()
-                .progress_with_style(progress_common_style())
-                .filter_map(|(copy_nums, info)| {
-                    if post.contains(&copy_nums) {
-                        None
-                    } else {
-                        // evaluate score
-                        let mut dbg = self.clone();
-                        dbg.set_copy_nums(&copy_nums);
-                        let score = dbg.to_score(
-                            param,
-                            reads,
-                            Some(mappings),
-                            genome_size_expected,
-                            genome_size_sigma,
-                        );
-                        let mut infos = infos.clone();
-                        infos.push(info);
-                        Some(PosteriorSample {
-                            copy_nums,
-                            score,
-                            infos,
-                        })
-                    }
-                })
+            // A. Generate neighbors
+            //
+            // [0] rescue 0x -> 1x changes
+            let rescue_neighbors: Vec<_> = dbg
+                .to_rescue_neighbors(10, true)
+                .into_iter()
+                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
                 .collect();
-            for sample in samples {
-                post.add(sample);
+            let rescue_neighbors_allow_zero: Vec<_> = dbg
+                .to_rescue_neighbors(10, false)
+                .into_iter()
+                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
+                .collect();
+            // [1] partial search
+            let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                max_cycle_size: 5,
+                max_flip: 2,
+                use_long_cycles: true,
+                ignore_cycles_passing_terminal: true,
+                use_reducers: false,
+            });
+            // [2] full search
+            let full_neighbors = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
+            let neighbor_copy_nums_set = if rescue_only {
+                vec![rescue_neighbors, rescue_neighbors_allow_zero]
+            } else {
+                vec![
+                    rescue_neighbors,
+                    rescue_neighbors_allow_zero,
+                    partial_neighbors,
+                    full_neighbors,
+                ]
+            };
+
+            // B. Try each neighbor and move to the better neighbor if found.
+            //
+            for (i, neighbor_copy_nums) in neighbor_copy_nums_set.into_iter().enumerate() {
+                eprintln!(
+                    "iter #{}-set{} n_neighbors={}",
+                    n_iter,
+                    i,
+                    neighbor_copy_nums.len()
+                );
+                match dbg.sample_posterior_once(
+                    neighbor_copy_nums,
+                    &mut post,
+                    &infos,
+                    param,
+                    reads,
+                    mappings,
+                    genome_size_expected,
+                    genome_size_sigma,
+                ) {
+                    Some(sample) => {
+                        eprintln!("iter #{}-set{} early terminate", n_iter, i);
+                        copy_nums = sample.copy_nums;
+                        infos = sample.infos;
+                        n_iter += 1;
+                        continue 'outer;
+                    }
+                    None => {}
+                }
             }
 
-            // move to highest copy num and continue
-            // if self is highest, terminate
-            let sample = post.max_sample();
-            if sample.copy_nums == copy_nums {
-                break;
-            } else {
-                copy_nums = sample.copy_nums.clone();
-                infos = sample.infos.clone();
-                n_iter += 1;
-            }
+            // C. if no better neighbor could not be found (i.e. current copynums is local optimum)
+            // terminate sampling.
+            //
+            eprintln!("iter #{} not found", n_iter);
+            break 'outer;
         }
 
         post
+    }
+    ///
+    ///
+    ///
+    pub fn sample_posterior_once<S: Seq>(
+        &self,
+        neighbors: Vec<(CopyNums, UpdateInfo)>,
+        posterior: &mut Posterior,
+        infos_init: &[UpdateInfo],
+        param: PHMMParams,
+        reads: &ReadCollection<S>,
+        mappings: &Mappings,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> Option<PosteriorSample> {
+        let t_start = std::time::Instant::now();
+        let samples: Vec<_> = neighbors
+            .into_par_iter()
+            .progress_with_style(progress_common_style())
+            .filter_map(|(copy_nums, info)| {
+                if posterior.contains(&copy_nums) {
+                    None
+                } else {
+                    // evaluate score
+                    let mut dbg = self.clone();
+                    dbg.set_copy_nums(&copy_nums);
+                    let score = dbg.to_score(
+                        param,
+                        reads,
+                        Some(mappings),
+                        genome_size_expected,
+                        genome_size_sigma,
+                    );
+                    let mut infos = infos_init.to_owned();
+                    infos.push(info);
+                    Some(PosteriorSample {
+                        copy_nums,
+                        score,
+                        infos,
+                    })
+                }
+            })
+            .collect();
+        let time = t_start.elapsed().as_millis();
+        println!(
+            "sampled n_samples={} k={} n_reads={} total_bases={} in t={}ms",
+            samples.len(),
+            self.k(),
+            reads.len(),
+            reads.total_bases(),
+            time
+        );
+        for sample in samples {
+            posterior.add(sample);
+        }
+        // move to highest copy num and continue
+        // if better copynums was found, move to it.
+        let sample = posterior.max_sample();
+        if sample.copy_nums != self.get_copy_nums() {
+            Some(sample.clone())
+        } else {
+            None
+        }
     }
     ///
     /// Append hint information for reads in parallel
@@ -694,7 +784,15 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        phmm.generate_mappings(reads, mappings)
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings));
+        println!(
+            "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
+            self.k(),
+            reads.len(),
+            reads.total_bases(),
+            time
+        );
+        map
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -789,6 +887,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
+            dbg.k() < 64,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
@@ -835,6 +934,7 @@ pub fn infer_posterior_by_extension<
         genome_size_sigma,
         neighbor_config,
         max_iter,
+        false,
     );
     dbg.set_copy_nums(posterior.max_copy_nums());
     let t_posterior = t_start_posterior.elapsed();

@@ -45,6 +45,7 @@ pub fn test_posterior(
                 use_reducers: true,
             },
             10,
+            false,
         )
     });
     println!("sampled in {}ms", t);
@@ -94,6 +95,7 @@ pub fn test_posterior_from_true<P: AsRef<std::path::Path>>(
             use_reducers: true,
         },
         10,
+        false,
     );
     dbg.to_inspect_file(inspect_filename, &post, Some(&copy_nums_true));
 
@@ -159,7 +161,7 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
             max_cycle_size,
             max_flip: 2,
             use_long_cycles: true,
-            ignore_cycles_passing_terminal: false,
+            ignore_cycles_passing_terminal: true,
             use_reducers: true,
         },
         max_iter,
