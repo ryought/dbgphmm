@@ -243,4 +243,29 @@ mod tests {
         let (n, t) = timer(|| mdbg.n_euler_circuits());
         println!("n_euler={} in {}ms", n, t);
     }
+    #[test]
+    fn mse_cost() {
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![], None);
+        assert_eq!(w.demand(), 0);
+        assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
+        assert_eq!(w.convex_cost(0), 0.0);
+        assert_eq!(w.convex_cost(1), 0.0);
+
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], None);
+        assert_eq!(w.demand(), 0);
+        assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
+        assert_eq!(w.convex_cost(0), 1.0);
+        assert_eq!(w.convex_cost(1), 0.0);
+
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0, 2.0], None);
+        assert_eq!(w.demand(), 0);
+        assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
+        assert_eq!(w.convex_cost(0), 1.0 + 4.0);
+        assert_eq!(w.convex_cost(1), 0.0 + 1.0);
+
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], Some(2));
+        assert_eq!(w.demand(), 2);
+        assert_eq!(w.capacity(), 2);
+        assert_eq!(w.convex_cost(2), 1.0);
+    }
 }
