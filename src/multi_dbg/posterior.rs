@@ -13,7 +13,7 @@ use crate::utils::{progress_common_style, timer};
 use fnv::FnvHashMap as HashMap;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
-use petgraph::graph::EdgeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
 use rustflow::min_flow::residue::{ResidueDirection, UpdateInfo};
 
@@ -784,7 +784,7 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings));
+        let ((map, freqs), time) = timer(|| phmm.generate_mappings_and_node_freqs(reads, mappings));
         println!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),
@@ -792,6 +792,21 @@ impl MultiDbg {
             reads.total_bases(),
             time
         );
+
+        let show_freq = true;
+        if show_freq {
+            for edge_compact in self.graph_compact().edge_indices() {
+                println!(
+                    "e{} {}x",
+                    edge_compact.index(),
+                    self.copy_num_of_edge_in_compact(edge_compact)
+                );
+                for (i, &edge_full) in self.edges_in_full(edge_compact).iter().enumerate() {
+                    println!("\t{} {}", i, freqs[NodeIndex::new(edge_full.index())]);
+                }
+            }
+        }
+
         map
     }
     /// Extend to k+1 by sampled posterior distribution

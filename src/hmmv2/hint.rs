@@ -5,6 +5,7 @@
 //! * Mappings
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::freq::NodeFreqs;
 use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use crate::prob::Prob;
@@ -167,21 +168,45 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         reads: &ReadCollection<S>,
         mappings: Option<&Mappings>,
     ) -> Mappings {
-        Mappings(
-            reads
-                .par_iter()
-                .enumerate()
-                .progress_with_style(progress_common_style())
-                .map(|(i, seq)| {
-                    let output = if let Some(mappings) = mappings {
-                        self.run_with_mapping(seq.as_ref(), &mappings[i])
-                    } else {
-                        self.run_sparse(seq.as_ref())
-                    };
-                    output.to_mapping(self.param.n_active_nodes)
-                })
+        let (mappings, _) = self.generate_mappings_and_node_freqs(reads, mappings);
+        mappings
+    }
+    ///
+    /// Generate Mappings = Vec<Mapping> (Mapping for all reads) using the model.
+    ///
+    pub fn generate_mappings_and_node_freqs<S: Seq>(
+        &self,
+        reads: &ReadCollection<S>,
+        mappings: Option<&Mappings>,
+    ) -> (Mappings, NodeFreqs) {
+        let outputs: Vec<_> = reads
+            .par_iter()
+            .enumerate()
+            .progress_with_style(progress_common_style())
+            .map(|(i, seq)| {
+                let output = if let Some(mappings) = mappings {
+                    self.run_with_mapping(seq.as_ref(), &mappings[i])
+                } else {
+                    self.run_sparse(seq.as_ref())
+                };
+                output
+            })
+            .collect();
+        // FIXME
+        // mapping and freqs are computed separately but it should be merged to be efficient.
+        //
+        let mappings = Mappings(
+            outputs
+                .iter()
+                .map(|output| output.to_mapping(self.param.n_active_nodes))
                 .collect(),
-        )
+        );
+        let mut freqs: NodeFreqs = NodeFreqs::new(self.n_nodes(), 0.0, true);
+        for output in outputs.iter() {
+            let f = output.to_node_freqs();
+            freqs += &f;
+        }
+        (mappings, freqs)
     }
 }
 
