@@ -6,6 +6,7 @@ use crate::common::collection::starts_and_ends_of_genome;
 use crate::common::{CopyNum, Freq, Seq, StyledSequence};
 use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
 use crate::e2e::Dataset;
+use crate::graph::utils::split_node;
 use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::utils::timer;
@@ -110,8 +111,9 @@ impl MultiDbg {
         &self,
         freqs: &NodeFreqs,
         coverage: f64,
+        n_haplotypes: Option<usize>,
     ) -> CopyNums {
-        let net = self.graph_compact().map(
+        let mut net = self.graph_compact().map(
             |_, _| (),
             |edge_in_comapct, _| {
                 let freqs_of_edge = self
@@ -129,7 +131,30 @@ impl MultiDbg {
             },
         );
 
-        min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved")
+        if let Some(n_haplotypes) = n_haplotypes {
+            // split terminal node into two
+            let terminal = self
+                .terminal_node_compact()
+                .expect("n_haplotype is specified, but there is no terminal node");
+            split_node(
+                &mut net,
+                terminal,
+                MinSquaredErrorCopyNumAndFreq::new(vec![], Some(n_haplotypes)),
+            );
+        }
+
+        let copy_nums = min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved");
+
+        if n_haplotypes.is_some() {
+            // match size
+            let mut ret = CopyNums::new(self.n_edges_compact(), 0);
+            for e in self.graph_compact().edge_indices() {
+                ret[e] = copy_nums[e];
+            }
+            ret
+        } else {
+            copy_nums
+        }
     }
 }
 

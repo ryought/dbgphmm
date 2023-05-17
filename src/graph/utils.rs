@@ -1,7 +1,7 @@
 use fnv::FnvHashMap as HashMap;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
-// use std::collections::HashMap;
 use std::iter::FromIterator;
 
 pub fn to_node_list<N: Clone, E>(graph: &DiGraph<N, E>) -> Vec<(usize, N)> {
@@ -101,6 +101,65 @@ fn assert_is_bimap(
     for (x, y) in to_original.iter() {
         assert_eq!(from_original.get(y).unwrap().unwrap(), *x);
     }
+}
+
+///
+/// Split a node into two nodes with preserving edge ids
+///
+/// ```text
+/// v1 -->      --> w1
+///        node
+/// v2 -->      --> w2
+///
+/// into
+///
+/// v1 -->                      --> w1
+///        node_in --> node_out
+/// v2 -->                      --> w2
+/// ```
+///
+pub fn split_node<N: Clone, E: Clone>(graph: &mut DiGraph<N, E>, node: NodeIndex, edge_weight: E) {
+    let node_weight = graph.node_weight(node).unwrap().clone();
+
+    // add two new nodes and an edge between them
+    let node_in = graph.add_node(node_weight.clone());
+    let node_out = graph.add_node(node_weight.clone());
+    graph.add_edge(node_in, node_out, edge_weight);
+
+    // connect in-edges of node
+    //   v --> node
+    // into
+    //   v --> node_in -> node_out
+    let edges_in: Vec<_> = graph
+        .edges_directed(node, Direction::Incoming)
+        .map(|e| e.id())
+        .collect();
+    for edge_in in edges_in {
+        let (source, _) = graph.edge_endpoints(edge_in).unwrap();
+        let weight = graph.edge_weight(edge_in).unwrap().clone();
+        // change edge while preserving id
+        graph.add_edge(source, node_in, weight);
+        graph.remove_edge(edge_in);
+    }
+
+    // connect out-edges of node
+    //   node --> w
+    // into
+    //   node_in -> node_out -> w
+    let edges_out: Vec<_> = graph
+        .edges_directed(node, Direction::Outgoing)
+        .map(|e| e.id())
+        .collect();
+    for edge_out in edges_out {
+        let (_, target) = graph.edge_endpoints(edge_out).unwrap();
+        let weight = graph.edge_weight(edge_out).unwrap().clone();
+        // change edge while preserving id
+        graph.add_edge(node_out, target, weight);
+        graph.remove_edge(edge_out);
+    }
+
+    // remove the splitted node
+    graph.remove_node(node);
 }
 
 //

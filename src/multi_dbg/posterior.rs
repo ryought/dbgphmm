@@ -793,25 +793,24 @@ impl MultiDbg {
             time
         );
 
-        // For debugging
-        let show_freq = false;
-        if show_freq {
-            let freqs = self.mappings_to_freqs(&map);
-            let copy_num = self.min_squared_error_copy_nums_from_freqs(&freqs, 20.0);
-            for edge_compact in self.graph_compact().edge_indices() {
-                println!(
-                    "e{} {}x {}x",
-                    edge_compact.index(),
-                    self.copy_num_of_edge_in_compact(edge_compact),
-                    copy_num[edge_compact]
-                );
-                for (i, &edge_full) in self.edges_in_full(edge_compact).iter().enumerate() {
-                    println!("\t{} {}", i, freqs[NodeIndex::new(edge_full.index())]);
-                }
-            }
-        }
+        // self.inspect_freqs(&map, 20.0);
 
         map
+    }
+    pub fn inspect_freqs(&self, mappings: &Mappings, coverage: f64) {
+        let freqs = self.mappings_to_freqs(&mappings);
+        let copy_num = self.min_squared_error_copy_nums_from_freqs(&freqs, coverage, None);
+        for edge_compact in self.graph_compact().edge_indices() {
+            println!(
+                "e{} {}x {}x",
+                edge_compact.index(),
+                self.copy_num_of_edge_in_compact(edge_compact),
+                copy_num[edge_compact]
+            );
+            for (i, &edge_full) in self.edges_in_full(edge_compact).iter().enumerate() {
+                println!("\t{} {}", i, freqs[NodeIndex::new(edge_full.index())]);
+            }
+        }
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -946,7 +945,7 @@ pub fn infer_posterior_by_extension<
         // (1b) approximate copy numbers from the mapping and frequency
         let t_start_approx = std::time::Instant::now();
         let freqs = dbg.mappings_to_freqs(&mappings);
-        let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, coverage);
+        let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, coverage, Some(2));
         dbg.set_copy_nums(&copy_num);
         let t_approx = t_start_approx.elapsed();
         eprintln!("approx t={}ms coverage={}", t_approx.as_millis(), coverage);
