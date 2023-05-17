@@ -953,6 +953,7 @@ pub fn infer_posterior_by_extension<
 
     // final run using p_error
     let t_start_posterior = std::time::Instant::now();
+    let mappings = dbg.generate_mappings(param_error, reads, None);
     posterior = dbg.sample_posterior(
         param_error,
         &reads,
