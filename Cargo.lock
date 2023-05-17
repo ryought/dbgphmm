@@ -1503,7 +1503,7 @@ dependencies = [
 [[package]]
 name = "petgraph_algos"
 version = "0.1.0"
-source = "git+https://github.com/ryought/petgraph_algos#c0977fda2d33b57aa875b3ceeb23141b13f0b1d6"
+source = "git+https://github.com/ryought/petgraph_algos#e7cdda083b13021c2bb53f6b6d1cee2fe0138fb1"
 dependencies = [
  "fnv",
  "itertools",
@@ -1569,9 +1569,9 @@ checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.57"
+version = "1.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4ec6d5fe0b140acb27c9a0444118cf55bfbb4e0b259739429abb4521dd67c16"
+checksum = "fa1fb82fc0c281dd9671101b66b771ebbe1eaf967b96ac8740dcba4b70005ca8"
 dependencies = [
  "unicode-ident",
 ]
@@ -1795,7 +1795,7 @@ dependencies = [
 [[package]]
 name = "rustflow"
 version = "0.1.0"
-source = "git+https://github.com/ryought/rustflow#976d1edc421e5070cbbf51cd22f9ffb8ae9c758c"
+source = "git+https://github.com/ryought/rustflow#804a83757aebc5b29bd583ae730490f07e8cbf1f"
 dependencies = [
  "itertools",
  "petgraph",
