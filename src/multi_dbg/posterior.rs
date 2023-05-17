@@ -892,6 +892,7 @@ pub fn infer_posterior_by_extension<
     let mut mappings = dbg.generate_mappings(param_infer, reads, None);
     let mut paths = paths;
     let mut posterior;
+    let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
 
     loop {
         eprintln!("k={}", dbg.k());
@@ -941,6 +942,14 @@ pub fn infer_posterior_by_extension<
         }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
+
+        // (1b) approximate copy numbers from the mapping and frequency
+        let t_start_approx = std::time::Instant::now();
+        let freqs = dbg.mappings_to_freqs(&mappings);
+        let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, coverage);
+        dbg.set_copy_nums(&copy_num);
+        let t_approx = t_start_approx.elapsed();
+        eprintln!("approx t={}ms coverage={}", t_approx.as_millis(), coverage);
     }
 
     // final run using p_error
