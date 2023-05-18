@@ -1795,7 +1795,7 @@ dependencies = [
 [[package]]
 name = "rustflow"
 version = "0.1.0"
-source = "git+https://github.com/ryought/rustflow#2a30268bf0d5a630b9f89e5d04a404312240982f"
+source = "git+https://github.com/ryought/rustflow#4db73076c644d361d507ba93198d4bf5dc9c5750"
 dependencies = [
  "itertools",
  "petgraph",
