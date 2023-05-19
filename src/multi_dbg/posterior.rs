@@ -635,29 +635,21 @@ impl MultiDbg {
             // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            let rescue_neighbors: Vec<_> = dbg
-                .to_rescue_neighbors(10, true)
-                .into_iter()
-                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
-                .collect();
-            let rescue_neighbors_allow_zero: Vec<_> = dbg
-                .to_rescue_neighbors(10, false)
-                .into_iter()
-                // .filter(|(_, info)| !dbg.is_passing_terminal(&info))
-                .collect();
-            // [1] partial search
-            let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
-                max_cycle_size: 5,
-                max_flip: 2,
-                use_long_cycles: true,
-                ignore_cycles_passing_terminal: true,
-                use_reducers: false,
-            });
-            // [2] full search
-            let full_neighbors = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
+            let rescue_neighbors = dbg.to_rescue_neighbors(2, true);
+            let rescue_neighbors_allow_zero = dbg.to_rescue_neighbors(10, false);
             let neighbor_copy_nums_set = if rescue_only {
                 vec![rescue_neighbors, rescue_neighbors_allow_zero]
             } else {
+                // [1] partial search
+                let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
+                    max_cycle_size: 5,
+                    max_flip: 2,
+                    use_long_cycles: true,
+                    ignore_cycles_passing_terminal: true,
+                    use_reducers: false,
+                });
+                // [2] full search
+                let full_neighbors = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
                 vec![
                     rescue_neighbors,
                     rescue_neighbors_allow_zero,
@@ -906,7 +898,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            dbg.k() < 128,
+            true,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
