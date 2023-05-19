@@ -16,7 +16,8 @@ then
   mkdir -p n3
   # for N in 1 2 3 4 5 6 7 8 9 10 11 12
   # for N in 10
-  for N in 8 9 10 11 12
+  # for N in 8 9 10 11 12
+  for N in 1 2 3 4 5 6
   do
     echo $N
     # Name:
@@ -25,7 +26,7 @@ then
     # Parameter:
     # - N
     # Compile before run
-    pjsub -x N=$N -N n3_p01_n$N -j scripts/n.sh
+    pjsub -x N=$N -N n3_p1_n$N -j scripts/n.sh
   done
 else
   #
@@ -45,11 +46,11 @@ else
   #
 
   # p01
-  ./target/release/draft -k 40 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n3/p01_u500_n$N
-  ./target/release/infer -k 40 -K 1000 -p 0.0001 -e 0.001 -I 50 -s 500 --dataset-json n3/p01_u500_n$N.json --output-prefix n3/s500_p01_u500_n$N
+  # ./target/release/draft -k 40 -C 20 -L 1000 -p 0.001 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n3/p01_u500_n$N
+  # ./target/release/infer -k 40 -K 1000 -p 0.0001 -e 0.001 -I 50 -s 500 --dataset-json n3/p01_u500_n$N.json --output-prefix n3/s500_p01_u500_n$N
   # ./target/release/infer -k 40 -K 1000 -p 0.001 -e 0.001 -I 50 -s 500 --dataset-json n/p01_u500_n$N.json --output-prefix n/f_s500_p01_u500_n$N
 
   # p1
-  # ./target/release/draft -k 16 -C 20 -L 1000 -p 0.01 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n/p1_u500_n$N
-  # ./target/release/infer -k 16 -K 1000 -p 0.0001 -e 0.01 -I 100 -s 500 --dataset-json n/p1_u500_n$N.json --output-prefix n/s500_p1_u500_n$N
+  ./target/release/draft -k 16 -C 20 -L 1000 -p 0.01 -U 500 -N $N -E 300 -H 0.02 --H0 0.02 -P 2 --output-prefix n3/p1_u500_n$N
+  ./target/release/infer -k 16 -K 1000 -p 0.0001 -e 0.01 -I 100 -s 500 --dataset-json n3/p1_u500_n$N.json --output-prefix n3/s500_p1_u500_n$N
 fi
