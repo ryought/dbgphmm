@@ -299,15 +299,15 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.15.5"
+version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d79fbe8970a77e3e34151cc13d3b3e248aa0faaecb9f6091fa07ebefe5ad60"
+checksum = "d0525278dce688103060006713371cedbad27186c7d913f33d866b498da0f595"
 dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
  "unicode-width",
- "windows-sys 0.42.0",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -1503,7 +1503,7 @@ dependencies = [
 [[package]]
 name = "petgraph_algos"
 version = "0.1.0"
-source = "git+https://github.com/ryought/petgraph_algos#e7cdda083b13021c2bb53f6b6d1cee2fe0138fb1"
+source = "git+https://github.com/ryought/petgraph_algos#ae83a849cb50f1bda7f34d768cf06ddbb77515e8"
 dependencies = [
  "fnv",
  "itertools",
@@ -1795,7 +1795,7 @@ dependencies = [
 [[package]]
 name = "rustflow"
 version = "0.1.0"
-source = "git+https://github.com/ryought/rustflow#4db73076c644d361d507ba93198d4bf5dc9c5750"
+source = "git+https://github.com/ryought/rustflow#1e89d943d941da33d0c42990c102b18fa64d0902"
 dependencies = [
  "itertools",
  "petgraph",
@@ -1906,9 +1906,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca2855b3715770894e67cbfa3df957790aa0c9edc3bf06efa1a84d77fa0839d1"
+checksum = "1fc758eb7bffce5b308734e9b0c1468893cae9ff70ebf13e7090be8dcbcc83a8"
 dependencies = [
  "bitflags",
  "core-foundation",
