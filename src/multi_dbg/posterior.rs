@@ -13,7 +13,7 @@ use crate::utils::{progress_common_style, timer};
 use fnv::FnvHashMap as HashMap;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
-use petgraph::graph::EdgeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
 use rustflow::min_flow::residue::{ResidueDirection, UpdateInfo};
 
@@ -792,7 +792,25 @@ impl MultiDbg {
             reads.total_bases(),
             time
         );
+
+        // self.inspect_freqs(&map, 20.0);
+
         map
+    }
+    pub fn inspect_freqs(&self, mappings: &Mappings, coverage: f64) {
+        let freqs = self.mappings_to_freqs(&mappings);
+        let copy_num = self.min_squared_error_copy_nums_from_freqs(&freqs, coverage, None);
+        for edge_compact in self.graph_compact().edge_indices() {
+            println!(
+                "e{} {}x {}x",
+                edge_compact.index(),
+                self.copy_num_of_edge_in_compact(edge_compact),
+                copy_num[edge_compact]
+            );
+            for (i, &edge_full) in self.edges_in_full(edge_compact).iter().enumerate() {
+                println!("\t{} {}", i, freqs[NodeIndex::new(edge_full.index())]);
+            }
+        }
     }
     /// Extend to k+1 by sampled posterior distribution
     ///
@@ -873,6 +891,7 @@ pub fn infer_posterior_by_extension<
     let mut mappings = dbg.generate_mappings(param_infer, reads, None);
     let mut paths = paths;
     let mut posterior;
+    let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
 
     loop {
         eprintln!("k={}", dbg.k());
@@ -887,7 +906,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            dbg.k() < 64,
+            dbg.k() < 128,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
@@ -922,10 +941,19 @@ pub fn infer_posterior_by_extension<
         }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
+
+        // (1b) approximate copy numbers from the mapping and frequency
+        let t_start_approx = std::time::Instant::now();
+        let freqs = dbg.mappings_to_freqs(&mappings);
+        let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, coverage, Some(2));
+        dbg.set_copy_nums(&copy_num);
+        let t_approx = t_start_approx.elapsed();
+        eprintln!("approx t={}ms coverage={}", t_approx.as_millis(), coverage);
     }
 
     // final run using p_error
     let t_start_posterior = std::time::Instant::now();
+    let mappings = dbg.generate_mappings(param_error, reads, None);
     posterior = dbg.sample_posterior(
         param_error,
         &reads,

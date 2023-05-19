@@ -49,6 +49,14 @@ impl PartialOrd for PathWithScore {
 ///
 /// [k shortest path routing - wikipedia](https://en.wikipedia.org/wiki/K_shortest_path_routing)
 ///
+///
+/// # Algorithm
+///
+/// `heap`: Candidate set of shortest paths starting from `edge` sorted by increasing order of
+/// scores.
+///
+/// `count[v]`: How many times the accepted shortest path visited the node `v`
+///
 pub fn k_shortest_cycle<N, E, F, G>(
     graph: &DiGraph<N, E>,
     edge: EdgeIndex,
@@ -63,17 +71,27 @@ where
     let mut count: Vec<usize> = vec![0; graph.node_count()];
     let mut heap = BinaryHeap::new();
     heap.push(PathWithScore(edge_cost(edge), vec![edge]));
-    let (s, _) = graph.edge_endpoints(edge).unwrap();
+    let (source, _) = graph.edge_endpoints(edge).unwrap();
     let mut cycles = vec![];
 
     while let Some(PathWithScore(score, path)) = heap.pop() {
-        let (_, u) = graph.edge_endpoints(*path.last().unwrap()).unwrap();
+        //
+        // This `path` is shortest path from source to node u with `score`.
+        //
+        let last_edge = *path.last().unwrap();
+        let (_, u) = graph.edge_endpoints(last_edge).unwrap();
+        //
+        // mark as visited
+        //
         count[u.index()] += 1;
-        if u == s {
-            // println!("found! {} {:?}", score, path);
+        if u == source && count[u.index()] <= k {
             cycles.push(path.clone());
         }
-        if count[u.index()] < k {
+        //
+        // if u is visited more than k times, extending is redundant
+        // (only <=k shortest path is used in k-th shortest path from target to source)
+        //
+        if count[u.index()] <= k {
             for e in graph.edges_directed(u, Direction::Outgoing) {
                 if is_joinable(&path, e.id()) {
                     let mut path = path.clone();
@@ -140,7 +158,34 @@ mod tests {
         // |       v       |       v
         // d <---- c       h <---- g
 
-        let r = k_shortest_cycle(&graph, ei(0), 4, |_| 1, |_, _| true);
+        let r = k_shortest_cycle(&graph, ei(0), 1, |_| 1, |_, _| true);
         println!("{:?}", r);
+        println!("{:?}", r.len());
+        assert_eq!(r, vec![vec![ei(0), ei(1), ei(2), ei(3)]]);
+
+        let r = k_shortest_cycle(&graph, ei(4), 3, |_| 1, |_, _| true);
+        println!("{:?}", r);
+        println!("{:?}", r.len());
+        assert_eq!(
+            r,
+            vec![
+                vec![ei(4), ei(6), ei(7), ei(8)],
+                vec![ei(4), ei(6), ei(7), ei(8), ei(4), ei(6), ei(7), ei(8)],
+                vec![
+                    ei(4),
+                    ei(6),
+                    ei(7),
+                    ei(8),
+                    ei(4),
+                    ei(6),
+                    ei(7),
+                    ei(8),
+                    ei(4),
+                    ei(6),
+                    ei(7),
+                    ei(8)
+                ],
+            ]
+        );
     }
 }

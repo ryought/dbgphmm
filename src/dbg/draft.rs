@@ -8,6 +8,7 @@ use crate::distribution::kmer_coverage;
 use crate::hmmv2::freq::NodeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, total_cost, Cost, FlowEdge};
+use crate::multi_dbg::draft::MinSquaredErrorCopyNumAndFreq;
 use crate::utils::timer;
 use crate::vector::graph::flow_to_edgevec;
 use fnv::FnvHashMap as HashMap;
@@ -163,7 +164,11 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         let graph = self.to_edbg_graph(
             |_| (),
             |v, weight| {
-                MinSquaredErrorCopyNumAndFreq::new(vec![(weight.is_emittable(), freqs[v])], None)
+                if weight.is_emittable() {
+                    MinSquaredErrorCopyNumAndFreq::new(vec![freqs[v]], None)
+                } else {
+                    MinSquaredErrorCopyNumAndFreq::new(vec![], None)
+                }
             },
         );
         min_cost_flow_convex_fast(&graph).map(|flow| {
@@ -191,14 +196,18 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 let freqs = weight
                     .origin_edges()
                     .iter()
-                    .map(|&edge| {
+                    .filter_map(|&edge| {
                         let node = ni(edge.index());
                         let is_target = if ignore_startings_and_endings {
                             self.is_emittable(node) && !self.is_starting_or_ending(node)
                         } else {
                             self.is_emittable(node)
                         };
-                        (is_target, freqs[node])
+                        if is_target {
+                            Some(freqs[node])
+                        } else {
+                            None
+                        }
                     })
                     .collect();
                 // TODO assert that all copy nums specified is consistent?
@@ -262,86 +271,6 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                 copy_nums.into_iter().collect()
             }
         }
-    }
-}
-
-///
-/// Edge attribute for min_squared_error_copy_nums_from_freqs
-///
-/// FlowEdge
-/// If this node has fixed_copy_num,
-/// * demand = fixed_copy_num
-/// * capacity = fixed_copy_num
-///
-/// Otherwise,
-/// * demand = 0
-/// * capacity = +inf
-///
-/// ConvexCost
-/// * cost = |c - f|^2
-///
-#[derive(Clone, Debug)]
-struct MinSquaredErrorCopyNumAndFreq {
-    ///
-    ///
-    freqs: Vec<(bool, Freq)>,
-    ///
-    ///
-    fixed_copy_num: Option<CopyNum>,
-}
-
-impl MinSquaredErrorCopyNumAndFreq {
-    ///
-    /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
-    ///
-    pub fn new(freqs: Vec<(bool, Freq)>, fixed_copy_num: Option<CopyNum>) -> Self {
-        MinSquaredErrorCopyNumAndFreq {
-            freqs,
-            fixed_copy_num,
-        }
-    }
-}
-
-///
-/// maximum copy number
-///
-/// this corresponds to the capacity of edbg min-flow calculation.
-///
-pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
-
-impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
-    fn demand(&self) -> usize {
-        match self.fixed_copy_num {
-            Some(fixed_copy_num) => fixed_copy_num,
-            None => 0,
-        }
-    }
-    fn capacity(&self) -> usize {
-        match self.fixed_copy_num {
-            Some(fixed_copy_num) => fixed_copy_num,
-            None => MAX_COPY_NUM_OF_EDGE,
-        }
-    }
-}
-
-///
-/// Use edbg edge (with a freq) in min-flow.
-///
-/// if the kmer corresponding to the edge is not emittable, the cost
-/// should be ignored.
-///
-impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
-    fn convex_cost(&self, copy_num: usize) -> f64 {
-        self.freqs
-            .iter()
-            .map(|&(is_target, freq)| {
-                if is_target {
-                    (copy_num as f64 - freq).powi(2)
-                } else {
-                    0.0
-                }
-            })
-            .sum()
     }
 }
 

@@ -407,6 +407,16 @@ impl MultiDbg {
     pub fn n_bases(&self, edge_in_compact: EdgeIndex) -> usize {
         self.edges_in_full(edge_in_compact).len()
     }
+    ///
+    /// Number of linear haplotypes
+    /// = sum of in/out-degree of the terminal node
+    ///
+    pub fn n_haplotypes(&self) -> usize {
+        match self.terminal_node_full() {
+            Some(terminal_node) => self.copy_num_of_node(terminal_node),
+            None => 0,
+        }
+    }
 }
 
 ///
