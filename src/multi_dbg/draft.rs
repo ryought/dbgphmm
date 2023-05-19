@@ -142,12 +142,12 @@ impl MultiDbg {
                 MinSquaredErrorCopyNumAndFreq::new(vec![], Some(n_haplotypes)),
             );
         }
-        println!("[mse] network");
-        println!("[mse] {:?}", petgraph::dot::Dot::with_config(&net, &[]));
+        // println!("[mse] network");
+        // println!("[mse] {:?}", petgraph::dot::Dot::with_config(&net, &[]));
 
         let copy_nums = min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved");
 
-        println!("[mse] copy_nums={}", copy_nums);
+        // println!("[mse] copy_nums={}", copy_nums);
 
         if n_haplotypes.is_some() {
             // match size
