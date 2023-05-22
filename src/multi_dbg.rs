@@ -2470,6 +2470,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "consume memory"]
     fn n_euler_circuits_test_large() {
         let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
             100, 10, 0, 0.0, 0, 300, 2, 0.01, 0,
