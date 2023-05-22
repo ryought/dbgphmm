@@ -114,6 +114,9 @@ where
 mod tests {
     use super::*;
     use crate::common::ei;
+    use rustflow::min_flow::residue::{
+        is_meaningful_move_on_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
+    };
 
     #[test]
     fn path_with_score() {
@@ -187,5 +190,81 @@ mod tests {
                 ],
             ]
         );
+    }
+    #[test]
+    fn k_shortest_02() {
+        let up = ResidueDirection::Up;
+        let down = ResidueDirection::Down;
+        let rg: ResidueGraph<usize> = Graph::from_edges(&[
+            (2, 5, ResidueEdge::new(1, 0.0, ei(0), up)),
+            (3, 5, ResidueEdge::new(1, 0.0, ei(1), up)),
+            (5, 3, ResidueEdge::new(1, 0.0, ei(1), down)),
+            (6, 3, ResidueEdge::new(1, 0.0, ei(2), up)),
+            (3, 6, ResidueEdge::new(1, 0.0, ei(2), down)),
+            (2, 4, ResidueEdge::new(1, 0.0, ei(3), up)),
+            (4, 2, ResidueEdge::new(1, 0.0, ei(3), down)),
+            (3, 4, ResidueEdge::new(1, 0.0, ei(4), up)),
+            (0, 6, ResidueEdge::new(1, 0.0, ei(5), up)),
+            (6, 0, ResidueEdge::new(1, 0.0, ei(5), down)),
+            (4, 1, ResidueEdge::new(1, 0.0, ei(6), up)),
+            (1, 4, ResidueEdge::new(1, 0.0, ei(6), down)),
+            (1, 0, ResidueEdge::new(1, 0.0, ei(7), up)),
+            (0, 1, ResidueEdge::new(1, 0.0, ei(7), down)),
+            (6, 2, ResidueEdge::new(1, 0.0, ei(8), up)),
+            (2, 6, ResidueEdge::new(1, 0.0, ei(8), down)),
+            (5, 1, ResidueEdge::new(1, 0.0, ei(9), up)),
+            (1, 5, ResidueEdge::new(1, 0.0, ei(9), down)),
+        ]);
+        let weights = vec![1, 1, 5170, 1, 1, 403, 331, 49, 5158, 331];
+
+        // Mimics compacted DBG for finding rescue cycles
+        // Residue graph
+        //     2 -> 5 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(0), direction: Up }" ]
+        //     3 -> 5 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(1), direction: Up }" ]
+        //     5 -> 3 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(1), direction: Down }" ]
+        //     6 -> 3 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(2), direction: Up }" ]
+        //     3 -> 6 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(2), direction: Down }" ]
+        //     2 -> 4 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(3), direction: Up }" ]
+        //     4 -> 2 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(3), direction: Down }" ]
+        //     3 -> 4 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(4), direction: Up }" ]
+        //     0 -> 6 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(5), direction: Up }" ]
+        //     6 -> 0 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(5), direction: Down }" ]
+        //     4 -> 1 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(6), direction: Up }" ]
+        //     1 -> 4 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(6), direction: Down }" ]
+        //     1 -> 0 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(7), direction: Up }" ]
+        //     0 -> 1 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(7), direction: Down }" ]
+        //     6 -> 2 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(8), direction: Up }" ]
+        //     2 -> 6 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(8), direction: Down }" ]
+        //     5 -> 1 [ label = "ResidueEdge { count: 1, weight: 0.0, target: EdgeIndex(9), direction: Up }" ]
+        //     1 -> 5 [ label = "ResidueEdge { count: 1, weight: -0.0, target: EdgeIndex(9), direction: Down }" ]
+        //
+        // with weights
+        //     e0 1
+        //     e1 1
+        //     e2 5170
+        //     e3 1
+        //     e4 1
+        //     e5 403
+        //     e6 331
+        //     e7 49
+        //     e8 5158
+        //     e9 331
+        //
+        // e7,e10
+        let k = 10;
+        let cycles = k_shortest_cycle(
+            &rg,
+            EdgeIndex::new(7),
+            k,
+            |e| weights[rg[e].target.index()],
+            |path, edge| {
+                let last_edge = path.last().copied().unwrap();
+                is_meaningful_move_on_residue_graph(&rg, last_edge, edge)
+            },
+        );
+
+        for (i, cycle) in cycles.iter().enumerate() {
+            println!("{} {:?}", i, cycle);
+        }
     }
 }
