@@ -925,12 +925,13 @@ pub fn infer_posterior_by_extension<
 
         // (1) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        if dbg.k() < 100 {
-            mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
-                                                                        // is not used
-        } else {
-            mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
-        }
+        mappings = dbg.generate_mappings(param_infer, reads, None);
+        // if dbg.k() < 100 {
+        //     mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
+        //                                                                 // is not used
+        // } else {
+        //     mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
+        // }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
