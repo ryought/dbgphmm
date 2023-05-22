@@ -127,6 +127,8 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
         max_iter,
         max_cycle_size,
         output_prefix,
+        128,
+        100,
     )
 }
 
@@ -143,6 +145,9 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     max_iter: usize,         // 10
     max_cycle_size: usize,   // 10
     output_prefix: P,
+    // inference parameters
+    k_max_rescue_only: usize,
+    k_max_rerun_mapping: usize,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     println!("# started_at={}", chrono::Local::now());
 
@@ -193,6 +198,8 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
             );
         },
         paths_true.ok(),
+        k_max_rescue_only,
+        k_max_rerun_mapping,
     );
 
     // output final

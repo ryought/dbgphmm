@@ -611,6 +611,7 @@ impl MultiDbg {
         let mut infos = Vec::new();
         let mut dbg = self.clone();
         let mut n_iter = 0;
+        println!("sample_posterior rescue_only={}", rescue_only);
 
         // calculate initial score
         let score = dbg.to_score(
@@ -878,6 +879,9 @@ pub fn infer_posterior_by_extension<
     on_iter: F,
     // true path if available
     paths: Option<Vec<Path>>,
+    // inference parameters
+    k_max_rescue_only: usize,
+    k_max_rerun_mapping: usize,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let mut dbg = dbg_init;
     let mut mappings = dbg.generate_mappings(param_infer, reads, None);
@@ -898,7 +902,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            dbg.k() < 128,
+            dbg.k() <= k_max_rescue_only,
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
@@ -925,13 +929,14 @@ pub fn infer_posterior_by_extension<
 
         // (1) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        mappings = dbg.generate_mappings(param_infer, reads, None);
-        // if dbg.k() < 100 {
-        //     mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
-        //                                                                 // is not used
-        // } else {
-        //     mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
-        // }
+        if dbg.k() <= k_max_rerun_mapping {
+            println!("k={} rerun mapping", dbg.k());
+            mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
+                                                                        // is not used
+        } else {
+            println!("k={} not rerun mapping", dbg.k());
+            mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
+        }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
 
