@@ -44,6 +44,10 @@ impl MinSquaredErrorCopyNumAndFreq {
     /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
     ///
     pub fn new(freqs: Vec<Freq>, fixed_copy_num: Option<CopyNum>) -> Self {
+        assert!(
+            freqs.iter().all(|f| f.is_finite()),
+            "some of freqs in MSE are either nan or infinite"
+        );
         MinSquaredErrorCopyNumAndFreq {
             freqs,
             fixed_copy_num,
