@@ -57,6 +57,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     ///
     ///
+    pub fn run_sparse_adaptive<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
+        let forward = self.forward_sparse(&emissions);
+        let backward = self.backward_by_forward(&emissions, &forward);
+        PHMMOutput::new(forward, backward)
+    }
+    ///
+    ///
     ///
     pub fn run_with_mapping<X: AsRef<Bases>>(&self, emissions: X, mapping: &Mapping) -> PHMMOutput {
         let forward = self.forward_with_mapping(&emissions, mapping);

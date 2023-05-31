@@ -54,7 +54,7 @@ fn main() {
     // println!("copy_num={}", copy_num);
 
     for (i, read) in dataset.reads().into_iter().enumerate() {
-        let (output, t) = timer(|| phmm.run_sparse(read));
+        let (output, t) = timer(|| phmm.run_sparse_adaptive(read));
 
         // summary
         println!(
@@ -92,5 +92,5 @@ fn main() {
             );
         }
     }
-    println!("# started_at={}", chrono::Local::now());
+    println!("# finished_at={}", chrono::Local::now());
 }

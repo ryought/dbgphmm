@@ -1,0 +1,4 @@
+# started_at=2023-05-26 15:53:18.701182 +09:00
+# n_threads=10
+# git_hash=18cc31b67c675165776c77b8d67593932762886f
+# opts=Opts { dbg: "u20n200.dbg", dataset: "u20n200.json", p_error: 0.0001, n_active_nodes: 40 }

@@ -90,6 +90,50 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         r
     }
     ///
+    ///
+    ///
+    pub fn backward_by_forward<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        forward: &PHMMTables,
+    ) -> PHMMTables {
+        let r0 = PHMMTables {
+            init_table: self.b_init(true),
+            tables: Vec::new(),
+            is_forward: false,
+        };
+        let n = emissions.as_ref().len();
+        let param = self.param;
+        let all_nodes = self.to_all_nodes();
+        // feed the emissions backward
+        let mut r =
+            emissions
+                .as_ref()
+                .into_iter()
+                .enumerate()
+                .rev()
+                .fold(r0, |mut r, (i, &emission)| {
+                    // i: emission = x[i]
+                    let table_prev = if i == n - 1 {
+                        &r.init_table
+                    } else {
+                        r.last_table()
+                    };
+                    let table = if i < param.n_warmup {
+                        self.b_step(i, emission, table_prev, &all_nodes, true, false)
+                    } else {
+                        let active_nodes = forward.table(i - 1).top_nodes(param.n_active_nodes);
+                        self.b_step(i, emission, table_prev, &active_nodes, false, false)
+                    };
+                    r.tables.push(table);
+                    r
+                });
+        // reverse the vector, to order the tables along with emissions
+        // i.e. tables[i] corresponds to the emissions[i]
+        r.tables.reverse();
+        r
+    }
+    ///
     /// Run Backward algorithm to the emissions, with sparse calculation
     ///
     pub fn backward_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
