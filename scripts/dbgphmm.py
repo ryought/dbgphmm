@@ -90,6 +90,84 @@ class Update:
 
 
 @dataclass(frozen=True)
+class MapInfo:
+    edge_compact: int
+    base: int
+    edge_full: int
+    type: str
+    prob: float
+
+    def parse(s):
+        """
+        >>> MapInfo.parse('62-0:M(n1734)-7.45907')
+        MapInfo(edge_compact=62, base=0, edge_full=1734, type='M', prob=-7.45907)
+        >>> MapInfo.parse('99-11:I(n1)0.0000')
+        MapInfo(edge_compact=99, base=11, edge_full=1, type='I', prob=0.0)
+        """
+        m = re.match('(\d+)-(\d+):([MID])\(n(\d+)\)(.*)', s)
+        return MapInfo(
+            edge_compact=int(m[1]),
+            base=int(m[2]),
+            type=m[3],
+            edge_full=int(m[4]),
+            prob=float(m[5]),
+        )
+
+
+@dataclass(frozen=True)
+class MapInfoList:
+    p_forward: float
+    p_backward: float
+    infos_forward: List[MapInfo]
+    infos_backward: List[MapInfo]
+    infos_merged: List[MapInfo]
+
+
+def parse_bmap_file(filename: Path) -> List[List[MapInfoList]]:
+    """
+    bmap[read][pos] = MapInfoList
+    """
+    ret = []
+    current_read = None
+    with open(filename) as f:
+        for line in f:
+            if line[0] == '#':
+                continue
+            s = line.rstrip().split('\t')
+            if s:
+                read = int(s[0])
+                pos = int(s[1])
+                type = s[2]
+                p = float(s[3])
+                infos = [MapInfo.parse(t) for t in s[4].split(',')]
+
+                if current_read != read:
+                    print(current_read)
+                    ret.append([])
+                    current_read = read
+                    assert len(ret) == current_read + 1
+
+                if type == 'F':
+                    p_forward = p
+                    infos_forward = infos
+                elif type == 'B':
+                    p_backward = p
+                    infos_backward = infos
+                elif type == 'S':
+                    infos_merged = infos
+                    ret[current_read].append(MapInfoList(
+                        p_forward=p_forward,
+                        p_backward=p_backward,
+                        infos_forward=infos_forward,
+                        infos_backward=infos_backward,
+                        infos_merged=infos_merged,
+                    ))
+                    assert len(ret[current_read]) == pos
+
+    return ret
+
+
+@dataclass(frozen=True)
 class CopyNums:
     """
     C section in INSPECT
