@@ -105,6 +105,9 @@ impl PHMMTable {
     pub fn n_nodes(&self) -> usize {
         self.m.len()
     }
+    pub fn n_active_nodes(&self) -> usize {
+        self.m.n_elements()
+    }
     pub fn is_dense(&self) -> bool {
         self.m.is_dense()
     }

@@ -57,8 +57,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     ///
     ///
-    pub fn run_sparse_adaptive<X: AsRef<Bases>>(&self, emissions: X, max_ratio: f64) -> PHMMOutput {
-        let forward = self.forward_sparse_by_ratio(&emissions, max_ratio);
+    pub fn run_sparse_adaptive<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        max_ratio: Option<f64>,
+    ) -> PHMMOutput {
+        let forward = if let Some(max_ratio) = max_ratio {
+            self.forward_sparse_by_ratio(&emissions, max_ratio)
+        } else {
+            self.forward_sparse(&emissions)
+        };
         let backward = self.backward_by_forward(&emissions, &forward);
         PHMMOutput::new(forward, backward)
     }

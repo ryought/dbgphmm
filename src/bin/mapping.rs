@@ -24,7 +24,9 @@ struct Opts {
     #[clap(short = 'e')]
     p_error: f64,
     #[clap(short = 'r')]
-    max_ratio: f64,
+    max_ratio: Option<f64>,
+    #[clap(short = 'a')]
+    n_active_nodes: usize,
 }
 
 fn main() {
@@ -45,7 +47,7 @@ fn main() {
     let format = |node: NodeIndex| node_name_vec[node.index()].clone();
 
     let mut param = PHMMParams::uniform(opts.p_error);
-    // param.n_active_nodes = opts.n_active_nodes;
+    param.n_active_nodes = opts.n_active_nodes;
 
     let phmm = dbg.to_uniform_phmm(param);
     // let mappings = dbg.generate_mappings(param, dataset.reads(), None);
@@ -88,7 +90,7 @@ fn main() {
                 "{}\t{}\tS\t{}\t{}",
                 i,
                 j,
-                f.top_nodes_by_score_ratio(opts.max_ratio).len(),
+                f.n_active_nodes(),
                 output.to_emit_probs(j).to_summary_string_n(40, format),
             );
         }
