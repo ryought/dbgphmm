@@ -5,6 +5,7 @@
 //!
 use petgraph::{
     graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph},
+    stable_graph::StableDiGraph,
     visit::EdgeRef,
     Direction,
 };
@@ -104,6 +105,134 @@ where
     // println!("{} cycles found", cycles.len());
 
     cycles
+}
+
+/// Find k-shortest paths from source to target without loops (i.e. simple path)
+///
+/// use `petgraph::algo::astar::astar`
+///
+/// # TODO
+///
+/// * add `is_joinable` condition argument?
+///
+pub fn k_shortest_simple_path<N: Clone, E: Clone, F>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    target: NodeIndex,
+    k: usize,
+    edge_cost: F,
+    // is_joinable: G,
+) -> Vec<Vec<EdgeIndex>>
+where
+    F: Fn(EdgeIndex) -> usize,
+    // G: Fn(&[EdgeIndex], EdgeIndex) -> bool,
+{
+    // List A
+    let mut paths: Vec<Vec<EdgeIndex>> = Vec::new();
+    // List B
+    let mut candidates: BinaryHeap<PathWithScore> = BinaryHeap::new();
+    // let mut candidates: Vec<PathWithScore> = Vec::new();
+
+    // Iteration 0
+    let graph = StableDiGraph::from(graph.clone());
+    let (_, a0) = shortest_path(&graph, source, target, &edge_cost)
+        .expect("no path between source and target");
+    paths.push(a0);
+
+    // Iteration k
+    for _ in 1..k {
+        // (i) create candidates of a_k from a_0 ... a_k-1
+        let mut graph = graph.clone();
+        let a = &paths[paths.len() - 1];
+        // for each edge a[i] in path a
+        // create a candidate path a[0]..a[i-1] + different edge from a[i]
+        for i in 0..a.len() {
+            // a. create graph with new weight
+            let (v, _) = graph.edge_endpoints(a[i]).unwrap();
+            // (1) delete i to i+1
+            for aj in paths.iter() {
+                if aj[..i] == a[..i] {
+                    graph.remove_edge(aj[i]);
+                }
+            }
+            // b. find shortest path from v to terminal and store it in List B
+            let (_, path) = shortest_path(&graph, v, target, &edge_cost)
+                .expect("no path between source and target in new graph");
+            let mut ak = Vec::new();
+            ak.extend_from_slice(&a[..i]); // path from s to v
+            ak.extend_from_slice(&path); // path from v to t
+            let score = total_cost(&graph, &ak, &edge_cost);
+            candidates.push(PathWithScore(score, ak));
+
+            // (2) delete node 1 to i-1
+            graph.remove_node(v);
+        }
+
+        // (ii)
+        // a. pick minimum cost path from List B and add to List A
+        let PathWithScore(_, ak) = candidates.pop().unwrap();
+        paths.push(ak);
+    }
+
+    paths
+}
+
+///
+/// Compute shortest path from source to target using a-star algorithm in petgraph
+///
+pub fn shortest_path<N, E, F>(
+    graph: &StableDiGraph<N, E>,
+    source: NodeIndex,
+    target: NodeIndex,
+    edge_cost: F,
+) -> Option<(usize, Vec<EdgeIndex>)>
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    petgraph::algo::astar::astar(graph, source, |v| v == target, |e| edge_cost(e.id()), |_| 0)
+        .map(|(cost, nodes)| (cost, nodes_to_edges(graph, &nodes, edge_cost)))
+}
+
+///
+/// convert shortest path v -> w as node sequence into edge sequence by picking minimum cost
+/// edge between two adjacent nodes.
+///
+pub fn nodes_to_edges<N, E, F>(
+    graph: &StableDiGraph<N, E>,
+    nodes: &[NodeIndex],
+    edge_cost: F,
+) -> Vec<EdgeIndex>
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    let mut edges = Vec::new();
+    let n = nodes.len();
+
+    // convert (nodes[i], nodes[i+1]) into an edge
+    for i in 0..(n - 1) {
+        let v = nodes[i];
+        let w = nodes[i + 1];
+
+        // pick a minimum cost edge between v and w
+        let edge = graph
+            .edges_connecting(v, w)
+            .min_by_key(|e| edge_cost(e.id()))
+            .unwrap();
+
+        edges.push(edge.id());
+    }
+
+    edges
+}
+
+///
+///
+///
+pub fn total_cost<N, E, F>(graph: &StableDiGraph<N, E>, edges: &[EdgeIndex], edge_cost: F) -> usize
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    edges.iter().map(|&e| edge_cost(e)).sum()
 }
 
 //
