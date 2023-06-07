@@ -123,6 +123,46 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             })
     }
     ///
+    /// Run Forward algorithm to the emissions, with sparse calculation
+    ///
+    pub fn forward_sparse_by_ratio<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        max_ratio: f64,
+    ) -> PHMMTables {
+        let r0 = PHMMTables {
+            init_table: self.f_init(true),
+            tables: Vec::new(),
+            is_forward: true,
+        };
+        let param = &self.param;
+        let all_nodes = self.to_all_nodes();
+        emissions
+            .as_ref()
+            .into_iter()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                if i < param.n_warmup {
+                    // dense_table
+                    let table_prev = if i == 0 {
+                        &r.init_table
+                    } else {
+                        r.last_table()
+                    };
+                    let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
+                    r.tables.push(table);
+                } else {
+                    // sparse_table
+                    let table_prev = r.last_table();
+                    let active_nodes =
+                        self.to_childs_and_us(&table_prev.top_nodes_by_score_ratio(max_ratio));
+                    let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
+                    r.tables.push(table);
+                };
+                r
+            })
+    }
+    ///
     ///
     ///
     pub fn forward_sparse_score_only<X: AsRef<Bases>>(&self, emissions: X) -> Prob {

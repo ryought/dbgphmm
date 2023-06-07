@@ -115,6 +115,24 @@ impl PHMMTable {
         self.to_nodevec().to_top_k_indexes(n_nodes)
     }
     ///
+    /// Pick up top-scored nodes by score ratio
+    /// for sorted vector v, pick an element while `log(p[i]/p[0])` is greater than max_ratio.
+    ///
+    pub fn top_nodes_by_score_ratio(
+        &self,
+        max_ratio: f64,
+    ) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
+        let mut ret = ArrayVec::new();
+        let v = self.to_nodevec().to_sorted_arrayvec();
+        let (_, p0) = v[0];
+        for (node, prob) in v {
+            if p0.to_log_value() - prob.to_log_value() < max_ratio {
+                ret.push(node);
+            }
+        }
+        ret
+    }
+    ///
     /// Pick up top-scored nodes
     ///
     pub fn top_nodes_with_prob(&self, n_nodes: usize) -> Vec<(NodeIndex, Prob)> {
