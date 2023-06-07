@@ -107,9 +107,10 @@ where
     cycles
 }
 
-/// Find k-shortest paths from source to target without loops (i.e. simple path)
+/// Find k-shortest paths from source to target without edge-repetition (i.e. simple path)
 ///
-/// use `petgraph::algo::astar::astar`
+/// by using `petgraph::algo::astar::astar`
+///
 ///
 /// # TODO
 ///
