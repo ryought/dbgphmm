@@ -140,38 +140,62 @@ where
     paths.push(a0);
 
     // Iteration k
-    for _ in 1..k {
+    for iter in 1..k {
         // (i) create candidates of a_k from a_0 ... a_k-1
         let mut graph = graph.clone();
         let a = &paths[paths.len() - 1];
+
+        // println!("k={} a[k-1]={:?}", iter, a);
         // for each edge a[i] in path a
         // create a candidate path a[0]..a[i-1] + different edge from a[i]
         for i in 0..a.len() {
             // a. create graph with new weight
             let (v, _) = graph.edge_endpoints(a[i]).unwrap();
+
             // (1) delete i to i+1
             for aj in paths.iter() {
-                if aj[..i] == a[..i] {
+                if aj.len() >= i && aj[..i] == a[..i] {
+                    // println!("removing edge {:?}", aj[i]);
                     graph.remove_edge(aj[i]);
                 }
             }
             // b. find shortest path from v to terminal and store it in List B
-            let (_, path) = shortest_path(&graph, v, target, &edge_cost)
-                .expect("no path between source and target in new graph");
-            let mut ak = Vec::new();
-            ak.extend_from_slice(&a[..i]); // path from s to v
-            ak.extend_from_slice(&path); // path from v to t
-            let score = total_cost(&graph, &ak, &edge_cost);
-            candidates.push(PathWithScore(score, ak));
+            match shortest_path(&graph, v, target, &edge_cost) {
+                Some((_, path)) => {
+                    let mut ak = Vec::new();
+                    ak.extend_from_slice(&a[..i]); // path from s to v
+                    ak.extend_from_slice(&path); // path from v to t
+                    let score = total_cost(&graph, &ak, &edge_cost);
+                    // println!("candidate {:?} {} ", ak, score);
+                    if candidates.iter().all(|PathWithScore(_, path)| path != &ak) {
+                        // println!("new");
+                        candidates.push(PathWithScore(score, ak));
+                    } else {
+                        // println!("old");
+                    }
+                }
+                None => {
+                    // println!("no candidate");
+                }
+            }
 
             // (2) delete node 1 to i-1
+            // println!("removing node {:?}", v);
             graph.remove_node(v);
         }
 
         // (ii)
         // a. pick minimum cost path from List B and add to List A
-        let PathWithScore(_, ak) = candidates.pop().unwrap();
-        paths.push(ak);
+        match candidates.pop() {
+            Some(PathWithScore(_, ak)) => {
+                // println!("path {:?}", ak);
+                paths.push(ak);
+            }
+            None => {
+                // println!("no more candidates");
+                break;
+            }
+        }
     }
 
     paths
@@ -242,7 +266,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ei;
+    use crate::common::{ei, ni};
     use rustflow::min_flow::residue::{
         is_meaningful_move_on_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
     };
@@ -395,5 +419,34 @@ mod tests {
         for (i, cycle) in cycles.iter().enumerate() {
             println!("{} {:?}", i, cycle);
         }
+
+        // let cycles =
+        //     k_shortest_simple_path(&rg, EdgeIndex::new(7), k, |e| weights[rg[e].target.index()]);
+    }
+    #[test]
+    fn k_shortest_simple_01() {
+        let graph: DiGraph<(), ()> = Graph::from_edges(&[
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            // alt of 1->2
+            (1, 4),
+            (4, 5),
+            (5, 2),
+            // alt of 2->3
+            (2, 6),
+            (6, 3),
+        ]);
+        let paths = k_shortest_simple_path(&graph, ni(0), ni(3), 10, |_| 1);
+        println!("paths={:?}", paths);
+        assert_eq!(
+            paths,
+            vec![
+                vec![ei(0), ei(1), ei(2)],
+                vec![ei(0), ei(1), ei(6), ei(7)],
+                vec![ei(0), ei(3), ei(4), ei(5), ei(2)],
+                vec![ei(0), ei(3), ei(4), ei(5), ei(6), ei(7)],
+            ]
+        );
     }
 }
