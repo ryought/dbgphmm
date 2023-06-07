@@ -4,14 +4,7 @@
 //! generate bmap file
 //!
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_posterior_from_true,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::timer,
-};
+use dbgphmm::{e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::MultiDbg, utils::timer};
 use petgraph::graph::NodeIndex;
 
 #[derive(Parser, Debug)]
