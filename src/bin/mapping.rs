@@ -14,6 +14,8 @@ struct Opts {
     dbg: std::path::PathBuf,
     #[clap(long)]
     dataset: std::path::PathBuf,
+    #[clap(long)]
+    map_output: Option<std::path::PathBuf>,
     #[clap(short = 'e')]
     p_error: f64,
     #[clap(short = 'r')]
@@ -44,16 +46,24 @@ fn main() {
     param.active_node_max_ratio = opts.max_ratio.unwrap_or(30.0);
 
     let phmm = dbg.to_uniform_phmm(param);
-    // let mappings = dbg.generate_mappings(param, dataset.reads(), None);
-    // let freqs = dbg.mappings_to_freqs(&mappings);
-    // let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, dataset.coverage(), Some(2));
-    // println!("copy_num={}", copy_num);
+
+    if let Some(map) = &opts.map_output {
+        let mappings = dbg.generate_mappings(param, dataset.reads(), None);
+        let freqs = dbg.mappings_to_freqs(&mappings);
+        let copy_num =
+            dbg.min_squared_error_copy_nums_from_freqs(&freqs, dataset.coverage(), Some(2));
+        eprintln!("copy_num={}", copy_num);
+        dbg.to_map_file(map, dataset.reads(), &mappings);
+        eprintln!("map {} written", map.display());
+    }
 
     for (i, read) in dataset.reads().into_iter().enumerate() {
         let (output, t) = timer(|| {
             if opts.max_ratio.is_some() {
+                println!("# using max_ratio");
                 phmm.run_sparse_adaptive(read, true)
             } else {
+                println!("# using n_active_nodes");
                 phmm.run_sparse_adaptive(read, false)
             }
         });
