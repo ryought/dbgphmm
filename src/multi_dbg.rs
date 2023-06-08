@@ -21,7 +21,7 @@ use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
-use crate::graph::k_shortest::k_shortest_cycle;
+use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
 use crate::hmmv2::{
@@ -1155,19 +1155,21 @@ impl MultiDbg {
             .edge_indices()
             .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)
             .unwrap();
-        let cycles = k_shortest_cycle(
-            &rg,
-            edge_in_rg,
-            k,
-            |e| self.n_bases(rg[e].target),
-            |path, edge| {
-                let last_edge = path.last().copied().unwrap();
-                is_meaningful_move_on_residue_graph(&rg, last_edge, edge)
-            },
-        );
+        let (v, w) = rg.edge_endpoints(edge_in_rg).unwrap();
+        let cycles = k_shortest_simple_path(&rg, w, v, k, |e| {
+            if e == edge_in_rg {
+                usize::MAX
+            } else {
+                self.n_bases(rg[e].target)
+            }
+        });
 
         cycles
             .into_iter()
+            .map(|mut cycle| {
+                cycle.insert(0, edge_in_rg);
+                cycle
+            })
             .filter(|cycle| is_edge_simple(&rg, &cycle))
             .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
             .collect()
