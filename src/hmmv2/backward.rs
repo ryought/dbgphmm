@@ -126,7 +126,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                             self.b_step(i, emission, table_prev, &all_nodes, false, false)
                         } else {
                             let active_nodes = forward.table(i - 1).filled_nodes().unwrap();
-                            self.b_step(i, emission, table_prev, &all_nodes, false, false)
+                            self.b_step(i, emission, table_prev, &active_nodes, false, false)
                         }
                     };
                     r.tables.push(table);

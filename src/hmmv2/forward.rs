@@ -115,11 +115,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     // sparse_table
                     let table_prev = r.last_table();
                     let active_nodes = if use_max_ratio {
-                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
-                    } else {
                         self.to_childs_and_us(
                             &table_prev.top_nodes_by_score_ratio(param.active_node_max_ratio),
                         )
+                    } else {
+                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
                     };
                     let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
                     r.tables.push(table);
