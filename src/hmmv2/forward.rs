@@ -89,7 +89,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions, with sparse calculation
     ///
-    pub fn forward_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMTables {
+    pub fn forward_sparse<X: AsRef<Bases>>(&self, emissions: X, use_max_ratio: bool) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
@@ -114,48 +114,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 } else {
                     // sparse_table
                     let table_prev = r.last_table();
-                    let active_nodes =
-                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes));
-                    let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
-                    r.tables.push(table);
-                };
-                r
-            })
-    }
-    ///
-    /// Run Forward algorithm to the emissions, with sparse calculation
-    ///
-    pub fn forward_sparse_by_ratio<X: AsRef<Bases>>(
-        &self,
-        emissions: X,
-        max_ratio: f64,
-    ) -> PHMMTables {
-        let r0 = PHMMTables {
-            init_table: self.f_init(true),
-            tables: Vec::new(),
-            is_forward: true,
-        };
-        let param = &self.param;
-        let all_nodes = self.to_all_nodes();
-        emissions
-            .as_ref()
-            .into_iter()
-            .enumerate()
-            .fold(r0, |mut r, (i, &emission)| {
-                if i < param.n_warmup {
-                    // dense_table
-                    let table_prev = if i == 0 {
-                        &r.init_table
+                    let active_nodes = if use_max_ratio {
+                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
                     } else {
-                        r.last_table()
+                        self.to_childs_and_us(
+                            &table_prev.top_nodes_by_score_ratio(param.active_node_max_ratio),
+                        )
                     };
-                    let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
-                    r.tables.push(table);
-                } else {
-                    // sparse_table
-                    let table_prev = r.last_table();
-                    let active_nodes =
-                        self.to_childs_and_us(&table_prev.top_nodes_by_score_ratio(max_ratio));
                     let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
                     r.tables.push(table);
                 };
@@ -553,7 +518,7 @@ mod tests {
         println!("{}", sequence_to_string(&read));
 
         let r1 = phmm.forward(&read);
-        let r2 = phmm.forward_sparse(&read);
+        let r2 = phmm.forward_sparse(&read, false);
         for i in 0..r1.n_emissions() {
             let t1 = r1.table(i);
             let t2 = r2.table(i);

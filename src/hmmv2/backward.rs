@@ -122,8 +122,12 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     let table = if i < param.n_warmup {
                         self.b_step(i, emission, table_prev, &all_nodes, true, false)
                     } else {
-                        let active_nodes = forward.table(i - 1).top_nodes(param.n_active_nodes);
-                        self.b_step(i, emission, table_prev, &active_nodes, false, false)
+                        if forward.table(i - 1).is_dense() {
+                            self.b_step(i, emission, table_prev, &all_nodes, false, false)
+                        } else {
+                            let active_nodes = forward.table(i - 1).filled_nodes().unwrap();
+                            self.b_step(i, emission, table_prev, &all_nodes, false, false)
+                        }
                     };
                     r.tables.push(table);
                     r

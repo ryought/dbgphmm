@@ -129,6 +129,17 @@ impl PHMMOutput {
             .collect();
         Mapping::from_nodes_and_probs(&ret)
     }
+    ///
+    /// Create Mapping of this emission sequence
+    ///
+    pub fn to_mapping_by_score_ratio(&self, max_ratio: f64) -> Mapping {
+        let ret = self
+            .iter_emit_probs()
+            .skip(1)
+            .map(|state_probs| state_probs.top_nodes_with_prob_by_score_ratio(max_ratio))
+            .collect();
+        Mapping::from_nodes_and_probs(&ret)
+    }
 }
 
 ///
@@ -166,6 +177,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         &self,
         reads: &ReadCollection<S>,
         mappings: Option<&Mappings>,
+        use_max_ratio: bool,
     ) -> Mappings {
         Mappings(
             reads
@@ -176,9 +188,14 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     let output = if let Some(mappings) = mappings {
                         self.run_with_mapping(seq.as_ref(), &mappings[i])
                     } else {
-                        self.run_sparse(seq.as_ref())
+                        self.run_sparse_adaptive(seq.as_ref(), use_max_ratio)
                     };
-                    output.to_mapping(self.param.n_active_nodes)
+
+                    if use_max_ratio {
+                        output.to_mapping_by_score_ratio(self.param.active_node_max_ratio)
+                    } else {
+                        output.to_mapping(self.param.n_active_nodes)
+                    }
                 })
                 .collect(),
         )

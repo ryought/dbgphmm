@@ -48,7 +48,7 @@ mod tests {
     fn bench_simple_genome_sparse(b: &mut Bencher) {
         let (experiment, phmm) = simple_genome();
         b.iter(|| {
-            let forward = phmm.forward_sparse(&experiment.reads()[0].as_ref());
+            let forward = phmm.forward_sparse(&experiment.reads()[0].as_ref(), false);
         });
     }
     #[bench]

@@ -112,6 +112,16 @@ impl PHMMTable {
         self.m.is_dense()
     }
     ///
+    ///
+    ///
+    pub fn filled_nodes(&self) -> Option<ArrayVec<NodeIndex, MAX_ACTIVE_NODES>> {
+        if self.is_dense() {
+            None
+        } else {
+            Some(self.to_nodevec().to_top_k_indexes(self.n_active_nodes()))
+        }
+    }
+    ///
     /// Pick up top-scored nodes
     ///
     pub fn top_nodes(&self, n_nodes: usize) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
@@ -141,6 +151,16 @@ impl PHMMTable {
     pub fn top_nodes_with_prob(&self, n_nodes: usize) -> Vec<(NodeIndex, Prob)> {
         let v = self.to_nodevec();
         v.to_top_k_indexes(n_nodes)
+            .into_iter()
+            .map(|i| (i, v[i]))
+            .collect()
+    }
+    ///
+    /// Pick up top-scored nodes
+    ///
+    pub fn top_nodes_with_prob_by_score_ratio(&self, max_ratio: f64) -> Vec<(NodeIndex, Prob)> {
+        let v = self.to_nodevec();
+        self.top_nodes_by_score_ratio(max_ratio)
             .into_iter()
             .map(|i| (i, v[i]))
             .collect()
