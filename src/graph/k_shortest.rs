@@ -5,6 +5,7 @@
 //!
 use petgraph::{
     graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph},
+    stable_graph::StableDiGraph,
     visit::EdgeRef,
     Direction,
 };
@@ -106,6 +107,159 @@ where
     cycles
 }
 
+/// Find k-shortest paths from source to target without edge-repetition (i.e. simple path)
+///
+/// by using `petgraph::algo::astar::astar`
+///
+///
+/// # TODO
+///
+/// * add `is_joinable` condition argument?
+///
+pub fn k_shortest_simple_path<N: Clone, E: Clone, F>(
+    graph: &DiGraph<N, E>,
+    source: NodeIndex,
+    target: NodeIndex,
+    k: usize,
+    edge_cost: F,
+    // is_joinable: G,
+) -> Vec<Vec<EdgeIndex>>
+where
+    F: Fn(EdgeIndex) -> usize,
+    // G: Fn(&[EdgeIndex], EdgeIndex) -> bool,
+{
+    // List A
+    let mut paths: Vec<Vec<EdgeIndex>> = Vec::new();
+    // List B
+    let mut candidates: BinaryHeap<PathWithScore> = BinaryHeap::new();
+    // let mut candidates: Vec<PathWithScore> = Vec::new();
+
+    // Iteration 0
+    let graph = StableDiGraph::from(graph.clone());
+    let (_, a0) = shortest_path(&graph, source, target, &edge_cost)
+        .expect("no path between source and target");
+    paths.push(a0);
+
+    // Iteration k
+    for iter in 1..k {
+        // (i) create candidates of a_k from a_0 ... a_k-1
+        let mut graph = graph.clone();
+        let a = &paths[paths.len() - 1];
+
+        // println!("k={} a[k-1]={:?}", iter, a);
+        // for each edge a[i] in path a
+        // create a candidate path a[0]..a[i-1] + different edge from a[i]
+        for i in 0..a.len() {
+            // a. create graph with new weight
+            let (v, _) = graph.edge_endpoints(a[i]).unwrap();
+
+            // (1) delete i to i+1
+            for aj in paths.iter() {
+                if aj.len() >= i && aj[..i] == a[..i] {
+                    // println!("removing edge {:?}", aj[i]);
+                    graph.remove_edge(aj[i]);
+                }
+            }
+            // b. find shortest path from v to terminal and store it in List B
+            match shortest_path(&graph, v, target, &edge_cost) {
+                Some((_, path)) => {
+                    let mut ak = Vec::new();
+                    ak.extend_from_slice(&a[..i]); // path from s to v
+                    ak.extend_from_slice(&path); // path from v to t
+                    let score = total_cost(&graph, &ak, &edge_cost);
+                    // println!("candidate {:?} {} ", ak, score);
+                    if candidates.iter().all(|PathWithScore(_, path)| path != &ak) {
+                        // println!("new");
+                        candidates.push(PathWithScore(score, ak));
+                    } else {
+                        // println!("old");
+                    }
+                }
+                None => {
+                    // println!("no candidate");
+                }
+            }
+
+            // (2) delete node 1 to i-1
+            // println!("removing node {:?}", v);
+            graph.remove_node(v);
+        }
+
+        // (ii)
+        // a. pick minimum cost path from List B and add to List A
+        match candidates.pop() {
+            Some(PathWithScore(_, ak)) => {
+                // println!("path {:?}", ak);
+                paths.push(ak);
+            }
+            None => {
+                // println!("no more candidates");
+                break;
+            }
+        }
+    }
+
+    paths
+}
+
+///
+/// Compute shortest path from source to target using a-star algorithm in petgraph
+///
+pub fn shortest_path<N, E, F>(
+    graph: &StableDiGraph<N, E>,
+    source: NodeIndex,
+    target: NodeIndex,
+    edge_cost: F,
+) -> Option<(usize, Vec<EdgeIndex>)>
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    petgraph::algo::astar::astar(graph, source, |v| v == target, |e| edge_cost(e.id()), |_| 0)
+        .map(|(cost, nodes)| (cost, nodes_to_edges(graph, &nodes, edge_cost)))
+}
+
+///
+/// convert shortest path v -> w as node sequence into edge sequence by picking minimum cost
+/// edge between two adjacent nodes.
+///
+pub fn nodes_to_edges<N, E, F>(
+    graph: &StableDiGraph<N, E>,
+    nodes: &[NodeIndex],
+    edge_cost: F,
+) -> Vec<EdgeIndex>
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    let mut edges = Vec::new();
+    let n = nodes.len();
+
+    // convert (nodes[i], nodes[i+1]) into an edge
+    for i in 0..(n - 1) {
+        let v = nodes[i];
+        let w = nodes[i + 1];
+
+        // pick a minimum cost edge between v and w
+        let edge = graph
+            .edges_connecting(v, w)
+            .min_by_key(|e| edge_cost(e.id()))
+            .unwrap();
+
+        edges.push(edge.id());
+    }
+
+    edges
+}
+
+///
+///
+///
+pub fn total_cost<N, E, F>(graph: &StableDiGraph<N, E>, edges: &[EdgeIndex], edge_cost: F) -> usize
+where
+    F: Fn(EdgeIndex) -> usize,
+{
+    edges.iter().map(|&e| edge_cost(e)).sum()
+}
+
 //
 // tests
 //
@@ -113,7 +267,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ei;
+    use crate::common::{ei, ni};
     use rustflow::min_flow::residue::{
         is_meaningful_move_on_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
     };
@@ -266,5 +420,34 @@ mod tests {
         for (i, cycle) in cycles.iter().enumerate() {
             println!("{} {:?}", i, cycle);
         }
+
+        // let cycles =
+        //     k_shortest_simple_path(&rg, EdgeIndex::new(7), k, |e| weights[rg[e].target.index()]);
+    }
+    #[test]
+    fn k_shortest_simple_01() {
+        let graph: DiGraph<(), ()> = Graph::from_edges(&[
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            // alt of 1->2
+            (1, 4),
+            (4, 5),
+            (5, 2),
+            // alt of 2->3
+            (2, 6),
+            (6, 3),
+        ]);
+        let paths = k_shortest_simple_path(&graph, ni(0), ni(3), 10, |_| 1);
+        println!("paths={:?}", paths);
+        assert_eq!(
+            paths,
+            vec![
+                vec![ei(0), ei(1), ei(2)],
+                vec![ei(0), ei(1), ei(6), ei(7)],
+                vec![ei(0), ei(3), ei(4), ei(5), ei(2)],
+                vec![ei(0), ei(3), ei(4), ei(5), ei(6), ei(7)],
+            ]
+        );
     }
 }
