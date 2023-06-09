@@ -204,6 +204,13 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
                 mappings,
             );
         },
+        |dbg, mappings| {
+            dbg.to_map_file(
+                output.with_extension(format!("k{}.mapext", dbg.k())),
+                dataset.reads(),
+                mappings,
+            );
+        },
         paths_true.ok(),
         k_max_rescue_only,
         k_max_rerun_mapping,

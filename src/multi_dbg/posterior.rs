@@ -861,6 +861,7 @@ pub fn infer_posterior_by_extension<
     S: Seq,
     F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &Mappings),
     G: Fn(&MultiDbg, &Mappings),
+    H: Fn(&MultiDbg, &Mappings),
 >(
     k_max: usize,
     dbg_init: MultiDbg,
@@ -879,6 +880,7 @@ pub fn infer_posterior_by_extension<
     // callback
     on_iter: F,
     on_map: G,
+    on_extend: H,
     // true path if available
     paths: Option<Vec<Path>>,
     // inference parameters
@@ -929,6 +931,7 @@ pub fn infer_posterior_by_extension<
             dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, &mappings);
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
+        on_extend(&dbg, &mappings);
 
         // (1) update hints before extending
         let t_start_hint = std::time::Instant::now();
