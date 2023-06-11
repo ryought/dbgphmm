@@ -118,6 +118,7 @@ class MapInfo:
 class MapInfoList:
     p_forward: float
     p_backward: float
+    n_active_nodes: int
     infos_forward: List[MapInfo]
     infos_backward: List[MapInfo]
     infos_merged: List[MapInfo]
@@ -138,7 +139,6 @@ def parse_bmap_file(filename: Path) -> List[List[MapInfoList]]:
                 read = int(s[0])
                 pos = int(s[1])
                 type = s[2]
-                p = float(s[3])
                 infos = [MapInfo.parse(t) for t in s[4].split(',')]
 
                 if current_read != read:
@@ -148,16 +148,18 @@ def parse_bmap_file(filename: Path) -> List[List[MapInfoList]]:
                     assert len(ret) == current_read + 1
 
                 if type == 'F':
-                    p_forward = p
+                    p_forward = float(s[3])
                     infos_forward = infos
                 elif type == 'B':
-                    p_backward = p
+                    p_backward = float(s[3])
                     infos_backward = infos
                 elif type == 'S':
+                    n_active_nodes = int(s[3])
                     infos_merged = infos
                     ret[current_read].append(MapInfoList(
                         p_forward=p_forward,
                         p_backward=p_backward,
+                        n_active_nodes=n_active_nodes,
                         infos_forward=infos_forward,
                         infos_backward=infos_backward,
                         infos_merged=infos_merged,

@@ -47,7 +47,7 @@ fn main() {
             println!("p[{}] g[{}] {}", i, j, levenshtein(x, y));
 
             if opts.show_alignment {
-                println!("{}", alignment.pretty(x, y));
+                println!("{}", alignment.pretty(x, y, 1000));
             }
         }
     }

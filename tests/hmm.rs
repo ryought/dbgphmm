@@ -152,7 +152,7 @@ fn hmmv2_forward_dense_and_sparse() {
             phmm.param.n_active_nodes = n_active_nodes;
             // println!("{}", h);
             let dense = phmm.forward(&r);
-            let sparse = phmm.forward_sparse(&r);
+            let sparse = phmm.forward_sparse(&r, false);
             for i in 0..dense.n_emissions() {
                 let td = dense.table(i);
                 let ts = sparse.table(i);

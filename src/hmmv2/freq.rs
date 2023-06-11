@@ -51,14 +51,18 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     /// for the emissions and returns PHMMOutput.
     ///
     pub fn run_sparse<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
-        let forward = self.forward_sparse(&emissions);
+        let forward = self.forward_sparse(&emissions, false);
         let backward = self.backward_sparse(&emissions);
         PHMMOutput::new(forward, backward)
     }
     ///
     ///
-    pub fn run_sparse_adaptive<X: AsRef<Bases>>(&self, emissions: X) -> PHMMOutput {
-        let forward = self.forward_sparse(&emissions);
+    pub fn run_sparse_adaptive<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        use_max_ratio: bool,
+    ) -> PHMMOutput {
+        let forward = self.forward_sparse(&emissions, use_max_ratio);
         let backward = self.backward_by_forward(&emissions, &forward);
         PHMMOutput::new(forward, backward)
     }
@@ -140,7 +144,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         seqs.into_iter()
             .map(|seq| {
                 let read = seq.as_ref();
-                let forward = self.forward_sparse(read);
+                let forward = self.forward_sparse(read, false);
                 forward.full_prob()
             })
             .product()

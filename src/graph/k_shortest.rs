@@ -136,9 +136,12 @@ where
 
     // Iteration 0
     let graph = StableDiGraph::from(graph.clone());
-    let (_, a0) = shortest_path(&graph, source, target, &edge_cost)
-        .expect("no path between source and target");
-    paths.push(a0);
+    if let Some((_, a0)) = shortest_path(&graph, source, target, &edge_cost) {
+        paths.push(a0);
+    } else {
+        // target is not reachable from source, so there are no path between them
+        return paths;
+    }
 
     // Iteration k
     for iter in 1..k {

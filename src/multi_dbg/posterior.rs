@@ -777,7 +777,7 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings));
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, true));
         println!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),
@@ -860,6 +860,8 @@ impl MultiDbg {
 pub fn infer_posterior_by_extension<
     S: Seq,
     F: Fn(&MultiDbg, &Posterior, &Option<Vec<Path>>, &Mappings),
+    G: Fn(&MultiDbg, &Mappings),
+    H: Fn(&MultiDbg, &Mappings),
 >(
     k_max: usize,
     dbg_init: MultiDbg,
@@ -877,6 +879,8 @@ pub fn infer_posterior_by_extension<
     p0: Prob,
     // callback
     on_iter: F,
+    on_map: G,
+    on_extend: H,
     // true path if available
     paths: Option<Vec<Path>>,
     // inference parameters
@@ -885,6 +889,7 @@ pub fn infer_posterior_by_extension<
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let mut dbg = dbg_init;
     let mut mappings = dbg.generate_mappings(param_infer, reads, None);
+    on_map(&dbg, &mappings);
     let mut paths = paths;
     let mut posterior;
     let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
@@ -926,6 +931,7 @@ pub fn infer_posterior_by_extension<
             dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, &mappings);
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
+        on_extend(&dbg, &mappings);
 
         // (1) update hints before extending
         let t_start_hint = std::time::Instant::now();
@@ -939,6 +945,7 @@ pub fn infer_posterior_by_extension<
         }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
+        on_map(&dbg, &mappings);
 
         // (1b) approximate copy numbers from the mapping and frequency
         let t_start_approx = std::time::Instant::now();

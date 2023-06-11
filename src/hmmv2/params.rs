@@ -43,6 +43,10 @@ pub struct PHMMParams {
     ///
     pub n_active_nodes: usize,
     ///
+    ///
+    ///
+    pub active_node_max_ratio: f64,
+    ///
     /// Number of initial warmup layer used in sparse calculation.
     /// For the first `n_warmup` bases, do dense (exact full) calculation.
     ///
@@ -92,6 +96,7 @@ impl PHMMParams {
             p_match: Prob::from_prob(1.0 - p_mismatch.to_value()),
             p_random: Prob::from_prob(0.25),
             n_active_nodes,
+            active_node_max_ratio: 30.0,
             n_warmup,
             n_max_gaps: 4,
         }

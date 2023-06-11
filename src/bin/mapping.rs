@@ -4,14 +4,7 @@
 //! generate bmap file
 //!
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_posterior_from_true,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::timer,
-};
+use dbgphmm::{e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::MultiDbg, utils::timer};
 use petgraph::graph::NodeIndex;
 
 #[derive(Parser, Debug)]
@@ -21,8 +14,12 @@ struct Opts {
     dbg: std::path::PathBuf,
     #[clap(long)]
     dataset: std::path::PathBuf,
+    #[clap(long)]
+    map_output: Option<std::path::PathBuf>,
     #[clap(short = 'e')]
     p_error: f64,
+    #[clap(short = 'r')]
+    max_ratio: Option<f64>,
     #[clap(short = 'a')]
     n_active_nodes: usize,
 }
@@ -46,15 +43,30 @@ fn main() {
 
     let mut param = PHMMParams::uniform(opts.p_error);
     param.n_active_nodes = opts.n_active_nodes;
+    param.active_node_max_ratio = opts.max_ratio.unwrap_or(30.0);
 
     let phmm = dbg.to_uniform_phmm(param);
-    // let mappings = dbg.generate_mappings(param, dataset.reads(), None);
-    // let freqs = dbg.mappings_to_freqs(&mappings);
-    // let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, dataset.coverage(), Some(2));
-    // println!("copy_num={}", copy_num);
+
+    if let Some(map) = &opts.map_output {
+        let mappings = dbg.generate_mappings(param, dataset.reads(), None);
+        let freqs = dbg.mappings_to_freqs(&mappings);
+        let copy_num =
+            dbg.min_squared_error_copy_nums_from_freqs(&freqs, dataset.coverage(), Some(2));
+        eprintln!("copy_num={}", copy_num);
+        dbg.to_map_file(map, dataset.reads(), &mappings);
+        eprintln!("map {} written", map.display());
+    }
 
     for (i, read) in dataset.reads().into_iter().enumerate() {
-        let (output, t) = timer(|| phmm.run_sparse_adaptive(read));
+        let (output, t) = timer(|| {
+            if opts.max_ratio.is_some() {
+                println!("# using max_ratio");
+                phmm.run_sparse_adaptive(read, true)
+            } else {
+                println!("# using n_active_nodes");
+                phmm.run_sparse_adaptive(read, false)
+            }
+        });
 
         // summary
         println!(
@@ -85,9 +97,10 @@ fn main() {
                 b.to_summary_string_n(40, format),
             );
             println!(
-                "{}\t{}\tS\t0.00000000000000\t{}",
+                "{}\t{}\tS\t{}\t{}",
                 i,
                 j,
+                f.n_active_nodes(),
                 output.to_emit_probs(j).to_summary_string_n(40, format),
             );
         }
