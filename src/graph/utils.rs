@@ -1,4 +1,5 @@
 use fnv::FnvHashMap as HashMap;
+use petgraph::algo::tarjan_scc;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
@@ -165,6 +166,20 @@ impl EdgeMap {
             }
         }
     }
+    ///
+    /// Get composition mapping of two mappings (self and other)
+    ///
+    /// ```text
+    /// f, g: EdgeMap
+    /// A, B, C: DiGraph
+    ///
+    ///    f     g
+    /// A --> B --> C
+    /// ```
+    ///
+    pub fn compose(&mut self, other: &EdgeMap) {
+        unimplemented!();
+    }
 }
 
 /// Remove edges
@@ -181,15 +196,6 @@ pub fn purge_edges_with_mapping<N, E>(graph: &mut DiGraph<N, E>, edges: &[EdgeIn
 }
 
 ///
-/// Remove node with mapping
-///
-pub fn purge_node<N, E>(graph: &mut DiGraph<N, E>, node: NodeIndex, map: &mut EdgeMap) {
-    // graph.edges_directed(node);
-    // TODO
-    graph.remove_node(node).expect("node does not exist");
-}
-
-///
 /// Delete all isolated nodes (no in/out edges)
 ///
 pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
@@ -202,26 +208,35 @@ pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
 }
 
 ///
-/// Delete nodes with no in/out edges
+/// edges that bridges between two strongly connected components
 ///
-pub fn delete_unreachable_edges<N, E>(graph: &mut DiGraph<N, E>, map: &mut EdgeMap) {
-    'outer: loop {
-        for node in graph.node_indices() {
-            let in_degree = graph.edges_directed(node, Direction::Incoming).count();
-            let out_degree = graph.edges_directed(node, Direction::Outgoing).count();
+pub fn bridge_edges<N, E>(graph: &DiGraph<N, E>) -> Vec<EdgeIndex> {
+    // compute strongly connected components of graph by Tarjan's algorithm.
+    // scc is a set of nodes in which any two pair of nodes v, w have a path v->w and w->v.
+    let components = tarjan_scc(graph);
 
-            if in_degree == 0 || out_degree == 0 {
-                // delete incoming/outgoing edges
-                // let ins = graph.edges_directed(node, Direction::Incoming).map(|| )
-
-                // delete the node
-                graph.remove_node(node).expect("node does not exist");
-
-                continue 'outer;
-            }
+    // Convert
+    //     components[id] = [node]
+    // into
+    //     component_ids[node] = id
+    let mut component_ids: Vec<usize> = vec![0; graph.node_count()];
+    for (id, component) in components.iter().enumerate() {
+        for node in component {
+            component_ids[node.index()] = id;
         }
-        break;
     }
+
+    // bridge edge is an edge that connects two nodes belonging to different component.
+    //
+    let mut ret = Vec::new();
+    for edge in graph.edge_indices() {
+        let (s, t) = graph.edge_endpoints(edge).unwrap();
+        if component_ids[s.index()] != component_ids[t.index()] {
+            ret.push(edge);
+        }
+    }
+
+    ret
 }
 
 #[allow(dead_code)]

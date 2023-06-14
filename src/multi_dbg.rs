@@ -23,7 +23,9 @@ use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
-use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap};
+use crate::graph::utils::{
+    bridge_edges, degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap,
+};
 use crate::hmmv2::{
     common::PModel,
     hint::{Mapping, Mappings},
@@ -1743,27 +1745,46 @@ impl MultiDbg {
     /// that maps edge in graph before purging into edge in graph after purging.
     ///
     pub fn purge_edges(&mut self, edges_in_compact: &[EdgeIndex]) -> PurgeEdgeMap {
-        // List up edges to be removed in full
+        //
+        // [1] update compact graph
+        //
+        // remove edges from compact graph
+        let mut map_compact = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
+        // removing edges may cause isolated edges (i.e. bridging edges)
+        // so remove them next.
+        let bridge_edges = bridge_edges(&self.compact);
+        // println!("bridge={:?}", bridge_edges);
+        // let map_compact_bridge = purge_edges_with_mapping(&mut self.compact, &bridge_edges);
+        // map_compact.compose(&map_compact_bridge);
+
+        //
+        // [2] update full graph
+        //
+        // a. List up edges to be removed in full graph, corresponding edges_in_compact and bridge_edges
+        // in compact graph.
         let mut edges_in_full = Vec::new();
-        for &edge in edges_in_compact {
+        for &edge in edges_in_compact.iter().chain(bridge_edges.iter()) {
             for &edge_in_full in self.graph_compact()[edge].edges_in_full() {
                 edges_in_full.push(edge_in_full);
             }
         }
-
-        // remove edges from full/compact graph
-        let map_compact = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
+        // b. remove edges from full graph
         let map_full = purge_edges_with_mapping(&mut self.full, &edges_in_full);
 
         // remove isolated nodes
         delete_isolated_nodes(&mut self.compact);
         delete_isolated_nodes(&mut self.full);
 
+        //
+        // [3] update links between compact and full
+        //
         // update edges_in_full in compact::MultiCompactEdge
         for weight in self.compact.edge_weights_mut() {
             // renew old indexes in edges_in_full weight of each edge
             for e in weight.edges_in_full.iter_mut() {
-                *e = map_full.from_original(*e).unwrap();
+                *e = map_full
+                    .from_original(*e)
+                    .unwrap_or_else(|| panic!("e{} is deleted", e.index()));
             }
         }
 
