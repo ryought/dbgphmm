@@ -23,7 +23,7 @@ use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
-use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping};
+use crate::graph::utils::{degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap};
 use crate::hmmv2::{
     common::PModel,
     hint::{Mapping, Mappings},
@@ -1752,8 +1752,8 @@ impl MultiDbg {
         }
 
         // remove edges from full/compact graph
-        let (map_compact, _) = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
-        let (map_full, _) = purge_edges_with_mapping(&mut self.full, &edges_in_full);
+        let map_compact = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
+        let map_full = purge_edges_with_mapping(&mut self.full, &edges_in_full);
 
         // remove isolated nodes
         delete_isolated_nodes(&mut self.compact);
@@ -1761,11 +1761,9 @@ impl MultiDbg {
 
         // update edges_in_full in compact::MultiCompactEdge
         for weight in self.compact.edge_weights_mut() {
+            // renew old indexes in edges_in_full weight of each edge
             for e in weight.edges_in_full.iter_mut() {
-                *e = match map_full.get(&e) {
-                    None => *e,
-                    Some(&v) => v.expect("remove edge twice"),
-                };
+                *e = map_full.from_original(*e).unwrap();
             }
         }
 
@@ -1854,8 +1852,8 @@ impl MultiDbg {
 ///
 #[derive(Clone, Debug)]
 pub struct PurgeEdgeMap {
-    map_compact: HashMap<EdgeIndex, Option<EdgeIndex>>,
-    map_full: HashMap<EdgeIndex, Option<EdgeIndex>>,
+    map_compact: EdgeMap,
+    map_full: EdgeMap,
 }
 
 impl PurgeEdgeMap {
@@ -1863,19 +1861,13 @@ impl PurgeEdgeMap {
     /// Map compact edge in G into compact edge in G' (after edge purging)
     ///
     pub fn compact(&self, edge_in_compact: EdgeIndex) -> Option<EdgeIndex> {
-        self.map_compact
-            .get(&edge_in_compact)
-            .copied()
-            .unwrap_or(Some(edge_in_compact))
+        self.map_compact.from_original(edge_in_compact)
     }
     ///
     /// Map full edge in G into full edge in G' (after edge purging)
     ///
     pub fn full(&self, edge_in_full: EdgeIndex) -> Option<EdgeIndex> {
-        self.map_full
-            .get(&edge_in_full)
-            .copied()
-            .unwrap_or(Some(edge_in_full))
+        self.map_full.from_original(edge_in_full)
     }
     ///
     /// Convert Path = Vec<EdgeIndex> using edge-map before-and-after edge purging.

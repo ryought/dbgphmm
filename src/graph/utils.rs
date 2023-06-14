@@ -41,6 +41,7 @@ pub fn degree_stats<N, E>(graph: &DiGraph<N, E>) -> HashMap<(usize, usize), usiz
 ///
 /// Store correspondence of edges of the graph before and after edge deletions
 ///
+#[derive(Clone, Debug)]
 pub struct EdgeMap {
     ///
     ///
@@ -169,20 +170,14 @@ impl EdgeMap {
 /// Remove edges
 ///
 ///
-pub fn purge_edges_with_mapping<N, E>(
-    graph: &mut DiGraph<N, E>,
-    edges: &[EdgeIndex],
-) -> (
-    HashMap<EdgeIndex, Option<EdgeIndex>>,
-    HashMap<EdgeIndex, EdgeIndex>,
-) {
+pub fn purge_edges_with_mapping<N, E>(graph: &mut DiGraph<N, E>, edges: &[EdgeIndex]) -> EdgeMap {
     let mut edge_map = EdgeMap::new(graph);
 
     for &edge_remove_original in edges {
         edge_map.delete_original(graph, edge_remove_original);
     }
 
-    (edge_map.from_original, edge_map.to_original)
+    edge_map
 }
 
 /// Delete all isolated nodes (no in/out edges)
@@ -299,24 +294,27 @@ mod tests {
 
         {
             let mut g = graph.clone();
-            let (f, t) = purge_edges_with_mapping(&mut g, &[ei(0)]);
-            println!("from_original={:?} to_original={:?}", f, t);
+            let m = purge_edges_with_mapping(&mut g, &[ei(0)]);
+            println!("{:?}", m);
             println!("{:?}", petgraph::dot::Dot::with_config(&g, &[]));
-            assert_is_bimap(&f, &t);
-            assert_eq!(f, HashMap::from_iter([(ei(0), None), (ei(8), Some(ei(0)))]));
-            assert_eq!(t, HashMap::from_iter([(ei(0), ei(8))]));
+            assert_is_bimap(&m.from_original, &m.to_original);
+            assert_eq!(
+                m.from_original,
+                HashMap::from_iter([(ei(0), None), (ei(8), Some(ei(0)))])
+            );
+            assert_eq!(m.to_original, HashMap::from_iter([(ei(0), ei(8))]));
             assert_eq!(g.edge_count(), 8);
             assert_eq!(g.node_count(), 8);
         }
 
         {
             let mut g = graph.clone();
-            let (f, t) = purge_edges_with_mapping(&mut g, &[ei(3), ei(8), ei(5)]);
-            println!("from_original={:?} to_original={:?}", f, t);
+            let m = purge_edges_with_mapping(&mut g, &[ei(3), ei(8), ei(5)]);
+            println!("{:?}", m);
             println!("{:?}", petgraph::dot::Dot::with_config(&g, &[]));
-            assert_is_bimap(&f, &t);
+            assert_is_bimap(&m.from_original, &m.to_original);
             assert_eq!(
-                f,
+                m.from_original,
                 HashMap::from_iter([
                     (ei(3), None),
                     (ei(8), None),
@@ -325,14 +323,17 @@ mod tests {
                     (ei(6), Some(ei(5))),
                 ])
             );
-            assert_eq!(t, HashMap::from_iter([(ei(5), ei(6)), (ei(3), ei(7))]));
+            assert_eq!(
+                m.to_original,
+                HashMap::from_iter([(ei(5), ei(6)), (ei(3), ei(7))])
+            );
             assert_eq!(g.edge_count(), 6);
             assert_eq!(g.node_count(), 8);
         }
 
         {
             let mut g = graph.clone();
-            let (f, t) = purge_edges_with_mapping(
+            let m = purge_edges_with_mapping(
                 &mut g,
                 &[
                     ei(3),
@@ -346,11 +347,11 @@ mod tests {
                     ei(2),
                 ],
             );
-            println!("from_original={:?} to_original={:?}", f, t);
+            println!("{:?}", m);
             println!("{:?}", petgraph::dot::Dot::with_config(&g, &[]));
-            assert_is_bimap(&f, &t);
+            assert_is_bimap(&m.from_original, &m.to_original);
             assert_eq!(
-                f,
+                m.from_original,
                 HashMap::from_iter([
                     (ei(0), None),
                     (ei(1), None),
@@ -363,7 +364,7 @@ mod tests {
                     (ei(8), None),
                 ])
             );
-            assert_eq!(t, HashMap::default());
+            assert_eq!(m.to_original, HashMap::default());
             assert_eq!(g.edge_count(), 0);
             assert_eq!(g.node_count(), 8);
         }
