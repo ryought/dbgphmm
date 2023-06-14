@@ -180,6 +180,16 @@ pub fn purge_edges_with_mapping<N, E>(graph: &mut DiGraph<N, E>, edges: &[EdgeIn
     edge_map
 }
 
+///
+/// Remove node with mapping
+///
+pub fn purge_node<N, E>(graph: &mut DiGraph<N, E>, node: NodeIndex, map: &mut EdgeMap) {
+    // graph.edges_directed(node);
+    // TODO
+    graph.remove_node(node).expect("node does not exist");
+}
+
+///
 /// Delete all isolated nodes (no in/out edges)
 ///
 pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
@@ -192,13 +202,29 @@ pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
 }
 
 ///
+/// Delete nodes with no in/out edges
 ///
-///
-pub fn delete_unreachable_edges<N, E>(graph: &mut DiGraph<N, E>) {
-    // delete nodes with no in/out edges
-    unimplemented!();
+pub fn delete_unreachable_edges<N, E>(graph: &mut DiGraph<N, E>, map: &mut EdgeMap) {
+    'outer: loop {
+        for node in graph.node_indices() {
+            let in_degree = graph.edges_directed(node, Direction::Incoming).count();
+            let out_degree = graph.edges_directed(node, Direction::Outgoing).count();
+
+            if in_degree == 0 || out_degree == 0 {
+                // delete incoming/outgoing edges
+                // let ins = graph.edges_directed(node, Direction::Incoming).map(|| )
+
+                // delete the node
+                graph.remove_node(node).expect("node does not exist");
+
+                continue 'outer;
+            }
+        }
+        break;
+    }
 }
 
+#[allow(dead_code)]
 fn assert_is_bimap(
     from_original: &HashMap<EdgeIndex, Option<EdgeIndex>>,
     to_original: &HashMap<EdgeIndex, EdgeIndex>,
