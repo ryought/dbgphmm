@@ -51,7 +51,7 @@ use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 
 use flate2::Compression;
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 
 ///
@@ -479,6 +479,14 @@ impl MultiDbg {
         mappings: &Mappings,
     ) -> std::io::Result<()> {
         // header
+        writeln!(writer, "# {}", env!("GIT_HASH"))?;
+        writeln!(
+            writer,
+            "# k={} n_edges_full={} n_edges_compact={}",
+            self.k(),
+            self.n_edges_full(),
+            self.n_edges_compact()
+        )?;
         writeln!(writer, "# read\tpos\tbase\tnodes_and_probs")?;
 
         // body
@@ -490,7 +498,9 @@ impl MultiDbg {
                     i,
                     j,
                     base as char,
-                    mappings[i].to_nodes_string(j)
+                    izip!(&mappings[i].nodes[j], &mappings[i].probs[j])
+                        .map(|(n, p)| format!("{}:{:.1}", n.index(), p.to_log_value()))
+                        .join(","),
                 )?;
             }
         }
@@ -525,7 +535,7 @@ impl MultiDbg {
                         let mut sp = s.split(':');
                         let v: usize = sp.next().unwrap().parse().unwrap();
                         let p: f64 = sp.next().unwrap().parse().unwrap();
-                        (NodeIndex::new(v), Prob::from_prob(p / 100.0))
+                        (NodeIndex::new(v), Prob::from_log_prob(p))
                     })
                     .collect();
                 ret[i][j] = p;
