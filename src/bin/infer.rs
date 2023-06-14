@@ -32,6 +32,8 @@ struct Opts {
     #[clap(long)]
     dbg: Option<std::path::PathBuf>,
     #[clap(long)]
+    map: Option<std::path::PathBuf>,
+    #[clap(long)]
     dataset_json: std::path::PathBuf,
     #[clap(long)]
     output_prefix: std::path::PathBuf,
@@ -50,6 +52,11 @@ fn main() {
     } else {
         MultiDbg::create_draft_from_dataset(opts.k_init.unwrap(), &dataset)
     };
+    let mappings = if let Some(map_filename) = opts.map {
+        Some(dbg.from_map_file(map_filename, dataset.reads()))
+    } else {
+        None
+    };
     test_inference_from_dbg(
         &dataset,
         dbg,
@@ -62,6 +69,7 @@ fn main() {
         opts.output_prefix,
         opts.k_max_rescue_only,
         opts.k_max_rerun_mapping,
+        mappings,
     );
 
     println!("# finished_at={}", chrono::Local::now());

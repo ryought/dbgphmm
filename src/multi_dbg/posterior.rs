@@ -886,9 +886,20 @@ pub fn infer_posterior_by_extension<
     // inference parameters
     k_max_rescue_only: usize,
     k_max_rerun_mapping: usize,
+    // precalculated mapping
+    mappings: Option<Mappings>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let mut dbg = dbg_init;
-    let mut mappings = dbg.generate_mappings(param_infer, reads, None);
+    let mut mappings = match mappings {
+        Some(mappings) => {
+            eprintln!("using precalculated mappings");
+            mappings
+        }
+        None => {
+            eprintln!("generating mappings");
+            dbg.generate_mappings(param_infer, reads, None)
+        }
+    };
     on_map(&dbg, &mappings);
     let mut paths = paths;
     let mut posterior;
