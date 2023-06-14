@@ -38,6 +38,134 @@ pub fn degree_stats<N, E>(graph: &DiGraph<N, E>) -> HashMap<(usize, usize), usiz
     h
 }
 
+///
+/// Store correspondence of edges of the graph before and after edge deletions
+///
+pub struct EdgeMap {
+    ///
+    ///
+    ///
+    edge_count: usize,
+    ///
+    ///
+    ///
+    edge_count_original: usize,
+    ///
+    /// mapping of edge in original graph -> edge in current graph
+    ///
+    /// from_original[edge in original] = None  <=>  edge in original is deleted
+    ///
+    from_original: HashMap<EdgeIndex, Option<EdgeIndex>>,
+    ///
+    /// mapping of edge in current graph (after removing) -> edge in original graph (before
+    /// removing)
+    ///
+    /// to_original[edge in current] = edge in original
+    ///
+    to_original: HashMap<EdgeIndex, EdgeIndex>,
+}
+
+impl EdgeMap {
+    ///
+    ///
+    pub fn new<N, E>(graph: &DiGraph<N, E>) -> EdgeMap {
+        EdgeMap {
+            edge_count: graph.edge_count(),
+            edge_count_original: graph.edge_count(),
+            from_original: HashMap::default(),
+            to_original: HashMap::default(),
+        }
+    }
+    ///
+    ///
+    ///
+    pub fn delete<N, E>(&mut self, graph: &mut DiGraph<N, E>, edge: EdgeIndex) {
+        assert!(edge.index() < self.edge_count, "edge is out of index");
+
+        // (A) update EdgeMap
+        let edge_last = EdgeIndex::new(graph.edge_count() - 1);
+        if edge == edge_last {
+            // the edge to be removed is the last edge in the graph
+            // index of other edges left unmodified
+
+            // (1) update to_original
+            let edge_original = self.to_original(edge);
+            self.to_original.remove(&edge);
+
+            // (2) update from_original
+            self.from_original.insert(edge_original, None);
+        } else {
+            // the edge to be removed is not the last edge in the graph
+            // so the last edge will be
+            let edge_last_original = self.to_original(edge_last);
+            let edge_original = self.to_original(edge);
+
+            // (1) update to_original
+            self.to_original.insert(edge, edge_last_original);
+            self.to_original.remove(&edge_last);
+
+            // (2) update from_original
+            self.from_original.insert(edge_original, None);
+            self.from_original.insert(edge_last_original, Some(edge));
+        }
+
+        // (B) update DiGraph
+        graph
+            .remove_edge(edge)
+            .expect("edge to be removed does not exist");
+
+        // (C) update edge_count
+        self.edge_count -= 1;
+    }
+    ///
+    ///
+    ///
+    pub fn delete_original<N, E>(&mut self, graph: &mut DiGraph<N, E>, edge_original: EdgeIndex) {
+        assert!(
+            edge_original.index() < self.edge_count_original,
+            "edge is out of index, {} {}",
+            edge_original.index(),
+            self.edge_count_original,
+        );
+
+        if let Some(edge) = self.from_original(edge_original) {
+            self.delete(graph, edge);
+        }
+    }
+    ///
+    /// map edge in current graph into edge in original graph
+    ///
+    pub fn to_original(&self, edge: EdgeIndex) -> EdgeIndex {
+        assert!(edge.index() < self.edge_count, "edge is out of index");
+
+        self.to_original.get(&edge).copied().unwrap_or(edge)
+    }
+    ///
+    /// map edge in original graph into edge in current graph
+    ///
+    pub fn from_original(&self, edge: EdgeIndex) -> Option<EdgeIndex> {
+        assert!(
+            edge.index() < self.edge_count_original,
+            "edge is out of index"
+        );
+
+        match self.from_original.get(&edge) {
+            None => {
+                // edge is unmodified after the process
+                Some(edge)
+            }
+            Some(None) => {
+                // edge is deleted
+                None
+            }
+            Some(Some(edge)) => {
+                // edge index is changed
+                Some(*edge)
+            }
+        }
+    }
+}
+
 /// Remove edges
 ///
 ///
@@ -48,39 +176,13 @@ pub fn purge_edges_with_mapping<N, E>(
     HashMap<EdgeIndex, Option<EdgeIndex>>,
     HashMap<EdgeIndex, EdgeIndex>,
 ) {
-    let mut from_original: HashMap<EdgeIndex, Option<EdgeIndex>> = HashMap::default();
-    let mut to_original = HashMap::default();
+    let mut edge_map = EdgeMap::new(graph);
 
     for &edge_remove_original in edges {
-        let edge_remove = match from_original.get(&edge_remove_original) {
-            None => edge_remove_original,
-            Some(&v) => v.expect("remove edge twice"),
-        };
-
-        let edge_swap = EdgeIndex::new(graph.edge_count() - 1);
-        let edge_swap_original = to_original.get(&edge_swap).copied().unwrap_or(edge_swap);
-
-        // update graph
-        graph
-            .remove_edge(edge_remove)
-            .expect("edge to be removed does not exist");
-
-        if edge_swap == edge_remove {
-            from_original.insert(edge_remove_original, None);
-            to_original.remove(&edge_remove);
-        } else {
-            // update from_original and to_original hashmap
-            // edge_remove_original is no longer in the graph
-            from_original.insert(edge_remove_original, None);
-            // swapped edge is now in the removed position
-            from_original.insert(edge_swap_original, Some(edge_remove));
-            // the last edge in the new graph no longer exists
-            to_original.insert(edge_remove, edge_swap_original);
-            to_original.remove(&edge_swap);
-        }
+        edge_map.delete_original(graph, edge_remove_original);
     }
 
-    (from_original, to_original)
+    (edge_map.from_original, edge_map.to_original)
 }
 
 /// Delete all isolated nodes (no in/out edges)
@@ -92,6 +194,14 @@ pub fn delete_isolated_nodes<N, E>(graph: &mut DiGraph<N, E>) {
         let out_degree = graph.edges_directed(node, Direction::Outgoing).count();
         in_degree > 0 || out_degree > 0
     })
+}
+
+///
+///
+///
+pub fn delete_unreachable_edges<N, E>(graph: &mut DiGraph<N, E>) {
+    // delete nodes with no in/out edges
+    unimplemented!();
 }
 
 fn assert_is_bimap(
