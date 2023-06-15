@@ -172,9 +172,9 @@ impl MultiDbg {
     pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         // FIXME for debug
         eprintln!("dot {}", self.to_dot());
-        eprintln!("degree {:?}", self.degree_stats());
 
         writeln!(writer, "# {}", env!("GIT_HASH"))?;
+        writeln!(writer, "# degree_stats={:?}", self.degree_stats())?;
         writeln!(writer, "K\t{}", self.k())?;
         for (node, weight) in self.nodes_compact() {
             writeln!(writer, "N\t{}\t{}", node.index(), self.km1mer_compact(node))?
