@@ -92,19 +92,28 @@ impl MultiDbg {
         k_zero: usize,
     ) -> Vec<(CopyNums, UpdateInfo)> {
         let mut ret = vec![];
+
+        let mut n_zero = 0;
+        let mut n_non_zero = 0;
+
         for (edge, _, _, _) in self.edges_compact() {
             if self.copy_num_of_edge_in_compact(edge) == 0 {
                 let cycles_non_zero = self.to_rescue_neighbors_for_edge(edge, k_non_zero, true);
                 if cycles_non_zero.is_empty() {
                     let cycles_zero = self.to_rescue_neighbors_for_edge(edge, k_zero, false);
-                    eprintln!("e{} zero {}", edge.index(), cycles_zero.len());
+                    // eprintln!("e{} zero {}", edge.index(), cycles_zero.len());
+                    n_zero += 1;
                     ret.extend_from_slice(&cycles_zero);
                 } else {
                     ret.extend_from_slice(&cycles_non_zero);
-                    eprintln!("e{} nonzero {}", edge.index(), cycles_non_zero.len());
+                    // eprintln!("e{} nonzero {}", edge.index(), cycles_non_zero.len());
+                    n_non_zero += 1;
                 }
             }
         }
+
+        eprintln!("rescue n_zero={} n_non_zero={}", n_zero, n_non_zero);
+
         ret
     }
     /// Rescue neighbors
