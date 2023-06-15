@@ -1745,29 +1745,31 @@ impl MultiDbg {
     /// that maps edge in graph before purging into edge in graph after purging.
     ///
     pub fn purge_edges(&mut self, edges_in_compact: &[EdgeIndex]) -> PurgeEdgeMap {
+        // a. List up edges to be removed in full graph, corresponding edges_in_compact and bridge_edges
+        // in compact graph.
+        let mut edges_in_full = Vec::new();
+
         //
         // [1] update compact graph
         //
         // remove edges from compact graph
-        let mut map_compact = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
+        for &edge in edges_in_compact.iter() {
+            edges_in_full.extend_from_slice(&self.compact[edge].edges_in_full);
+        }
+        let map_compact = purge_edges_with_mapping(&mut self.compact, edges_in_compact);
         // removing edges may cause isolated edges (i.e. bridging edges)
         // so remove them next.
         let bridge_edges = bridge_edges(&self.compact);
-        // println!("bridge={:?}", bridge_edges);
-        // let map_compact_bridge = purge_edges_with_mapping(&mut self.compact, &bridge_edges);
-        // map_compact.compose(&map_compact_bridge);
+        eprintln!("bridge={:?}", bridge_edges);
+        for &edge in bridge_edges.iter() {
+            edges_in_full.extend_from_slice(&self.compact[edge].edges_in_full);
+        }
+        let map_compact_bridge = purge_edges_with_mapping(&mut self.compact, &bridge_edges);
+        let map_compact = EdgeMap::compose(&map_compact, &map_compact_bridge);
 
         //
         // [2] update full graph
         //
-        // a. List up edges to be removed in full graph, corresponding edges_in_compact and bridge_edges
-        // in compact graph.
-        let mut edges_in_full = Vec::new();
-        for &edge in edges_in_compact.iter().chain(bridge_edges.iter()) {
-            for &edge_in_full in self.graph_compact()[edge].edges_in_full() {
-                edges_in_full.push(edge_in_full);
-            }
-        }
         // b. remove edges from full graph
         let map_full = purge_edges_with_mapping(&mut self.full, &edges_in_full);
 

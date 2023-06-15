@@ -177,8 +177,40 @@ impl EdgeMap {
     /// A --> B --> C
     /// ```
     ///
-    pub fn compose(&mut self, other: &EdgeMap) {
-        unimplemented!();
+    pub fn compose(f: &EdgeMap, g: &EdgeMap) -> EdgeMap {
+        let mut m = EdgeMap {
+            edge_count_original: f.edge_count_original,
+            edge_count: g.edge_count,
+            from_original: HashMap::default(),
+            to_original: HashMap::default(),
+        };
+
+        // from_original
+        // (1) mappings in f
+        for (&a, &b) in f.from_original.iter() {
+            let c = b.and_then(|b| g.from_original(b));
+            m.from_original.insert(a, c);
+        }
+        // (2) mappings not in f but in g
+        for (&b, &c) in g.from_original.iter() {
+            let a = f.to_original(b);
+            m.from_original.insert(a, c);
+        }
+
+        // to_original
+        // (1) mappings in g
+        for (&c, &b) in g.to_original.iter() {
+            let a = f.to_original(b);
+            m.to_original.insert(c, a);
+        }
+        // (2) mappings not in g but in f
+        for (&b, &a) in f.to_original.iter() {
+            if let Some(c) = g.from_original(b) {
+                m.to_original.insert(c, a);
+            }
+        }
+
+        m
     }
 }
 
@@ -409,5 +441,30 @@ mod tests {
             assert_eq!(g.edge_count(), 0);
             assert_eq!(g.node_count(), 8);
         }
+    }
+    #[test]
+    fn edge_map_compose() {
+        let mut graph: DiGraph<(), usize> = DiGraph::from_edges(&[
+            // s, t, ei
+            (0, 1, 0),
+            (1, 2, 1),
+            (2, 3, 2),
+            (4, 3, 3),
+            (2, 5, 4),
+            (3, 7, 5),
+            (5, 7, 6),
+            (5, 6, 7),
+            (6, 5, 8),
+        ]);
+        println!("a{:?}", petgraph::dot::Dot::with_config(&graph, &[]));
+        let f = purge_edges_with_mapping(&mut graph, &[ei(3), ei(8), ei(5)]);
+        println!("f{:?}", f);
+        println!("b{:?}", petgraph::dot::Dot::with_config(&graph, &[]));
+        let g = purge_edges_with_mapping(&mut graph, &[ei(1), ei(4)]);
+        println!("c{:?}", petgraph::dot::Dot::with_config(&graph, &[]));
+        println!("g{:?}", g);
+        let h = EdgeMap::compose(&f, &g);
+        println!("h{:?}", h);
+        assert_is_bimap(&h.from_original, &h.to_original);
     }
 }
