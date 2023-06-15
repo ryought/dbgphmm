@@ -219,6 +219,37 @@ impl MultiDbg {
             self.copy_num_of_edge_in_compact(edge) == 0 && dir == ResidueDirection::Up
         })
     }
+    ///
+    /// check if all edges in `next_update` do not appears in `updates`
+    /// to avoid conflicts of the simultaneous updates.
+    ///
+    pub fn is_independent_update(&self, updates: &[UpdateInfo], next_update: &UpdateInfo) -> bool {
+        for update in updates {
+            for (edge, _) in update {
+                for (next_edge, _) in next_update {
+                    if edge == next_edge {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+    ///
+    ///
+    ///
+    pub fn apply_update_info_to_copy_nums(&self, copy_nums: &mut CopyNums, info: &UpdateInfo) {
+        for &(edge, direction) in info {
+            match direction {
+                ResidueDirection::Up => {
+                    copy_nums[edge] += 1;
+                }
+                ResidueDirection::Down => {
+                    copy_nums[edge] -= 1;
+                }
+            }
+        }
+    }
 }
 
 //

@@ -47,6 +47,15 @@ pub struct PosteriorSample {
     pub infos: Vec<UpdateInfo>,
 }
 
+/// Stringify `UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>`
+/// into `e40+e10-e20+e11+` format string.
+///
+pub fn update_info_to_string(info: &UpdateInfo) -> String {
+    info.iter()
+        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
+        .join("")
+}
+
 impl PosteriorSample {
     ///
     ///
@@ -56,11 +65,7 @@ impl PosteriorSample {
             "[{}]",
             self.infos
                 .iter()
-                .map(|info| {
-                    info.iter()
-                        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
-                        .join("")
-                })
+                .map(|info| update_info_to_string(info))
                 .join(",")
         )
     }
@@ -671,11 +676,11 @@ impl MultiDbg {
                     mappings,
                     genome_size_expected,
                     genome_size_sigma,
-                    false,
-                    // rescue_only, // enable multi-move mode if rescue only
+                    rescue_only, // enable multi-move mode if rescue only
                 ) {
                     Some(sample) => {
                         eprintln!("iter #{}-set{} early terminate", n_iter, i);
+                        eprintln!("accepted={}", sample.to_infos_string());
                         copy_nums = sample.copy_nums;
                         infos = sample.infos;
                         n_iter += 1;
@@ -710,30 +715,34 @@ impl MultiDbg {
         multi_move: bool,
     ) -> Option<PosteriorSample> {
         let t_start = std::time::Instant::now();
+        let evaluate = |copy_nums: CopyNums, info: &[UpdateInfo]| {
+            // evaluate score
+            let mut dbg = self.clone();
+            dbg.set_copy_nums(&copy_nums);
+            let score = dbg.to_score(
+                param,
+                reads,
+                Some(mappings),
+                genome_size_expected,
+                genome_size_sigma,
+            );
+            let mut infos = infos_init.to_owned();
+            infos.extend_from_slice(info);
+            PosteriorSample {
+                copy_nums,
+                score,
+                infos,
+            }
+        };
         let samples: Vec<_> = neighbors
+            .clone()
             .into_par_iter()
             .progress_with_style(progress_common_style())
             .filter_map(|(copy_nums, info)| {
                 if posterior.contains(&copy_nums) {
                     None
                 } else {
-                    // evaluate score
-                    let mut dbg = self.clone();
-                    dbg.set_copy_nums(&copy_nums);
-                    let score = dbg.to_score(
-                        param,
-                        reads,
-                        Some(mappings),
-                        genome_size_expected,
-                        genome_size_sigma,
-                    );
-                    let mut infos = infos_init.to_owned();
-                    infos.push(info);
-                    Some(PosteriorSample {
-                        copy_nums,
-                        score,
-                        infos,
-                    })
+                    Some(evaluate(copy_nums, &[info]))
                 }
             })
             .collect();
@@ -755,16 +764,55 @@ impl MultiDbg {
         //
         if multi_move {
             // accept independent moves
-            unimplemented!();
-        } else {
-            // move to highest copy num and continue
-            // if better copynums was found, move to it.
-            let sample = posterior.max_sample();
-            if sample.copy_nums != self.get_copy_nums() {
-                Some(sample.clone())
-            } else {
-                None
+            let mut current_copy_nums = self.get_copy_nums();
+            let mut accepted_update_infos = vec![];
+            let current_score = posterior
+                .find(&current_copy_nums)
+                .expect("current copy number was not sampled")
+                .score;
+            eprintln!("multi move from p={}", current_score.p());
+
+            for (i, (copy_nums, info)) in neighbors
+                .iter()
+                .sorted_by_key(|(copy_nums, _)| posterior.find(&copy_nums).unwrap().score.p())
+                .rev()
+                .enumerate()
+            {
+                let score = posterior.find(&copy_nums).unwrap().score;
+
+                eprintln!("{} {} {}", i, update_info_to_string(&info), score.p());
+
+                // if the change improves the score and independent (does not conflicts with other
+                // accepted changes)
+                let improves_score = score.p() > current_score.p();
+                let is_independent = self.is_independent_update(&accepted_update_infos, &info);
+                if improves_score && is_independent {
+                    eprintln!("accept!! {} {}", improves_score, is_independent);
+                    self.apply_update_info_to_copy_nums(&mut current_copy_nums, &info);
+                    accepted_update_infos.push(info.clone());
+                } else {
+                    eprintln!("reject {} {}", improves_score, is_independent);
+                }
+
+                // neighbors are sorted by score
+                if !improves_score {
+                    break;
+                }
             }
+
+            // run once and check if the score actually improves.
+            let sample = evaluate(current_copy_nums, &accepted_update_infos);
+            println!("multi move score {}", sample.score.p());
+            posterior.add(sample);
+        }
+
+        // move to highest copy num and continue
+        // if better copynums was found, move to it.
+        let sample = posterior.max_sample();
+        if sample.copy_nums != self.get_copy_nums() {
+            Some(sample.clone())
+        } else {
+            None
         }
     }
     ///
