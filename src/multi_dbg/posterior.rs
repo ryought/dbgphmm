@@ -714,7 +714,7 @@ impl MultiDbg {
         genome_size_sigma: CopyNum,
         multi_move: bool,
     ) -> Option<PosteriorSample> {
-        let t_start = std::time::Instant::now();
+        // evaluate (calculate) score of the given copy numbers and return a PosteriorSample
         let evaluate = |copy_nums: CopyNums, info: &[UpdateInfo]| {
             // evaluate score
             let mut dbg = self.clone();
@@ -734,6 +734,8 @@ impl MultiDbg {
                 infos,
             }
         };
+
+        let t_start = std::time::Instant::now();
         let samples: Vec<_> = neighbors
             .clone()
             .into_par_iter()
@@ -765,6 +767,7 @@ impl MultiDbg {
         if multi_move {
             // accept independent moves
             let mut current_copy_nums = self.get_copy_nums();
+            let original_copy_nums = self.get_copy_nums();
             let mut accepted_update_infos = vec![];
             let current_score = posterior
                 .find(&current_copy_nums)
@@ -780,12 +783,25 @@ impl MultiDbg {
             {
                 let score = posterior.find(&copy_nums).unwrap().score;
 
-                eprintln!("{} {} {}", i, update_info_to_string(&info), score.p());
+                eprintln!(
+                    "{} {} {} {}",
+                    i,
+                    update_info_to_string(&info),
+                    score.p(),
+                    info.iter()
+                        .map(|(edge, _)| format!(
+                            "e{}={}x",
+                            edge.index(),
+                            original_copy_nums[*edge]
+                        ))
+                        .join(",")
+                );
 
                 // if the change improves the score and independent (does not conflicts with other
                 // accepted changes)
                 let improves_score = score.p() > current_score.p();
-                let is_independent = self.is_independent_update(&accepted_update_infos, &info);
+                let is_independent =
+                    self.is_independent_update(&current_copy_nums, &accepted_update_infos, &info);
                 if improves_score && is_independent {
                     eprintln!("accept!! {} {}", improves_score, is_independent);
                     self.apply_update_info_to_copy_nums(&mut current_copy_nums, &info);

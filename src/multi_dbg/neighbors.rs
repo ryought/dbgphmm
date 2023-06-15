@@ -232,7 +232,12 @@ impl MultiDbg {
     /// check if all edges in `next_update` do not appears in `updates`
     /// to avoid conflicts of the simultaneous updates.
     ///
-    pub fn is_independent_update(&self, updates: &[UpdateInfo], next_update: &UpdateInfo) -> bool {
+    pub fn is_independent_update(
+        &self,
+        copy_nums: &CopyNums,
+        updates: &[UpdateInfo],
+        next_update: &UpdateInfo,
+    ) -> bool {
         for update in updates {
             for (edge, _) in update {
                 for (next_edge, _) in next_update {
