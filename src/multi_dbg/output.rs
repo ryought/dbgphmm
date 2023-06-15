@@ -170,9 +170,6 @@ impl MultiDbg {
     /// C 1,1,1,0,0,0,0,0,1
     /// ```
     pub fn to_dbg_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        // FIXME for debug
-        eprintln!("dot {}", self.to_dot());
-
         writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "# degree_stats={:?}", self.degree_stats())?;
         writeln!(writer, "K\t{}", self.k())?;

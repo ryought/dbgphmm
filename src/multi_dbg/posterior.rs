@@ -671,6 +671,8 @@ impl MultiDbg {
                     mappings,
                     genome_size_expected,
                     genome_size_sigma,
+                    false,
+                    // rescue_only, // enable multi-move mode if rescue only
                 ) {
                     Some(sample) => {
                         eprintln!("iter #{}-set{} early terminate", n_iter, i);
@@ -705,6 +707,7 @@ impl MultiDbg {
         mappings: &Mappings,
         genome_size_expected: CopyNum,
         genome_size_sigma: CopyNum,
+        multi_move: bool,
     ) -> Option<PosteriorSample> {
         let t_start = std::time::Instant::now();
         let samples: Vec<_> = neighbors
@@ -743,16 +746,25 @@ impl MultiDbg {
             reads.total_bases(),
             time
         );
-        for sample in samples {
-            posterior.add(sample);
+        for sample in samples.iter() {
+            posterior.add(sample.clone());
         }
-        // move to highest copy num and continue
-        // if better copynums was found, move to it.
-        let sample = posterior.max_sample();
-        if sample.copy_nums != self.get_copy_nums() {
-            Some(sample.clone())
+
+        //
+        // accept the best neighbor
+        //
+        if multi_move {
+            // accept independent moves
+            unimplemented!();
         } else {
-            None
+            // move to highest copy num and continue
+            // if better copynums was found, move to it.
+            let sample = posterior.max_sample();
+            if sample.copy_nums != self.get_copy_nums() {
+                Some(sample.clone())
+            } else {
+                None
+            }
         }
     }
     ///
