@@ -1,7 +1,7 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{CopyNums, MultiDbg, NeighborConfig, Path};
+use super::{neighbors::NeighborConfig, CopyNums, MultiDbg, Path};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -636,10 +636,9 @@ impl MultiDbg {
             // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            let rescue_neighbors = dbg.to_rescue_neighbors(2, true);
-            let rescue_neighbors_allow_zero = dbg.to_rescue_neighbors(10, false);
+            let rescue_neighbors = dbg.to_rescue_neighbors(2, 10);
             let neighbor_copy_nums_set = if rescue_only {
-                vec![rescue_neighbors, rescue_neighbors_allow_zero]
+                vec![rescue_neighbors]
             } else {
                 // [1] partial search
                 let partial_neighbors = dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {
@@ -651,12 +650,7 @@ impl MultiDbg {
                 });
                 // [2] full search
                 let full_neighbors = dbg.to_neighbor_copy_nums_and_infos(neighbor_config);
-                vec![
-                    rescue_neighbors,
-                    rescue_neighbors_allow_zero,
-                    partial_neighbors,
-                    full_neighbors,
-                ]
+                vec![rescue_neighbors, partial_neighbors, full_neighbors]
             };
 
             // B. Try each neighbor and move to the better neighbor if found.

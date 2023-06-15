@@ -1,7 +1,7 @@
 //!
 //! Test of posterior sampling
 //!
-use super::super::{CopyNums, MultiDbg, NeighborConfig, Path};
+use super::super::{neighbors::NeighborConfig, CopyNums, MultiDbg, Path};
 use super::{infer_posterior_by_extension, Posterior};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::e2e::Dataset;
