@@ -134,6 +134,84 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
 }
 
 ///
+/// Mapping extension test
+///
+/// Compare
+/// * Exact mapping calculated by forward/backward sparse
+/// * Inherited mapping by extension
+///
+pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
+    dataset: &Dataset,
+    dbg: MultiDbg,
+    k_final: usize,
+    param_infer: PHMMParams, // virtual error rate
+    output_prefix: P,
+) {
+    let mut dbg = dbg;
+    let mut paths = dbg.paths_from_styled_seqs(dataset.genome()).ok();
+    let mut mappings = dbg.generate_mappings(param_infer, dataset.reads(), None);
+    let output: std::path::PathBuf = output_prefix.as_ref().into();
+
+    eprintln!("generating mappings");
+
+    while dbg.k() < k_final {
+        eprintln!("k={}", dbg.k());
+
+        // compute mapping by extension and refine
+        eprintln!("computing extend...");
+        let copy_nums = dbg.copy_nums_from_full_path(&paths.as_ref().unwrap());
+        dbg.set_copy_nums(&copy_nums);
+        let zero_edges: Vec<_> = dbg
+            .graph_compact()
+            .edge_indices()
+            .filter(|&e| dbg.copy_num_of_edge_in_compact(e) == 0)
+            .collect();
+        let t_start_extend = std::time::Instant::now();
+        eprintln!("extending..");
+        (dbg, paths, mappings) = dbg.purge_and_extend(&zero_edges, k_final, true, paths, &mappings);
+        let t_extend = t_start_extend.elapsed();
+        eprintln!("extend t={}ms", t_extend.as_millis());
+        let t_start_refine = std::time::Instant::now();
+        eprintln!("refining..");
+        mappings = dbg.generate_mappings(param_infer, dataset.reads(), Some(&mappings));
+        let t_refine = t_start_refine.elapsed();
+        eprintln!("refine t={}ms", t_refine.as_millis());
+
+        dbg.to_map_file(
+            output.with_extension(format!("k{}.extend.map", dbg.k())),
+            dataset.reads(),
+            &mappings,
+        );
+
+        // compute true mapping
+        eprintln!("computing true...");
+        let t_start_map = std::time::Instant::now();
+        let mappings_true = dbg.generate_mappings(param_infer, dataset.reads(), None);
+        let t_map = t_start_map.elapsed();
+        eprintln!("map t={}ms", t_map.as_millis());
+
+        dbg.to_map_file(
+            output.with_extension(format!("k{}.true.map", dbg.k())),
+            dataset.reads(),
+            &mappings_true,
+        );
+
+        let p_extend = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings));
+        let p_true = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings_true));
+        let p_true = dbg.to_likelihood(param_infer, dataset.reads(), None);
+        println!(
+            "k={} p_extend={} p_true={} t_extend={} t_refine={} t_map={}",
+            dbg.k(),
+            p_extend,
+            p_true,
+            t_extend.as_millis(),
+            t_refine.as_millis(),
+            t_map.as_millis()
+        );
+    }
+}
+
+///
 ///
 ///
 pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(

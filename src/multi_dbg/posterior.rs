@@ -848,7 +848,7 @@ impl MultiDbg {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
         let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, true));
-        println!(
+        eprintln!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),
             reads.len(),

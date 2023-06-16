@@ -137,10 +137,12 @@ impl PHMMTable {
     ) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
         let mut ret = ArrayVec::new();
         let v = self.to_nodevec().to_sorted_arrayvec();
-        let (_, p0) = v[0];
-        for (node, prob) in v {
-            if p0.to_log_value() - prob.to_log_value() < max_ratio {
-                ret.push(node);
+        if !v.is_empty() {
+            let (_, p0) = v[0];
+            for (node, prob) in v {
+                if p0.to_log_value() - prob.to_log_value() < max_ratio {
+                    ret.push(node);
+                }
             }
         }
         ret

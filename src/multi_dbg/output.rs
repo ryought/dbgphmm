@@ -496,7 +496,7 @@ impl MultiDbg {
                     j,
                     base as char,
                     izip!(&mappings[i].nodes[j], &mappings[i].probs[j])
-                        .map(|(n, p)| format!("{}:{:.1}", n.index(), p.to_log_value()))
+                        .map(|(n, p)| format!("{}:{}", n.index(), p.to_log_value()))
                         .join(","),
                 )?;
             }
