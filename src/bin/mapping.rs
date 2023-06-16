@@ -15,6 +15,8 @@ struct Opts {
     #[clap(long)]
     dataset: std::path::PathBuf,
     #[clap(long)]
+    map_input: Option<std::path::PathBuf>,
+    #[clap(long)]
     map_output: Option<std::path::PathBuf>,
     #[clap(short = 'e')]
     p_error: f64,
@@ -22,6 +24,8 @@ struct Opts {
     max_ratio: Option<f64>,
     #[clap(short = 'a')]
     n_active_nodes: usize,
+    #[clap(long)]
+    non_uniform: bool,
 }
 
 fn main() {
@@ -45,7 +49,11 @@ fn main() {
     param.n_active_nodes = opts.n_active_nodes;
     param.active_node_max_ratio = opts.max_ratio.unwrap_or(30.0);
 
-    let phmm = dbg.to_uniform_phmm(param);
+    let phmm = if opts.non_uniform {
+        dbg.to_phmm(param)
+    } else {
+        dbg.to_uniform_phmm(param)
+    };
 
     if let Some(map) = &opts.map_output {
         let mappings = dbg.generate_mappings(param, dataset.reads(), None);
@@ -55,11 +63,21 @@ fn main() {
         eprintln!("copy_num={}", copy_num);
         dbg.to_map_file(map, dataset.reads(), &mappings);
         eprintln!("map {} written", map.display());
+        return;
     }
+
+    let mappings = if let Some(map_filename) = &opts.map_input {
+        Some(dbg.from_map_file(map_filename, dataset.reads()))
+    } else {
+        None
+    };
 
     for (i, read) in dataset.reads().into_iter().enumerate() {
         let (output, t) = timer(|| {
-            if opts.max_ratio.is_some() {
+            if mappings.is_some() {
+                println!("# using mapping");
+                phmm.run_with_mapping(read, &mappings.as_ref().unwrap()[i])
+            } else if opts.max_ratio.is_some() {
                 println!("# using max_ratio");
                 phmm.run_sparse_adaptive(read, true)
             } else {

@@ -200,15 +200,24 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
             &mappings_true,
         );
 
+        dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", dbg.k())));
+
         let p_extend = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings));
         let p_true = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings_true));
         let p_true2 = dbg.to_likelihood(param_infer, dataset.reads(), None);
+
+        let phmm = dbg.to_uniform_phmm(param_infer);
+        let p_unif_true = phmm.to_full_prob_reads(dataset.reads(), Some(&mappings_true), true);
+        let p_unif_true2 = phmm.to_full_prob_reads(dataset.reads(), None, true);
+
         println!(
-            "k={} p_extend={} p_true={} p_true2={}  t_extend={} t_refine={} t_map={}",
+            "k={} p_extend={} p_true={} p_true2={} p_unif_true={} p_unif_true2={}  t_extend={} t_refine={} t_map={}",
             dbg.k(),
             p_extend,
             p_true,
             p_true2,
+            p_unif_true,
+            p_unif_true2,
             t_extend.as_millis(),
             t_refine.as_millis(),
             t_map.as_millis()
