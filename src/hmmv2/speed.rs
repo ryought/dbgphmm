@@ -144,7 +144,7 @@ mod tests {
             // dense
             let (dense, t_dense) = timer(|| phmm.forward(read));
             let (sparse, t_sparse) = timer(|| phmm.forward_sparse(read, false));
-            let (p, t_sparse_score) = timer(|| phmm.forward_sparse_score_only(read));
+            let (p, t_sparse_score) = timer(|| phmm.forward_sparse_score_only(read, false));
             println!("{} {} {}", t_dense, t_sparse, t_sparse_score);
             let n = read.len();
             for i in 0..n {

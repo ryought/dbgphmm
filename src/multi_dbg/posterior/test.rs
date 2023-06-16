@@ -160,15 +160,19 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
         // compute mapping by extension and refine
         eprintln!("computing extend...");
         let copy_nums = dbg.copy_nums_from_full_path(&paths.as_ref().unwrap());
+        eprintln!("copy_nums={}", copy_nums);
         dbg.set_copy_nums(&copy_nums);
         let zero_edges: Vec<_> = dbg
             .graph_compact()
             .edge_indices()
             .filter(|&e| dbg.copy_num_of_edge_in_compact(e) == 0)
             .collect();
+        eprintln!("zero_edges={:?}", zero_edges);
         let t_start_extend = std::time::Instant::now();
         eprintln!("extending..");
+        eprintln!("genome_size={}", dbg.genome_size());
         (dbg, paths, mappings) = dbg.purge_and_extend(&zero_edges, k_final, true, paths, &mappings);
+        eprintln!("genome_size2={}", dbg.genome_size());
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
         let t_start_refine = std::time::Instant::now();
@@ -198,12 +202,13 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
 
         let p_extend = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings));
         let p_true = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings_true));
-        let p_true = dbg.to_likelihood(param_infer, dataset.reads(), None);
+        let p_true2 = dbg.to_likelihood(param_infer, dataset.reads(), None);
         println!(
-            "k={} p_extend={} p_true={} t_extend={} t_refine={} t_map={}",
+            "k={} p_extend={} p_true={} p_true2={}  t_extend={} t_refine={} t_map={}",
             dbg.k(),
             p_extend,
             p_true,
+            p_true2,
             t_extend.as_millis(),
             t_refine.as_millis(),
             t_map.as_millis()

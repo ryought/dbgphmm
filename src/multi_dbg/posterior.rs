@@ -540,7 +540,7 @@ impl MultiDbg {
         mappings: Option<&Mappings>,
     ) -> Prob {
         let phmm = self.to_phmm(param);
-        phmm.to_full_prob_reads(reads, mappings)
+        phmm.to_full_prob_reads(reads, mappings, true)
     }
     ///
     /// Calculate the score `P(R|G)P(G)` (by prior `P(G)` from genome size and likelihood `P(R|G)` from reads) of this MultiDbg.
@@ -847,7 +847,7 @@ impl MultiDbg {
     ) -> Mappings {
         param.n_warmup = self.k();
         let phmm = self.to_uniform_phmm(param);
-        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, true));
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, false));
         eprintln!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),

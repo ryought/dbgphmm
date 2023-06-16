@@ -130,7 +130,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     ///
     ///
-    pub fn forward_sparse_score_only<X: AsRef<Bases>>(&self, emissions: X) -> Prob {
+    pub fn forward_sparse_score_only<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        use_max_ratio: bool,
+    ) -> Prob {
         let mut table = self.f_init(true);
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
@@ -140,7 +144,13 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 table = self.f_step(i, emission, &table, &all_nodes, true, false);
             } else {
                 // sparse_table
-                let active_nodes = self.to_childs_and_us(&table.top_nodes(param.n_active_nodes));
+                let active_nodes = if use_max_ratio {
+                    self.to_childs_and_us(
+                        &table.top_nodes_by_score_ratio(param.active_node_max_ratio),
+                    )
+                } else {
+                    self.to_childs_and_us(&table.top_nodes(param.n_active_nodes))
+                };
                 table = self.f_step(i, emission, &table, &active_nodes, false, true);
             };
         }
