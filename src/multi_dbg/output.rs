@@ -488,6 +488,7 @@ impl MultiDbg {
 
         // body
         for (i, read) in reads.iter().enumerate() {
+            writeln!(writer, "# i={}", i)?;
             for (j, &base) in read.as_ref().into_iter().enumerate() {
                 writeln!(
                     writer,

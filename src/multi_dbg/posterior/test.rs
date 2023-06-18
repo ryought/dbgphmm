@@ -201,6 +201,7 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
         );
 
         dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", dbg.k())));
+        dbg.to_gfa_file(output.with_extension(format!("k{}.gfa", dbg.k())));
 
         let p_extend = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings));
         let p_true = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings_true));

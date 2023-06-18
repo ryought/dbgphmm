@@ -55,6 +55,14 @@ fn main() {
         dbg.to_uniform_phmm(param)
     };
 
+    // n_zero_edges
+    let n_zero_edges = dbg
+        .graph_compact()
+        .edge_indices()
+        .filter(|&e| dbg.copy_num_of_edge_in_compact(e) == 0)
+        .count();
+    println!("# n_zero_edges={}", n_zero_edges);
+
     if let Some(map) = &opts.map_output {
         let mappings = dbg.generate_mappings(param, dataset.reads(), None);
         let freqs = dbg.mappings_to_freqs(&mappings);

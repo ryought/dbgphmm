@@ -162,7 +162,8 @@ def draw_active_nodes_diff(i: int, bmap: List[List[MapInfoList]], bmap_true: Lis
 
     plt.subplot(6, 1, 3)
     plt.xlim(0, n_bases)
-    plt.ylim(0, 500)
+    max_active_nodes = 20
+    plt.ylim(0, max_active_nodes)
     ns = [mi.n_active_nodes for mi in bmap[i]]
     nts = [mi.n_active_nodes for mi in bmap_true[i]]
     plt.plot(ns, label='approx')
