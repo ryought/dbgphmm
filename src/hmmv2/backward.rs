@@ -90,7 +90,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         r
     }
     ///
+    /// The frequency value S[i] = F[i]B[i] is important.
     ///
+    /// So backward should fill B[i] for cells that are active in F[i].
+    /// B.tables[i] = B[i]
+    /// F[i] = F.tables[i-1]
     ///
     pub fn backward_by_forward<X: AsRef<Bases>>(
         &self,
@@ -119,11 +123,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     } else {
                         r.last_table()
                     };
-                    let table = if i < param.n_warmup {
-                        self.b_step(i, emission, table_prev, &all_nodes, true, false)
-                    } else {
-                        if forward.table(i - 1).is_dense() {
-                            self.b_step(i, emission, table_prev, &all_nodes, false, false)
+                    let table = {
+                        if i == 0 || forward.table(i - 1).is_dense() {
+                            self.b_step(i, emission, table_prev, &all_nodes, true, false)
                         } else {
                             let active_nodes = forward.table(i - 1).filled_nodes().unwrap();
                             self.b_step(i, emission, table_prev, &active_nodes, false, false)
