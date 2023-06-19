@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Mapping;
-use super::table::{PHMMTable, PHMMTables};
+use super::table::{PHMMKind, PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
 use petgraph::graph::NodeIndex;
@@ -25,7 +25,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let all_nodes = self.to_all_nodes();
         let n = emissions.as_ref().len();
@@ -64,7 +64,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let n = emissions.as_ref().len();
         // feed the emissions backward
@@ -106,7 +106,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let n = emissions.as_ref().len();
         let param = self.param;
@@ -148,7 +148,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let param = &self.param;
         let all_nodes = self.to_all_nodes();

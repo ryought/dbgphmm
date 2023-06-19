@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Mapping;
-use super::table::{PHMMTable, PHMMTables};
+use super::table::{PHMMKind, PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
 use crate::utils::timer_us;
@@ -26,7 +26,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
-            is_forward: true,
+            kind: PHMMKind::Forward,
         };
         let all_nodes = self.to_all_nodes();
         emissions
@@ -57,7 +57,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
-            is_forward: true,
+            kind: PHMMKind::Forward,
         };
         emissions
             .as_ref()
@@ -95,7 +95,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),
-            is_forward: true,
+            kind: PHMMKind::Forward,
         };
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
