@@ -52,7 +52,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         r
     }
     ///
+    /// Run Backward algorithm to the emissions using hint/mapping information
     ///
+    /// To calculate B.tables[i] = B[i], use S[i-1]=F[i]B[i] (0<=i<n)
     ///
     pub fn backward_with_mapping<X: AsRef<Bases>>(
         &self,

@@ -47,6 +47,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions using hint/mapping information
     ///
+    /// To calculate F.tables[i] = F[i+1], use S[i]=F[i+1]B[i+1] (0<=i<n)
+    ///
     pub fn forward_with_mapping<X: AsRef<Bases>>(
         &self,
         emissions: X,
