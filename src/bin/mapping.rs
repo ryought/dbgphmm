@@ -24,8 +24,15 @@ struct Opts {
     max_ratio: Option<f64>,
     #[clap(short = 'a')]
     n_active_nodes: usize,
-    #[clap(long)]
-    non_uniform: bool,
+    #[clap(long, arg_enum, default_value = "uniform")]
+    phmm: PHMM,
+}
+
+#[derive(Clone, Debug, clap::ArgEnum)]
+enum PHMM {
+    Normal,
+    Uniform,
+    NonZero,
 }
 
 fn main() {
@@ -49,10 +56,10 @@ fn main() {
     param.n_active_nodes = opts.n_active_nodes;
     param.active_node_max_ratio = opts.max_ratio.unwrap_or(30.0);
 
-    let phmm = if opts.non_uniform {
-        dbg.to_phmm(param)
-    } else {
-        dbg.to_uniform_phmm(param)
+    let phmm = match opts.phmm {
+        PHMM::Normal => dbg.to_phmm(param),
+        PHMM::Uniform => dbg.to_uniform_phmm(param),
+        PHMM::NonZero => dbg.to_non_zero_phmm(param),
     };
 
     // n_zero_edges
