@@ -846,8 +846,9 @@ impl MultiDbg {
         mappings: Option<&Mappings>,
     ) -> Mappings {
         param.n_warmup = self.k();
-        let phmm = self.to_uniform_phmm(param);
-        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, true));
+        // let phmm = self.to_uniform_phmm(param);
+        let phmm = self.to_non_zero_phmm(param);
+        let (map, time) = timer(|| phmm.generate_mappings(reads, mappings, true, Some(100.0)));
         eprintln!(
             "generated mappings for k={} n_reads={} total_bases={} in t={}ms",
             self.k(),
@@ -967,7 +968,7 @@ pub fn infer_posterior_by_extension<
         }
         None => {
             eprintln!("generating mappings");
-            dbg.generate_mappings(param_infer, reads, None)
+            dbg.generate_mappings(param_error, reads, None)
         }
     };
     on_map(&dbg, &mappings);
@@ -1018,11 +1019,11 @@ pub fn infer_posterior_by_extension<
         let t_start_hint = std::time::Instant::now();
         if dbg.k() <= k_max_rerun_mapping {
             println!("k={} rerun mapping", dbg.k());
-            mappings = dbg.generate_mappings(param_infer, reads, None); // currently previous mapping
+            mappings = dbg.generate_mappings(param_error, reads, None); // currently previous mapping
                                                                         // is not used
         } else {
             println!("k={} not rerun mapping", dbg.k());
-            mappings = dbg.generate_mappings(param_infer, reads, Some(&mappings));
+            mappings = dbg.generate_mappings(param_error, reads, Some(&mappings));
         }
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
