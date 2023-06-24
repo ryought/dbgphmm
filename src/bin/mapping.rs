@@ -47,7 +47,8 @@ fn main() {
     let mut node_name_vec = vec![String::new(); dbg.n_edges_full()];
     for ec in dbg.graph_compact().edge_indices() {
         for (i, ef) in dbg.edges_in_full(ec).iter().enumerate() {
-            node_name_vec[ef.index()] = format!("{}-{}", ec.index(), i);
+            let base = dbg.base(*ef);
+            node_name_vec[ef.index()] = format!("{}-{}{}", ec.index(), i, base as char);
         }
     }
     let format = |node: NodeIndex| node_name_vec[node.index()].clone();
@@ -112,8 +113,10 @@ fn main() {
         );
 
         // for each base
-        for j in 1..output.n_emissions() {
-            let f = output.forward.table_merged(j);
+        for j in 0..output.n_emissions() {
+            let base = read.seq()[j] as char;
+            println!("# {}\t{}\tR\t{}", i, j, base);
+            let f = output.forward.table_merged(j + 1);
             println!(
                 "{}\t{}\tF\t{}\t{}",
                 i,
@@ -121,7 +124,7 @@ fn main() {
                 f.e.to_log_value(),
                 f.to_summary_string_n(40, format),
             );
-            let b = output.backward.table_merged(j);
+            let b = output.backward.table_merged(j + 1);
             println!(
                 "{}\t{}\tB\t{}\t{}",
                 i,
@@ -134,7 +137,7 @@ fn main() {
                 i,
                 j,
                 f.n_active_nodes(),
-                output.to_emit_probs(j).to_summary_string_n(40, format),
+                output.to_emit_probs(j + 1).to_summary_string_n(40, format),
             );
         }
     }
