@@ -90,6 +90,7 @@ impl MultiDbg {
         &self,
         k_non_zero: usize,
         k_zero: usize,
+        weighted_by_copy_num: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
         let mut ret = vec![];
 
@@ -98,9 +99,15 @@ impl MultiDbg {
 
         for (edge, _, _, _) in self.edges_compact() {
             if self.copy_num_of_edge_in_compact(edge) == 0 {
-                let cycles_non_zero = self.to_rescue_neighbors_for_edge(edge, k_non_zero, true);
+                let cycles_non_zero =
+                    self.to_rescue_neighbors_for_edge(edge, k_non_zero, true, weighted_by_copy_num);
                 if cycles_non_zero.is_empty() {
-                    let cycles_zero = self.to_rescue_neighbors_for_edge(edge, k_zero, false);
+                    let cycles_zero = self.to_rescue_neighbors_for_edge(
+                        edge,
+                        k_zero,
+                        false,
+                        weighted_by_copy_num,
+                    );
                     // eprintln!("e{} zero {}", edge.index(), cycles_zero.len());
                     n_zero += 1;
                     ret.extend_from_slice(&cycles_zero);
@@ -124,6 +131,7 @@ impl MultiDbg {
         edge: EdgeIndex,
         k: usize,
         not_make_new_zero_edge: bool,
+        weighted_by_copy_num: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
         let copy_nums = self.get_copy_nums();
         let network = self.graph_compact().map(
@@ -150,7 +158,12 @@ impl MultiDbg {
             if e == edge_in_rg {
                 usize::MAX
             } else {
-                self.n_bases(rg[e].target)
+                if weighted_by_copy_num {
+                    self.n_bases(rg[e].target)
+                        / self.copy_num_of_edge_in_compact(rg[e].target).max(1)
+                } else {
+                    self.n_bases(rg[e].target)
+                }
             }
         });
 

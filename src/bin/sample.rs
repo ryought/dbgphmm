@@ -32,10 +32,12 @@ fn main() {
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
     // let neighbors = dbg.to_rescue_neighbors(2, 10);
     let neighbors = [
-        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, true),
-        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, false),
-        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, true),
-        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, false),
+        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, true, false),
+        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, true, true),
+        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, false, false),
+        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, true, false),
+        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, true, true),
+        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, false, false),
     ]
     .concat();
     println!("neighbors={}", neighbors.len());
