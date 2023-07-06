@@ -702,6 +702,54 @@ impl MultiDbg {
     ///
     ///
     ///
+    pub fn sample_posterior_for_inspect<S: Seq>(
+        &self,
+        neighbors: Vec<(CopyNums, UpdateInfo)>,
+        param: PHMMParams,
+        reads: &ReadCollection<S>,
+        genome_size_expected: CopyNum,
+        genome_size_sigma: CopyNum,
+    ) -> Posterior {
+        // evaluate (calculate) score of the given copy numbers and return a PosteriorSample
+        let evaluate = |copy_nums: CopyNums, infos: Vec<UpdateInfo>| {
+            // evaluate score
+            let mut dbg = self.clone();
+            dbg.set_copy_nums(&copy_nums);
+            let score = dbg.to_score(param, reads, None, genome_size_expected, genome_size_sigma);
+            PosteriorSample {
+                copy_nums,
+                score,
+                infos,
+            }
+        };
+
+        let mut posterior = Posterior::new();
+
+        // init
+        posterior.add(evaluate(self.get_copy_nums(), vec![]));
+
+        // neighbors
+        let samples: Vec<_> = neighbors
+            .into_iter()
+            .filter_map(|(copy_nums, info)| {
+                eprintln!("info={:?}", info);
+                if posterior.contains(&copy_nums) {
+                    None
+                } else {
+                    Some(evaluate(copy_nums, vec![info]))
+                }
+            })
+            .collect();
+
+        for sample in samples.into_iter() {
+            posterior.add(sample);
+        }
+
+        posterior
+    }
+    ///
+    ///
+    ///
     pub fn sample_posterior_once<S: Seq>(
         &self,
         neighbors: Vec<(CopyNums, UpdateInfo)>,
