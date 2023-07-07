@@ -19,6 +19,8 @@ struct Opts {
     dbg: std::path::PathBuf,
     #[clap(long)]
     dataset_json: std::path::PathBuf,
+    #[clap(long, use_value_delimiter = true, value_delimiter = ',')]
+    edges: Vec<usize>,
 }
 
 fn main() {
@@ -31,15 +33,19 @@ fn main() {
     let dataset = Dataset::from_json_file(opts.dataset_json);
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
     // let neighbors = dbg.to_rescue_neighbors(2, 10);
-    let neighbors = [
-        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, true, false),
-        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, true, true),
-        dbg.to_rescue_neighbors_for_edge(ei(1664), 2, false, false),
-        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, true, false),
-        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, true, true),
-        dbg.to_rescue_neighbors_for_edge(ei(4280), 2, false, false),
-    ]
-    .concat();
+    let neighbors: Vec<_> = opts
+        .edges
+        .iter()
+        .flat_map(|&i| {
+            let edge = ei(i);
+            [
+                dbg.to_rescue_neighbors_for_edge(edge, 2, true, false),
+                dbg.to_rescue_neighbors_for_edge(edge, 2, true, true),
+                dbg.to_rescue_neighbors_for_edge(edge, 2, false, false),
+            ]
+            .concat()
+        })
+        .collect();
     println!("neighbors={}", neighbors.len());
     let posterior = dbg.sample_posterior_for_inspect(
         neighbors,
