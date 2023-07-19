@@ -507,45 +507,58 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn from_map_reader<R: std::io::BufRead, S: Seq>(
-        &self,
-        reader: R,
-        reads: &ReadCollection<S>,
-    ) -> Mappings {
+    pub fn from_map_reader_raw<R: std::io::BufRead>(&self, reader: R) -> Mappings {
         let mut ret: Vec<Vec<Vec<(NodeIndex, Prob)>>> = vec![];
-        for (_, read) in reads.into_iter().enumerate() {
-            ret.push(vec![vec![]; read.as_ref().len()]);
-        }
+
         for line in reader.lines() {
             let text = line.unwrap();
             let first_char = text.chars().nth(0).unwrap();
-            if first_char != '#' {
-                let mut iter = text.split_whitespace();
-
-                let i: usize = iter.next().unwrap().parse().unwrap();
-                let j: usize = iter.next().unwrap().parse().unwrap();
-                iter.next().unwrap(); // base
-                let p: Vec<(NodeIndex, Prob)> = iter
-                    .next()
-                    .unwrap()
-                    .split(',')
-                    .map(|s| {
-                        let mut sp = s.split(':');
-                        let v: usize = sp.next().unwrap().parse().unwrap();
-                        let p: f64 = sp.next().unwrap().parse().unwrap();
-                        (NodeIndex::new(v), Prob::from_log_prob(p))
-                    })
-                    .collect();
-                ret[i][j] = p;
+            if first_char == '#' {
+                continue;
             }
+            let mut iter = text.split_whitespace();
+
+            let i: usize = iter.next().unwrap().parse().unwrap();
+            let j: usize = iter.next().unwrap().parse().unwrap();
+            if ret.len() <= i {
+                ret.push(vec![]);
+            }
+            if ret[i].len() <= j {
+                ret[i].push(vec![]);
+            }
+            assert_eq!(ret.len(), i + 1);
+            assert_eq!(ret[i].len(), j + 1);
+            iter.next().unwrap(); // base
+            let p: Vec<(NodeIndex, Prob)> = iter
+                .next()
+                .unwrap()
+                .split(',')
+                .map(|s| {
+                    let mut sp = s.split(':');
+                    let v: usize = sp.next().unwrap().parse().unwrap();
+                    let p: f64 = sp.next().unwrap().parse().unwrap();
+                    (NodeIndex::new(v), Prob::from_log_prob(p))
+                })
+                .collect();
+            ret[i][j] = p;
         }
 
         let mut ms = vec![];
-        for (i, _read) in reads.into_iter().enumerate() {
-            let m = Mapping::from_nodes_and_probs(&ret[i]);
+        for r in ret {
+            let m = Mapping::from_nodes_and_probs(&r);
             ms.push(m);
         }
         Mappings::new(ms)
+    }
+    ///
+    ///
+    ///
+    pub fn from_map_reader<R: std::io::BufRead, S: Seq>(
+        &self,
+        reader: R,
+        _reads: &ReadCollection<S>,
+    ) -> Mappings {
+        self.from_map_reader_raw(reader)
     }
     ///
     /// parse MAP string with [`MultiDbg::from_map_reader`]
@@ -564,6 +577,13 @@ impl MultiDbg {
         let file = std::fs::File::open(path).unwrap();
         let reader = std::io::BufReader::new(file);
         self.from_map_reader(reader, reads)
+    }
+    ///
+    ///
+    pub fn from_map_file_raw<P: AsRef<std::path::Path>>(&self, path: P) -> Mappings {
+        let file = std::fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        self.from_map_reader_raw(reader)
     }
 }
 
