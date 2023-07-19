@@ -1,12 +1,12 @@
 //! VecKmer definitions
 use super::common::{KmerLike, NullableKmer};
 use crate::common::{BASES, NULL_BASE, VALID_BASES};
-use pyo3::prelude::*;
+// use pyo3::prelude::*;
 
 ///
 /// Kmer for any k, by using Vec<u8> as a internal struct
 ///
-#[pyclass]
+// #[pyclass]
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Clone)]
 pub struct VecKmer(pub Vec<u8>);
 

@@ -19,13 +19,15 @@ pub mod multi_dbg;
 pub mod playground;
 pub mod prelude;
 pub mod prob;
-pub mod python;
 pub mod random_seq;
 pub mod reads;
 pub mod stats;
 pub mod utils;
 pub mod vector;
 // pub mod phmm;
+
+#[cfg(feature = "python")]
+pub mod python;
 
 extern crate jemallocator;
 #[global_allocator]

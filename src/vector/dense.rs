@@ -2,7 +2,6 @@
 //! Dense storage that uses `std::Vec`
 //!
 use super::{SparseStorage, Storage};
-use pyo3::prelude::*;
 
 /// Dense storage powered by `std::Vec`
 ///

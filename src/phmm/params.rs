@@ -3,7 +3,7 @@
 //!
 use crate::prob::Prob;
 use crate::vector::sparse::SIZE;
-use pyo3::prelude::*;
+// use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 ///
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// * uniform(p)
 /// * default(), zero_error(), high_error()
 ///
-#[pyclass]
+// #[pyclass]
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct PHMMParams {
@@ -143,16 +143,16 @@ impl PHMMParams {
     }
 }
 
-#[pymethods]
-impl PHMMParams {
-    #[new]
-    fn __new__(p: f64) -> Self {
-        PHMMParams::uniform(p)
-    }
-    fn __repr__(&self) -> String {
-        self.to_string()
-    }
-}
+// #[pymethods]
+// impl PHMMParams {
+//     #[new]
+//     fn __new__(p: f64) -> Self {
+//         PHMMParams::uniform(p)
+//     }
+//     fn __repr__(&self) -> String {
+//         self.to_string()
+//     }
+// }
 
 impl std::fmt::Display for PHMMParams {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

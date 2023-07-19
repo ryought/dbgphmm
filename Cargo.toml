@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["ndarray-linalg/openblas-system"]
-python = []
+python = ["pyo3"]
 intel = ["ndarray-linalg/intel-mkl-system"]
 
 [profile.release]
@@ -48,7 +48,7 @@ derive-new = "0.5"
 fixedbitset = "*"
 # below setting does not work in mac
 # pyo3 = { version = "0.17.1", features = ["extension-module"] }
-pyo3 = { version = "0.17.1" }
+pyo3 = { version = "0.17.1", optional = true }
 chrono = "*"
 indicatif = { version = "*", features = ["rayon"] }
 once_cell = "*"

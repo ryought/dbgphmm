@@ -20,13 +20,15 @@ use crate::kmer::kmer::KmerLike;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
-use pyo3::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_with::{
     serde_as, DeserializeAs, DeserializeFromStr, DisplayFromStr, SerializeAs, SerializeDisplay,
 };
 use std::str::FromStr;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
 
 //
 // Single Sequence
@@ -371,7 +373,6 @@ impl FromStr for SeqStyle {
 ///
 /// Sequence with style specified.
 ///
-#[pyclass]
 #[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct StyledSequence {
     pub seq: Sequence,
@@ -422,16 +423,15 @@ impl StyledSequence {
     }
 }
 
-#[pymethods]
-impl StyledSequence {
-    #[new]
-    fn __new__(s: &str) -> Self {
-        StyledSequence::from_str(s).unwrap()
-    }
-    fn __repr__(&self) -> String {
-        self.to_string()
-    }
-}
+// impl StyledSequence {
+//     #[new]
+//     fn __new__(s: &str) -> Self {
+//         StyledSequence::from_str(s).unwrap()
+//     }
+//     fn __repr__(&self) -> String {
+//         self.to_string()
+//     }
+// }
 
 impl std::fmt::Display for StyledSequence {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
