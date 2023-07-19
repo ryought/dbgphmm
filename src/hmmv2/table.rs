@@ -137,10 +137,12 @@ impl PHMMTable {
     ) -> ArrayVec<NodeIndex, MAX_ACTIVE_NODES> {
         let mut ret = ArrayVec::new();
         let v = self.to_nodevec().to_sorted_arrayvec();
-        let (_, p0) = v[0];
-        for (node, prob) in v {
-            if p0.to_log_value() - prob.to_log_value() < max_ratio {
-                ret.push(node);
+        if !v.is_empty() {
+            let (_, p0) = v[0];
+            for (node, prob) in v {
+                if p0.to_log_value() - prob.to_log_value() < max_ratio {
+                    ret.push(node);
+                }
             }
         }
         ret
@@ -363,7 +365,14 @@ impl std::iter::Sum for PHMMTable {
 pub struct PHMMTables {
     pub init_table: PHMMTable,
     pub tables: Vec<PHMMTable>,
-    pub is_forward: bool,
+    pub kind: PHMMKind,
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub enum PHMMKind {
+    Forward,
+    Backward,
+    State,
 }
 
 impl PHMMTables {
@@ -383,14 +392,11 @@ impl PHMMTables {
             .last()
             .expect("cannot get last table because PHMMTables is empty")
     }
-    pub fn is_forward(&self) -> bool {
-        self.is_forward
-    }
     pub fn full_prob(&self) -> Prob {
-        if self.is_forward() {
-            self.last_table().e
-        } else {
-            self.first_table().mb
+        match self.kind {
+            PHMMKind::Forward => self.last_table().e,
+            PHMMKind::Backward => self.first_table().mb,
+            _ => panic!(),
         }
     }
     ///
@@ -408,18 +414,22 @@ impl PHMMTables {
     pub fn table_merged(&self, merged_index: usize) -> &PHMMTable {
         // TODO
         // assert!(merged_index <= self.n_emissions() + 1);
-        if self.is_forward() {
-            if merged_index == 0 {
-                &self.init_table
-            } else {
-                self.table(merged_index - 1)
+        match self.kind {
+            PHMMKind::Forward => {
+                if merged_index == 0 {
+                    &self.init_table
+                } else {
+                    self.table(merged_index - 1)
+                }
             }
-        } else {
-            if merged_index >= self.n_emissions() {
-                &self.init_table
-            } else {
-                self.table(merged_index)
+            PHMMKind::Backward => {
+                if merged_index >= self.n_emissions() {
+                    &self.init_table
+                } else {
+                    self.table(merged_index)
+                }
             }
+            _ => panic!(),
         }
     }
 }
@@ -454,8 +464,8 @@ pub struct PHMMOutput {
 impl PHMMOutput {
     pub fn new(forward: PHMMTables, backward: PHMMTables) -> Self {
         // check forward/backward is created by phmm.forward/backward()
-        assert!(forward.is_forward());
-        assert!(!backward.is_forward());
+        assert_eq!(forward.kind, PHMMKind::Forward);
+        assert_eq!(backward.kind, PHMMKind::Backward);
         assert_eq!(forward.n_emissions(), backward.n_emissions());
         PHMMOutput { forward, backward }
     }
@@ -492,5 +502,17 @@ impl PHMMOutput {
         let f = self.forward.table_merged(merged_index);
         let b = self.backward.table_merged(merged_index);
         (f * b) / p
+    }
+    ///
+    /// S[i] = F[i] B[i]
+    ///
+    pub fn to_state_probs_v2(&self) -> PHMMTables {
+        PHMMTables {
+            init_table: self.to_emit_probs(0),
+            tables: (1..=self.n_emissions())
+                .map(|i| self.to_emit_probs(i))
+                .collect(),
+            kind: PHMMKind::State,
+        }
     }
 }

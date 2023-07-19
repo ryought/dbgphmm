@@ -488,6 +488,7 @@ impl MultiDbg {
 
         // body
         for (i, read) in reads.iter().enumerate() {
+            writeln!(writer, "# i={}", i)?;
             for (j, &base) in read.as_ref().into_iter().enumerate() {
                 writeln!(
                     writer,
@@ -496,7 +497,7 @@ impl MultiDbg {
                     j,
                     base as char,
                     izip!(&mappings[i].nodes[j], &mappings[i].probs[j])
-                        .map(|(n, p)| format!("{}:{:.1}", n.index(), p.to_log_value()))
+                        .map(|(n, p)| format!("{}:{}", n.index(), p.to_log_value()))
                         .join(","),
                 )?;
             }

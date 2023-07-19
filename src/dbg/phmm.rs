@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn dbg_as_phmm_simple() {
         let dbg = mock_simple();
-        let c = dbg.graph.total_emittable_copy_num();
+        let c = dbg.graph.total_emittable_copy_num(0);
         println!("c={}", c);
         let phmm = dbg.to_phmm(PHMMParams::default());
         println!("{}", phmm);

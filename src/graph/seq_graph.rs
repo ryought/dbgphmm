@@ -17,10 +17,10 @@ pub use petgraph::Direction;
 pub trait SeqGraph {
     /// calculate the sum of copy numbers
     /// of all emittable nodes
-    fn total_emittable_copy_num(&self) -> CopyNum;
+    fn total_emittable_copy_num(&self, min_copy_num: CopyNum) -> CopyNum;
     /// calculate the sum of copy numbers
     /// of all emittable childs of the given node
-    fn total_emittable_child_copy_nums(&self, node: NodeIndex) -> CopyNum;
+    fn total_emittable_child_copy_nums(&self, node: NodeIndex, min_copy_num: CopyNum) -> CopyNum;
     ///
     /// SeqGraph has consistent copy numbers on nodes?
     ///
@@ -49,9 +49,17 @@ pub trait SeqGraph {
     /// Sum of out-edge copy_nums
     ///
     fn sum_out_edge_copy_nums(&self, node: NodeIndex) -> CopyNum;
+    //
+    // normal phmm
+    //
     /// Convert Node in SimpleSeqGraph into phmm node
     ///
-    fn to_phmm_node(&self, node: NodeIndex, total_copy_num: CopyNum) -> PNode;
+    fn to_phmm_node(
+        &self,
+        node: NodeIndex,
+        total_copy_num: CopyNum,
+        min_copy_num: CopyNum,
+    ) -> PNode;
     /// Convert Edge in SimpleSeqGraph into phmm edge
     ///
     /// For each node,
@@ -59,10 +67,13 @@ pub trait SeqGraph {
     ///
     /// * if all outgoing edge have copynum,
     ///
-    fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge;
+    fn to_phmm_edge(&self, edge: EdgeIndex, min_copy_num: CopyNum) -> PEdge;
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
     ///
     fn to_phmm(&self, param: PHMMParams) -> PModel;
+    //
+    // uniform phmm
+    //
     /// Create node for uniform PHMM
     ///
     /// initial probability of node `v` =
@@ -81,17 +92,28 @@ pub trait SeqGraph {
     ///
     ///
     fn to_uniform_phmm(&self, param: PHMMParams) -> PModel;
+    //
+    // non-zero phmm
+    //
+    ///
+    /// Non-zero PHMM
+    ///
+    /// Set init_prob and trans_prob according to node copy numbers
+    /// but copy_num is clamped to 1 if the node is emittable.
+    /// Use to create mapping.
+    ///
+    fn to_non_zero_phmm(&self, param: PHMMParams) -> PModel;
 }
 
 impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     /// calculate the sum of copy numbers
     /// of all emittable nodes
-    fn total_emittable_copy_num(&self) -> CopyNum {
+    fn total_emittable_copy_num(&self, min_copy_num: CopyNum) -> CopyNum {
         self.node_indices()
             .map(|v| {
                 let vw = self.node_weight(v).unwrap();
                 if vw.is_emittable() {
-                    vw.copy_num()
+                    vw.copy_num().max(min_copy_num)
                 } else {
                     0
                 }
@@ -100,12 +122,12 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     }
     /// calculate the sum of copy numbers
     /// of all emittable childs of the given node
-    fn total_emittable_child_copy_nums(&self, node: NodeIndex) -> CopyNum {
+    fn total_emittable_child_copy_nums(&self, node: NodeIndex, min_copy_num: CopyNum) -> CopyNum {
         self.neighbors_directed(node, Direction::Outgoing)
             .map(|child| {
                 let child_weight = self.node_weight(child).unwrap();
                 if child_weight.is_emittable() {
-                    child_weight.copy_num()
+                    child_weight.copy_num().max(min_copy_num)
                 } else {
                     0
                 }
@@ -137,10 +159,16 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             .sum()
     }
     /// Convert Node in SimpleSeqGraph into phmm node
-    fn to_phmm_node(&self, node: NodeIndex, total_copy_num: CopyNum) -> PNode {
+    fn to_phmm_node(
+        &self,
+        node: NodeIndex,
+        total_copy_num: CopyNum,
+        min_copy_num: CopyNum,
+    ) -> PNode {
         let node_weight = self.node_weight(node).unwrap();
         let init_prob = if node_weight.is_emittable() {
-            Prob::from_prob(node_weight.copy_num() as f64) / Prob::from_prob(total_copy_num as f64)
+            let copy_num = node_weight.copy_num().max(min_copy_num);
+            Prob::from_prob(copy_num as f64) / Prob::from_prob(total_copy_num as f64)
         } else {
             Prob::from_prob(0.0)
         };
@@ -151,7 +179,7 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             node_weight.base(),
         )
     }
-    fn to_phmm_edge(&self, edge: EdgeIndex) -> PEdge {
+    fn to_phmm_edge(&self, edge: EdgeIndex, min_copy_num: CopyNum) -> PEdge {
         let (parent, child) = self.edge_endpoints(edge).unwrap();
         let edge_weight = self.edge_weight(edge).unwrap();
         let child_weight = self.node_weight(child).unwrap();
@@ -171,9 +199,11 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
             }
             None => {
                 // there is no copy num assigned to the edge
-                let total_child_copy_num = self.total_emittable_child_copy_nums(parent);
+                let total_child_copy_num =
+                    self.total_emittable_child_copy_nums(parent, min_copy_num);
                 let trans_prob = if child_weight.is_emittable() && total_child_copy_num > 0 {
-                    Prob::from_prob(child_weight.copy_num() as f64 / total_child_copy_num as f64)
+                    let copy_num = child_weight.copy_num().max(min_copy_num);
+                    Prob::from_prob(copy_num as f64 / total_child_copy_num as f64)
                 } else {
                     Prob::from_prob(0.0)
                 };
@@ -183,12 +213,13 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     }
     /// convert SimpleSeqGraph to PHMM by ignoreing the edge copy numbers
     fn to_phmm(&self, param: PHMMParams) -> PModel {
-        let total_copy_num = self.total_emittable_copy_num();
+        let min_copy_num = 0;
+        let total_copy_num = self.total_emittable_copy_num(min_copy_num);
         let graph = self.map(
             // node converter
-            |v, _| self.to_phmm_node(v, total_copy_num),
+            |v, _| self.to_phmm_node(v, total_copy_num, min_copy_num),
             // edge converter
-            |e, _| self.to_phmm_edge(e),
+            |e, _| self.to_phmm_edge(e, min_copy_num),
         );
         PModel { param, graph }
     }
@@ -228,6 +259,17 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
         let graph = self.map(
             |v, _| self.to_uniform_phmm_node(v, n_emittable_nodes),
             |e, _| self.to_uniform_phmm_edge(e),
+        );
+        PModel { param, graph }
+    }
+    fn to_non_zero_phmm(&self, param: PHMMParams) -> PModel {
+        let min_copy_num = 1;
+        let total_copy_num = self.total_emittable_copy_num(min_copy_num);
+        let graph = self.map(
+            // node converter
+            |v, _| self.to_phmm_node(v, total_copy_num, min_copy_num),
+            // edge converter
+            |e, _| self.to_phmm_edge(e, min_copy_num),
         );
         PModel { param, graph }
     }

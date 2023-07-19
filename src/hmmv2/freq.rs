@@ -176,17 +176,16 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         &self,
         reads: &ReadCollection<S>,
         mappings: Option<&Mappings>,
+        use_max_ratio: bool,
     ) -> Prob {
         reads
             .into_par_iter()
             .enumerate()
             .map(|(i, seq)| {
                 if let Some(mappings) = mappings {
-                    // let forward = self.forward_with_hint(seq.as_ref(), reads.hint(i));
-                    // forward.full_prob()
                     self.forward_with_mapping_score_only(seq.as_ref(), &mappings[i])
                 } else {
-                    self.forward_sparse_score_only(seq.as_ref())
+                    self.forward_sparse_score_only(seq.as_ref(), use_max_ratio)
                 }
             })
             .product()

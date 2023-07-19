@@ -1330,6 +1330,11 @@ impl MultiDbg {
     pub fn to_uniform_phmm(&self, param: PHMMParams) -> PModel {
         self.to_seq_graph().to_uniform_phmm(param)
     }
+    ///
+    ///
+    pub fn to_non_zero_phmm(&self, param: PHMMParams) -> PModel {
+        self.to_seq_graph().to_non_zero_phmm(param)
+    }
 }
 
 ///

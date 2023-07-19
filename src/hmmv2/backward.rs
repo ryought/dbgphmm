@@ -4,7 +4,7 @@
 
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::Mapping;
-use super::table::{PHMMTable, PHMMTables};
+use super::table::{PHMMKind, PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
 use petgraph::graph::NodeIndex;
@@ -25,7 +25,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let all_nodes = self.to_all_nodes();
         let n = emissions.as_ref().len();
@@ -52,7 +52,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         r
     }
     ///
+    /// Run Backward algorithm to the emissions using hint/mapping information
     ///
+    /// To calculate B.tables[i] = B[i], use S[i-1]=F[i]B[i] (0<=i<n)
     ///
     pub fn backward_with_mapping<X: AsRef<Bases>>(
         &self,
@@ -62,7 +64,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let n = emissions.as_ref().len();
         // feed the emissions backward
@@ -90,7 +92,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         r
     }
     ///
+    /// The frequency value S[i] = F[i]B[i] is important.
     ///
+    /// So backward should fill B[i] for cells that are active in F[i].
+    /// B.tables[i] = B[i]
+    /// F[i] = F.tables[i-1]
     ///
     pub fn backward_by_forward<X: AsRef<Bases>>(
         &self,
@@ -100,7 +106,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let n = emissions.as_ref().len();
         let param = self.param;
@@ -119,11 +125,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     } else {
                         r.last_table()
                     };
-                    let table = if i < param.n_warmup {
-                        self.b_step(i, emission, table_prev, &all_nodes, true, false)
-                    } else {
-                        if forward.table(i - 1).is_dense() {
-                            self.b_step(i, emission, table_prev, &all_nodes, false, false)
+                    let table = {
+                        if i == 0 || forward.table(i - 1).is_dense() {
+                            self.b_step(i, emission, table_prev, &all_nodes, true, false)
                         } else {
                             let active_nodes = forward.table(i - 1).filled_nodes().unwrap();
                             self.b_step(i, emission, table_prev, &active_nodes, false, false)
@@ -144,7 +148,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let r0 = PHMMTables {
             init_table: self.b_init(true),
             tables: Vec::new(),
-            is_forward: false,
+            kind: PHMMKind::Backward,
         };
         let param = &self.param;
         let all_nodes = self.to_all_nodes();

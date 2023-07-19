@@ -178,6 +178,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         reads: &ReadCollection<S>,
         mappings: Option<&Mappings>,
         use_max_ratio: bool,
+        custom_ratio: Option<f64>,
     ) -> Mappings {
         Mappings(
             reads
@@ -192,7 +193,9 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                     };
 
                     if use_max_ratio {
-                        output.to_mapping_by_score_ratio(self.param.active_node_max_ratio)
+                        output.to_mapping_by_score_ratio(
+                            custom_ratio.unwrap_or(self.param.active_node_max_ratio),
+                        )
                     } else {
                         output.to_mapping(self.param.n_active_nodes)
                     }

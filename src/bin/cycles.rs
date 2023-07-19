@@ -34,7 +34,7 @@ fn main() {
     for (edge, _, _, _) in dbg.edges_compact() {
         if dbg.copy_num_of_edge_in_compact(edge) == 0 {
             let neighbor_copy_nums: Vec<_> = dbg
-                .to_rescue_neighbors_for_edge(edge, opts.k_shortest, opts.prohibit_zero_copy)
+                .to_rescue_neighbors_for_edge(edge, opts.k_shortest, opts.prohibit_zero_copy, false)
                 .into_iter()
                 .filter(|(_, info)| {
                     !opts.exclude_passing_terminal || !dbg.is_passing_terminal(&info)
