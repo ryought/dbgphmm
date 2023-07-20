@@ -143,7 +143,10 @@ impl MultiDbg {
             split_node(
                 &mut net,
                 terminal,
-                MinSquaredErrorCopyNumAndFreq::new(vec![], Some(n_haplotypes)),
+                Some(MinSquaredErrorCopyNumAndFreq::new(
+                    vec![],
+                    Some(n_haplotypes),
+                )),
             );
         }
         // println!("[mse] network");
