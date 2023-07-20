@@ -152,6 +152,9 @@ impl Mappings {
     pub fn new(v: Vec<Mapping>) -> Self {
         Mappings(v)
     }
+    pub fn n_reads(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl std::ops::Index<usize> for Mappings {
