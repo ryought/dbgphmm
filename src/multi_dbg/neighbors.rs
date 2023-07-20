@@ -6,6 +6,7 @@
 
 use super::{CopyNums, MultiDbg};
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
+use crate::graph::utils::split_node;
 
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph_algos::common::is_edge_simple;
@@ -148,7 +149,12 @@ impl MultiDbg {
             },
         );
         // println!("{:?}", petgraph::dot::Dot::with_config(&network, &[]));
-        let rg = flow_to_residue_convex(&network, &copy_nums);
+        let mut rg = flow_to_residue_convex(&network, &copy_nums);
+        //
+        // split terminal node into two nodes to prohibit cycles passing the terminal node.
+        if let Some(terminal) = self.terminal_node_compact() {
+            split_node(&mut rg, terminal, None);
+        }
         let edge_in_rg = rg
             .edge_indices()
             .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)

@@ -291,18 +291,27 @@ fn assert_is_bimap(
 ///
 /// into
 ///
-/// v1 -->                      --> w1
-///        node_in --> node_out
-/// v2 -->                      --> w2
+/// v1 -->          e            --> w1
+///        node_in ---> node_out
+/// v2 -->                       --> w2
 /// ```
 ///
-pub fn split_node<N: Clone, E: Clone>(graph: &mut DiGraph<N, E>, node: NodeIndex, edge_weight: E) {
+/// if edge_weight is Some(w), an edge bridging node_in -> node_out is added with weight w.
+/// otherwise (i.e. edge_weight is None), node_in and node_out will be disconnected.
+///
+pub fn split_node<N: Clone, E: Clone>(
+    graph: &mut DiGraph<N, E>,
+    node: NodeIndex,
+    edge_weight: Option<E>,
+) {
     let node_weight = graph.node_weight(node).unwrap().clone();
 
     // add two new nodes and an edge between them
     let node_in = graph.add_node(node_weight.clone());
     let node_out = graph.add_node(node_weight.clone());
-    graph.add_edge(node_in, node_out, edge_weight);
+    if let Some(edge_weight) = edge_weight {
+        graph.add_edge(node_in, node_out, edge_weight);
+    }
 
     // connect in-edges of node
     //   v --> node
