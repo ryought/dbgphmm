@@ -15,7 +15,9 @@ use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
-use rustflow::min_flow::residue::{ResidueDirection, UpdateInfo};
+use rustflow::min_flow::residue::{
+    update_info_from_str, update_info_to_string, ResidueDirection, UpdateInfo,
+};
 
 pub mod test;
 
@@ -47,15 +49,6 @@ pub struct PosteriorSample {
     pub infos: Vec<UpdateInfo>,
 }
 
-/// Stringify `UpdateInfo = Vec<(EdgeIndex, ResidueDirection)>`
-/// into `e40+e10-e20+e11+` format string.
-///
-pub fn update_info_to_string(info: &UpdateInfo) -> String {
-    info.iter()
-        .map(|(edge, dir)| format!("e{}{}", edge.index(), dir))
-        .join("")
-}
-
 impl PosteriorSample {
     ///
     ///
@@ -68,6 +61,21 @@ impl PosteriorSample {
                 .map(|info| update_info_to_string(info))
                 .join(",")
         )
+    }
+    ///
+    /// Convert `[e5+e2-e4+,e5+e6+]` into Vec<UpdateInfo>
+    ///
+    pub fn from_infos_str(s: &str) -> Option<Vec<UpdateInfo>> {
+        let s = s.strip_prefix('[')?;
+        let s = s.strip_suffix(']')?;
+        let mut infos = Vec::new();
+        for e in s.split(',') {
+            if !e.is_empty() {
+                let info = update_info_from_str(e)?;
+                infos.push(info);
+            }
+        }
+        Some(infos)
     }
 }
 
@@ -218,27 +226,7 @@ impl Posterior {
                     iter.next().unwrap(); // value
                     let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
                     let score: Score = iter.next().unwrap().parse().unwrap();
-                    let infos: Vec<UpdateInfo> = iter
-                        .next()
-                        .unwrap()
-                        .trim_start_matches('[')
-                        .trim_end_matches(']')
-                        .split_terminator(',')
-                        .map(|s| {
-                            let mut info = Vec::new();
-                            for x in s.split_inclusive(&['+', '-']) {
-                                let index: usize = x
-                                    .trim_start_matches('e')
-                                    .trim_end_matches(&['+', '-'])
-                                    .parse()
-                                    .unwrap();
-                                let dir: ResidueDirection =
-                                    x.rmatches(&['+', '-']).next().unwrap().parse().unwrap();
-                                info.push((EdgeIndex::new(index), dir));
-                            }
-                            info
-                        })
-                        .collect();
+                    let infos = PosteriorSample::from_infos_str(iter.next().unwrap()).unwrap();
                     p += score.p();
                     samples.push(PosteriorSample {
                         copy_nums,
@@ -1176,5 +1164,27 @@ mod tests {
         let b: Score = t.parse().unwrap();
         println!("{}", b);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn parse_inspect() {
+        let infos = PosteriorSample::from_infos_str("[e5+e6+e1-,e10+e1+,e5-]");
+        assert_eq!(
+            infos,
+            Some(vec![
+                vec![
+                    (ei(5), ResidueDirection::Up),
+                    (ei(6), ResidueDirection::Up),
+                    (ei(1), ResidueDirection::Down),
+                ],
+                vec![
+                    (ei(10), ResidueDirection::Up),
+                    (ei(1), ResidueDirection::Up),
+                ],
+                vec![(ei(5), ResidueDirection::Down),],
+            ])
+        );
+        let infos = PosteriorSample::from_infos_str("[]");
+        assert_eq!(infos, Some(vec![]));
     }
 }
