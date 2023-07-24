@@ -342,6 +342,8 @@ impl MultiDbg {
                 format_option_copy_num(
                     copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
                 ),
+                // score.time_likelihood,
+                // score.time_euler,
                 sample.to_infos_string(),
                 copy_nums,
             )?
@@ -390,6 +392,67 @@ impl MultiDbg {
     ) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
         self.to_inspect_writer(&mut file, posterior, copy_nums_true)
+    }
+    ///
+    /// Parse INSPECT file
+    ///
+    pub fn from_inspect_reader<R: std::io::BufRead>(&self, reader: R) -> Option<Posterior> {
+        let mut posterior = Posterior::new();
+
+        for line in reader.lines() {
+            let text = line.unwrap();
+            let first_char = text.chars().nth(0)?;
+            if first_char == '#' {
+                continue;
+            }
+            let columns: Vec<&str> = text.split_whitespace().collect();
+
+            let k: usize = columns.get(0)?.parse().ok()?;
+            assert_eq!(k, self.k());
+
+            let kind = columns.get(1)?.chars().nth(0)?;
+            match kind {
+                'C' => {
+                    let infos = PosteriorSample::from_infos_str(columns[9])?;
+                    let copy_nums = columns.get(10)?.parse().ok()?;
+                    let likelihood: f64 = columns[4].parse().ok()?;
+                    let prior: f64 = columns[5].parse().ok()?;
+                    let score = Score {
+                        likelihood: Prob::from_log_prob(likelihood),
+                        prior: Prob::from_log_prob(prior),
+                        n_euler_circuits: columns[6].parse().unwrap(),
+                        genome_size: columns[7].parse().unwrap(),
+                        // TODO
+                        time_euler: 0,
+                        time_likelihood: 0,
+                    };
+
+                    posterior.add(PosteriorSample {
+                        copy_nums,
+                        score,
+                        infos,
+                    });
+                }
+                _ => {
+                    // TODO
+                    // parse true copy_nums?
+                }
+            }
+        }
+
+        Some(posterior)
+    }
+    ///
+    ///
+    pub fn from_inspect_str(&self, s: &str) -> Option<Posterior> {
+        self.from_inspect_reader(s.as_bytes())
+    }
+    ///
+    ///
+    pub fn from_inspect_file<P: AsRef<std::path::Path>>(&self, path: P) -> Option<Posterior> {
+        let file = std::fs::File::open(path.as_ref()).unwrap();
+        let reader = std::io::BufReader::new(file);
+        self.from_inspect_reader(reader)
     }
 }
 
@@ -1168,6 +1231,7 @@ mod tests {
 
     #[test]
     fn parse_inspect() {
+        // parsing Vec<UpdateInfo> = Vec<Vec<(EdgeIndex, ResidueDirection)>>
         let infos = PosteriorSample::from_infos_str("[e5+e6+e1-,e10+e1+,e5-]");
         assert_eq!(
             infos,
