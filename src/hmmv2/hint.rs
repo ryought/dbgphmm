@@ -5,6 +5,7 @@
 //! * Mappings
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
+use super::freq::NodeFreqs;
 use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use crate::prob::Prob;
@@ -154,6 +155,20 @@ impl Mappings {
     }
     pub fn n_reads(&self) -> usize {
         self.0.len()
+    }
+    ///
+    /// Convert Mappings into NodeFreqs, the expected usage of each node.
+    ///
+    pub fn to_node_freqs(&self, n_nodes: usize) -> NodeFreqs {
+        let mut freqs: NodeFreqs = NodeFreqs::new(n_nodes, 0.0, true);
+        for mapping in self.into_iter() {
+            for (ns, ps) in izip!(&mapping.nodes, &mapping.probs) {
+                for (&n, &p) in izip!(ns, ps) {
+                    freqs[n] += p.to_value();
+                }
+            }
+        }
+        freqs
     }
 }
 
