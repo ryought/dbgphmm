@@ -39,9 +39,9 @@ fn main() {
         .flat_map(|&i| {
             let edge = ei(i);
             [
-                dbg.to_rescue_neighbors_for_edge(edge, 2, true, false),
-                dbg.to_rescue_neighbors_for_edge(edge, 2, true, true),
-                dbg.to_rescue_neighbors_for_edge(edge, 2, false, false),
+                dbg.to_rescue_neighbors_for_edge(edge, 10, true, true),
+                dbg.to_rescue_neighbors_for_edge(edge, 10, true, true),
+                dbg.to_rescue_neighbors_for_edge(edge, 10, false, false),
             ]
             .concat()
         })
