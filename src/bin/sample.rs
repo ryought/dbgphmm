@@ -40,7 +40,8 @@ fn main() {
             let edge = ei(i);
             [
                 dbg.to_rescue_neighbors_for_edge(edge, 10, true, true),
-                dbg.to_rescue_neighbors_for_edge(edge, 10, true, true),
+                dbg.to_rescue_neighbors_for_edge(edge, 10, true, false),
+                dbg.to_rescue_neighbors_for_edge(edge, 10, false, true),
                 dbg.to_rescue_neighbors_for_edge(edge, 10, false, false),
             ]
             .concat()
