@@ -174,9 +174,10 @@ impl MultiDbg {
         {
             let score = &sample.score;
             let copy_nums = &sample.copy_nums;
+            let json = serde_json::to_string(score)?;
             writeln!(
                 writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 self.k(),
                 i,
                 (score.p() / posterior.p()).to_value(),
@@ -187,10 +188,9 @@ impl MultiDbg {
                 format_option_copy_num(
                     copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
                 ),
-                // score.time_likelihood,
-                // score.time_euler,
                 sample.to_infos_string(),
                 copy_nums,
+                json,
             )?
         }
 
@@ -258,20 +258,9 @@ impl MultiDbg {
             let kind = columns.get(1)?.chars().nth(0)?;
             match kind {
                 'C' => {
-                    let infos = PosteriorSample::from_infos_str(columns[9])?;
+                    let infos = PosteriorSample::from_infos_str(columns.get(9)?)?;
                     let copy_nums = columns.get(10)?.parse().ok()?;
-                    let likelihood: f64 = columns[4].parse().ok()?;
-                    let prior: f64 = columns[5].parse().ok()?;
-                    let score = Score {
-                        likelihood: Prob::from_log_prob(likelihood),
-                        prior: Prob::from_log_prob(prior),
-                        n_euler_circuits: columns[6].parse().unwrap(),
-                        genome_size: columns[7].parse().unwrap(),
-                        // TODO
-                        time_euler: 0,
-                        time_likelihood: 0,
-                    };
-
+                    let score: Score = serde_json::from_str(columns.get(11)?).ok()?;
                     posterior.add(PosteriorSample {
                         copy_nums,
                         score,
@@ -306,14 +295,15 @@ mod tests {
     use super::*;
     use crate::common::ei;
     use crate::multi_dbg::neighbors::{UpdateInfo, UpdateMethod};
+    use crate::multi_dbg::toy;
     use crate::prob::p;
     use rustflow::min_flow::residue::ResidueDirection;
 
-    #[test]
-    fn posterior_dump_load() {
+    fn example_posterior() -> (MultiDbg, Posterior) {
+        let mut dbg = toy::intersection();
         let mut post = Posterior::new();
         post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 2, 2, 0].into(),
+            copy_nums: vec![1, 1, 2, 2].into(),
             score: Score {
                 likelihood: p(0.6),
                 prior: p(0.3),
@@ -340,7 +330,7 @@ mod tests {
             ],
         });
         post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 1, 2, 1].into(),
+            copy_nums: vec![1, 1, 1, 2].into(),
             score: Score {
                 likelihood: p(0.003),
                 prior: p(0.2),
@@ -351,6 +341,12 @@ mod tests {
             },
             infos: Vec::new(),
         });
+        (dbg, post)
+    }
+
+    #[test]
+    fn posterior_dump_load() {
+        let (_, post) = example_posterior();
         let s = post.to_string();
         println!("{}", s);
 
@@ -396,5 +392,13 @@ mod tests {
         let infos = PosteriorSample::from_infos_str("[]");
         assert_eq!(infos, Some(vec![]));
         assert_eq!(PosteriorSample::to_infos_string_internal(&[]), "[]");
+
+        // full INSPECT file
+        let (dbg, post) = example_posterior();
+        let s = dbg.to_inspect_string(&post, None);
+        println!("{}", s);
+        let post2 = dbg.from_inspect_str(&s).unwrap();
+        println!("{:?}", post2);
+        assert_eq!(post.samples, post2.samples);
     }
 }

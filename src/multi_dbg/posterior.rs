@@ -21,6 +21,7 @@ use rayon::prelude::*;
 use rustflow::min_flow::residue::{
     update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
 };
+use serde::{Deserialize, Serialize};
 
 pub mod output;
 pub mod test;
@@ -170,7 +171,7 @@ impl Posterior {
 ///
 /// Constructed by `MultiDbg::to_score`.
 ///
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Score {
     ///
     /// Likelihood `P(R|X)`
@@ -211,59 +212,14 @@ impl Score {
 
 impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "likelihood={},prior={},genome_size={},n_euler_circuits={},time_likelihood={},time_euler={}",
-            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time_likelihood, self.time_euler
-        )
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 impl std::str::FromStr for Score {
-    type Err = std::num::ParseFloatError;
+    type Err = serde_json::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut likelihood = None;
-        let mut prior = None;
-        let mut genome_size = None;
-        let mut n_euler_circuits = None;
-        let mut time_likelihood = None;
-        let mut time_euler = None;
-
-        for e in s.split(',') {
-            let mut it = e.split('=');
-            let key = it.next().unwrap();
-            let value = it.next().unwrap();
-            match key {
-                "likelihood" => {
-                    likelihood = Some(value.parse().unwrap());
-                }
-                "prior" => {
-                    prior = Some(value.parse().unwrap());
-                }
-                "genome_size" => {
-                    genome_size = Some(value.parse().unwrap());
-                }
-                "n_euler_circuits" => {
-                    n_euler_circuits = Some(value.parse().unwrap());
-                }
-                "time_likelihood" => {
-                    time_likelihood = Some(value.parse().unwrap());
-                }
-                "time_euler" => {
-                    time_euler = Some(value.parse().unwrap());
-                }
-                _ => {}
-            }
-        }
-
-        Ok(Score {
-            likelihood: likelihood.unwrap(),
-            prior: prior.unwrap(),
-            genome_size: genome_size.unwrap(),
-            n_euler_circuits: n_euler_circuits.unwrap(),
-            time_likelihood: time_likelihood.unwrap(),
-            time_euler: time_euler.unwrap(),
-        })
+        serde_json::from_str(s)
     }
 }
 
