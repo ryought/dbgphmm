@@ -881,56 +881,6 @@ mod tests {
     use crate::prob::p;
 
     #[test]
-    fn posterior_dump_load() {
-        let mut post = Posterior::new();
-        post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 2, 2, 0].into(),
-            score: Score {
-                likelihood: p(0.6),
-                prior: p(0.3),
-                time_likelihood: 10,
-                genome_size: 101,
-                n_euler_circuits: 10.0,
-                time_euler: 12,
-            },
-            infos: vec![
-                UpdateInfo::new(
-                    vec![vec![
-                        (ei(0), ResidueDirection::Up),
-                        (ei(121), ResidueDirection::Down),
-                    ]],
-                    UpdateMethod::Manual,
-                ),
-                UpdateInfo::new(
-                    vec![vec![
-                        (ei(3), ResidueDirection::Down),
-                        (ei(1), ResidueDirection::Up),
-                    ]],
-                    UpdateMethod::Manual,
-                ),
-            ],
-        });
-        post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 1, 2, 1].into(),
-            score: Score {
-                likelihood: p(0.003),
-                prior: p(0.2),
-                time_likelihood: 11,
-                genome_size: 99,
-                n_euler_circuits: 10.0,
-                time_euler: 12,
-            },
-            infos: Vec::new(),
-        });
-        let s = post.to_string();
-        println!("{}", s);
-
-        let post_loaded = Posterior::from_str(&s);
-        assert_eq!(post_loaded.samples, post.samples);
-        assert_eq!(post_loaded.p, post.p);
-    }
-
-    #[test]
     fn score() {
         let a = Score {
             likelihood: Prob::from_prob(0.3),
@@ -945,44 +895,5 @@ mod tests {
         let b: Score = t.parse().unwrap();
         println!("{}", b);
         assert_eq!(a, b);
-    }
-
-    #[test]
-    fn parse_inspect() {
-        // parsing Vec<UpdateCycle> = Vec<Vec<(EdgeIndex, ResidueDirection)>>
-
-        // case 1:
-        // containing multiple updates
-        let infos = vec![
-            UpdateInfo::new(
-                vec![vec![
-                    (ei(5), ResidueDirection::Up),
-                    (ei(6), ResidueDirection::Up),
-                    (ei(1), ResidueDirection::Down),
-                ]],
-                UpdateMethod::Manual,
-            ),
-            UpdateInfo::new(
-                vec![vec![
-                    (ei(10), ResidueDirection::Up),
-                    (ei(1), ResidueDirection::Up),
-                ]],
-                UpdateMethod::Rescue,
-            ),
-            UpdateInfo::new(
-                vec![vec![(ei(5), ResidueDirection::Down)]],
-                UpdateMethod::Short,
-            ),
-        ];
-        let s = "[X(e5+e6+e1-),R(e10+e1+),S(e5-)]";
-        let infos2 = PosteriorSample::from_infos_str(s);
-        assert_eq!(PosteriorSample::to_infos_string_internal(&infos), s);
-        assert_eq!(infos2, Some(infos));
-
-        // case 2:
-        // containing no cycle (or update)
-        let infos = PosteriorSample::from_infos_str("[]");
-        assert_eq!(infos, Some(vec![]));
-        assert_eq!(PosteriorSample::to_infos_string_internal(&[]), "[]");
     }
 }

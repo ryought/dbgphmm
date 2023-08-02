@@ -546,6 +546,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sparsevec",
+ "tempfile",
  "test-case",
 ]
 
