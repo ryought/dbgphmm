@@ -7,6 +7,7 @@
 use super::{CopyNums, MultiDbg};
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::utils::split_node;
+use crate::hmmv2::freq::NodeFreqs;
 
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
@@ -69,7 +70,11 @@ impl UpdateInfo {
 ///
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UpdateMethod {
-    Rescue,
+    Rescue {
+        index: usize,
+        length: usize,
+        freq: f64,
+    },
     MultiMove,
     Short,
     Long,
@@ -89,8 +94,19 @@ pub enum UpdateMethod {
 impl std::fmt::Display for UpdateInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.method {
-            UpdateMethod::Rescue => {
-                write!(f, "R({})", update_cycle_to_string(&self.cycles[0]))
+            UpdateMethod::Rescue {
+                index,
+                length,
+                freq,
+            } => {
+                write!(
+                    f,
+                    "R({}|{}|{}|{})",
+                    update_cycle_to_string(&self.cycles[0]),
+                    index,
+                    length,
+                    freq
+                )
             }
             UpdateMethod::MultiMove => {
                 write!(
@@ -118,26 +134,41 @@ impl std::fmt::Display for UpdateInfo {
 impl std::str::FromStr for UpdateInfo {
     type Err = ();
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let first = text.chars().nth(0).ok_or(())?;
-        let method = match first {
-            'R' => UpdateMethod::Rescue,
-            'M' => UpdateMethod::MultiMove,
-            'S' => UpdateMethod::Short,
-            'L' => UpdateMethod::Long,
-            'E' => UpdateMethod::Reducer,
-            'X' => UpdateMethod::Manual,
-            _ => return Err(()),
-        };
-        let (_, s) = text.split_at(1);
+        let (head, s) = text.split_at(1);
         let s = s.strip_prefix('(').ok_or(())?;
         let s = s.strip_suffix(')').ok_or(())?;
+        let (method, cycle_str) = match head {
+            "R" => {
+                let segments: Vec<_> = s.split('|').collect();
+                if segments.len() != 4 {
+                    return Err(());
+                }
+                //
+                (
+                    UpdateMethod::Rescue {
+                        index: segments[1].parse().map_err(|_| ())?,
+                        length: segments[2].parse().map_err(|_| ())?,
+                        freq: segments[3].parse().map_err(|_| ())?,
+                    },
+                    segments[0],
+                )
+            }
+            "M" => (UpdateMethod::MultiMove, s),
+            "S" => (UpdateMethod::Short, s),
+            "L" => (UpdateMethod::Long, s),
+            "E" => (UpdateMethod::Reducer, s),
+            "X" => (UpdateMethod::Manual, s),
+            _ => return Err(()),
+        };
         if method == UpdateMethod::MultiMove {
-            let cycles: Option<Vec<UpdateCycle>> =
-                s.split(':').map(|t| update_cycle_from_str(t)).collect();
+            let cycles: Option<Vec<UpdateCycle>> = cycle_str
+                .split(':')
+                .map(|t| update_cycle_from_str(t))
+                .collect();
             let cycles = cycles.ok_or(())?;
             Ok(UpdateInfo::new(cycles, method))
         } else {
-            let cycle = update_cycle_from_str(s).ok_or(())?;
+            let cycle = update_cycle_from_str(cycle_str).ok_or(())?;
             Ok(UpdateInfo::new(vec![cycle], method))
         }
     }
@@ -189,6 +220,8 @@ impl MultiDbg {
     /// 0x
     pub fn to_rescue_neighbors(
         &self,
+        node_freqs: &NodeFreqs,
+        coverage: f64,
         k_non_zero: usize,
         k_zero: usize,
         weighted_by_copy_num: bool,
@@ -200,11 +233,19 @@ impl MultiDbg {
 
         for (edge, _, _, _) in self.edges_compact() {
             if self.copy_num_of_edge_in_compact(edge) == 0 {
-                let cycles_non_zero =
-                    self.to_rescue_neighbors_for_edge(edge, k_non_zero, true, weighted_by_copy_num);
+                let cycles_non_zero = self.to_rescue_neighbors_for_edge(
+                    edge,
+                    node_freqs,
+                    coverage,
+                    k_non_zero,
+                    true,
+                    weighted_by_copy_num,
+                );
                 if cycles_non_zero.is_empty() {
                     let cycles_zero = self.to_rescue_neighbors_for_edge(
                         edge,
+                        node_freqs,
+                        coverage,
                         k_zero,
                         false,
                         weighted_by_copy_num,
@@ -230,37 +271,30 @@ impl MultiDbg {
     pub fn to_rescue_neighbors_for_edge(
         &self,
         edge: EdgeIndex,
+        node_freqs: &NodeFreqs,
+        coverage: f64,
         k: usize,
         not_make_new_zero_edge: bool,
         weighted_by_copy_num: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
-        let copy_nums = self.get_copy_nums();
-        let network = self.graph_compact().map(
-            |_, _| (),
-            |edge, _| {
-                let copy_num = self.copy_num_of_edge_in_compact(edge);
-                if copy_num == 0 {
-                    FlowEdgeBase::new(0, copy_num.saturating_add(1), 0.0)
-                } else if not_make_new_zero_edge {
-                    FlowEdgeBase::new(1, copy_num.saturating_add(1), 0.0)
-                } else {
-                    FlowEdgeBase::new(copy_num.saturating_sub(1), copy_num.saturating_add(1), 0.0)
-                }
-            },
+        let network = self.to_min_squared_error_copy_nums_network(
+            node_freqs,
+            coverage,
+            Some(self.n_haplotypes()),
+            not_make_new_zero_edge,
         );
+        let copy_nums = self.get_copy_nums();
         // println!("{:?}", petgraph::dot::Dot::with_config(&network, &[]));
-        let mut rg = flow_to_residue_convex(&network, &copy_nums);
-        //
-        // split terminal node into two nodes to prohibit cycles passing the terminal node.
-        if let Some(terminal) = self.terminal_node_compact() {
-            split_node(&mut rg, terminal, None);
-        }
+        let rg = flow_to_residue_convex(&network, &self.append_last(&copy_nums));
         let edge_in_rg = rg
             .edge_indices()
             .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)
             .unwrap();
         let (v, w) = rg.edge_endpoints(edge_in_rg).unwrap();
-        let cycles = k_shortest_simple_path(&rg, w, v, k, |e| {
+
+        // Weight function from e: edge in residue graph
+        // (1)
+        let length_weight = |e: EdgeIndex| {
             if e == edge_in_rg {
                 usize::MAX
             } else {
@@ -271,7 +305,11 @@ impl MultiDbg {
                     self.n_bases(rg[e].target)
                 }
             }
-        });
+        };
+        // (2)
+        let freq_weight = |e: EdgeIndex| rg[e].weight;
+
+        let cycles = k_shortest_simple_path(&rg, w, v, k, &length_weight);
 
         cycles
             .into_iter()
@@ -280,12 +318,24 @@ impl MultiDbg {
                 cycle
             })
             .filter(|cycle| is_edge_simple(&rg, &cycle))
-            .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
-            .map(|(copy_nums, cycle)| {
-                (
-                    copy_nums,
-                    UpdateInfo::new(vec![cycle], UpdateMethod::Rescue),
-                )
+            .enumerate()
+            .map(|(index, cycle)| {
+                let (copy_nums, update_cycle) =
+                    residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle);
+
+                // calculate {length,freq} score of the cycle
+                let length: usize = cycle.iter().map(|&e| length_weight(e)).sum();
+                let freq: f64 = cycle.iter().map(|&e| freq_weight(e)).sum();
+
+                let update_info = UpdateInfo::new(
+                    vec![update_cycle],
+                    UpdateMethod::Rescue {
+                        index,
+                        length,
+                        freq,
+                    },
+                );
+                (copy_nums, update_info)
             })
             .collect()
     }
@@ -424,7 +474,11 @@ mod tests {
                 (ei(1), ResidueDirection::Up),
                 (ei(2), ResidueDirection::Down),
             ]],
-            UpdateMethod::Rescue,
+            UpdateMethod::Rescue {
+                index: 1,
+                length: 14,
+                freq: 0.0015,
+            },
         );
         let ui2 = UpdateInfo::new(
             vec![

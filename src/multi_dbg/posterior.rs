@@ -332,6 +332,8 @@ impl MultiDbg {
         let mut infos = Vec::new();
         let mut dbg = self.clone();
         let mut n_iter = 0;
+        let freqs = mappings.to_node_freqs(dbg.n_edges_full());
+        let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
         println!("sample_posterior rescue_only={}", rescue_only);
 
         // calculate initial score
@@ -357,7 +359,7 @@ impl MultiDbg {
             // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            let rescue_neighbors = dbg.to_rescue_neighbors(2, 10, true);
+            let rescue_neighbors = dbg.to_rescue_neighbors(&freqs, coverage, 2, 10, true);
             let neighbor_copy_nums_set = if rescue_only {
                 vec![rescue_neighbors]
             } else {

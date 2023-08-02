@@ -25,8 +25,14 @@ struct Opts {
     max_iter: usize,
     #[clap(short = 'c', default_value = "10")]
     max_cycle_size: usize,
+    ///
+    ///
+    ///
     #[clap(long = "kr", default_value = "128")]
     k_max_rescue_only: usize,
+    ///
+    ///
+    ///
     #[clap(long = "km", default_value = "100")]
     k_max_rerun_mapping: usize,
     #[clap(long)]

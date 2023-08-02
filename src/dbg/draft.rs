@@ -165,9 +165,9 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
             |_| (),
             |v, weight| {
                 if weight.is_emittable() {
-                    MinSquaredErrorCopyNumAndFreq::new(vec![freqs[v]], None)
+                    MinSquaredErrorCopyNumAndFreq::new(vec![freqs[v]], None, false)
                 } else {
-                    MinSquaredErrorCopyNumAndFreq::new(vec![], None)
+                    MinSquaredErrorCopyNumAndFreq::new(vec![], None, false)
                 }
             },
         );
@@ -219,7 +219,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
                         .find(|(node, _)| *node == origin_node)
                         .map(|(_, copy_num)| *copy_num)
                 });
-                MinSquaredErrorCopyNumAndFreq::new(freqs, fixed_copy_num)
+                MinSquaredErrorCopyNumAndFreq::new(freqs, fixed_copy_num, false)
             },
         );
         min_cost_flow_convex_fast(&flow_network).map(|flow| {
