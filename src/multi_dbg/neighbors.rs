@@ -8,6 +8,7 @@ use super::{CopyNums, MultiDbg};
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::utils::split_node;
 
+use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph_algos::common::is_edge_simple;
 use rustflow::min_flow::{
@@ -15,7 +16,7 @@ use rustflow::min_flow::{
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
     residue::{
         flow_to_residue_convex, is_meaningful_move_on_residue_graph, residue_graph_cycle_to_flow,
-        ResidueDirection, UpdateInfo,
+        update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
     },
 };
 
@@ -41,6 +42,105 @@ pub struct NeighborConfig {
     /// Long cycle with Down direction only to reduce high copy number edges
     ///
     pub use_reducers: bool,
+}
+
+///
+/// UpdateInfo
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct UpdateInfo {
+    pub cycles: Vec<UpdateCycle>,
+    pub method: UpdateMethod,
+}
+
+impl UpdateInfo {
+    pub fn new(cycles: Vec<UpdateCycle>, method: UpdateMethod) -> UpdateInfo {
+        assert!(cycles.len() == 1 || method == UpdateMethod::MultiMove);
+        UpdateInfo { cycles, method }
+    }
+    pub fn cycle(&self) -> &UpdateCycle {
+        assert!(self.method != UpdateMethod::MultiMove);
+        &self.cycles[0]
+    }
+}
+
+///
+///
+///
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum UpdateMethod {
+    Rescue,
+    MultiMove,
+    Short,
+    Long,
+    Reducer,
+    Manual,
+}
+
+///
+/// Display/FromStr of UpdateInfo
+///
+///
+/// ## Requirements
+///
+/// * No spaces (because INSPECT file uses TSV format)
+/// * No commas (because comma separates elements of Vec<UpdateInfo>)
+///
+impl std::fmt::Display for UpdateInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.method {
+            UpdateMethod::Rescue => {
+                write!(f, "R({})", update_cycle_to_string(&self.cycles[0]))
+            }
+            UpdateMethod::MultiMove => {
+                write!(
+                    f,
+                    "M({})",
+                    self.cycles
+                        .iter()
+                        .map(|cycle| update_cycle_to_string(cycle))
+                        .join(":")
+                )
+            }
+            _ => {
+                let method = match self.method {
+                    UpdateMethod::Short => 'S',
+                    UpdateMethod::Long => 'L',
+                    UpdateMethod::Reducer => 'E',
+                    UpdateMethod::Manual => 'X',
+                    _ => unreachable!(),
+                };
+                write!(f, "{}({})", method, update_cycle_to_string(&self.cycles[0]))
+            }
+        }
+    }
+}
+impl std::str::FromStr for UpdateInfo {
+    type Err = ();
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let first = text.chars().nth(0).ok_or(())?;
+        let method = match first {
+            'R' => UpdateMethod::Rescue,
+            'M' => UpdateMethod::MultiMove,
+            'S' => UpdateMethod::Short,
+            'L' => UpdateMethod::Long,
+            'E' => UpdateMethod::Reducer,
+            'X' => UpdateMethod::Manual,
+            _ => return Err(()),
+        };
+        let (_, s) = text.split_at(1);
+        let s = s.strip_prefix('(').ok_or(())?;
+        let s = s.strip_suffix(')').ok_or(())?;
+        if method == UpdateMethod::MultiMove {
+            let cycles: Option<Vec<UpdateCycle>> =
+                s.split(':').map(|t| update_cycle_from_str(t)).collect();
+            let cycles = cycles.ok_or(())?;
+            Ok(UpdateInfo::new(cycles, method))
+        } else {
+            let cycle = update_cycle_from_str(s).ok_or(())?;
+            Ok(UpdateInfo::new(vec![cycle], method))
+        }
+    }
 }
 
 impl MultiDbg {
@@ -181,6 +281,12 @@ impl MultiDbg {
             })
             .filter(|cycle| is_edge_simple(&rg, &cycle))
             .map(|cycle| residue_graph_cycle_to_flow(&copy_nums, &rg, &cycle))
+            .map(|(copy_nums, cycle)| {
+                (
+                    copy_nums,
+                    UpdateInfo::new(vec![cycle], UpdateMethod::Rescue),
+                )
+            })
             .collect()
     }
     ///
@@ -195,6 +301,11 @@ impl MultiDbg {
         let copy_nums = self.get_copy_nums();
 
         enumerate_neighboring_flows(&network, &copy_nums, Some(max_cycle_size), Some(max_flip))
+            .into_iter()
+            .map(|(copy_nums, cycle)| {
+                (copy_nums, UpdateInfo::new(vec![cycle], UpdateMethod::Short))
+            })
+            .collect()
     }
     ///
     ///
@@ -219,7 +330,8 @@ impl MultiDbg {
                 )
             })
             // .filter(|(_copy_nums, info)| info.len() > config.max_cycle_size)
-            .filter(|(_copy_nums, info)| !self.is_passing_terminal(&info))
+            .filter(|(_copy_nums, cycle)| !self.is_passing_terminal(&cycle))
+            .map(|(copy_nums, cycle)| (copy_nums, UpdateInfo::new(vec![cycle], UpdateMethod::Long)))
             .collect()
     }
     pub fn to_reducer_neighbors(&self) -> Vec<(CopyNums, UpdateInfo)> {
@@ -237,13 +349,22 @@ impl MultiDbg {
         );
         let copy_nums = self.get_copy_nums();
         enumerate_neighboring_flows(&network, &copy_nums, Some(100), Some(0))
+            .into_iter()
+            .map(|(copy_nums, cycle)| {
+                (
+                    copy_nums,
+                    UpdateInfo::new(vec![cycle], UpdateMethod::Reducer),
+                )
+            })
+            .collect()
     }
-    pub fn is_passing_terminal(&self, info: &UpdateInfo) -> bool {
-        info.iter()
+    pub fn is_passing_terminal(&self, cycle: &UpdateCycle) -> bool {
+        cycle
+            .iter()
             .any(|&(edge, _)| self.is_start_or_end_edge_compact(edge))
     }
-    pub fn has_zero_to_one_change(&self, info: &UpdateInfo) -> bool {
-        info.iter().any(|&(edge, dir)| {
+    pub fn has_zero_to_one_change(&self, cycle: &UpdateCycle) -> bool {
+        cycle.iter().any(|&(edge, dir)| {
             self.copy_num_of_edge_in_compact(edge) == 0 && dir == ResidueDirection::Up
         })
     }
@@ -254,12 +375,12 @@ impl MultiDbg {
     pub fn is_independent_update(
         &self,
         copy_nums: &CopyNums,
-        updates: &[UpdateInfo],
-        next_update: &UpdateInfo,
+        cycles: &[UpdateCycle],
+        next_cycle: &UpdateCycle,
     ) -> bool {
-        for update in updates {
-            for (edge, _) in update {
-                for (next_edge, _) in next_update {
+        for cycle in cycles {
+            for (edge, _) in cycle {
+                for (next_edge, _) in next_cycle {
                     if edge == next_edge {
                         return false;
                     }
@@ -271,8 +392,8 @@ impl MultiDbg {
     ///
     ///
     ///
-    pub fn apply_update_info_to_copy_nums(&self, copy_nums: &mut CopyNums, info: &UpdateInfo) {
-        for &(edge, direction) in info {
+    pub fn apply_update_info_to_copy_nums(&self, copy_nums: &mut CopyNums, cycle: &UpdateCycle) {
+        for &(edge, direction) in cycle {
             match direction {
                 ResidueDirection::Up => {
                     copy_nums[edge] += 1;
@@ -293,6 +414,38 @@ impl MultiDbg {
 mod tests {
     use super::super::toy;
     use super::*;
+    use crate::common::ei;
+
+    #[test]
+    fn update_info_serde() {
+        let ui1 = UpdateInfo::new(
+            vec![vec![
+                (ei(0), ResidueDirection::Up),
+                (ei(1), ResidueDirection::Up),
+                (ei(2), ResidueDirection::Down),
+            ]],
+            UpdateMethod::Rescue,
+        );
+        let ui2 = UpdateInfo::new(
+            vec![
+                vec![
+                    (ei(0), ResidueDirection::Up),
+                    (ei(1), ResidueDirection::Up),
+                    (ei(2), ResidueDirection::Down),
+                ],
+                vec![
+                    (ei(10), ResidueDirection::Down),
+                    (ei(11), ResidueDirection::Down),
+                ],
+            ],
+            UpdateMethod::MultiMove,
+        );
+        println!("{}", ui1);
+        println!("{}", ui2);
+
+        assert_eq!(ui1, ui1.to_string().parse().unwrap());
+        assert_eq!(ui2, ui2.to_string().parse().unwrap());
+    }
 
     #[test]
     fn neighbors_for_toy() {

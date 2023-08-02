@@ -18,7 +18,7 @@ use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
 use crate::min_flow::base::FlowEdgeBase;
 use crate::min_flow::enumerate_neighboring_flows;
-use crate::min_flow::residue::{total_changes, ResidueDirection, UpdateInfo};
+use crate::min_flow::residue::{total_changes, ResidueDirection, UpdateCycle as UpdateInfo};
 use crate::min_flow::Flow;
 use crate::prob::Prob;
 use crate::utils::all_same_value;

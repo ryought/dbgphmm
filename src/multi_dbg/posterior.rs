@@ -1,7 +1,10 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{neighbors::NeighborConfig, CopyNums, MultiDbg, Path};
+use super::{
+    neighbors::{NeighborConfig, UpdateInfo, UpdateMethod},
+    CopyNums, MultiDbg, Path,
+};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -16,7 +19,7 @@ use itertools::Itertools;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
 use rustflow::min_flow::residue::{
-    update_info_from_str, update_info_to_string, ResidueDirection, UpdateInfo,
+    update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
 };
 
 pub mod output;
@@ -54,17 +57,17 @@ impl PosteriorSample {
     ///
     ///
     ///
-    pub fn to_infos_string(&self) -> String {
-        format!(
-            "[{}]",
-            self.infos
-                .iter()
-                .map(|info| update_info_to_string(info))
-                .join(",")
-        )
+    fn to_infos_string_internal(infos: &[UpdateInfo]) -> String {
+        format!("[{}]", infos.iter().format(","))
     }
     ///
-    /// Convert `[e5+e2-e4+,e5+e6+]` into Vec<UpdateInfo>
+    ///
+    ///
+    pub fn to_infos_string(&self) -> String {
+        Self::to_infos_string_internal(&self.infos)
+    }
+    ///
+    /// Convert `[e5+e2-e4+,e5+e6+]` into Vec<UpdateCycle>
     ///
     pub fn from_infos_str(s: &str) -> Option<Vec<UpdateInfo>> {
         let s = s.strip_prefix('[')?;
@@ -72,7 +75,7 @@ impl PosteriorSample {
         let mut infos = Vec::new();
         for e in s.split(',') {
             if !e.is_empty() {
-                let info = update_info_from_str(e)?;
+                let info = e.parse().ok()?;
                 infos.push(info);
             }
         }
@@ -521,7 +524,7 @@ impl MultiDbg {
         multi_move: bool,
     ) -> Option<PosteriorSample> {
         // evaluate (calculate) score of the given copy numbers and return a PosteriorSample
-        let evaluate = |copy_nums: CopyNums, info: &[UpdateInfo]| {
+        let evaluate = |copy_nums: CopyNums, info: UpdateInfo| {
             // evaluate score
             let mut dbg = self.clone();
             dbg.set_copy_nums(&copy_nums);
@@ -533,7 +536,7 @@ impl MultiDbg {
                 genome_size_sigma,
             );
             let mut infos = infos_init.to_owned();
-            infos.extend_from_slice(info);
+            infos.push(info);
             PosteriorSample {
                 copy_nums,
                 score,
@@ -550,7 +553,7 @@ impl MultiDbg {
                 if posterior.contains(&copy_nums) {
                     None
                 } else {
-                    Some(evaluate(copy_nums, &[info]))
+                    Some(evaluate(copy_nums, info))
                 }
             })
             .collect();
@@ -574,7 +577,7 @@ impl MultiDbg {
             // accept independent moves
             let mut current_copy_nums = self.get_copy_nums();
             let original_copy_nums = self.get_copy_nums();
-            let mut accepted_update_infos = vec![];
+            let mut accepted_update_cycles = vec![];
             let current_score = posterior
                 .find(&current_copy_nums)
                 .expect("current copy number was not sampled")
@@ -592,9 +595,10 @@ impl MultiDbg {
                 eprintln!(
                     "{} {} {} {}",
                     i,
-                    update_info_to_string(&info),
+                    update_cycle_to_string(&info.cycle()),
                     score.p(),
-                    info.iter()
+                    info.cycle()
+                        .iter()
                         .map(|(edge, _)| format!(
                             "e{}={}x",
                             edge.index(),
@@ -606,12 +610,13 @@ impl MultiDbg {
                 // if the change improves the score and independent (does not conflicts with other
                 // accepted changes)
                 let improves_score = score.p() > current_score.p();
+                let cycle = info.cycle();
                 let is_independent =
-                    self.is_independent_update(&current_copy_nums, &accepted_update_infos, &info);
+                    self.is_independent_update(&current_copy_nums, &accepted_update_cycles, &cycle);
                 if improves_score && is_independent {
                     eprintln!("accept!! {} {}", improves_score, is_independent);
-                    self.apply_update_info_to_copy_nums(&mut current_copy_nums, &info);
-                    accepted_update_infos.push(info.clone());
+                    self.apply_update_info_to_copy_nums(&mut current_copy_nums, &cycle);
+                    accepted_update_cycles.push(cycle.clone());
                 } else {
                     eprintln!("reject {} {}", improves_score, is_independent);
                 }
@@ -623,7 +628,8 @@ impl MultiDbg {
             }
 
             // run once and check if the score actually improves.
-            let sample = evaluate(current_copy_nums, &accepted_update_infos);
+            let info = UpdateInfo::new(accepted_update_cycles, UpdateMethod::MultiMove);
+            let sample = evaluate(current_copy_nums, info);
             println!("multi move score {}", sample.score.p());
             posterior.add(sample);
         }
@@ -888,14 +894,20 @@ mod tests {
                 time_euler: 12,
             },
             infos: vec![
-                vec![
-                    (ei(0), ResidueDirection::Up),
-                    (ei(121), ResidueDirection::Down),
-                ],
-                vec![
-                    (ei(3), ResidueDirection::Down),
-                    (ei(1), ResidueDirection::Up),
-                ],
+                UpdateInfo::new(
+                    vec![vec![
+                        (ei(0), ResidueDirection::Up),
+                        (ei(121), ResidueDirection::Down),
+                    ]],
+                    UpdateMethod::Manual,
+                ),
+                UpdateInfo::new(
+                    vec![vec![
+                        (ei(3), ResidueDirection::Down),
+                        (ei(1), ResidueDirection::Up),
+                    ]],
+                    UpdateMethod::Manual,
+                ),
             ],
         });
         post.add(PosteriorSample {
@@ -937,24 +949,40 @@ mod tests {
 
     #[test]
     fn parse_inspect() {
-        // parsing Vec<UpdateInfo> = Vec<Vec<(EdgeIndex, ResidueDirection)>>
-        let infos = PosteriorSample::from_infos_str("[e5+e6+e1-,e10+e1+,e5-]");
-        assert_eq!(
-            infos,
-            Some(vec![
-                vec![
+        // parsing Vec<UpdateCycle> = Vec<Vec<(EdgeIndex, ResidueDirection)>>
+
+        // case 1:
+        // containing multiple updates
+        let infos = vec![
+            UpdateInfo::new(
+                vec![vec![
                     (ei(5), ResidueDirection::Up),
                     (ei(6), ResidueDirection::Up),
                     (ei(1), ResidueDirection::Down),
-                ],
-                vec![
+                ]],
+                UpdateMethod::Manual,
+            ),
+            UpdateInfo::new(
+                vec![vec![
                     (ei(10), ResidueDirection::Up),
                     (ei(1), ResidueDirection::Up),
-                ],
-                vec![(ei(5), ResidueDirection::Down),],
-            ])
-        );
+                ]],
+                UpdateMethod::Rescue,
+            ),
+            UpdateInfo::new(
+                vec![vec![(ei(5), ResidueDirection::Down)]],
+                UpdateMethod::Short,
+            ),
+        ];
+        let s = "[X(e5+e6+e1-),R(e10+e1+),S(e5-)]";
+        let infos2 = PosteriorSample::from_infos_str(s);
+        assert_eq!(PosteriorSample::to_infos_string_internal(&infos), s);
+        assert_eq!(infos2, Some(infos));
+
+        // case 2:
+        // containing no cycle (or update)
         let infos = PosteriorSample::from_infos_str("[]");
         assert_eq!(infos, Some(vec![]));
+        assert_eq!(PosteriorSample::to_infos_string_internal(&[]), "[]");
     }
 }
