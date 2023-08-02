@@ -102,6 +102,30 @@ impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
     }
 }
 
+///
+///
+///
+#[derive(Clone, Debug, Copy)]
+pub enum TerminalCount {
+    ///
+    ///
+    ///
+    Free,
+    ///
+    /// Specify n_haplotypes by splitting terminal node into two nodes
+    /// connected by an edge whose demand and capacity is set to the `n_haplotypes`.
+    ///
+    Fixed(usize),
+    ///
+    /// Disconnect in-edges and out-edges of terminal node, so that the number of haplotypes will
+    /// not be changed by updating with cycle in the residue graph.
+    ///
+    /// Note that disconnecting terminals breaks flow consistency, so it cannot be used to run
+    /// min-flow algorithms. (only for finding cycles and neighbors.)
+    ///
+    Disconnect,
+}
+
 impl MultiDbg {
     ///
     ///
@@ -118,11 +142,15 @@ impl MultiDbg {
         }
         freqs
     }
+    ///
+    /// * terminal_count:
+    /// * not_make_new_zero_edge: if true, demand of non-zero edge will be 1.
+    ///
     pub fn to_min_squared_error_copy_nums_network(
         &self,
         freqs: &NodeFreqs,
         coverage: f64,
-        n_haplotypes: Option<usize>,
+        terminal_count: TerminalCount,
         not_make_new_zero_edge: bool,
     ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq> {
         let mut net = self.graph_compact().map(
@@ -145,20 +173,32 @@ impl MultiDbg {
             },
         );
 
-        if let Some(n_haplotypes) = n_haplotypes {
-            // split terminal node into two
-            let terminal = self
-                .terminal_node_compact()
-                .expect("n_haplotype is specified, but there is no terminal node");
-            split_node(
-                &mut net,
-                terminal,
-                Some(MinSquaredErrorCopyNumAndFreq::new(
-                    vec![],
-                    Some(n_haplotypes),
-                    false,
-                )),
-            );
+        match terminal_count {
+            TerminalCount::Fixed(n_haplotypes) => {
+                // split terminal node into two
+                let terminal = self
+                    .terminal_node_compact()
+                    .expect("n_haplotype is specified, but there is no terminal node");
+                split_node(
+                    &mut net,
+                    terminal,
+                    Some(MinSquaredErrorCopyNumAndFreq::new(
+                        vec![],
+                        Some(n_haplotypes),
+                        false,
+                    )),
+                );
+            }
+            TerminalCount::Disconnect => {
+                // split terminal node into two nodes to prohibit cycles passing the terminal node.
+                if let Some(terminal) = self.terminal_node_compact() {
+                    // split terminal node into two disconnected nodes
+                    split_node(&mut net, terminal, None);
+                }
+            }
+            TerminalCount::Free => {
+                // no splitting is required.
+            }
         }
 
         // println!("[mse] network");
@@ -166,7 +206,8 @@ impl MultiDbg {
         net
     }
     ///
-    ///
+    /// * n_haplotypes
+    ///     if the number of linear haplotypes is known and specified, set to Some(n_haplotypes).
     ///
     pub fn min_squared_error_copy_nums_from_freqs(
         &self,
@@ -174,7 +215,13 @@ impl MultiDbg {
         coverage: f64,
         n_haplotypes: Option<usize>,
     ) -> CopyNums {
-        let net = self.to_min_squared_error_copy_nums_network(freqs, coverage, n_haplotypes, false);
+        let terminal_count = if let Some(n_haplotypes) = n_haplotypes {
+            TerminalCount::Fixed(n_haplotypes)
+        } else {
+            TerminalCount::Free
+        };
+        let net =
+            self.to_min_squared_error_copy_nums_network(freqs, coverage, terminal_count, false);
         let copy_nums = min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved");
         // println!("[mse] copy_nums={}", copy_nums);
         if n_haplotypes.is_some() {
@@ -185,20 +232,10 @@ impl MultiDbg {
     }
     ///
     ///
-    pub fn trim_last(&self, copy_nums: &CopyNums) -> CopyNums {
+    fn trim_last(&self, copy_nums: &CopyNums) -> CopyNums {
         assert_eq!(copy_nums.len(), self.n_edges_compact() + 1);
         // match size
         let mut ret = CopyNums::new(self.n_edges_compact(), 0);
-        for e in self.graph_compact().edge_indices() {
-            ret[e] = copy_nums[e];
-        }
-        ret
-    }
-    ///
-    ///
-    pub fn append_last(&self, copy_nums: &CopyNums) -> CopyNums {
-        assert_eq!(copy_nums.len(), self.n_edges_compact());
-        let mut ret = CopyNums::new(self.n_edges_compact() + 1, 0);
         for e in self.graph_compact().edge_indices() {
             ret[e] = copy_nums[e];
         }

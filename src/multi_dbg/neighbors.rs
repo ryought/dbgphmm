@@ -4,7 +4,7 @@
 //!
 //!
 
-use super::{CopyNums, MultiDbg};
+use super::{draft::TerminalCount, CopyNums, MultiDbg};
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::utils::split_node;
 use crate::hmmv2::freq::NodeFreqs;
@@ -280,12 +280,12 @@ impl MultiDbg {
         let network = self.to_min_squared_error_copy_nums_network(
             node_freqs,
             coverage,
-            Some(self.n_haplotypes()),
+            TerminalCount::Disconnect,
             not_make_new_zero_edge,
         );
         let copy_nums = self.get_copy_nums();
         // println!("{:?}", petgraph::dot::Dot::with_config(&network, &[]));
-        let rg = flow_to_residue_convex(&network, &self.append_last(&copy_nums));
+        let rg = flow_to_residue_convex(&network, &copy_nums);
         let edge_in_rg = rg
             .edge_indices()
             .find(|&e| rg[e].target == edge && rg[e].direction == ResidueDirection::Up)

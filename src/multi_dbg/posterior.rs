@@ -360,6 +360,7 @@ impl MultiDbg {
             //
             // [0] rescue 0x -> 1x changes
             let rescue_neighbors = dbg.to_rescue_neighbors(&freqs, coverage, 2, 10, true);
+
             let neighbor_copy_nums_set = if rescue_only {
                 vec![rescue_neighbors]
             } else {
