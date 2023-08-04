@@ -240,7 +240,7 @@ mod tests {
         //
         // test using full-length error-free read
         //
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
         // ~368sec (10min) in release on m1_mac
         println!("p={} t={}", p, time);
         let p_true = lp(-105721.1);
@@ -308,11 +308,11 @@ mod tests {
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
         // sparse ~0.3sec
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
         // sparse ~0.3sec
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome));
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
         let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(&genome));
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
@@ -327,7 +327,7 @@ mod tests {
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);
         // sparse ~0.5s
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads()));
+        let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads(), false));
         let p_true = lp(-1448.0);
         println!("p={} t={}", p, time);
         assert!(p.log_diff(p_true) < 1.0);

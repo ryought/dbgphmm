@@ -1,9 +1,8 @@
 //!
 //! PHMMParams for v2 hmm
 //!
+use super::table::MAX_ACTIVE_NODES;
 use crate::prob::Prob;
-use crate::vector::sparse::SIZE;
-// use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 ///
@@ -35,7 +34,7 @@ pub struct PHMMParams {
     /// For each bases, the probability that only top `n_active_nodes` nodes emits the base is only
     /// be considered.
     ///
-    /// `n_active_nodes` should be smaller than sparse vector width `vector::sparse::SIZE`,
+    /// `n_active_nodes` should be smaller than sparse vector width `MAX_ACTIVE_NODES`,
     /// otherwise it causes insufficient capacity error.
     ///
     /// `n_active_nodes` should be grater than some value, but it was not yet examined.
@@ -53,6 +52,13 @@ pub struct PHMMParams {
     ///
     pub n_warmup: usize,
     ///
+    /// threshold to switch dense/sparse table adaptively when calculating forward.
+    /// if the number of top_nodes is smaller than warmup_threshold, sparse table will be used.
+    ///
+    /// default value is `MAX_ACTIVE_NODES / 2`.
+    ///
+    pub warmup_threshold: usize,
+    ///
     /// Maximum number of consecutive deletions allowed in PHMM
     ///
     pub n_max_gaps: usize,
@@ -69,8 +75,7 @@ impl PHMMParams {
     ) -> PHMMParams {
         assert!(n_active_nodes > 0);
         assert!(n_warmup > 0);
-        // TODO less than 1/5 * SIZE?
-        assert!(n_active_nodes < SIZE);
+        assert!(n_active_nodes < MAX_ACTIVE_NODES);
         PHMMParams {
             p_mismatch,
             p_gap_open,
@@ -98,6 +103,7 @@ impl PHMMParams {
             active_node_max_ratio: 30.0,
             n_warmup,
             n_max_gaps: 4,
+            warmup_threshold: MAX_ACTIVE_NODES / 2,
         }
     }
     /// uniform error rate profile
