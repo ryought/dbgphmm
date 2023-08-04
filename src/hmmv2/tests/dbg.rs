@@ -85,19 +85,28 @@ mod tests {
         // dbg.to_gfa_file("read_dbg.gfa");
         let (mapping, t) = timer(|| dbg.generate_mappings(dataset.params(), dataset.reads(), None));
         println!("mapping created in t={}", t);
+        let phmm = dbg.to_phmm(dataset.params());
 
         //
         // (1) full-prob is same with/with-out mapping
-        //
         // likelihood of reads
-        {
-            let (p0, t0) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), None));
-            let (p1, t1) =
-                timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), Some(&mapping)));
-            let diff = p0.log_diff(p1);
-            println!("p0={} p1={} diff={} t0={} t1={}", p0, p1, diff, t0, t1);
-            assert!(diff < 0.0001);
-        }
+        //
+        // 0: without mapping
+        let (p0, t0) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), None));
+        // 1: with mapping
+        let (p1, t1) =
+            timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), Some(&mapping)));
+        // 2: without mapping and do not use score only calculation
+        let (p2, t2) = timer(|| phmm.to_full_prob_sparse(dataset.reads(), true));
+        let diff0 = p0.log_diff(p2);
+        let diff1 = p1.log_diff(p2);
+        println!(
+            "p0={} p1={} p2={} diff0={} diff1={} t0={} t1={} t2={}",
+            p0, p1, p2, diff0, diff1, t0, t1, t2
+        );
+        assert!(diff0 < 0.0001);
+        assert!(diff1 < 0.0001);
+
         // likelihood of genomes TODO
     }
     ///
@@ -207,13 +216,16 @@ mod tests {
     }
 
     #[test]
-    fn u1k_read_dbg() {
-        // test_read_dbg_mapping(u1k(), 40)
-        test_read_dbg_n_warmup(u1k(), 40)
+    fn u1k_read_dbg_mapping() {
+        test_read_dbg_mapping(u1k(), 40)
     }
     #[test]
-    fn u100_read_dbg() {
+    fn u100_read_dbg_mapping() {
         test_read_dbg_mapping(u100(), 40)
+    }
+    #[test]
+    fn u20_read_dbg_mapping() {
+        test_read_dbg_mapping(u20(), 40)
     }
     #[test]
     fn u20_read_dbg_n_warmup() {
@@ -233,8 +245,11 @@ mod tests {
         // test k=500 or k=1000 but read dbg is inaccurate.
     }
     #[test]
-    fn u20n200_read_dbg() {
-        test_read_dbg_n_warmup(u20n200(), 40);
+    fn u20n200_read_dbg_max_ratio() {
         test_read_dbg_max_ratio(u20n200(), 40);
+    }
+    #[test]
+    fn u20n200_read_dbg_n_warmup() {
+        test_read_dbg_n_warmup(u20n200(), 40);
     }
 }

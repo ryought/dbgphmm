@@ -138,7 +138,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     }
     /// Calculate full prob using sparse
     ///
-    pub fn to_full_prob_sparse<T>(&self, seqs: T) -> Prob
+    pub fn to_full_prob_sparse<T>(&self, seqs: T, use_max_ratio: bool) -> Prob
     where
         T: IntoIterator,
         T::Item: Seq,
@@ -146,7 +146,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         seqs.into_iter()
             .map(|seq| {
                 let read = seq.as_ref();
-                let forward = self.forward_sparse(read, false);
+                let forward = self.forward_sparse(read, use_max_ratio);
                 forward.full_prob()
             })
             .product()
