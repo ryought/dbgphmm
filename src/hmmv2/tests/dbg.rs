@@ -41,6 +41,9 @@ mod tests {
     use itertools::Itertools;
     use std::io::prelude::*;
 
+    const ACCEPTABLE_ERROR_FORWARD_AND_BACKWARD: f64 = 0.01;
+    const ACCEPTABLE_ERROR_BETWEEN_METHOD: f64 = 0.0001;
+
     ///
     /// * Dataset
     /// * initial MultiDbg
@@ -104,8 +107,8 @@ mod tests {
             "p0={} p1={} p2={} diff0={} diff1={} t0={} t1={} t2={}",
             p0, p1, p2, diff0, diff1, t0, t1, t2
         );
-        assert!(diff0 < 0.0001);
-        assert!(diff1 < 0.0001);
+        assert!(diff0 < ACCEPTABLE_ERROR_BETWEEN_METHOD);
+        assert!(diff1 < ACCEPTABLE_ERROR_BETWEEN_METHOD);
 
         // likelihood of genomes TODO
     }
@@ -157,12 +160,12 @@ mod tests {
             // Check 1:
             // p0 (use max ratio) vs p2 (ground truth)
             let diff = p0f.log_diff(p2f);
-            assert!(diff < 0.0001);
+            assert!(diff < ACCEPTABLE_ERROR_BETWEEN_METHOD);
 
             // Check 2:
             // p0 forward vs backward
             let diff = p0f.log_diff(p0b);
-            assert!(diff < 0.0001);
+            assert!(diff < ACCEPTABLE_ERROR_FORWARD_AND_BACKWARD);
         }
     }
 
@@ -204,13 +207,13 @@ mod tests {
             let diff_01 = o0
                 .to_full_prob_forward()
                 .log_diff(o1.to_full_prob_forward());
-            assert!(diff_01 < 0.0001);
+            assert!(diff_01 < ACCEPTABLE_ERROR_BETWEEN_METHOD);
 
             // Check 2: forward vs backward
             let diff_fb = o1
                 .to_full_prob_forward()
                 .log_diff(o1.to_full_prob_backward());
-            assert!(diff_fb < 0.01);
+            assert!(diff_fb < ACCEPTABLE_ERROR_FORWARD_AND_BACKWARD);
             println!("diff 01={} fb={}", diff_01, diff_fb);
         }
     }
