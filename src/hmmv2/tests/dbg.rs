@@ -1,17 +1,19 @@
 //!
 //! Accuracy/speed of MultiDbg PHMM
 //!
-//! Comparison
+//! ## Comparison
 //! * with/without mapping
 //! * non-zero/normal/uniform phmm
 //! * adaptive-sparse/normal-sparse/dense
-//! * n_warmup fixed/adaptive
+//! * [`test_read_dbg_n_warmup`]
+//!     n_warmup fixed/adaptive
 //!
-//! DBG
+//!
+//! ## DBG
 //! * from genome (without sequencing error)
 //! * (TODO) from reads (with error)
 //!
-//! Dataset
+//! ## Dataset
 //! * unique
 //! * small tandem repeat
 //! * large tandem repeat
@@ -161,26 +163,78 @@ mod tests {
     fn test_read_dbg_n_warmup(genome: Genome, k: usize) {
         // create read DBG
         let (dataset, dbg) = dataset(genome, k);
-        // dbg.to_gfa_file("read_dbg.gfa");
-        let (mapping, t) = timer(|| dbg.generate_mappings(dataset.params(), dataset.reads(), None));
-        println!("mapping created in t={}", t);
+
+        // phmm0: current fixed n_warmup
+        let mut param0 = dataset.params();
+        param0.n_warmup = k;
+        param0.n_active_nodes = 200;
+        let phmm0 = dbg.to_phmm(param0);
+
+        // phmm1: adaptive n_warmup
+        let mut param1 = dataset.params();
+        param1.n_warmup = k;
+        let phmm1 = dbg.to_phmm(param1);
+
+        for read in dataset.reads() {
+            let (o0, t0) = timer(|| phmm0.run_sparse_adaptive(read, false));
+            let (o1, t1) = timer(|| phmm1.run_sparse_adaptive(read, true));
+            println!(
+                "0 pf={} pb={} t={}",
+                o0.to_full_prob_forward(),
+                o0.to_full_prob_backward(),
+                t0,
+            );
+            println!(
+                "1 pf={} pb={} t={}",
+                o1.to_full_prob_forward(),
+                o1.to_full_prob_backward(),
+                t1,
+            );
+
+            // Check 1: o0 vs o1 forward
+            let diff_01 = o0
+                .to_full_prob_forward()
+                .log_diff(o1.to_full_prob_forward());
+            assert!(diff_01 < 0.0001);
+
+            // Check 2: forward vs backward
+            let diff_fb = o1
+                .to_full_prob_forward()
+                .log_diff(o1.to_full_prob_backward());
+            assert!(diff_fb < 0.01);
+            println!("diff 01={} fb={}", diff_01, diff_fb);
+        }
     }
 
     #[test]
     fn u1k_read_dbg() {
-        test_read_dbg_mapping(u1k(), 40)
-        // test_read_dbg_n_warmup(u1k(), 40)
+        // test_read_dbg_mapping(u1k(), 40)
+        test_read_dbg_n_warmup(u1k(), 40)
     }
     #[test]
     fn u100_read_dbg() {
         test_read_dbg_mapping(u100(), 40)
     }
     #[test]
-    fn u20_read_dbg() {
-        test_read_dbg_mapping(u20(), 40)
+    fn u20_read_dbg_n_warmup() {
+        println!("k=40");
+        test_read_dbg_n_warmup(u20(), 40);
+        println!("k=100");
+        test_read_dbg_n_warmup(u20(), 100);
+    }
+    #[test]
+    fn u1k_read_dbg_n_warmup() {
+        println!("k=40");
+        test_read_dbg_n_warmup(u1k(), 40);
+        println!("k=100");
+        test_read_dbg_n_warmup(u1k(), 100);
+
+        // TODO
+        // test k=500 or k=1000 but read dbg is inaccurate.
     }
     #[test]
     fn u20n200_read_dbg() {
-        test_read_dbg_max_ratio(u20n200(), 40)
+        test_read_dbg_n_warmup(u20n200(), 40);
+        test_read_dbg_max_ratio(u20n200(), 40);
     }
 }

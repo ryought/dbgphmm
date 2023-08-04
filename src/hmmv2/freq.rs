@@ -56,6 +56,8 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         PHMMOutput::new(forward, backward)
     }
     ///
+    /// 1. Run forward using adaptive sparse calculation (with `use_max_ratio`) using [`forward_sparse`]
+    /// 2. Run backward only for the cells that was active in forward using [`backward_by_forward`]
     ///
     pub fn run_sparse_adaptive<X: AsRef<Bases>>(
         &self,
