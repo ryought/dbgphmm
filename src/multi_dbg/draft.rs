@@ -11,7 +11,7 @@ use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::utils::timer;
 use itertools::izip;
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{DiGraph, NodeIndex};
 use rustflow::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, FlowEdge};
 
 ///
@@ -37,13 +37,16 @@ pub struct MinSquaredErrorCopyNumAndFreq {
     ///
     ///
     fixed_copy_num: Option<CopyNum>,
+    ///
+    ///
+    non_zero: bool,
 }
 
 impl MinSquaredErrorCopyNumAndFreq {
     ///
     /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
     ///
-    pub fn new(freqs: Vec<Freq>, fixed_copy_num: Option<CopyNum>) -> Self {
+    pub fn new(freqs: Vec<Freq>, fixed_copy_num: Option<CopyNum>, non_zero: bool) -> Self {
         assert!(
             freqs.iter().all(|f| f.is_finite()),
             "some of freqs in MSE are either nan or infinite"
@@ -51,6 +54,7 @@ impl MinSquaredErrorCopyNumAndFreq {
         MinSquaredErrorCopyNumAndFreq {
             freqs,
             fixed_copy_num,
+            non_zero,
         }
     }
 }
@@ -66,7 +70,13 @@ impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
     fn demand(&self) -> usize {
         match self.fixed_copy_num {
             Some(fixed_copy_num) => fixed_copy_num,
-            None => 0,
+            None => {
+                if self.non_zero {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
     fn capacity(&self) -> usize {
@@ -92,6 +102,30 @@ impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
     }
 }
 
+///
+///
+///
+#[derive(Clone, Debug, Copy)]
+pub enum TerminalCount {
+    ///
+    ///
+    ///
+    Free,
+    ///
+    /// Specify n_haplotypes by splitting terminal node into two nodes
+    /// connected by an edge whose demand and capacity is set to the `n_haplotypes`.
+    ///
+    Fixed(usize),
+    ///
+    /// Disconnect in-edges and out-edges of terminal node, so that the number of haplotypes will
+    /// not be changed by updating with cycle in the residue graph.
+    ///
+    /// Note that disconnecting terminals breaks flow consistency, so it cannot be used to run
+    /// min-flow algorithms. (only for finding cycles and neighbors.)
+    ///
+    Disconnect,
+}
+
 impl MultiDbg {
     ///
     ///
@@ -109,14 +143,16 @@ impl MultiDbg {
         freqs
     }
     ///
+    /// * terminal_count:
+    /// * not_make_new_zero_edge: if true, demand of non-zero edge will be 1.
     ///
-    ///
-    pub fn min_squared_error_copy_nums_from_freqs(
+    pub fn to_min_squared_error_copy_nums_network(
         &self,
         freqs: &NodeFreqs,
         coverage: f64,
-        n_haplotypes: Option<usize>,
-    ) -> CopyNums {
+        terminal_count: TerminalCount,
+        not_make_new_zero_edge: bool,
+    ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq> {
         let mut net = self.graph_compact().map(
             |_, _| (),
             |edge_in_comapct, _| {
@@ -131,41 +167,79 @@ impl MultiDbg {
                         }
                     })
                     .collect();
-                MinSquaredErrorCopyNumAndFreq::new(freqs_of_edge, None)
+                let copy_num = self.copy_num_of_edge_in_compact(edge_in_comapct);
+                let non_zero = not_make_new_zero_edge && copy_num != 0;
+                MinSquaredErrorCopyNumAndFreq::new(freqs_of_edge, None, non_zero)
             },
         );
 
-        if let Some(n_haplotypes) = n_haplotypes {
-            // split terminal node into two
-            let terminal = self
-                .terminal_node_compact()
-                .expect("n_haplotype is specified, but there is no terminal node");
-            split_node(
-                &mut net,
-                terminal,
-                Some(MinSquaredErrorCopyNumAndFreq::new(
-                    vec![],
-                    Some(n_haplotypes),
-                )),
-            );
+        match terminal_count {
+            TerminalCount::Fixed(n_haplotypes) => {
+                // split terminal node into two
+                let terminal = self
+                    .terminal_node_compact()
+                    .expect("n_haplotype is specified, but there is no terminal node");
+                split_node(
+                    &mut net,
+                    terminal,
+                    Some(MinSquaredErrorCopyNumAndFreq::new(
+                        vec![],
+                        Some(n_haplotypes),
+                        false,
+                    )),
+                );
+            }
+            TerminalCount::Disconnect => {
+                // split terminal node into two nodes to prohibit cycles passing the terminal node.
+                if let Some(terminal) = self.terminal_node_compact() {
+                    // split terminal node into two disconnected nodes
+                    split_node(&mut net, terminal, None);
+                }
+            }
+            TerminalCount::Free => {
+                // no splitting is required.
+            }
         }
+
         // println!("[mse] network");
         // println!("[mse] {:?}", petgraph::dot::Dot::with_config(&net, &[]));
-
+        net
+    }
+    ///
+    /// * n_haplotypes
+    ///     if the number of linear haplotypes is known and specified, set to Some(n_haplotypes).
+    ///
+    pub fn min_squared_error_copy_nums_from_freqs(
+        &self,
+        freqs: &NodeFreqs,
+        coverage: f64,
+        n_haplotypes: Option<usize>,
+    ) -> CopyNums {
+        let terminal_count = if let Some(n_haplotypes) = n_haplotypes {
+            TerminalCount::Fixed(n_haplotypes)
+        } else {
+            TerminalCount::Free
+        };
+        let net =
+            self.to_min_squared_error_copy_nums_network(freqs, coverage, terminal_count, false);
         let copy_nums = min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved");
-
         // println!("[mse] copy_nums={}", copy_nums);
-
         if n_haplotypes.is_some() {
-            // match size
-            let mut ret = CopyNums::new(self.n_edges_compact(), 0);
-            for e in self.graph_compact().edge_indices() {
-                ret[e] = copy_nums[e];
-            }
-            ret
+            self.trim_last(&copy_nums)
         } else {
             copy_nums
         }
+    }
+    ///
+    ///
+    fn trim_last(&self, copy_nums: &CopyNums) -> CopyNums {
+        assert_eq!(copy_nums.len(), self.n_edges_compact() + 1);
+        // match size
+        let mut ret = CopyNums::new(self.n_edges_compact(), 0);
+        for e in self.graph_compact().edge_indices() {
+            ret[e] = copy_nums[e];
+        }
+        ret
     }
 }
 
@@ -256,25 +330,25 @@ mod tests {
     }
     #[test]
     fn mse_cost() {
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![], None);
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 0.0);
         assert_eq!(w.convex_cost(1), 0.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], None);
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 1.0);
         assert_eq!(w.convex_cost(1), 0.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0, 2.0], None);
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0, 2.0], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 1.0 + 4.0);
         assert_eq!(w.convex_cost(1), 0.0 + 1.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], Some(2));
+        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], Some(2), false);
         assert_eq!(w.demand(), 2);
         assert_eq!(w.capacity(), 2);
         assert_eq!(w.convex_cost(2), 1.0);

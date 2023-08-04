@@ -32,6 +32,10 @@ fn main() {
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
+    let param = PHMMParams::uniform(opts.p_infer);
+    let mappings = dbg.generate_mappings(param, dataset.reads(), None);
+    let coverage = dataset.coverage();
+    let freqs = mappings.to_node_freqs(dbg.n_edges_full());
     // let neighbors = dbg.to_rescue_neighbors(2, 10);
     let neighbors: Vec<_> = opts
         .edges
@@ -39,10 +43,10 @@ fn main() {
         .flat_map(|&i| {
             let edge = ei(i);
             [
-                dbg.to_rescue_neighbors_for_edge(edge, 10, true, true),
-                dbg.to_rescue_neighbors_for_edge(edge, 10, true, false),
-                dbg.to_rescue_neighbors_for_edge(edge, 10, false, true),
-                dbg.to_rescue_neighbors_for_edge(edge, 10, false, false),
+                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, true, true),
+                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, true, false),
+                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, false, true),
+                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, false, false),
             ]
             .concat()
         })
@@ -50,7 +54,7 @@ fn main() {
     println!("neighbors={}", neighbors.len());
     let posterior = dbg.sample_posterior_for_inspect(
         neighbors,
-        PHMMParams::uniform(opts.p_infer),
+        param,
         dataset.reads(),
         dataset.genome_size(),
         opts.sigma,

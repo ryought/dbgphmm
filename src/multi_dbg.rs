@@ -466,7 +466,13 @@ impl MultiDbg {
     pub fn edges_in_full(&self, edge_in_compact: EdgeIndex) -> &[EdgeIndex] {
         self.graph_compact()
             .edge_weight(edge_in_compact)
-            .unwrap()
+            .unwrap_or_else(|| {
+                panic!(
+                    "e{} is not in the graph (n_edges_compact={})",
+                    edge_in_compact.index(),
+                    self.n_edges_compact()
+                )
+            })
             .edges_in_full()
     }
     ///

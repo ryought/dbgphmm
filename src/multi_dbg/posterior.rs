@@ -1,7 +1,10 @@
 //!
 //! Posterior probability inference of copy numbers on MultiDbg
 //!
-use super::{neighbors::NeighborConfig, CopyNums, MultiDbg, Path};
+use super::{
+    neighbors::{NeighborConfig, UpdateInfo, UpdateMethod},
+    CopyNums, MultiDbg, Path,
+};
 use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
 use crate::distribution::normal;
 use crate::e2e::Dataset;
@@ -16,9 +19,11 @@ use itertools::Itertools;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
 use rustflow::min_flow::residue::{
-    update_info_from_str, update_info_to_string, ResidueDirection, UpdateInfo,
+    update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
 };
+use serde::{Deserialize, Serialize};
 
+pub mod output;
 pub mod test;
 
 ///
@@ -53,17 +58,17 @@ impl PosteriorSample {
     ///
     ///
     ///
-    pub fn to_infos_string(&self) -> String {
-        format!(
-            "[{}]",
-            self.infos
-                .iter()
-                .map(|info| update_info_to_string(info))
-                .join(",")
-        )
+    fn to_infos_string_internal(infos: &[UpdateInfo]) -> String {
+        format!("[{}]", infos.iter().format(","))
     }
     ///
-    /// Convert `[e5+e2-e4+,e5+e6+]` into Vec<UpdateInfo>
+    ///
+    ///
+    pub fn to_infos_string(&self) -> String {
+        Self::to_infos_string_internal(&self.infos)
+    }
+    ///
+    /// Convert `[e5+e2-e4+,e5+e6+]` into Vec<UpdateCycle>
     ///
     pub fn from_infos_str(s: &str) -> Option<Vec<UpdateInfo>> {
         let s = s.strip_prefix('[')?;
@@ -71,7 +76,7 @@ impl PosteriorSample {
         let mut infos = Vec::new();
         for e in s.split(',') {
             if !e.is_empty() {
-                let info = update_info_from_str(e)?;
+                let info = e.parse().ok()?;
                 infos.push(info);
             }
         }
@@ -162,306 +167,11 @@ impl Posterior {
 }
 
 ///
-/// dump and load functions
-///
-/// ```text
-/// Z   -19281.0228
-/// C   -192919.0    [1,2,1,1,1,2,1,0]   likelihood=0.00 e1+e2-e3+,e1+e2-
-/// C   -191882.0    [1,2,0,0,1,2,2,1]   likelihood=0.01
-/// ```
-///
-impl Posterior {
-    ///
-    ///
-    ///
-    pub fn to_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writeln!(writer, "# {}", env!("GIT_HASH"))?;
-        writeln!(writer, "Z\t{}", self.p.to_log_value())?;
-        for sample in self
-            .samples
-            .iter()
-            .sorted_by_key(|sample| sample.score.p())
-            .rev()
-        {
-            writeln!(
-                writer,
-                "C\t{}\t{}\t{}\t{}",
-                sample.score.p().to_log_value(),
-                sample.copy_nums,
-                sample.score,
-                sample.to_infos_string(),
-            )?
-        }
-        Ok(())
-    }
-    ///
-    /// create string with `to_gfa_writer`
-    ///
-    pub fn to_string(&self) -> String {
-        let mut writer = Vec::with_capacity(128);
-        self.to_writer(&mut writer).unwrap();
-        String::from_utf8(writer).unwrap()
-    }
-    ///
-    /// create file with `to_gfa_writer`
-    ///
-    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(path).unwrap();
-        self.to_writer(&mut file)
-    }
-    ///
-    ///
-    ///
-    pub fn from_reader<R: std::io::BufRead>(reader: R) -> Self {
-        let mut samples = Vec::new();
-        let mut p = Prob::zero();
-
-        for line in reader.lines() {
-            let text = line.unwrap();
-            let first_char = text.chars().nth(0).unwrap();
-            match first_char {
-                'C' => {
-                    let mut iter = text.split_whitespace();
-                    iter.next().unwrap(); // 'C'
-                    iter.next().unwrap(); // value
-                    let copy_nums: CopyNums = iter.next().unwrap().parse().unwrap();
-                    let score: Score = iter.next().unwrap().parse().unwrap();
-                    let infos = PosteriorSample::from_infos_str(iter.next().unwrap()).unwrap();
-                    p += score.p();
-                    samples.push(PosteriorSample {
-                        copy_nums,
-                        score,
-                        infos,
-                    });
-                }
-                _ => {} // ignore
-            }
-        }
-
-        Posterior { samples, p }
-    }
-    ///
-    ///
-    pub fn from_str(s: &str) -> Self {
-        Self::from_reader(s.as_bytes())
-    }
-    ///
-    ///
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Self {
-        let file = std::fs::File::open(path).unwrap();
-        let reader = std::io::BufReader::new(file);
-        Self::from_reader(reader)
-    }
-}
-
-fn format_option_copy_num<T: std::fmt::Display>(o: Option<T>) -> String {
-    match o {
-        Some(i) => format!("{}", i),
-        None => format!("?"),
-    }
-}
-
-///
-/// benchmark functions for when true genome is available
-///
-impl MultiDbg {
-    ///
-    /// Everytime
-    /// * posterior probability (normalized)
-    /// * likelihood (log)
-    /// * prior (log)
-    /// * genome size
-    ///
-    /// Only if genome is known
-    /// * diff of copynums from true
-    ///
-    pub fn to_inspect_writer<W: std::io::Write>(
-        &self,
-        mut writer: W,
-        posterior: &Posterior,
-        copy_nums_true: Option<&CopyNums>,
-    ) -> std::io::Result<()> {
-        // for each copy nums
-        // TODO clean up using key value format
-        writeln!(writer, "# {}", env!("GIT_HASH"))?;
-        writeln!(
-            writer,
-            "{}\tG\tn_edges_full\t{}",
-            self.k(),
-            self.n_edges_full()
-        )?;
-        writeln!(
-            writer,
-            "{}\tG\tn_edges_compact\t{}",
-            self.k(),
-            self.n_edges_compact()
-        )?;
-        writeln!(
-            writer,
-            "{}\tG\tn_nodes_full\t{}",
-            self.k(),
-            self.n_nodes_full()
-        )?;
-        writeln!(
-            writer,
-            "{}\tG\tn_nodes_compact\t{}",
-            self.k(),
-            self.n_nodes_compact()
-        )?;
-        writeln!(
-            writer,
-            "{}\tG\tn_emittable_edges\t{}",
-            self.k(),
-            self.n_emittable_edges()
-        )?;
-        writeln!(
-            writer,
-            "{}\tG\tdegree_stats\t{:?}",
-            self.k(),
-            self.degree_stats(),
-        )?;
-        for (i, sample) in posterior
-            .samples
-            .iter()
-            .sorted_by_key(|sample| sample.score.p())
-            .rev()
-            .enumerate()
-        {
-            let score = &sample.score;
-            let copy_nums = &sample.copy_nums;
-            writeln!(
-                writer,
-                "{}\tC\t{}\t{:.10}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-                self.k(),
-                i,
-                (score.p() / posterior.p()).to_value(),
-                score.likelihood.to_log_value(),
-                score.prior.to_log_value(),
-                score.n_euler_circuits,
-                score.genome_size,
-                format_option_copy_num(
-                    copy_nums_true.map(|copy_nums_true| copy_nums_true.diff(copy_nums))
-                ),
-                // score.time_likelihood,
-                // score.time_euler,
-                sample.to_infos_string(),
-                copy_nums,
-            )?
-        }
-
-        // for each edges
-        for edge in self.graph_compact().edge_indices() {
-            let p_edge = posterior.p_edge(edge);
-            let copy_num_true = copy_nums_true.map(|copy_num_true| copy_num_true[edge]);
-            writeln!(
-                writer,
-                "{}\tE\te{}\t{}\t{:.5}\t{:.5}\t{:.5}\t{}",
-                self.k(),
-                edge.index(),
-                format_option_copy_num(copy_num_true),
-                p_edge.mean(),
-                format_option_copy_num(
-                    copy_num_true.map(|copy_num_true| p_edge.p_x(copy_num_true).to_value())
-                ),
-                p_edge.p_x(0).to_value(),
-                p_edge.to_short_string(),
-            )?
-        }
-
-        Ok(())
-    }
-    ///
-    ///
-    pub fn to_inspect_string(
-        &self,
-        posterior: &Posterior,
-        copy_nums_true: Option<&CopyNums>,
-    ) -> String {
-        let mut writer = Vec::with_capacity(128);
-        self.to_inspect_writer(&mut writer, posterior, copy_nums_true)
-            .unwrap();
-        String::from_utf8(writer).unwrap()
-    }
-    ///
-    ///
-    pub fn to_inspect_file<P: AsRef<std::path::Path>>(
-        &self,
-        path: P,
-        posterior: &Posterior,
-        copy_nums_true: Option<&CopyNums>,
-    ) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(path).unwrap();
-        self.to_inspect_writer(&mut file, posterior, copy_nums_true)
-    }
-    ///
-    /// Parse INSPECT file
-    ///
-    pub fn from_inspect_reader<R: std::io::BufRead>(&self, reader: R) -> Option<Posterior> {
-        let mut posterior = Posterior::new();
-
-        for line in reader.lines() {
-            let text = line.unwrap();
-            let first_char = text.chars().nth(0)?;
-            if first_char == '#' {
-                continue;
-            }
-            let columns: Vec<&str> = text.split_whitespace().collect();
-
-            let k: usize = columns.get(0)?.parse().ok()?;
-            assert_eq!(k, self.k());
-
-            let kind = columns.get(1)?.chars().nth(0)?;
-            match kind {
-                'C' => {
-                    let infos = PosteriorSample::from_infos_str(columns[9])?;
-                    let copy_nums = columns.get(10)?.parse().ok()?;
-                    let likelihood: f64 = columns[4].parse().ok()?;
-                    let prior: f64 = columns[5].parse().ok()?;
-                    let score = Score {
-                        likelihood: Prob::from_log_prob(likelihood),
-                        prior: Prob::from_log_prob(prior),
-                        n_euler_circuits: columns[6].parse().unwrap(),
-                        genome_size: columns[7].parse().unwrap(),
-                        // TODO
-                        time_euler: 0,
-                        time_likelihood: 0,
-                    };
-
-                    posterior.add(PosteriorSample {
-                        copy_nums,
-                        score,
-                        infos,
-                    });
-                }
-                _ => {
-                    // TODO
-                    // parse true copy_nums?
-                }
-            }
-        }
-
-        Some(posterior)
-    }
-    ///
-    ///
-    pub fn from_inspect_str(&self, s: &str) -> Option<Posterior> {
-        self.from_inspect_reader(s.as_bytes())
-    }
-    ///
-    ///
-    pub fn from_inspect_file<P: AsRef<std::path::Path>>(&self, path: P) -> Option<Posterior> {
-        let file = std::fs::File::open(path.as_ref()).unwrap();
-        let reader = std::io::BufReader::new(file);
-        self.from_inspect_reader(reader)
-    }
-}
-
-///
 /// Calculated score of copy numbers
 ///
 /// Constructed by `MultiDbg::to_score`.
 ///
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Score {
     ///
     /// Likelihood `P(R|X)`
@@ -502,59 +212,14 @@ impl Score {
 
 impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "likelihood={},prior={},genome_size={},n_euler_circuits={},time_likelihood={},time_euler={}",
-            self.likelihood, self.prior, self.genome_size, self.n_euler_circuits, self.time_likelihood, self.time_euler
-        )
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 impl std::str::FromStr for Score {
-    type Err = std::num::ParseFloatError;
+    type Err = serde_json::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut likelihood = None;
-        let mut prior = None;
-        let mut genome_size = None;
-        let mut n_euler_circuits = None;
-        let mut time_likelihood = None;
-        let mut time_euler = None;
-
-        for e in s.split(',') {
-            let mut it = e.split('=');
-            let key = it.next().unwrap();
-            let value = it.next().unwrap();
-            match key {
-                "likelihood" => {
-                    likelihood = Some(value.parse().unwrap());
-                }
-                "prior" => {
-                    prior = Some(value.parse().unwrap());
-                }
-                "genome_size" => {
-                    genome_size = Some(value.parse().unwrap());
-                }
-                "n_euler_circuits" => {
-                    n_euler_circuits = Some(value.parse().unwrap());
-                }
-                "time_likelihood" => {
-                    time_likelihood = Some(value.parse().unwrap());
-                }
-                "time_euler" => {
-                    time_euler = Some(value.parse().unwrap());
-                }
-                _ => {}
-            }
-        }
-
-        Ok(Score {
-            likelihood: likelihood.unwrap(),
-            prior: prior.unwrap(),
-            genome_size: genome_size.unwrap(),
-            n_euler_circuits: n_euler_circuits.unwrap(),
-            time_likelihood: time_likelihood.unwrap(),
-            time_euler: time_euler.unwrap(),
-        })
+        serde_json::from_str(s)
     }
 }
 
@@ -667,6 +332,8 @@ impl MultiDbg {
         let mut infos = Vec::new();
         let mut dbg = self.clone();
         let mut n_iter = 0;
+        let freqs = mappings.to_node_freqs(dbg.n_edges_full());
+        let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
         println!("sample_posterior rescue_only={}", rescue_only);
 
         // calculate initial score
@@ -692,7 +359,8 @@ impl MultiDbg {
             // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            let rescue_neighbors = dbg.to_rescue_neighbors(2, 10, true);
+            let rescue_neighbors = dbg.to_rescue_neighbors(&freqs, coverage, 2, 10, true);
+
             let neighbor_copy_nums_set = if rescue_only {
                 vec![rescue_neighbors]
             } else {
@@ -815,7 +483,7 @@ impl MultiDbg {
         multi_move: bool,
     ) -> Option<PosteriorSample> {
         // evaluate (calculate) score of the given copy numbers and return a PosteriorSample
-        let evaluate = |copy_nums: CopyNums, info: &[UpdateInfo]| {
+        let evaluate = |copy_nums: CopyNums, info: UpdateInfo| {
             // evaluate score
             let mut dbg = self.clone();
             dbg.set_copy_nums(&copy_nums);
@@ -827,7 +495,7 @@ impl MultiDbg {
                 genome_size_sigma,
             );
             let mut infos = infos_init.to_owned();
-            infos.extend_from_slice(info);
+            infos.push(info);
             PosteriorSample {
                 copy_nums,
                 score,
@@ -844,7 +512,7 @@ impl MultiDbg {
                 if posterior.contains(&copy_nums) {
                     None
                 } else {
-                    Some(evaluate(copy_nums, &[info]))
+                    Some(evaluate(copy_nums, info))
                 }
             })
             .collect();
@@ -868,7 +536,7 @@ impl MultiDbg {
             // accept independent moves
             let mut current_copy_nums = self.get_copy_nums();
             let original_copy_nums = self.get_copy_nums();
-            let mut accepted_update_infos = vec![];
+            let mut accepted_update_cycles = vec![];
             let current_score = posterior
                 .find(&current_copy_nums)
                 .expect("current copy number was not sampled")
@@ -886,9 +554,10 @@ impl MultiDbg {
                 eprintln!(
                     "{} {} {} {}",
                     i,
-                    update_info_to_string(&info),
+                    update_cycle_to_string(&info.cycle()),
                     score.p(),
-                    info.iter()
+                    info.cycle()
+                        .iter()
                         .map(|(edge, _)| format!(
                             "e{}={}x",
                             edge.index(),
@@ -900,12 +569,13 @@ impl MultiDbg {
                 // if the change improves the score and independent (does not conflicts with other
                 // accepted changes)
                 let improves_score = score.p() > current_score.p();
+                let cycle = info.cycle();
                 let is_independent =
-                    self.is_independent_update(&current_copy_nums, &accepted_update_infos, &info);
+                    self.is_independent_update(&current_copy_nums, &accepted_update_cycles, &cycle);
                 if improves_score && is_independent {
                     eprintln!("accept!! {} {}", improves_score, is_independent);
-                    self.apply_update_info_to_copy_nums(&mut current_copy_nums, &info);
-                    accepted_update_infos.push(info.clone());
+                    self.apply_update_info_to_copy_nums(&mut current_copy_nums, &cycle);
+                    accepted_update_cycles.push(cycle.clone());
                 } else {
                     eprintln!("reject {} {}", improves_score, is_independent);
                 }
@@ -917,7 +587,8 @@ impl MultiDbg {
             }
 
             // run once and check if the score actually improves.
-            let sample = evaluate(current_copy_nums, &accepted_update_infos);
+            let info = UpdateInfo::new(accepted_update_cycles, UpdateMethod::MultiMove);
+            let sample = evaluate(current_copy_nums, info);
             println!("multi move score {}", sample.score.p());
             posterior.add(sample);
         }
@@ -1169,50 +840,6 @@ mod tests {
     use crate::prob::p;
 
     #[test]
-    fn posterior_dump_load() {
-        let mut post = Posterior::new();
-        post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 2, 2, 0].into(),
-            score: Score {
-                likelihood: p(0.6),
-                prior: p(0.3),
-                time_likelihood: 10,
-                genome_size: 101,
-                n_euler_circuits: 10.0,
-                time_euler: 12,
-            },
-            infos: vec![
-                vec![
-                    (ei(0), ResidueDirection::Up),
-                    (ei(121), ResidueDirection::Down),
-                ],
-                vec![
-                    (ei(3), ResidueDirection::Down),
-                    (ei(1), ResidueDirection::Up),
-                ],
-            ],
-        });
-        post.add(PosteriorSample {
-            copy_nums: vec![1, 1, 1, 2, 1].into(),
-            score: Score {
-                likelihood: p(0.003),
-                prior: p(0.2),
-                time_likelihood: 11,
-                genome_size: 99,
-                n_euler_circuits: 10.0,
-                time_euler: 12,
-            },
-            infos: Vec::new(),
-        });
-        let s = post.to_string();
-        println!("{}", s);
-
-        let post_loaded = Posterior::from_str(&s);
-        assert_eq!(post_loaded.samples, post.samples);
-        assert_eq!(post_loaded.p, post.p);
-    }
-
-    #[test]
     fn score() {
         let a = Score {
             likelihood: Prob::from_prob(0.3),
@@ -1227,28 +854,5 @@ mod tests {
         let b: Score = t.parse().unwrap();
         println!("{}", b);
         assert_eq!(a, b);
-    }
-
-    #[test]
-    fn parse_inspect() {
-        // parsing Vec<UpdateInfo> = Vec<Vec<(EdgeIndex, ResidueDirection)>>
-        let infos = PosteriorSample::from_infos_str("[e5+e6+e1-,e10+e1+,e5-]");
-        assert_eq!(
-            infos,
-            Some(vec![
-                vec![
-                    (ei(5), ResidueDirection::Up),
-                    (ei(6), ResidueDirection::Up),
-                    (ei(1), ResidueDirection::Down),
-                ],
-                vec![
-                    (ei(10), ResidueDirection::Up),
-                    (ei(1), ResidueDirection::Up),
-                ],
-                vec![(ei(5), ResidueDirection::Down),],
-            ])
-        );
-        let infos = PosteriorSample::from_infos_str("[]");
-        assert_eq!(infos, Some(vec![]));
     }
 }

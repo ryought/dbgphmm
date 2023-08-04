@@ -19,6 +19,7 @@ debug = 1
 
 [dev-dependencies]
 test-case = "1.2.3"
+tempfile = "3"
 
 [dependencies]
 bio = "*"
