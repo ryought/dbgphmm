@@ -91,9 +91,9 @@ mod tests {
         // (1) full-prob is same with/with-out mapping
         // likelihood of reads
         //
-        // 0: without mapping
+        // 0: without mapping, score only
         let (p0, t0) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), None));
-        // 1: with mapping
+        // 1: with mapping, score only
         let (p1, t1) =
             timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), Some(&mapping)));
         // 2: without mapping and do not use score only calculation
