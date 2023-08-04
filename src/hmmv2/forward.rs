@@ -104,28 +104,41 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             .into_iter()
             .enumerate()
             .fold(r0, |mut r, (i, &emission)| {
-                if i < param.n_warmup {
+                // previous table and its top_nodes
+                let table_prev = if i == 0 {
+                    &r.init_table
+                } else {
+                    r.last_table()
+                };
+                let top_nodes = if use_max_ratio {
+                    table_prev.top_nodes_by_score_ratio(param.active_node_max_ratio)
+                } else {
+                    table_prev.top_nodes(param.n_active_nodes)
+                };
+
+                // the resulting table will be sparse/dense?
+                let use_dense = if use_max_ratio {
+                    // if active_nodes is too small, switch to sparse.
+                    // otherwise, use dense.
+                    i == 0 || top_nodes.len() > param.warmup_threshold
+                } else {
+                    // not adaptive
+                    // first n_warmup tables will be computed using dense.
+                    i < param.n_warmup
+                };
+
+                // println!("i={} L={} use_dense={}", i, top_nodes.len(), use_dense);
+
+                let table = if use_dense {
                     // dense_table
-                    let table_prev = if i == 0 {
-                        &r.init_table
-                    } else {
-                        r.last_table()
-                    };
-                    let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
-                    r.tables.push(table);
+                    self.f_step(i, emission, table_prev, &all_nodes, true, false)
                 } else {
                     // sparse_table
-                    let table_prev = r.last_table();
-                    let active_nodes = if use_max_ratio {
-                        self.to_childs_and_us(
-                            &table_prev.top_nodes_by_score_ratio(param.active_node_max_ratio),
-                        )
-                    } else {
-                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
-                    };
-                    let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
-                    r.tables.push(table);
+                    // determine next active nodes
+                    let active_nodes = self.to_childs_and_us(&top_nodes);
+                    self.f_step(i, emission, table_prev, &active_nodes, false, true)
                 };
+                r.tables.push(table);
                 r
             })
     }
@@ -141,19 +154,31 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         let param = &self.param;
         let all_nodes = self.to_all_nodes();
         for (i, &emission) in emissions.as_ref().into_iter().enumerate() {
-            if i < param.n_warmup {
+            // previous top_nodes
+            let top_nodes = if use_max_ratio {
+                table.top_nodes_by_score_ratio(param.active_node_max_ratio)
+            } else {
+                table.top_nodes(param.n_active_nodes)
+            };
+
+            // the resulting table will be sparse/dense?
+            let use_dense = if use_max_ratio {
+                // if active_nodes is too small, switch to sparse.
+                // otherwise, use dense.
+                i == 0 || top_nodes.len() > param.warmup_threshold
+            } else {
+                // not adaptive
+                // first n_warmup tables will be computed using dense.
+                i < param.n_warmup
+            };
+
+            table = if use_dense {
                 // dense_table
-                table = self.f_step(i, emission, &table, &all_nodes, true, false);
+                self.f_step(i, emission, &table, &all_nodes, true, false)
             } else {
                 // sparse_table
-                let active_nodes = if use_max_ratio {
-                    self.to_childs_and_us(
-                        &table.top_nodes_by_score_ratio(param.active_node_max_ratio),
-                    )
-                } else {
-                    self.to_childs_and_us(&table.top_nodes(param.n_active_nodes))
-                };
-                table = self.f_step(i, emission, &table, &active_nodes, false, true);
+                let active_nodes = self.to_childs_and_us(&top_nodes);
+                self.f_step(i, emission, &table, &active_nodes, false, true)
             };
         }
         table.e
@@ -176,6 +201,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Calculate the table from the previous table
     /// for Forward algorithm
+    ///
+    /// * is_dense
+    ///     if true, the resulting PHMMTable will be dense. (Store probabilities for all nodes)
+    /// * is_adaptive
+    ///     use adaptive node calculation in Del states
     ///
     fn f_step(
         &self,

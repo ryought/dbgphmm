@@ -1,3 +1,9 @@
+//!
+//! HMMv2 test
+//!
+//!
+pub mod dbg;
+
 #[cfg(test)]
 mod tests {
     use crate::common::{ni, sequence_to_string};
