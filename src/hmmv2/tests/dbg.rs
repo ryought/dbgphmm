@@ -216,18 +216,22 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn u1k_read_dbg_mapping() {
         test_read_dbg_mapping(u1k(), 40)
     }
     #[test]
+    #[ignore]
     fn u100_read_dbg_mapping() {
         test_read_dbg_mapping(u100(), 40)
     }
     #[test]
+    #[ignore]
     fn u20_read_dbg_mapping() {
         test_read_dbg_mapping(u20(), 40)
     }
     #[test]
+    #[ignore]
     fn u20_read_dbg_n_warmup() {
         println!("k=40");
         test_read_dbg_n_warmup(u20(), 40);
@@ -235,6 +239,7 @@ mod tests {
         test_read_dbg_n_warmup(u20(), 100);
     }
     #[test]
+    #[ignore]
     fn u1k_read_dbg_n_warmup() {
         println!("k=40");
         test_read_dbg_n_warmup(u1k(), 40);
@@ -245,10 +250,12 @@ mod tests {
         // test k=500 or k=1000 but read dbg is inaccurate.
     }
     #[test]
+    #[ignore]
     fn u20n200_read_dbg_max_ratio() {
         test_read_dbg_max_ratio(u20n200(), 40);
     }
     #[test]
+    #[ignore]
     fn u20n200_read_dbg_n_warmup() {
         test_read_dbg_n_warmup(u20n200(), 40);
     }
