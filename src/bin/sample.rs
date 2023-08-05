@@ -21,6 +21,12 @@ struct Opts {
     dataset_json: std::path::PathBuf,
     #[clap(long, use_value_delimiter = true, value_delimiter = ',')]
     edges: Vec<usize>,
+    #[clap(long)]
+    inspect_filename: std::path::PathBuf,
+    #[clap(long, default_value = "10")]
+    k: usize,
+    #[clap(long)]
+    allow_zero_edge: bool,
 }
 
 fn main() {
@@ -30,7 +36,7 @@ fn main() {
     println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
 
-    let dataset = Dataset::from_json_file(opts.dataset_json);
+    let dataset = Dataset::from_json_file(&opts.dataset_json);
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
     let param = PHMMParams::uniform(opts.p_infer);
     let mappings = dbg.generate_mappings(param, dataset.reads(), None);
@@ -42,12 +48,14 @@ fn main() {
         .iter()
         .flat_map(|&i| {
             let edge = ei(i);
-            [
-                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, true, true),
-                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, true, false),
-                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, false, true),
-                dbg.to_rescue_neighbors_for_edge(edge, &freqs, coverage, 10, false, false),
-            ]
+            [dbg.to_rescue_neighbors_for_edge(
+                edge,
+                &freqs,
+                coverage,
+                opts.k,
+                !opts.allow_zero_edge,
+                true,
+            )]
             .concat()
         })
         .collect();
@@ -61,11 +69,7 @@ fn main() {
     );
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome()).unwrap();
     let copy_nums_true = dbg.copy_nums_from_full_path(paths_true);
-    dbg.to_inspect_file(
-        opts.dbg.with_extension("inspect"),
-        &posterior,
-        Some(&copy_nums_true),
-    );
+    dbg.to_inspect_file(&opts.inspect_filename, &posterior, Some(&copy_nums_true));
 
     println!("# finished_at={}", chrono::Local::now());
 }
