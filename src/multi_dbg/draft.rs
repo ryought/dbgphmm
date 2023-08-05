@@ -93,11 +93,20 @@ impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
 /// if the kmer corresponding to the edge is not emittable, the cost
 /// should be ignored.
 ///
+/// `x = copy_num, y = freq`
+///
+/// # candidate weights
+///
+/// * `h(x) = |x - f|^2`
+/// * `h(x) = |1 - x/(f+e)|^2`
+/// * `h(x) = |1 - f/(x+1)|^2` not good
+///
 impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
     fn convex_cost(&self, copy_num: usize) -> f64 {
         self.freqs
             .iter()
-            .map(|&freq| (copy_num as f64 - freq).powi(2))
+            // .map(|&freq| (copy_num as f64 - freq).powi(2))
+            .map(|&freq| (1.0 - (copy_num as f64 / (freq + 0.0000001))).powi(2))
             .sum()
     }
 }
