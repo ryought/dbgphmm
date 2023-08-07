@@ -30,7 +30,7 @@ use rustflow::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, FlowEdge
 /// * cost = |c - f|^2
 ///
 #[derive(Clone, Debug)]
-pub struct MinSquaredErrorCopyNumAndFreq {
+pub struct MinSquaredErrorCopyNumAndFreq<T: ErrorMetric> {
     ///
     ///
     freqs: Vec<Freq>,
@@ -40,9 +40,12 @@ pub struct MinSquaredErrorCopyNumAndFreq {
     ///
     ///
     non_zero: bool,
+    ///
+    ///
+    phantom: std::marker::PhantomData<T>,
 }
 
-impl MinSquaredErrorCopyNumAndFreq {
+impl<T: ErrorMetric> MinSquaredErrorCopyNumAndFreq<T> {
     ///
     /// constructor from Vec<(is_target: bool, freq: Freeq)> and predetermined copy_num
     ///
@@ -55,7 +58,44 @@ impl MinSquaredErrorCopyNumAndFreq {
             freqs,
             fixed_copy_num,
             non_zero,
+            phantom: std::marker::PhantomData,
         }
+    }
+}
+
+pub trait ErrorMetric: Clone {
+    fn cost(freqs: &[Freq], copy_num: CopyNum) -> f64;
+}
+
+/// ErrorMetric V1
+///
+/// h(c) = |c-f|^2
+///
+#[derive(Clone, Debug)]
+pub struct V1Error {}
+
+impl ErrorMetric for V1Error {
+    fn cost(freqs: &[Freq], copy_num: CopyNum) -> f64 {
+        freqs
+            .iter()
+            .map(|&freq| (copy_num as f64 - freq).powi(2))
+            .sum()
+    }
+}
+
+/// ErrorMetric V1
+///
+/// h(c) = |1 - c/f|^2
+///
+#[derive(Clone, Debug)]
+pub struct V2Error {}
+
+impl ErrorMetric for V2Error {
+    fn cost(freqs: &[Freq], copy_num: CopyNum) -> f64 {
+        freqs
+            .iter()
+            .map(|&freq| (1.0 - (copy_num as f64 / (freq + 0.0000001))).powi(2))
+            .sum()
     }
 }
 
@@ -66,7 +106,7 @@ impl MinSquaredErrorCopyNumAndFreq {
 ///
 pub const MAX_COPY_NUM_OF_EDGE: usize = 1000;
 
-impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
+impl<T: ErrorMetric> FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq<T> {
     fn demand(&self) -> usize {
         match self.fixed_copy_num {
             Some(fixed_copy_num) => fixed_copy_num,
@@ -101,13 +141,9 @@ impl FlowEdge<usize> for MinSquaredErrorCopyNumAndFreq {
 /// * `h(x) = |1 - x/(f+e)|^2`
 /// * `h(x) = |1 - f/(x+1)|^2` not good
 ///
-impl ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq {
+impl<T: ErrorMetric> ConvexCost<usize> for MinSquaredErrorCopyNumAndFreq<T> {
     fn convex_cost(&self, copy_num: usize) -> f64 {
-        self.freqs
-            .iter()
-            // .map(|&freq| (copy_num as f64 - freq).powi(2))
-            .map(|&freq| (1.0 - (copy_num as f64 / (freq + 0.0000001))).powi(2))
-            .sum()
+        T::cost(&self.freqs, copy_num)
     }
 }
 
@@ -155,13 +191,13 @@ impl MultiDbg {
     /// * terminal_count:
     /// * not_make_new_zero_edge: if true, demand of non-zero edge will be 1.
     ///
-    pub fn to_min_squared_error_copy_nums_network(
+    pub fn to_min_squared_error_copy_nums_network<T: ErrorMetric>(
         &self,
         freqs: &NodeFreqs,
         coverage: f64,
         terminal_count: TerminalCount,
         not_make_new_zero_edge: bool,
-    ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq> {
+    ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq<T>> {
         let mut net = self.graph_compact().map(
             |_, _| (),
             |edge_in_comapct, _| {
@@ -229,8 +265,12 @@ impl MultiDbg {
         } else {
             TerminalCount::Free
         };
-        let net =
-            self.to_min_squared_error_copy_nums_network(freqs, coverage, terminal_count, false);
+        let net = self.to_min_squared_error_copy_nums_network::<V2Error>(
+            freqs,
+            coverage,
+            terminal_count,
+            false,
+        );
         let copy_nums = min_cost_flow_convex_fast(&net).expect("mse flownetwork cannot be solved");
         // println!("[mse] copy_nums={}", copy_nums);
         if n_haplotypes.is_some() {
@@ -339,25 +379,25 @@ mod tests {
     }
     #[test]
     fn mse_cost() {
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![], None, false);
+        let w = MinSquaredErrorCopyNumAndFreq::<V1Error>::new(vec![], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 0.0);
         assert_eq!(w.convex_cost(1), 0.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], None, false);
+        let w = MinSquaredErrorCopyNumAndFreq::<V1Error>::new(vec![1.0], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 1.0);
         assert_eq!(w.convex_cost(1), 0.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0, 2.0], None, false);
+        let w = MinSquaredErrorCopyNumAndFreq::<V1Error>::new(vec![1.0, 2.0], None, false);
         assert_eq!(w.demand(), 0);
         assert_eq!(w.capacity(), MAX_COPY_NUM_OF_EDGE);
         assert_eq!(w.convex_cost(0), 1.0 + 4.0);
         assert_eq!(w.convex_cost(1), 0.0 + 1.0);
 
-        let w = MinSquaredErrorCopyNumAndFreq::new(vec![1.0], Some(2), false);
+        let w = MinSquaredErrorCopyNumAndFreq::<V1Error>::new(vec![1.0], Some(2), false);
         assert_eq!(w.demand(), 2);
         assert_eq!(w.capacity(), 2);
         assert_eq!(w.convex_cost(2), 1.0);
