@@ -49,6 +49,11 @@ fn main() {
     let copy_nums_true = dbg.copy_nums_from_full_path(paths_true);
     println!("# {}", copy_nums_true);
 
+    let mut n_over_estimate = 0;
+    let mut n_under_estimate = 0;
+    let mut sum_over_estimate = 0;
+    let mut sum_under_estimate = 0;
+
     for (i, e) in dbg
         .graph_compact()
         .edge_indices()
@@ -70,7 +75,18 @@ fn main() {
             copy_nums_true[e],
             freq_ave / dataset.coverage()
         );
+
+        if copy_nums[e] > copy_nums_true[e] {
+            n_over_estimate += 1;
+            sum_over_estimate += copy_nums_true[e];
+        } else {
+            n_under_estimate += 1;
+            sum_under_estimate += copy_nums_true[e];
+        }
     }
+
+    println!("over n={} sum={}", n_over_estimate, sum_over_estimate);
+    println!("under n={} sum={}", n_under_estimate, sum_under_estimate);
 
     println!("# finished_at={}", chrono::Local::now());
 }

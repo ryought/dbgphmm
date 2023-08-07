@@ -4,7 +4,10 @@
 //!
 //!
 
-use super::{draft::TerminalCount, CopyNums, MultiDbg};
+use super::{
+    draft::{TerminalCount, V2Error},
+    CopyNums, MultiDbg,
+};
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::utils::split_node;
 use crate::hmmv2::freq::NodeFreqs;
@@ -277,7 +280,7 @@ impl MultiDbg {
         not_make_new_zero_edge: bool,
         weighted_by_copy_num: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
-        let network = self.to_min_squared_error_copy_nums_network(
+        let network = self.to_min_squared_error_copy_nums_network::<V2Error>(
             node_freqs,
             coverage,
             TerminalCount::Disconnect,
