@@ -83,7 +83,7 @@ impl ErrorMetric for V1Error {
     }
 }
 
-/// ErrorMetric V1
+/// ErrorMetric V2
 ///
 /// h(c) = |1 - c/f|^2
 ///
@@ -94,7 +94,26 @@ impl ErrorMetric for V2Error {
     fn cost(freqs: &[Freq], copy_num: CopyNum) -> f64 {
         freqs
             .iter()
-            .map(|&freq| (1.0 - (copy_num as f64 / (freq + 0.0000001))).powi(2))
+            .map(|&freq| (1.0 - (copy_num as f64 / (freq + 1e-7))).powi(2))
+            .sum()
+    }
+}
+
+/// ErrorMetric V4
+///
+/// h(c) = |1 - c/f|^2
+///
+#[derive(Clone, Debug)]
+pub struct V4Error {}
+
+impl ErrorMetric for V4Error {
+    fn cost(freqs: &[Freq], copy_num: CopyNum) -> f64 {
+        freqs
+            .iter()
+            .map(|&freq| {
+                (1.0 - (copy_num as f64 / (freq + 1e-1))).powi(2)
+                    + ((freq / (copy_num as f64 + 1e-1)) - 1.0).powi(2)
+            })
             .sum()
     }
 }
@@ -265,7 +284,7 @@ impl MultiDbg {
         } else {
             TerminalCount::Free
         };
-        let net = self.to_min_squared_error_copy_nums_network::<V2Error>(
+        let net = self.to_min_squared_error_copy_nums_network::<V4Error>(
             freqs,
             coverage,
             terminal_count,
