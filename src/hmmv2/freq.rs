@@ -64,7 +64,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         emissions: X,
         use_max_ratio: bool,
     ) -> PHMMOutput {
-        let forward = self.forward_sparse(&emissions, use_max_ratio);
+        let forward = self.forward_sparse_v0(&emissions, use_max_ratio);
         let backward = self.backward_by_forward(&emissions, &forward);
         PHMMOutput::new(forward, backward)
     }
@@ -146,7 +146,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         seqs.into_iter()
             .map(|seq| {
                 let read = seq.as_ref();
-                let forward = self.forward_sparse(read, use_max_ratio);
+                let forward = self.forward_sparse_v0(read, use_max_ratio);
                 forward.full_prob()
             })
             .product()
