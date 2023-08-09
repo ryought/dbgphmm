@@ -19,6 +19,21 @@ fn main() {
     );
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(40, &dataset));
 
+    let phmm = dbg.to_phmm(dataset.params());
+
+    /*
+    for (i, read) in dataset.reads().into_iter().enumerate() {
+        let (p, t) = timer(|| phmm.forward_sparse(read, true));
+        for j in 0..p.n_emissions() {
+            println!(
+                "j={j} n_top_nodes={} is_dense={}",
+                p.table(j).top_nodes_by_score_ratio(30.0).len(),
+                p.table(j).is_dense()
+            );
+        }
+    }
+    */
+
     // create read DBG
     // dbg.to_gfa_file("read_dbg.gfa");
     let (mappings, t) = timer(|| dbg.generate_mappings(dataset.params(), dataset.reads(), None));
@@ -29,8 +44,6 @@ fn main() {
             println!("r={} i={} l={}", r, i, l);
         }
     }
-
-    let phmm = dbg.to_phmm(dataset.params());
 
     /*
     //
