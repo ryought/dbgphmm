@@ -174,9 +174,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
             // the resulting table will be sparse/dense?
             let use_dense = if use_max_ratio {
-                // if active_nodes is too small, switch to sparse.
-                // otherwise, use dense.
-                i == 0 || top_nodes.len() > param.warmup_threshold
+                if table.is_dense() {
+                    // if active_nodes is too small, switch to sparse.
+                    // otherwise, use dense.
+                    if i == 0 {
+                        true
+                    } else if i < param.n_warmup {
+                        top_nodes.len() > param.warmup_threshold
+                    } else {
+                        false
+                    }
+                } else {
+                    // if previous table is already sparse, use sparse too.
+                    false
+                }
             } else {
                 // not adaptive
                 // first n_warmup tables will be computed using dense.
