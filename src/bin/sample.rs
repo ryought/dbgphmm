@@ -25,8 +25,8 @@ struct Opts {
     inspect_filename: std::path::PathBuf,
     #[clap(long, default_value = "10")]
     k: usize,
-    #[clap(long)]
-    allow_zero_edge: bool,
+    #[clap(long, default_value = "20")]
+    k_total: usize,
 }
 
 fn main() {
@@ -48,12 +48,14 @@ fn main() {
         .iter()
         .flat_map(|&i| {
             let edge = ei(i);
-            [dbg.to_rescue_neighbors_for_edge(
+            [dbg.to_rescue_neighbors_for_edge_merged(
                 edge,
                 &freqs,
                 coverage,
                 opts.k,
-                !opts.allow_zero_edge,
+                opts.k,
+                true,
+                opts.k_total,
                 true,
             )]
             .concat()

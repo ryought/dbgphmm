@@ -5,6 +5,7 @@ pub mod common;
 pub mod dbg;
 pub mod distribution;
 pub mod e2e;
+pub mod float;
 pub mod genome;
 pub mod graph;
 pub mod greedy;
