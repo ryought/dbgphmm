@@ -166,6 +166,23 @@ mod tests {
             // p0 forward vs backward
             let diff = p0f.log_diff(p0b);
             assert!(diff < ACCEPTABLE_ERROR_FORWARD_AND_BACKWARD);
+
+            // Check 3:
+            // do not use too much dense table
+            for i in 0..o0.n_emissions() {
+                // println!(
+                //     "i={} f_is_dense={} b_is_dense={}",
+                //     i,
+                //     o0.forward.table(i).is_dense(),
+                //     o0.backward.table(i).is_dense(),
+                // );
+                if o0.forward.table(i).is_dense() {
+                    assert!(i <= k);
+                }
+                if o0.backward.table(i).is_dense() {
+                    assert!(i <= k);
+                }
+            }
         }
     }
 

@@ -1328,17 +1328,20 @@ impl MultiDbg {
     /// Convert MultiDbg into node-centric Profile HMM `PModel` via SeqGraph `DiGraph<SNode, SEdge>`
     ///
     ///
-    pub fn to_phmm(&self, param: PHMMParams) -> PModel {
+    pub fn to_phmm(&self, mut param: PHMMParams) -> PModel {
+        param.n_warmup = self.k();
         self.to_seq_graph().to_phmm(param)
     }
     ///
     ///
-    pub fn to_uniform_phmm(&self, param: PHMMParams) -> PModel {
+    pub fn to_uniform_phmm(&self, mut param: PHMMParams) -> PModel {
+        param.n_warmup = self.k();
         self.to_seq_graph().to_uniform_phmm(param)
     }
     ///
     ///
-    pub fn to_non_zero_phmm(&self, param: PHMMParams) -> PModel {
+    pub fn to_non_zero_phmm(&self, mut param: PHMMParams) -> PModel {
+        param.n_warmup = self.k();
         self.to_seq_graph().to_non_zero_phmm(param)
     }
 }
