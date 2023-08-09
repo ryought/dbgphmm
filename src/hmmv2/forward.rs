@@ -120,7 +120,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
                 let use_dense = if use_max_ratio {
                     // if active_nodes is too small, switch to sparse.
                     // otherwise, use dense.
-                    i == 0 || top_nodes.len() > param.warmup_threshold
+                    table_prev.is_dense() && (i == 0 || top_nodes.len() > param.warmup_threshold)
                 } else {
                     // not adaptive
                     // first n_warmup tables will be computed using dense.
@@ -186,7 +186,11 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// Run Forward algorithm to the emissions, with sparse calculation
     ///
-    pub fn forward_sparse_v0<X: AsRef<Bases>>(&self, emissions: X, use_max_ratio: bool) -> PHMMTables {
+    pub fn forward_sparse_v0<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        use_max_ratio: bool,
+    ) -> PHMMTables {
         let r0 = PHMMTables {
             init_table: self.f_init(true),
             tables: Vec::new(),

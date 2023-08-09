@@ -21,19 +21,18 @@ fn main() {
 
     // create read DBG
     // dbg.to_gfa_file("read_dbg.gfa");
-    let (mapping, t) = timer(|| dbg.generate_mappings(dataset.params(), dataset.reads(), None));
+    let (mappings, t) = timer(|| dbg.generate_mappings(dataset.params(), dataset.reads(), None));
     println!("mapping created in t={}", t);
-    for (r, m) in mapping.into_iter().enumerate() {
+    for (r, m) in mappings.into_iter().enumerate() {
         for i in 0..m.len() {
             let l = m.nodes(i).len();
             println!("r={} i={} l={}", r, i, l);
         }
     }
 
-    return;
-
     let phmm = dbg.to_phmm(dataset.params());
 
+    /*
     //
     // (1) full-prob is same with/with-out mapping
     // likelihood of reads
@@ -41,7 +40,7 @@ fn main() {
     // 0: without mapping, score only
     let (p0, t0) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), None));
     // 1: with mapping, score only
-    let (p1, t1) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), Some(&mapping)));
+    let (p1, t1) = timer(|| dbg.to_likelihood(dataset.params(), dataset.reads(), Some(&mappings)));
     // 2: without mapping and do not use score only calculation
     let (p2, t2) = timer(|| phmm.to_full_prob_sparse(dataset.reads(), false));
     // 3:
@@ -49,7 +48,24 @@ fn main() {
     let diff0 = p0.log_diff(p2);
     let diff1 = p1.log_diff(p2);
     println!(
-        "p0={} p1={} p2={} p3={} diff0={} diff1={} t0={} t1={} t2={} t3={}",
-        p0, p1, p2, p3, diff0, diff1, t0, t1, t2, t3
+        "p0={} p1={} p2={} p3={} diff0={} diff1={}",
+        p0, p1, p2, p3, diff0, diff1
     );
+    println!("t0={t0} t1={t1} t2={t2} t3={t3}");
+    */
+
+    //
+    // (2)
+    //
+    for (i, read) in dataset.reads().into_iter().enumerate() {
+        let (p1, t1) = timer(|| phmm.forward_with_mapping_score_only(read, &mappings[i]));
+        let (p2, t2) = timer(|| phmm.forward_sparse_score_only(read, true));
+        let (p3, t3) = timer(|| phmm.forward_sparse_score_only(read, false));
+        let (p4, t4) = timer(|| phmm.forward_sparse_v0(read, true));
+        let (p5, t5) = timer(|| phmm.forward_sparse_v0(read, false));
+        let (p6, t6) = timer(|| phmm.forward_sparse(read, true));
+        let (p7, t7) = timer(|| phmm.forward_sparse(read, false));
+
+        println!("{t1}\t{t2}\t{t3}\t{t4}\t{t5}\t{t6}\t{t7}");
+    }
 }

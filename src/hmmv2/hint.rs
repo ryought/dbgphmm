@@ -199,10 +199,10 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ) -> Mappings {
         Mappings(
             reads
-                // .par_iter()
-                .iter()
+                .par_iter()
+                // .iter()
                 .enumerate()
-                // .progress_with_style(progress_common_style())
+                .progress_with_style(progress_common_style())
                 .map(|(i, seq)| {
                     let output = if let Some(mappings) = mappings {
                         self.run_with_mapping(seq.as_ref(), &mappings[i])
