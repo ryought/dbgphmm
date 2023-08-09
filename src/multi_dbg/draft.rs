@@ -101,7 +101,7 @@ impl ErrorMetric for V2Error {
 
 /// ErrorMetric V4
 ///
-/// h(c) = |1 - c/f|^2
+/// h(c) = |1 - c/f|^2 + |f/c - 1|^2
 ///
 #[derive(Clone, Debug)]
 pub struct V4Error {}

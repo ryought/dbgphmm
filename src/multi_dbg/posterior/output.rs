@@ -377,6 +377,7 @@ mod tests {
                 ]],
                 UpdateMethod::Rescue {
                     index: 0,
+                    n_kmers: 50,
                     length: 111,
                     freq: 5.001,
                 },
@@ -386,7 +387,7 @@ mod tests {
                 UpdateMethod::Short,
             ),
         ];
-        let s = "[X(e5+e6+e1-),R(e10+e1+|0|111|5.001),S(e5-)]";
+        let s = "[X(e5+e6+e1-),R(e10+e1+|0|50|111|5.001),S(e5-)]";
         let infos2 = PosteriorSample::from_infos_str(s);
         assert_eq!(PosteriorSample::to_infos_string_internal(&infos), s);
         assert_eq!(infos2, Some(infos));

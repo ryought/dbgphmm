@@ -77,6 +77,7 @@ pub enum UpdateMethod {
         index: usize,
         length: usize,
         freq: f64,
+        n_kmers: usize,
     },
     MultiMove,
     Short,
@@ -101,12 +102,14 @@ impl std::fmt::Display for UpdateInfo {
                 index,
                 length,
                 freq,
+                n_kmers,
             } => {
                 write!(
                     f,
-                    "R({}|{}|{}|{})",
+                    "R({}|{}|{}|{}|{})",
                     update_cycle_to_string(&self.cycles[0]),
                     index,
+                    n_kmers,
                     length,
                     freq
                 )
@@ -143,15 +146,16 @@ impl std::str::FromStr for UpdateInfo {
         let (method, cycle_str) = match head {
             "R" => {
                 let segments: Vec<_> = s.split('|').collect();
-                if segments.len() != 4 {
+                if segments.len() != 5 {
                     return Err(());
                 }
                 //
                 (
                     UpdateMethod::Rescue {
                         index: segments[1].parse().map_err(|_| ())?,
-                        length: segments[2].parse().map_err(|_| ())?,
-                        freq: segments[3].parse().map_err(|_| ())?,
+                        n_kmers: segments[2].parse().map_err(|_| ())?,
+                        length: segments[3].parse().map_err(|_| ())?,
+                        freq: segments[4].parse().map_err(|_| ())?,
                     },
                     segments[0],
                 )
@@ -301,18 +305,24 @@ impl MultiDbg {
             if e == edge_in_rg {
                 usize::MAX
             } else {
-                if weighted_by_copy_num {
-                    self.n_bases(rg[e].target)
-                        / self.copy_num_of_edge_in_compact(rg[e].target).max(1)
-                } else {
-                    self.n_bases(rg[e].target)
-                }
+                self.n_bases(rg[e].target) / self.copy_num_of_edge_in_compact(rg[e].target).max(1)
+            }
+        };
+        let n_kmers_weight = |e: EdgeIndex| {
+            if e == edge_in_rg {
+                usize::MAX
+            } else {
+                self.n_bases(rg[e].target)
             }
         };
         // (2)
         let freq_weight = |e: EdgeIndex| rg[e].weight;
 
-        let cycles = k_shortest_simple_path(&rg, w, v, k, &length_weight);
+        let cycles = if weighted_by_copy_num {
+            k_shortest_simple_path(&rg, w, v, k, &length_weight)
+        } else {
+            k_shortest_simple_path(&rg, w, v, k, &n_kmers_weight)
+        };
 
         cycles
             .into_iter()
@@ -328,6 +338,7 @@ impl MultiDbg {
 
                 // calculate {length,freq} score of the cycle
                 let length: usize = cycle.iter().map(|&e| length_weight(e)).sum();
+                let n_kmers: usize = cycle.iter().map(|&e| n_kmers_weight(e)).sum();
                 let freq: f64 = cycle.iter().map(|&e| freq_weight(e)).sum();
 
                 let update_info = UpdateInfo::new(
@@ -336,6 +347,7 @@ impl MultiDbg {
                         index,
                         length,
                         freq,
+                        n_kmers,
                     },
                 );
                 (copy_nums, update_info)
@@ -479,6 +491,7 @@ mod tests {
             ]],
             UpdateMethod::Rescue {
                 index: 1,
+                n_kmers: 5,
                 length: 14,
                 freq: 0.0015,
             },
