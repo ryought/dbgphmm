@@ -48,17 +48,20 @@ fn main() {
         .iter()
         .flat_map(|&i| {
             let edge = ei(i);
-            [dbg.to_rescue_neighbors_for_edge_merged(
-                edge,
-                &freqs,
-                coverage,
-                opts.k,
-                opts.k,
-                true,
-                opts.k_total,
-                true,
-            )]
-            .concat()
+            let (neighbors, t) = timer(|| {
+                dbg.to_rescue_neighbors_for_edge_merged(
+                    edge,
+                    &freqs,
+                    coverage,
+                    opts.k,
+                    opts.k,
+                    true,
+                    opts.k_total,
+                    true,
+                )
+            });
+            println!("t={t}");
+            neighbors
         })
         .collect();
     println!("neighbors={}", neighbors.len());
