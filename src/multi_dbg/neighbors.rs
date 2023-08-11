@@ -4,7 +4,11 @@
 //!
 //!
 
-use super::{draft::TerminalCount, CopyNums, MultiDbg};
+use super::{
+    draft::{TerminalCount, V4Error},
+    CopyNums, MultiDbg,
+};
+use crate::float::NonNanF64;
 use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
 use crate::graph::utils::split_node;
 use crate::hmmv2::freq::NodeFreqs;
@@ -74,6 +78,8 @@ pub enum UpdateMethod {
         index: usize,
         length: usize,
         freq: f64,
+        n_kmers: usize,
+        non_zero: bool,
     },
     MultiMove,
     Short,
@@ -98,14 +104,18 @@ impl std::fmt::Display for UpdateInfo {
                 index,
                 length,
                 freq,
+                n_kmers,
+                non_zero,
             } => {
                 write!(
                     f,
-                    "R({}|{}|{}|{})",
+                    "R({}|{}|{}|{}|{}|{})",
                     update_cycle_to_string(&self.cycles[0]),
                     index,
+                    n_kmers,
                     length,
-                    freq
+                    freq,
+                    if non_zero { "NZ" } else { "Z" }
                 )
             }
             UpdateMethod::MultiMove => {
@@ -140,15 +150,17 @@ impl std::str::FromStr for UpdateInfo {
         let (method, cycle_str) = match head {
             "R" => {
                 let segments: Vec<_> = s.split('|').collect();
-                if segments.len() != 4 {
+                if segments.len() != 6 {
                     return Err(());
                 }
                 //
                 (
                     UpdateMethod::Rescue {
                         index: segments[1].parse().map_err(|_| ())?,
-                        length: segments[2].parse().map_err(|_| ())?,
-                        freq: segments[3].parse().map_err(|_| ())?,
+                        n_kmers: segments[2].parse().map_err(|_| ())?,
+                        length: segments[3].parse().map_err(|_| ())?,
+                        freq: segments[4].parse().map_err(|_| ())?,
+                        non_zero: (segments[5] == "NZ"),
                     },
                     segments[0],
                 )
@@ -218,6 +230,12 @@ impl MultiDbg {
     }
     /// Rescue neighbors
     /// 0x
+    ///
+    /// * k_non_zero
+    /// * k_zero
+    ///
+    /// * k_total
+    ///
     pub fn to_rescue_neighbors(
         &self,
         node_freqs: &NodeFreqs,
@@ -225,45 +243,84 @@ impl MultiDbg {
         k_non_zero: usize,
         k_zero: usize,
         weighted_by_copy_num: bool,
+        k_total: usize,
+        sort_by_freq: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
         let mut ret = vec![];
 
-        let mut n_zero = 0;
-        let mut n_non_zero = 0;
-
         for (edge, _, _, _) in self.edges_compact() {
             if self.copy_num_of_edge_in_compact(edge) == 0 {
-                let cycles_non_zero = self.to_rescue_neighbors_for_edge(
+                let cycles = self.to_rescue_neighbors_for_edge_merged(
                     edge,
                     node_freqs,
                     coverage,
                     k_non_zero,
-                    true,
+                    k_zero,
                     weighted_by_copy_num,
+                    k_total,
+                    sort_by_freq,
                 );
-                if cycles_non_zero.is_empty() {
-                    let cycles_zero = self.to_rescue_neighbors_for_edge(
-                        edge,
-                        node_freqs,
-                        coverage,
-                        k_zero,
-                        false,
-                        weighted_by_copy_num,
-                    );
-                    // eprintln!("e{} zero {}", edge.index(), cycles_zero.len());
-                    n_zero += 1;
-                    ret.extend_from_slice(&cycles_zero);
-                } else {
-                    ret.extend_from_slice(&cycles_non_zero);
-                    // eprintln!("e{} nonzero {}", edge.index(), cycles_non_zero.len());
-                    n_non_zero += 1;
-                }
+                ret.extend_from_slice(&cycles);
             }
         }
 
-        eprintln!("rescue n_zero={} n_non_zero={}", n_zero, n_non_zero);
-
         ret
+    }
+    /// Rescue neighbors
+    ///
+    /// 0x
+    pub fn to_rescue_neighbors_for_edge_merged(
+        &self,
+        edge: EdgeIndex,
+        node_freqs: &NodeFreqs,
+        coverage: f64,
+        k_non_zero: usize,
+        k_zero: usize,
+        weighted_by_copy_num: bool,
+        k_total: usize,
+        sort_by_freq: bool,
+    ) -> Vec<(CopyNums, UpdateInfo)> {
+        let cycles_non_zero = self.to_rescue_neighbors_for_edge(
+            edge,
+            node_freqs,
+            coverage,
+            k_non_zero,
+            true,
+            weighted_by_copy_num,
+        );
+        let cycles_zero = self.to_rescue_neighbors_for_edge(
+            edge,
+            node_freqs,
+            coverage,
+            k_zero,
+            false,
+            weighted_by_copy_num,
+        );
+
+        // cycles_non_zero (up to k_non_zero) -> cycles_zero (up to k_zero) and take k_total
+        if sort_by_freq {
+            cycles_non_zero
+                .into_iter()
+                .chain(cycles_zero.into_iter())
+                .sorted_by_key(|(_, info)| match info.method {
+                    UpdateMethod::Rescue {
+                        index,
+                        length,
+                        freq,
+                        n_kmers,
+                        non_zero,
+                    } => NonNanF64::new(freq / n_kmers as f64),
+                    _ => unreachable!(),
+                })
+                .take(k_total)
+                .collect()
+        } else {
+            cycles_non_zero
+                .into_iter()
+                .chain(cycles_zero.into_iter())
+                .take(k_total)
+                .collect()
+        }
     }
     /// Rescue neighbors
     ///
@@ -277,7 +334,7 @@ impl MultiDbg {
         not_make_new_zero_edge: bool,
         weighted_by_copy_num: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
-        let network = self.to_min_squared_error_copy_nums_network(
+        let network = self.to_min_squared_error_copy_nums_network::<V4Error>(
             node_freqs,
             coverage,
             TerminalCount::Disconnect,
@@ -298,18 +355,24 @@ impl MultiDbg {
             if e == edge_in_rg {
                 usize::MAX
             } else {
-                if weighted_by_copy_num {
-                    self.n_bases(rg[e].target)
-                        / self.copy_num_of_edge_in_compact(rg[e].target).max(1)
-                } else {
-                    self.n_bases(rg[e].target)
-                }
+                self.n_bases(rg[e].target) / self.copy_num_of_edge_in_compact(rg[e].target).max(1)
+            }
+        };
+        let n_kmers_weight = |e: EdgeIndex| {
+            if e == edge_in_rg {
+                usize::MAX
+            } else {
+                self.n_bases(rg[e].target)
             }
         };
         // (2)
         let freq_weight = |e: EdgeIndex| rg[e].weight;
 
-        let cycles = k_shortest_simple_path(&rg, w, v, k, &length_weight);
+        let cycles = if weighted_by_copy_num {
+            k_shortest_simple_path(&rg, w, v, k, &length_weight)
+        } else {
+            k_shortest_simple_path(&rg, w, v, k, &n_kmers_weight)
+        };
 
         cycles
             .into_iter()
@@ -325,6 +388,7 @@ impl MultiDbg {
 
                 // calculate {length,freq} score of the cycle
                 let length: usize = cycle.iter().map(|&e| length_weight(e)).sum();
+                let n_kmers: usize = cycle.iter().map(|&e| n_kmers_weight(e)).sum();
                 let freq: f64 = cycle.iter().map(|&e| freq_weight(e)).sum();
 
                 let update_info = UpdateInfo::new(
@@ -333,6 +397,8 @@ impl MultiDbg {
                         index,
                         length,
                         freq,
+                        n_kmers,
+                        non_zero: not_make_new_zero_edge,
                     },
                 );
                 (copy_nums, update_info)
@@ -476,8 +542,10 @@ mod tests {
             ]],
             UpdateMethod::Rescue {
                 index: 1,
+                n_kmers: 5,
                 length: 14,
                 freq: 0.0015,
+                non_zero: true,
             },
         );
         let ui2 = UpdateInfo::new(

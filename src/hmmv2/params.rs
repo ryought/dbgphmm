@@ -57,11 +57,16 @@ pub struct PHMMParams {
     ///
     /// default value is `MAX_ACTIVE_NODES / 2`.
     ///
+    #[serde(default = "default_warmup_threshold")]
     pub warmup_threshold: usize,
     ///
     /// Maximum number of consecutive deletions allowed in PHMM
     ///
     pub n_max_gaps: usize,
+}
+
+fn default_warmup_threshold() -> usize {
+    MAX_ACTIVE_NODES / 2
 }
 
 impl PHMMParams {
@@ -103,7 +108,7 @@ impl PHMMParams {
             active_node_max_ratio: 30.0,
             n_warmup,
             n_max_gaps: 4,
-            warmup_threshold: MAX_ACTIVE_NODES / 2,
+            warmup_threshold: default_warmup_threshold(),
         }
     }
     /// uniform error rate profile

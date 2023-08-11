@@ -200,6 +200,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
         Mappings(
             reads
                 .par_iter()
+                // .iter()
                 .enumerate()
                 .progress_with_style(progress_common_style())
                 .map(|(i, seq)| {

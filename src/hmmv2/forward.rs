@@ -118,9 +118,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
                 // the resulting table will be sparse/dense?
                 let use_dense = if use_max_ratio {
-                    // if active_nodes is too small, switch to sparse.
-                    // otherwise, use dense.
-                    i == 0 || top_nodes.len() > param.warmup_threshold
+                    if table_prev.is_dense() {
+                        // if active_nodes is too small, switch to sparse.
+                        // otherwise, use dense.
+                        if i == 0 {
+                            true
+                        } else if i < param.n_warmup {
+                            top_nodes.len() > param.warmup_threshold
+                        } else {
+                            false
+                        }
+                    } else {
+                        // if previous table is already sparse, use sparse too.
+                        false
+                    }
                 } else {
                     // not adaptive
                     // first n_warmup tables will be computed using dense.
@@ -163,9 +174,20 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 
             // the resulting table will be sparse/dense?
             let use_dense = if use_max_ratio {
-                // if active_nodes is too small, switch to sparse.
-                // otherwise, use dense.
-                i == 0 || top_nodes.len() > param.warmup_threshold
+                if table.is_dense() {
+                    // if active_nodes is too small, switch to sparse.
+                    // otherwise, use dense.
+                    if i == 0 {
+                        true
+                    } else if i < param.n_warmup {
+                        top_nodes.len() > param.warmup_threshold
+                    } else {
+                        false
+                    }
+                } else {
+                    // if previous table is already sparse, use sparse too.
+                    false
+                }
             } else {
                 // not adaptive
                 // first n_warmup tables will be computed using dense.
@@ -182,6 +204,51 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             };
         }
         table.e
+    }
+    ///
+    /// Run Forward algorithm to the emissions, with sparse calculation
+    ///
+    pub fn forward_sparse_v0<X: AsRef<Bases>>(
+        &self,
+        emissions: X,
+        use_max_ratio: bool,
+    ) -> PHMMTables {
+        let r0 = PHMMTables {
+            init_table: self.f_init(true),
+            tables: Vec::new(),
+            kind: PHMMKind::Forward,
+        };
+        let param = &self.param;
+        let all_nodes = self.to_all_nodes();
+        emissions
+            .as_ref()
+            .into_iter()
+            .enumerate()
+            .fold(r0, |mut r, (i, &emission)| {
+                if i < param.n_warmup {
+                    // dense_table
+                    let table_prev = if i == 0 {
+                        &r.init_table
+                    } else {
+                        r.last_table()
+                    };
+                    let table = self.f_step(i, emission, table_prev, &all_nodes, true, false);
+                    r.tables.push(table);
+                } else {
+                    // sparse_table
+                    let table_prev = r.last_table();
+                    let active_nodes = if use_max_ratio {
+                        self.to_childs_and_us(
+                            &table_prev.top_nodes_by_score_ratio(param.active_node_max_ratio),
+                        )
+                    } else {
+                        self.to_childs_and_us(&table_prev.top_nodes(param.n_active_nodes))
+                    };
+                    let table = self.f_step(i, emission, table_prev, &active_nodes, false, true);
+                    r.tables.push(table);
+                };
+                r
+            })
     }
     ///
     /// Create init_table in PHMMResult for Forward algorithm

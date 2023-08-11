@@ -359,7 +359,9 @@ impl MultiDbg {
             // A. Generate neighbors
             //
             // [0] rescue 0x -> 1x changes
-            let rescue_neighbors = dbg.to_rescue_neighbors(&freqs, coverage, 2, 10, true);
+            let (rescue_neighbors, t) =
+                timer(|| dbg.to_rescue_neighbors(&freqs, coverage, 5, 20, true, 4, true));
+            println!("to_rescue_neighbors t={t}");
 
             let neighbor_copy_nums_set = if rescue_only {
                 vec![rescue_neighbors]
