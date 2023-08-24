@@ -19,7 +19,7 @@ struct Opts {
     p_error: f64,
     #[clap(short = 'p')]
     p_infer: f64,
-    #[clap(short = 's', default_value = "200")]
+    #[clap(short = 's')]
     sigma: usize,
     #[clap(short = 'I', default_value = "10")]
     max_iter: usize,
