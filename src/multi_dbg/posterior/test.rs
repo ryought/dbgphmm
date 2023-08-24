@@ -285,6 +285,11 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
                 posterior,
                 copy_nums_true.as_ref(),
             );
+            dbg.to_map_file(
+                output.with_extension(format!("k{}.map", dbg.k())),
+                dataset.reads(),
+                mappings,
+            );
         },
         |dbg, mappings| {},
         |dbg, mappings| {},
