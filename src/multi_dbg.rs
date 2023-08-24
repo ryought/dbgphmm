@@ -1625,8 +1625,8 @@ impl MultiDbg {
         k_max: usize,
         stop_when_ambiguous: bool,
         paths: Option<Vec<Path>>,
-        mappings: &Mappings,
-    ) -> (Self, Option<Vec<Path>>, Mappings) {
+        mappings: Option<&Mappings>,
+    ) -> (Self, Option<Vec<Path>>, Option<Mappings>) {
         let mut dbg_k = self.clone();
 
         //
@@ -1635,12 +1635,14 @@ impl MultiDbg {
         let m = dbg_k.purge_edges(&edges_in_compact_to_purge);
         let mut paths: Option<Vec<Path>> =
             paths.and_then(|paths| paths.into_iter().map(|path| m.update_path(&path)).collect());
-        let mut mappings = Mappings::new(
-            mappings
-                .into_iter()
-                .map(|hint| m.update_mapping(&hint))
-                .collect(),
-        );
+        let mut mappings = mappings.map(|mappings| {
+            Mappings::new(
+                mappings
+                    .into_iter()
+                    .map(|hint| m.update_mapping(&hint))
+                    .collect(),
+            )
+        });
 
         // (2) Extend DBG
         //
@@ -1660,12 +1662,14 @@ impl MultiDbg {
                     .collect()
             });
             // (b) mappings
-            mappings = Mappings::new(
-                mappings
-                    .into_iter()
-                    .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
-                    .collect(),
-            );
+            mappings = mappings.map(|mappings| {
+                Mappings::new(
+                    mappings
+                        .into_iter()
+                        .map(|hint_k| dbg_kp1.hint_kp1_from_hint_k(hint_k))
+                        .collect(),
+                )
+            });
 
             //
             let is_ambiguous = dbg_k.n_ambiguous_node() > 0;
@@ -2056,8 +2060,13 @@ mod tests {
             println!("{:?} {:?}", paths, mappings);
 
             {
-                let (dbg_kp1, paths, mappings) =
-                    dbg_k.purge_and_extend(&[ei(1)], 5, false, Some(paths.clone()), &mappings);
+                let (dbg_kp1, paths, mappings) = dbg_k.purge_and_extend(
+                    &[ei(1)],
+                    5,
+                    false,
+                    Some(paths.clone()),
+                    Some(&mappings),
+                );
                 println!("### k+1");
                 dbg_kp1.show_graph_with_kmer();
                 assert_eq!(dbg_kp1.k(), 5);
@@ -2072,11 +2081,11 @@ mod tests {
                 assert_eq!(paths, Some(vec![dbg_kp1.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     mappings,
-                    Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
+                    Some(Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                         vec![(ni(3), p(0.7)), (ni(4), p(0.3))],
                         vec![(ni(4), p(0.8)), (ni(5), p(0.2))],
                         vec![(ni(7), p(0.4))],
-                    ])]),
+                    ])])),
                 );
             }
 
@@ -2087,7 +2096,7 @@ mod tests {
                     10,
                     true, // there is no ambiguity from k=4 to k=10, so k=k_max can be reached
                     Some(paths.clone()),
-                    &mappings,
+                    Some(&mappings),
                 );
                 dbg_k10.show_graph_with_kmer();
                 println!("paths={:?}", paths_k10);
@@ -2113,12 +2122,12 @@ mod tests {
                 assert_eq!(paths_k10, Some(vec![dbg_k10.to_path_in_full(&[ei(0)])]));
                 assert_eq!(
                     mappings_k10,
-                    Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
+                    Some(Mappings::new(vec![Mapping::from_nodes_and_probs(&vec![
                         // 10-mers ending with..
                         vec![(ni(13), p(0.7)), (ni(0), p(0.3))], // nnTCC and nTCCC
                         vec![(ni(0), p(0.8)), (ni(1), p(0.2))],  // nTCCC and TCCCA
                         vec![(ni(3), p(0.4))],                   // CCAGG
-                    ])])
+                    ])]))
                 );
             }
         }
@@ -2175,7 +2184,7 @@ mod tests {
             {
                 println!("### k+1");
                 let (dbg_kp1, paths_kp1, mappings_kp1) =
-                    dbg_k.purge_and_extend(&[], 5, false, Some(paths.clone()), &mappings);
+                    dbg_k.purge_and_extend(&[], 5, false, Some(paths.clone()), Some(&mappings));
                 dbg_kp1.show_graph_with_kmer();
                 println!("paths={:?}", paths_kp1);
                 println!("mappings={:?}", mappings_kp1);
@@ -2184,22 +2193,22 @@ mod tests {
                 assert!(dbg_kp1.is_copy_nums_valid());
                 assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
                 assert_eq!(paths_kp1.unwrap(), paths_k5);
-                assert_eq!(mappings_kp1, mappings_k5);
+                assert_eq!(mappings_kp1.unwrap(), mappings_k5);
 
                 // there is ambiguity when kp1=5 so output is same even if k_max=10.
                 let (dbg_kp1, paths_kp1, mappings_kp1) =
-                    dbg_k.purge_and_extend(&[], 10, true, Some(paths.clone()), &mappings);
+                    dbg_k.purge_and_extend(&[], 10, true, Some(paths.clone()), Some(&mappings));
                 assert_eq!(dbg_kp1.k(), 5);
                 assert!(dbg_kp1.is_copy_nums_valid());
                 assert!(dbg_kp1.is_equal(&toy::repeat_kp1()));
                 assert_eq!(paths_kp1.unwrap(), paths_k5);
-                assert_eq!(mappings_kp1, mappings_k5);
+                assert_eq!(mappings_kp1.unwrap(), mappings_k5);
             }
 
             {
                 println!("### k=10");
                 let (dbg_k10, paths_k10, mappings_k10) =
-                    dbg_k.purge_and_extend(&[], 10, false, Some(paths.clone()), &mappings);
+                    dbg_k.purge_and_extend(&[], 10, false, Some(paths.clone()), Some(&mappings));
                 dbg_k10.show_graph_with_kmer();
                 println!("paths={:?}", paths_k10);
                 println!("mappings={:?}", mappings_k10);
@@ -2211,6 +2220,7 @@ mod tests {
                     paths_k10.unwrap(),
                     dbg_k10.paths_from_styled_seqs(&genome).unwrap()
                 );
+                let mappings_k10 = mappings_k10.unwrap();
                 for m in mappings_k10.clone().into_iter() {
                     println!("m={}", m);
                 }

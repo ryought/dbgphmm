@@ -668,8 +668,8 @@ impl MultiDbg {
         k_max: usize,
         p0: Prob,
         paths: Option<Vec<Path>>,
-        mappings: &Mappings,
-    ) -> (Self, Option<Vec<Path>>, Mappings) {
+        mappings: Option<&Mappings>,
+    ) -> (Self, Option<Vec<Path>>, Option<Mappings>) {
         // (0)
         // Set copy number to the most probable one
         let mut dbg = self.clone();
@@ -727,9 +727,6 @@ pub fn infer_posterior_by_extension<
     on_extend: H,
     // true path if available
     paths: Option<Vec<Path>>,
-    // inference parameters
-    k_max_rescue_only: usize,
-    k_max_rerun_mapping: usize,
     // precalculated mapping
     mappings: Option<Mappings>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
@@ -762,7 +759,7 @@ pub fn infer_posterior_by_extension<
             genome_size_sigma,
             neighbor_config,
             max_iter,
-            dbg.k() <= k_max_rescue_only,
+            true, // rescue only
         );
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
@@ -782,22 +779,20 @@ pub fn infer_posterior_by_extension<
 
         // (4) extend
         let t_start_extend = std::time::Instant::now();
-        (dbg, paths, mappings) =
-            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, &mappings);
+        // TODO re-enable extension of mapping
+        let (dbg_new, paths_new, _mappings) =
+            dbg.purge_and_extend_with_posterior(&posterior, k_max, p0, paths, None);
+        dbg = dbg_new;
+        paths = paths_new;
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
         on_extend(&dbg, &mappings);
 
         // (1) update hints before extending
         let t_start_hint = std::time::Instant::now();
-        if dbg.k() <= k_max_rerun_mapping {
-            println!("k={} rerun mapping", dbg.k());
-            mappings = dbg.generate_mappings(param_error, reads, None); // currently previous mapping
-                                                                        // is not used
-        } else {
-            println!("k={} not rerun mapping", dbg.k());
-            mappings = dbg.generate_mappings(param_error, reads, Some(&mappings));
-        }
+        println!("k={} rerun mapping", dbg.k());
+        // TODO use extended mapping as hint
+        mappings = dbg.generate_mappings(param_error, reads, None);
         let t_hint = t_start_hint.elapsed();
         eprintln!("hint t={}ms", t_hint.as_millis());
         on_map(&dbg, &mappings);

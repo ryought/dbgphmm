@@ -127,8 +127,6 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
         max_iter,
         max_cycle_size,
         output_prefix,
-        128,
-        100,
         None,
     )
 }
@@ -171,7 +169,11 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
         let t_start_extend = std::time::Instant::now();
         eprintln!("extending..");
         eprintln!("genome_size={}", dbg.genome_size());
-        (dbg, paths, mappings) = dbg.purge_and_extend(&zero_edges, k_final, true, paths, &mappings);
+        let (dbg_new, paths_new, mappings_new) =
+            dbg.purge_and_extend(&zero_edges, k_final, true, paths, Some(&mappings));
+        dbg = dbg_new;
+        paths = paths_new;
+        mappings = mappings_new.unwrap();
         eprintln!("genome_size2={}", dbg.genome_size());
         let t_extend = t_start_extend.elapsed();
         eprintln!("extend t={}ms", t_extend.as_millis());
@@ -239,9 +241,6 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     max_iter: usize,         // 10
     max_cycle_size: usize,   // 10
     output_prefix: P,
-    // inference parameters
-    k_max_rescue_only: usize,
-    k_max_rerun_mapping: usize,
     mappings: Option<Mappings>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     println!("# started_at={}", chrono::Local::now());
@@ -286,29 +285,10 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
                 posterior,
                 copy_nums_true.as_ref(),
             );
-            dbg.to_map_file(
-                output.with_extension(format!("k{}.map", k)),
-                dataset.reads(),
-                mappings,
-            );
         },
-        |dbg, mappings| {
-            dbg.to_map_file(
-                output.with_extension(format!("k{}.map0", dbg.k())),
-                dataset.reads(),
-                mappings,
-            );
-        },
-        |dbg, mappings| {
-            dbg.to_map_file(
-                output.with_extension(format!("k{}.mapext", dbg.k())),
-                dataset.reads(),
-                mappings,
-            );
-        },
+        |dbg, mappings| {},
+        |dbg, mappings| {},
         paths_true.ok(),
-        k_max_rescue_only,
-        k_max_rerun_mapping,
         mappings,
     );
 
