@@ -309,7 +309,7 @@ impl MultiDbg {
                         freq,
                         n_kmers,
                         non_zero,
-                    } => NonNanF64::new(freq / n_kmers as f64),
+                    } => NonNanF64::new(freq), // NonNanF64::new(freq / n_kmers as f64)
                     _ => unreachable!(),
                 })
                 .take(k_total)
