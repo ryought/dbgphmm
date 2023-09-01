@@ -205,6 +205,9 @@ impl<S: Seq> ReadCollection<S> {
     pub fn average_length(&self) -> usize {
         self.total_bases() / self.len()
     }
+    pub fn coverage(&self, genome_size: usize) -> f64 {
+        self.total_bases() as f64 / genome_size as f64
+    }
     /// show reads
     ///
     /// ```text
@@ -232,6 +235,21 @@ impl<S: Seq> ReadCollection<S> {
     }
 }
 
+pub fn sanitize_bases(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .enumerate()
+        .map(|(i, base)| match base {
+            b'A' | b'a' => b'A',
+            b'C' | b'c' => b'C',
+            b'G' | b'g' => b'G',
+            b'T' | b't' => b'T',
+            &c => {
+                panic!("Non DNA base '{}' appeared in seq", c as char)
+            }
+        })
+        .collect()
+}
+
 impl ReadCollection<Sequence> {
     ///
     /// Load FASTA file
@@ -242,7 +260,7 @@ impl ReadCollection<Sequence> {
 
         let reads: Vec<Vec<u8>> = reader
             .records()
-            .map(|r| r.unwrap().seq().to_vec())
+            .map(|r| sanitize_bases(r.unwrap().seq()))
             .collect();
 
         Ok(ReadCollection { reads })

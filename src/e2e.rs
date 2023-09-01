@@ -76,7 +76,7 @@ impl Dataset {
     /// estimate coverage of reads by (total_bases_in_reads) / (true_genome_size)
     ///
     pub fn coverage(&self) -> f64 {
-        self.reads().total_bases() as f64 / self.genome_size() as f64
+        self.reads().coverage(self.genome_size())
     }
     ///
     /// Average of read lengths

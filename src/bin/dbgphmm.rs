@@ -1,4 +1,9 @@
 use clap::{Parser, Subcommand};
+use dbgphmm::{
+    common::collection::{Reads, Seq},
+    dbg::draft::EndNodeInference,
+    multi_dbg::MultiDbg,
+};
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
@@ -31,13 +36,16 @@ enum Commands {
         read_fasta: std::path::PathBuf,
         /// Output dbg filename
         #[clap(short, long)]
-        dbg: std::path::PathBuf,
+        dbg_output: std::path::PathBuf,
+        /// Output GFA of dbg filename
+        #[clap(short, long)]
+        gfa_output: Option<std::path::PathBuf>,
     },
     ///
     Infer {
         /// Filename of initial DBG
         #[clap(short, long)]
-        dbg: std::path::PathBuf,
+        dbg_input: std::path::PathBuf,
         /// Prefix of output files used as a working directory
         #[clap(short, long)]
         output_prefix: std::path::PathBuf,
@@ -73,9 +81,24 @@ fn main() {
             genome_size,
             n_haplotypes,
             read_fasta,
-            dbg,
+            dbg_output,
+            gfa_output,
         } => {
             println!("draft..");
+            let reads = Reads::from_fasta(read_fasta).unwrap();
+            println!("n_reads={}", reads.len());
+            let dbg = MultiDbg::create_draft_from_reads(
+                *k,
+                &reads,
+                reads.coverage(*genome_size),
+                reads.average_length(),
+                *p_error,
+                &EndNodeInference::Auto,
+            );
+            dbg.to_dbg_file(dbg_output);
+            if let Some(gfa_output) = gfa_output {
+                dbg.to_gfa_file(gfa_output);
+            }
         }
         _ => {}
     }
