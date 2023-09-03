@@ -5,7 +5,7 @@ use crate::common::{CopyNum, Reads, Seq, StyledSequence};
 use crate::kmer::kmer::{
     linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
 };
-use fnv::FnvHashMap as HashMap;
+use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use std::iter::Iterator;
 
 ///
@@ -22,15 +22,18 @@ pub struct HashDbg<K: KmerLike> {
 /// Basic operations
 ///
 impl<K: KmerLike> HashDbg<K> {
+    /// Create new HashDbg with no k-mers
     pub fn new(k: usize) -> HashDbg<K> {
         HashDbg {
             k,
             kmers: HashMap::default(),
         }
     }
+    /// size of k-mer in HashDbg
     pub fn k(&self) -> usize {
         self.k
     }
+    ///
     pub fn set(&mut self, kmer: K, copy_num: CopyNum) {
         assert_eq!(kmer.k(), self.k());
         if copy_num > 0 {
@@ -39,6 +42,7 @@ impl<K: KmerLike> HashDbg<K> {
             self.kmers.remove(&kmer);
         }
     }
+    ///
     pub fn get(&self, kmer: &K) -> CopyNum {
         assert_eq!(kmer.k(), self.k());
         match self.kmers.get(&kmer) {
@@ -46,49 +50,85 @@ impl<K: KmerLike> HashDbg<K> {
             _ => 0,
         }
     }
+    /// Add k-mer count
     pub fn add(&mut self, kmer: K, copy_num: CopyNum) {
         let copy_num_old = self.get(&kmer);
         self.set(kmer, copy_num + copy_num_old);
     }
-    pub fn is_exists(&self, kmer: &K) -> bool {
+    /// Check k-mer (edge) exists in DBG
+    pub fn has(&self, kmer: &K) -> bool {
         assert_eq!(kmer.k(), self.k());
         self.get(kmer) > 0
+    }
+    /// Get a list of edges (k-mers)
+    pub fn edges(&self) -> Vec<K> {
+        self.kmers.keys().cloned().collect()
+    }
+    /// Get a list of nodes (k-1-mers)
+    pub fn nodes(&self) -> Vec<K> {
+        let mut nodes = HashSet::default();
+        for kmer in self.kmers.keys() {
+            nodes.insert(kmer.prefix());
+            nodes.insert(kmer.suffix());
+        }
+        nodes.into_iter().collect()
     }
     pub fn kmers(&self) -> impl Iterator<Item = &K> {
         self.kmers.keys()
     }
+    /// Source node (k-1-mer) from edge (k-mer)
+    pub fn source(&self, kmer: &K) -> K {
+        assert!(self.has(kmer));
+        kmer.prefix()
+    }
+    /// Target node (k-1-mer) from edge (k-mer)
+    pub fn target(&self, kmer: &K) -> K {
+        assert!(self.has(kmer));
+        kmer.suffix()
+    }
+    /// List of incoming edges of node (k-1-mer)
+    /// km1mer XX -> kmers [YXX] whose suffix is the km1mer
+    pub fn edges_in(&self, km1mer: &K) -> Vec<K> {
+        assert_eq!(km1mer.k(), self.k() - 1);
+        km1mer
+            .preds()
+            .into_iter()
+            .filter(|kmer| self.has(kmer))
+            .collect()
+    }
+    /// List of outgoing edges of node (k-1-mer)
+    /// km1mer XX -> kmers [XXY] whose prefix is the km1mer
+    pub fn edges_out(&self, km1mer: &K) -> Vec<K> {
+        assert_eq!(km1mer.k(), self.k() - 1);
+        km1mer
+            .succs()
+            .into_iter()
+            .filter(|kmer| self.has(kmer))
+            .collect()
+    }
+    /// Deprecated
     pub fn childs(&self, kmer: &K) -> Vec<K> {
         assert_eq!(kmer.k(), self.k());
         kmer.childs()
             .into_iter()
-            .filter(|child| self.is_exists(child))
+            .filter(|child| self.has(child))
             .collect()
     }
+    /// Deprecated
     pub fn parents(&self, kmer: &K) -> Vec<K> {
         assert_eq!(kmer.k(), self.k());
         kmer.parents()
             .into_iter()
-            .filter(|parent| self.is_exists(parent))
+            .filter(|parent| self.has(parent))
             .collect()
     }
+    /// Deprecated
     pub fn siblings(&self, kmer: &K) -> Vec<K> {
         assert_eq!(kmer.k(), self.k());
         kmer.siblings()
             .into_iter()
-            .filter(|sibling| self.is_exists(sibling))
+            .filter(|sibling| self.has(sibling))
             .collect()
-    }
-    pub fn is_consistent(&self) -> bool {
-        self.kmers().all(|kmer| {
-            // (sum of child kmers) =? (sum of sibling kmers)
-            let n1: CopyNum = self.childs(&kmer).iter().map(|child| self.get(child)).sum();
-            let n2: CopyNum = self
-                .siblings(&kmer)
-                .iter()
-                .map(|sibling| self.get(sibling))
-                .sum();
-            n1 == n2
-        })
     }
     ///
     /// add all kmers in linear seq (with leading/trailing NNN kmers)
@@ -136,7 +176,7 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn from_profile(k: usize, profile: &[(K, CopyNum)]) -> Self {
         let mut d = HashDbg::new(k);
         for (kmer, copy_num) in profile.iter() {
-            assert!(!d.is_exists(kmer));
+            assert!(!d.has(kmer));
             d.set(kmer.clone(), *copy_num);
         }
         d
@@ -196,24 +236,7 @@ impl<K: KmerLike> HashDbg<K> {
     /// to kmer count profile
     ///
     pub fn to_kmer_profile(&self) -> HashMap<K, CopyNum> {
-        let mut hm = HashMap::default();
-        for kmer in self.kmers() {
-            hm.insert(kmer.clone(), self.get(kmer));
-        }
-        hm
-    }
-    ///
-    /// generate the list of kmers in the dbg according to copy numbers.
-    ///
-    pub fn to_copy_nums_list(&self) -> HashMap<CopyNum, Vec<K>> {
-        let mut hm = HashMap::default();
-        for kmer in self.kmers() {
-            let copy_num = self.get(kmer);
-            hm.entry(copy_num)
-                .or_insert_with(|| Vec::new())
-                .push(kmer.clone());
-        }
-        hm
+        self.kmers.clone()
     }
 }
 
@@ -227,32 +250,35 @@ mod tests {
         let mut hd: HashDbg<VecKmer> = HashDbg::new(4);
 
         // add get
-        assert_eq!(hd.get(&Kmer::from_bases(b"ATCG")), 0);
-        hd.add(Kmer::from_bases(b"ATCG"), 1);
-        hd.add(Kmer::from_bases(b"TTTT"), 2);
-        assert_eq!(hd.get(&Kmer::from_bases(b"TTTT")), 2);
-        hd.add(Kmer::from_bases(b"TTTT"), 1);
-        assert_eq!(hd.get(&Kmer::from_bases(b"TTTT")), 3);
-        assert_eq!(hd.get(&Kmer::from_bases(b"ATCG")), 1);
+        assert_eq!(hd.get(&kmer(b"ATCG")), 0);
+        hd.add(kmer(b"ATCG"), 1);
+        hd.add(kmer(b"TTTT"), 2);
+        assert_eq!(hd.get(&kmer(b"TTTT")), 2);
+        hd.add(kmer(b"TTTT"), 1);
+        assert_eq!(hd.get(&kmer(b"TTTT")), 3);
+        assert_eq!(hd.get(&kmer(b"ATCG")), 1);
         println!("{:?}", hd);
 
         // is_exists
-        assert_eq!(hd.is_exists(&Kmer::from_bases(b"ATCG")), true);
-        assert_eq!(hd.is_exists(&Kmer::from_bases(b"ATCT")), false);
+        assert_eq!(hd.has(&kmer(b"ATCG")), true);
+        assert_eq!(hd.has(&kmer(b"ATCT")), false);
 
         // kmers
         let kmers: Vec<VecKmer> = hd.kmers().cloned().collect();
-        assert_eq!(
-            kmers,
-            vec![Kmer::from_bases(b"TTTT"), Kmer::from_bases(b"ATCG"),]
-        );
+        assert_eq!(kmers, vec![kmer(b"TTTT"), kmer(b"ATCG")]);
+        assert_eq!(hd.edges(), vec![kmer(b"TTTT"), kmer(b"ATCG")]);
+        assert_eq!(hd.nodes(), vec![kmer(b"ATC"), kmer(b"TCG"), kmer(b"TTT")]);
+        assert_eq!(hd.edges_out(&kmer(b"ATC")), vec![kmer(b"ATCG")]);
+        assert_eq!(hd.edges_in(&kmer(b"ATC")), vec![]);
+        assert_eq!(hd.edges_out(&kmer(b"TTT")), vec![kmer(b"TTTT")]);
+        assert_eq!(hd.edges_in(&kmer(b"TTT")), vec![kmer(b"TTTT")]);
 
         // set and delete
         hd.set(Kmer::from_bases(b"TTTT"), 0);
-        assert_eq!(hd.is_exists(&Kmer::from_bases(b"TTTT")), false);
+        assert_eq!(hd.has(&Kmer::from_bases(b"TTTT")), false);
 
-        // not consistent
-        assert!(!hd.is_consistent());
+        assert_eq!(hd.edges(), vec![kmer(b"ATCG")]);
+        assert_eq!(hd.nodes(), vec![kmer(b"ATC"), kmer(b"TCG")]);
     }
 
     #[test]
@@ -261,34 +287,36 @@ mod tests {
         println!("{}", hd);
 
         // childs parents siblings
+        assert_eq!(hd.childs(&kmer(b"ATCG")), vec![kmer(b"TCGA")]);
+        assert_eq!(hd.childs(&kmer(b"ATCC")), vec![]);
+        assert_eq!(hd.parents(&kmer(b"CGAT")), vec![kmer(b"TCGA")]);
         assert_eq!(
-            hd.childs(&Kmer::from_bases(b"ATCG")),
-            vec![Kmer::from_bases(b"TCGA")]
+            hd.childs(&kmer(b"CGAT")),
+            vec![kmer(b"GATT"), kmer(b"GATn")]
         );
-        assert_eq!(hd.childs(&Kmer::from_bases(b"ATCC")), vec![]);
+        assert_eq!(hd.childs(&kmer(b"Tnnn")), vec![kmer(b"nnnA")]);
         assert_eq!(
-            hd.parents(&Kmer::from_bases(b"CGAT")),
-            vec![Kmer::from_bases(b"TCGA")]
+            hd.siblings(&kmer(b"ATCG")),
+            vec![kmer(b"ATCG"), kmer(b"TTCG")]
         );
-        assert_eq!(
-            hd.childs(&Kmer::from_bases(b"CGAT")),
-            vec![Kmer::from_bases(b"GATT"), Kmer::from_bases(b"GATn")]
-        );
-        assert_eq!(
-            hd.childs(&Kmer::from_bases(b"Tnnn")),
-            vec![Kmer::from_bases(b"nnnA")]
-        );
-        assert_eq!(
-            hd.siblings(&Kmer::from_bases(b"ATCG")),
-            vec![Kmer::from_bases(b"ATCG"), Kmer::from_bases(b"TTCG")]
-        );
-        assert_eq!(
-            hd.siblings(&Kmer::from_bases(b"nnnA")),
-            vec![Kmer::from_bases(b"nnnA")]
-        );
+        assert_eq!(hd.siblings(&kmer(b"nnnA")), vec![kmer(b"nnnA")]);
 
-        // consistency
-        assert!(hd.is_consistent());
+        assert_eq!(hd.edges().len(), 12);
+        assert_eq!(hd.nodes().len(), 11);
+
+        for e in hd.edges_out(&kmer(b"nnn")) {
+            println!("out {}", e);
+        }
+        assert_eq!(hd.edges_out(&kmer(b"nnn")), vec![kmer(b"nnnA")]);
+        assert_eq!(hd.edges_in(&kmer(b"nnn")), vec![kmer(b"Tnnn")]);
+        assert_eq!(hd.edges_out(&kmer(b"TCG")), vec![kmer(b"TCGA")]);
+        assert_eq!(
+            hd.edges_out(&kmer(b"GAT")),
+            vec![kmer(b"GATT"), kmer(b"GATn")]
+        );
+        assert_eq!(hd.get(&kmer(b"TCGA")), 2);
+        assert_eq!(hd.source(&kmer(b"TCGA")), kmer(b"TCG"));
+        assert_eq!(hd.target(&kmer(b"TCGA")), kmer(b"CGA"));
     }
     #[test]
     fn hashdbg_v2_profile() {

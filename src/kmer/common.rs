@@ -1,7 +1,7 @@
 //!
 //! Kmer definitions
 //!
-use crate::common::{SeqStyle, StyledSequence, NULL_BASE, VALID_BASES};
+use crate::common::{SeqStyle, StyledSequence, BASES, NULL_BASE};
 use itertools::Itertools;
 
 pub trait NullableKmer {
@@ -128,7 +128,7 @@ pub trait KmerLike:
     /// XX (k mer) -> [AXX, CXX, GXX, TXX] (k+1 mer)
     ///
     fn preds(&self) -> Vec<Self> {
-        VALID_BASES
+        BASES
             .iter()
             .map(|&first_base| self.extend_first(first_base))
             .collect()
@@ -137,7 +137,7 @@ pub trait KmerLike:
     /// XX (k mer) -> [XXA, XXC, XXG, XXT] (k+1 mer)
     ///
     fn succs(&self) -> Vec<Self> {
-        VALID_BASES
+        BASES
             .iter()
             .map(|&last_base| self.extend_last(last_base))
             .collect()
