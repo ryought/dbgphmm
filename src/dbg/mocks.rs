@@ -1,7 +1,7 @@
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use super::hashdbg_v2::HashDbg;
 use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use crate::common::Sequence;
+use crate::hashdbg::HashDbg;
 use crate::kmer::veckmer::{kmer, VecKmer};
 use crate::random_seq::generate;
 use itertools::Itertools;

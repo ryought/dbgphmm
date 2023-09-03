@@ -18,13 +18,13 @@ use crate::common::{
     NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
-use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{
     bridge_edges, degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap,
 };
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::{
     common::PModel,
     hint::{Mapping, Mappings},

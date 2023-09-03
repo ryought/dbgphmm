@@ -2,8 +2,8 @@
 //! Output related functions of Dbg
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
-use super::hashdbg_v2::HashDbg;
 use crate::common::{ei, ni, StyledSequence, StyledSequenceParseError};
+use crate::hashdbg::HashDbg;
 use crate::io::cytoscape::{EdgeAttr, EdgeAttrVec, ElementV2, NodeAttr, NodeAttrVec};
 use crate::vector::{DenseStorage, EdgeVec, NodeVec};
 use itertools::Itertools;

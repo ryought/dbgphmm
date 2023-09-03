@@ -7,11 +7,12 @@ use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
 };
-use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::dbg::{Dbg, SimpleDbg};
 use crate::e2e::{
     generate_500bp_case_dataset, generate_difficult_diploid_tandem_repeat_dataset_full_length,
     generate_small_case_dataset, Dataset,
 };
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::common::{PHMMEdge, PHMMNode};
 use crate::kmer::veckmer::kmer;
 use crate::kmer::VecKmer;

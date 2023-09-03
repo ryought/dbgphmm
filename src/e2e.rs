@@ -8,9 +8,10 @@ use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
 };
-use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::dbg::{Dbg, SimpleDbg};
 use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;

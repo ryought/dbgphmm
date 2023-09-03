@@ -7,12 +7,12 @@ use super::edge_centric::compact::{
 };
 use super::edge_centric::impls::{SimpleEDbgEdge, SimpleEDbgNode};
 use super::edge_centric::{EDbgEdge, EDbgEdgeBase, EDbgEdgeMin, EDbgNode};
-use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::cycle::{
     apply_cycle_with_dir, to_cycle_with_dir, Cycle, CycleWithDir, SimpleCycle,
 };
 use crate::graph::cycle_space::CycleSpace;
 use crate::graph::spanning_tree::spanning_tree;
+use crate::hashdbg::HashDbg;
 use crate::hist::{DiscreteDistribution, Hist};
 use crate::kmer::common::concat_overlapping_kmers;
 use crate::kmer::kmer::{Kmer, KmerLike};
