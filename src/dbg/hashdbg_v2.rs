@@ -6,6 +6,7 @@ use crate::kmer::kmer::{
     linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
 };
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use std::iter::Iterator;
 
 ///
@@ -238,6 +239,44 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn to_kmer_profile(&self) -> HashMap<K, CopyNum> {
         self.kmers.clone()
     }
+    ///
+    /// to edge-centric (full) DBG as petgraph::DiGraph
+    /// edge is k-mer and node is k-1-mer.
+    ///
+    /// to_node(km1mer: K) -> N
+    /// to_edge(kmer: K) -> E
+    /// gives petgraph::DiGraph<N, E>
+    ///
+    pub fn to_graph<N, E, FN, FE>(&self, to_node: FN, to_edge: FE) -> DiGraph<N, E>
+    where
+        FN: Fn(&K) -> N,
+        FE: Fn(&K) -> E,
+    {
+        let mut graph = DiGraph::new();
+
+        // mapping from km1mer to node index
+        let mut ids: HashMap<K, NodeIndex> = HashMap::default();
+
+        // add each node (km1mer)
+        for node in self.nodes() {
+            let id = graph.add_node(to_node(&node));
+            ids.insert(node, id);
+        }
+
+        // add each edge (kmer) between source/target nodes (km1mer)
+        for edge in self.edges() {
+            let s = *ids.get(&self.source(&edge)).unwrap();
+            let t = *ids.get(&self.target(&edge)).unwrap();
+            graph.add_edge(s, t, to_edge(&edge));
+        }
+
+        graph
+    }
+    ///
+    ///
+    pub fn to_gfa(&self) -> String {
+        unimplemented!();
+    }
 }
 
 #[cfg(test)]
@@ -317,7 +356,21 @@ mod tests {
         assert_eq!(hd.get(&kmer(b"TCGA")), 2);
         assert_eq!(hd.source(&kmer(b"TCGA")), kmer(b"TCG"));
         assert_eq!(hd.target(&kmer(b"TCGA")), kmer(b"CGA"));
+
+        //
+        // graph conversion
+        //
+        let g = hd.to_graph(|km1mer| km1mer.clone(), |kmer| kmer.clone());
+        assert_eq!(g.edge_count(), 12);
+        assert_eq!(g.node_count(), 11);
+        for e in g.edge_indices() {
+            let (s, t) = g.edge_endpoints(e).unwrap();
+            assert_eq!(g[s], g[e].prefix());
+            assert_eq!(g[t], g[e].suffix());
+        }
+        println!("{}", petgraph::dot::Dot::with_config(&g, &[]));
     }
+
     #[test]
     fn hashdbg_v2_profile() {
         let hd: HashDbg<VecKmer> = HashDbg::from_seq(4, b"ATCGATTCGAT");
