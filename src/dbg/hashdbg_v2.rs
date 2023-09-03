@@ -15,7 +15,7 @@ use std::iter::Iterator;
 #[derive(Debug)]
 pub struct HashDbg<K: KmerLike> {
     k: usize,
-    store: HashMap<K, CopyNum>,
+    kmers: HashMap<K, CopyNum>,
 }
 
 ///
@@ -25,7 +25,7 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn new(k: usize) -> HashDbg<K> {
         HashDbg {
             k,
-            store: HashMap::default(),
+            kmers: HashMap::default(),
         }
     }
     pub fn k(&self) -> usize {
@@ -34,14 +34,14 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn set(&mut self, kmer: K, copy_num: CopyNum) {
         assert_eq!(kmer.k(), self.k());
         if copy_num > 0 {
-            self.store.insert(kmer, copy_num);
+            self.kmers.insert(kmer, copy_num);
         } else {
-            self.store.remove(&kmer);
+            self.kmers.remove(&kmer);
         }
     }
     pub fn get(&self, kmer: &K) -> CopyNum {
         assert_eq!(kmer.k(), self.k());
-        match self.store.get(&kmer) {
+        match self.kmers.get(&kmer) {
             Some(&copy_num) => copy_num,
             _ => 0,
         }
@@ -55,7 +55,7 @@ impl<K: KmerLike> HashDbg<K> {
         self.get(kmer) > 0
     }
     pub fn kmers(&self) -> impl Iterator<Item = &K> {
-        self.store.keys()
+        self.kmers.keys()
     }
     pub fn childs(&self, kmer: &K) -> Vec<K> {
         assert_eq!(kmer.k(), self.k());
