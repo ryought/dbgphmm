@@ -215,12 +215,33 @@ impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
     }
 }
 
-///
-/// Conversion HashDbg -> MultiDbg
-///
-impl<K: KmerLike> std::convert::From<HashDbg<K>> for MultiDbg {
-    fn from(hashdbg: HashDbg<K>) -> MultiDbg {
-        unimplemented!();
+impl MultiDbg {
+    ///
+    /// Conversion HashDbg -> MultiDbg
+    ///
+    pub fn from_hashdbg<K: KmerLike>(hashdbg: &HashDbg<K>, ignore_copy_num: bool) -> MultiDbg {
+        // TODO assert copy_num is consistent
+
+        let full = hashdbg.to_graph(
+            |km1mer| MultiFullNode::new(km1mer.is_null()),
+            |kmer| {
+                MultiFullEdge::new(
+                    kmer.emission(),
+                    if ignore_copy_num {
+                        0
+                    } else {
+                        hashdbg.get(kmer)
+                    },
+                )
+            },
+        );
+        let compact = Self::construct_compact_from_full(&full);
+
+        MultiDbg {
+            k: hashdbg.k(),
+            full,
+            compact,
+        }
     }
 }
 

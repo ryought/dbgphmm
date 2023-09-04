@@ -155,10 +155,16 @@ pub trait KmerLike:
         self.suffix().is_null()
     }
     ///
-    /// last base is not N
+    /// Emission of k-mer (= the last base)
+    ///
+    fn emission(&self) -> u8 {
+        self.last()
+    }
+    ///
+    /// Emission (the last base) is not N
     ///
     fn is_emitable(&self) -> bool {
-        self.last() != NULL_BASE
+        self.emission() != NULL_BASE
     }
     ///
     /// first base is N

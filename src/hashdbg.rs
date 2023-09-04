@@ -30,11 +30,12 @@ impl<K: KmerLike> HashDbg<K> {
             kmers: HashMap::default(),
         }
     }
-    /// size of k-mer in HashDbg
+    /// Size of k-mer in HashDbg
     pub fn k(&self) -> usize {
         self.k
     }
-    ///
+    /// Set copy number of k-mer (edge)
+    /// if copy number is 0, remove the k-mer from HashMap.
     pub fn set(&mut self, kmer: K, copy_num: CopyNum) {
         assert_eq!(kmer.k(), self.k());
         if copy_num > 0 {
@@ -43,7 +44,8 @@ impl<K: KmerLike> HashDbg<K> {
             self.kmers.remove(&kmer);
         }
     }
-    ///
+    /// Get copy number of k-mer (edge)
+    /// if the k-mer does not exist in DBG, the copy number is zero.
     pub fn get(&self, kmer: &K) -> CopyNum {
         assert_eq!(kmer.k(), self.k());
         match self.kmers.get(&kmer) {
@@ -172,6 +174,10 @@ impl<K: KmerLike + std::fmt::Display> std::fmt::Display for HashDbg<K> {
 
 ///
 /// Constructors
+///
+/// * from_profile
+/// * from_styled_seqs (like genome)
+/// * from_fragment_seqs (like reads)
 ///
 impl<K: KmerLike> HashDbg<K> {
     pub fn from_profile(k: usize, profile: &[(K, CopyNum)]) -> Self {
