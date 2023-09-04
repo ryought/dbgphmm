@@ -2,6 +2,8 @@ use clap::{Parser, Subcommand};
 use dbgphmm::{
     common::collection::{Reads, Seq},
     dbg::draft::EndNodeInference,
+    hashdbg::HashDbg,
+    kmer::VecKmer,
     multi_dbg::MultiDbg,
 };
 
@@ -87,6 +89,13 @@ fn main() {
             println!("draft..");
             let reads = Reads::from_fasta(read_fasta).unwrap();
             println!("n_reads={}", reads.len());
+            let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
+            hd.remove_rare_kmers(*min_count);
+            if let Some(gfa_output) = gfa_output {
+                hd.to_gfa_file(gfa_output);
+            }
+
+            /*
             let dbg = MultiDbg::create_draft_from_reads(
                 *k,
                 &reads,
@@ -99,6 +108,7 @@ fn main() {
             if let Some(gfa_output) = gfa_output {
                 dbg.to_gfa_file(gfa_output);
             }
+            */
         }
         _ => {}
     }

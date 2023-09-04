@@ -2,11 +2,18 @@
 //! HashDbg
 //!
 use crate::common::{CopyNum, Reads, Seq, StyledSequence};
+use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::kmer::kmer::{
     linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
 };
+use crate::multi_dbg::draft::{ErrorMetric, MinSquaredErrorCopyNumAndFreq};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use itertools::Itertools;
+use petgraph::{
+    graph::{DiGraph, EdgeIndex, NodeIndex},
+    visit::EdgeRef,
+    Direction,
+};
 use std::iter::Iterator;
 
 ///
@@ -278,10 +285,75 @@ impl<K: KmerLike> HashDbg<K> {
 
         graph
     }
+    /// Remove kmers whose count is less than `min_copy_num`
+    pub fn remove_rare_kmers(&mut self, min_copy_num: CopyNum) {
+        self.kmers
+            .retain(|_kmer, copy_num| *copy_num >= min_copy_num)
+    }
     ///
+    /// Find approximate copy numbers from k-mer counts
     ///
-    pub fn to_gfa(&self) -> String {
+    /// * convert to min-flow network
+    ///
+    pub fn to_min_squared_error_copy_nums_network<T: ErrorMetric>(
+        &self,
+    ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq<T>> {
+        // let graph = self.to_graph(|_km1mer| (), |kmer| (kmer.clone(),));
+        // let network =
+        // compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal);
         unimplemented!();
+    }
+}
+
+///
+/// Output
+///
+impl<K: KmerLike> HashDbg<K> {
+    ///
+    ///
+    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        let graph = self.to_graph(
+            |km1mer| km1mer.clone(),
+            |kmer| (kmer.clone(), self.get(kmer)),
+        );
+        let compact = compact_simple_paths_for_targeted_nodes(&graph, |km1mer| !km1mer.is_null());
+
+        for edge in compact.edge_indices() {
+            let weight = &compact[edge];
+            let label = weight.iter().map(|(_, (kmer, count))| count).join(",");
+            // let seq = &self.seq_compact(edge);
+            writeln!(
+                writer,
+                "S\t{}\t*\tLN:i:{}\tLB:Z:{}",
+                edge.index(),
+                // sequence_to_string(&seq),
+                weight.len(),
+                label,
+            )?
+        }
+        for node in compact.node_indices() {
+            let km1mer = &compact[node];
+            if !km1mer.is_null() {
+                for in_edge in compact.edges_directed(node, Direction::Incoming) {
+                    for out_edge in compact.edges_directed(node, Direction::Outgoing) {
+                        writeln!(
+                            writer,
+                            "L\t{}\t+\t{}\t+\t*\tID:Z:{}",
+                            in_edge.id().index(),
+                            out_edge.id().index(),
+                            node.index(),
+                        )?
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    ///
+    ///
+    pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_gfa_writer(&mut file)
     }
 }
 
