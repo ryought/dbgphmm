@@ -90,7 +90,9 @@ fn main() {
             let reads = Reads::from_fasta(read_fasta).unwrap();
             println!("n_reads={}", reads.len());
             let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
+            println!("removing");
             hd.remove_rare_kmers(*min_count);
+            println!("output");
             if let Some(gfa_output) = gfa_output {
                 hd.to_gfa_file(gfa_output);
             }

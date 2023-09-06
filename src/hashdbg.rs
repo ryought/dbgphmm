@@ -320,13 +320,16 @@ impl<K: KmerLike> HashDbg<K> {
 
         for edge in compact.edge_indices() {
             let weight = &compact[edge];
-            let label = weight.iter().map(|(_, (kmer, count))| count).join(",");
+            let label = weight.iter().map(|(_, (_, count))| count).join(",");
+            let count_sum: usize = weight.iter().map(|(_, (_, count))| count).sum();
+            let count_ave = count_sum as f64 / weight.len() as f64;
             // let seq = &self.seq_compact(edge);
             writeln!(
                 writer,
-                "S\t{}\t*\tLN:i:{}\tLB:Z:{}",
+                "S\t{}\t*\tDP:f:{}\tLN:i:{}\tLB:Z:{}",
                 edge.index(),
                 // sequence_to_string(&seq),
+                count_ave,
                 weight.len(),
                 label,
             )?
