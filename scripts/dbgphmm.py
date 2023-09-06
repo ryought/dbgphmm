@@ -221,10 +221,10 @@ class CopyNums:
         """
         t = s.split()
         assert(t[1] == 'C')
-        infos = [
-            Update.parse_list(info)
-            for info in t[9].lstrip('[').rstrip(']').split(',') if len(info) != 0
-        ]
+        # infos = [
+        #     Update.parse_list(info)
+        #     for info in t[9].lstrip('[').rstrip(']').split(',') if len(info) != 0
+        # ]
         copy_nums = list(map(int, t[10].lstrip('[').rstrip(']').split(',')))
         return CopyNums(
             k=int(t[0]),
@@ -235,7 +235,7 @@ class CopyNums:
             log_euler=float(t[6]),
             genome_size=int(t[7]),
             dist_from_true=option_int(t[8]),
-            infos=infos,
+            infos=[],
             copy_nums=copy_nums,
         )
 
