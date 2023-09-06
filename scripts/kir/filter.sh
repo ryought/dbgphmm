@@ -79,7 +79,10 @@ find /data/HG002/PacBio_CCS_15kb_20kb_chemistry2/*.fastq.gz | while read READS
 do
   echo $READS
   # map $READS
-  filter $READS
+  # filter $READS
 done
 # merge
 # mapping_with_igv merged.fa
+
+python scripts/kir/sam_to_fa.py merged.fa.sam merged.fa --start 54705634 --end 54885634 > trimed.fa
+mapping_with_igv trimed.fa
