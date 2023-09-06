@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import csv
 csv.field_size_limit(1000000000)
 
+
 def main():
     parser = argparse.ArgumentParser(description='Dotplot from paf')
     parser.add_argument('paf', type=Path, help='PAF filename')
     parser.add_argument('--query', type=str, help='query sequence name')
-    parser.add_argument('--target', type=str, help='target (reference) sequence name')
+    parser.add_argument('--target', type=str,
+                        help='target (reference) sequence name')
     args = parser.parse_args()
 
     with open(args.paf) as f:

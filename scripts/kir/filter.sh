@@ -22,6 +22,7 @@ L=$(( $START + 680000 ))
 R=$(( $START + 860000 ))
 # 54,705 kb : 54,905 kb
 # 54,896 : 54,900 kb
+# --start 54_705_634 --end 54_885_634
 # 868 874
 
 
@@ -46,10 +47,12 @@ function filter () {
 
   # forward
   echo forward
-  gawk "\$8 <= $R && \$9 >= $L && \$10>=$CUTOFF && \$5 == \"+\"" $PAF | cut -f1 | sort | uniq > $KEY.f.ids
+  gawk "\$8 <= $R && \$9 >= $L && \$10>=$CUTOFF && \$5 == \"+\"" $PAF > $KEY.f.paf
+  cut -f1 $KEY.f.paf | sort | uniq > $KEY.f.ids
   # backward
   echo backward
-  gawk "\$8 <= $R && \$9 >= $L && \$10>=$CUTOFF && \$5 == \"-\"" $PAF | cut -f1 | sort | uniq > $KEY.b.ids
+  gawk "\$8 <= $R && \$9 >= $L && \$10>=$CUTOFF && \$5 == \"-\"" $PAF > $KEY.b.paf
+  cut -f1 $KEY.b.paf | sort | uniq > $KEY.b.ids
 
 
   # 2
@@ -76,9 +79,7 @@ find /data/HG002/PacBio_CCS_15kb_20kb_chemistry2/*.fastq.gz | while read READS
 do
   echo $READS
   # map $READS
-  # filter $READS
+  filter $READS
 done
-
 # merge
-
-mapping_with_igv merged.fa
+# mapping_with_igv merged.fa
