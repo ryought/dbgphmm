@@ -19,6 +19,23 @@ struct Opts {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Construct draft DBG from reads
+    RawDbg {
+        /// k of DBG
+        #[clap(short = 'k')]
+        k: usize,
+        /// Minimum occurrence of k-mers in read
+        #[clap(short = 'm', default_value_t = 2)]
+        min_count: usize,
+        /// Minimum occurrence of deadend k-mers in read
+        #[clap(short = 'M')]
+        min_deadend_count: usize,
+        /// Input read FASTA filename
+        read_fasta: std::path::PathBuf,
+        /// Output GFA of dbg filename
+        #[clap(short, long)]
+        gfa_output: std::path::PathBuf,
+    },
+    /// Construct draft DBG from reads
     Draft {
         /// k of DBG
         #[clap(short = 'k')]
@@ -81,6 +98,19 @@ fn main() {
     println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
     match &opts.command {
+        Commands::RawDbg {
+            k,
+            min_count,
+            min_deadend_count,
+            read_fasta,
+            gfa_output,
+        } => {
+            let reads = Reads::from_fasta(read_fasta).unwrap();
+            let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
+            hd.remove_rare_kmers(*min_count);
+            hd.remove_deadends(*min_deadend_count);
+            hd.to_gfa_file(gfa_output);
+        }
         Commands::Draft {
             k,
             min_count,
@@ -92,53 +122,24 @@ fn main() {
             dbg_output,
             gfa_output,
         } => {
-            println!("draft..");
             let reads = Reads::from_fasta(read_fasta).unwrap();
-            let coverage = reads.coverage(*genome_size);
             println!("n_reads={}", reads.len());
-            let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
-            println!("removing");
-            hd.remove_rare_kmers(*min_count);
-            println!("removing deadend");
-            hd.remove_deadends(*min_deadend_count);
-            let (starts, ends) = hd.augment_deadends();
-            println!("starts={} ends={}", starts.len(), ends.len());
-            hd.to_gfa_file("raw.gfa");
-
-            let components = hd.connected_components();
-            for (i, component) in components.into_iter().enumerate() {
-                println!("component #{} {}", i, component.len());
-            }
-            println!("mse");
-            // TODO test run
-            let hd = hd.generate_hashdbg_with_min_squared_error_copy_nums(
-                kmer_coverage(
-                    *k,
-                    reads.average_length(),
-                    coverage,
-                    Prob::from_prob(*p_error),
-                ),
-                *n_haplotypes,
-            );
-            println!("output");
-            if let Some(gfa_output) = gfa_output {
-                hd.to_gfa_file(gfa_output);
-            }
-
-            /*
-            let dbg = MultiDbg::create_draft_from_reads(
+            let p_error = Prob::from_prob(*p_error);
+            let dbg = MultiDbg::create_draft_from_reads_v2(
                 *k,
                 &reads,
-                reads.coverage(*genome_size),
-                reads.average_length(),
-                *p_error,
-                &EndNodeInference::Auto,
+                p_error,
+                *genome_size,
+                *n_haplotypes,
+                *min_count,
+                *min_deadend_count,
             );
+
+            // output
             dbg.to_dbg_file(dbg_output);
             if let Some(gfa_output) = gfa_output {
                 dbg.to_gfa_file(gfa_output);
             }
-            */
         }
         _ => {}
     }

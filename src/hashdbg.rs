@@ -2,7 +2,10 @@
 //! HashDbg
 //!
 use crate::common::{CopyNum, Reads, Seq, StyledSequence};
-use crate::graph::{compact::compact_simple_paths_for_targeted_nodes, utils::split_node};
+use crate::graph::{
+    compact::compact_simple_paths_for_targeted_nodes,
+    utils::{degree_stats, split_node},
+};
 use crate::kmer::kmer::{
     linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
 };
@@ -265,6 +268,21 @@ impl<K: KmerLike> HashDbg<K> {
     ///
     pub fn to_kmer_profile(&self) -> HashMap<K, CopyNum> {
         self.kmers.clone()
+    }
+    /// Generate degree statistics of the graph
+    /// as `HashMap<(in_degree: usize, out_degree), count_of_node: usize>`
+    pub fn degree_stats(&self) -> HashMap<(usize, usize), usize> {
+        let graph = self.to_graph(|_| (), |_| ());
+        degree_stats(&graph)
+    }
+    /// Generate k-mer copy number summary
+    /// as `HashMap<copy_num: usize, count: usize>`
+    pub fn copy_num_stats(&self) -> HashMap<usize, usize> {
+        let mut h = HashMap::default();
+        for (_kmer, &copy_num) in self.kmers.iter() {
+            *h.entry(copy_num).or_insert(0) += 1;
+        }
+        h
     }
     ///
     /// to edge-centric (full) DBG as petgraph::DiGraph

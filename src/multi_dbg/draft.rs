@@ -13,7 +13,7 @@ use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::prob::Prob;
 use crate::utils::timer;
-use itertools::izip;
+use itertools::{izip, Itertools};
 use petgraph::graph::{DiGraph, NodeIndex};
 use rustflow::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, FlowEdge};
 
@@ -353,20 +353,40 @@ impl MultiDbg {
         min_count: usize,
         min_deadend_count: usize,
     ) -> Self {
+        eprintln!("[draftv2] reads..");
         let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, reads);
+        eprintln!("[draftv2] raw degree_stats={:?}", hd.degree_stats());
+        eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
         hd.remove_rare_kmers(min_count);
-        hd.remove_deadends(min_deadend_count);
+        eprintln!("[draftv2] removed rare k-mers");
+        let n_removed_deadends = hd.remove_deadends(min_deadend_count);
+        eprintln!(
+            "[draftv2] removed {} rare deadend k-mers",
+            n_removed_deadends
+        );
         let (starts, ends) = hd.augment_deadends();
-        // TODO pick the largest component
+        eprintln!(
+            "[draftv2] deadends start={} end={}",
+            starts.iter().join(","),
+            ends.iter().join(","),
+        );
 
-        let adjusted_coverage = kmer_coverage(
-            k,
-            reads.average_length(),
-            reads.coverage(genome_size),
-            p_error,
+        // TODO pick the largest component
+        let components = hd.connected_components();
+        for (i, component) in components.into_iter().enumerate() {
+            eprintln!("component #{} {}", i, component.len());
+        }
+
+        let coverage = reads.coverage(genome_size);
+        let adjusted_coverage = kmer_coverage(k, reads.average_length(), coverage, p_error);
+        eprintln!(
+            "[draftv2] coverage={} adjusted_coverage={}",
+            coverage, adjusted_coverage
         );
         let hd =
             hd.generate_hashdbg_with_min_squared_error_copy_nums(adjusted_coverage, n_haplotypes);
+        eprintln!("[draftv2] raw degree_stats={:?}", hd.degree_stats());
+        eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
 
         Self::from_hashdbg(&hd, false)
     }
