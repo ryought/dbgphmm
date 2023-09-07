@@ -92,12 +92,22 @@ fn main() {
         } => {
             println!("draft..");
             let reads = Reads::from_fasta(read_fasta).unwrap();
+            let coverage = reads.coverage(*genome_size);
             println!("n_reads={}", reads.len());
             let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
             println!("removing");
             hd.remove_rare_kmers(*min_count);
             println!("removing deadend");
             hd.remove_deadends(*min_count_of_deadend);
+            let (starts, ends) = hd.augment_deadends();
+            println!("starts={} ends={}", starts.len(), ends.len());
+            let components = hd.connected_components();
+            for (i, component) in components.into_iter().enumerate() {
+                println!("component #{} {}", i, component.len());
+            }
+            println!("mse");
+            // TODO test run
+            hd.assign_min_squared_error_copy_nums(coverage, *n_haplotypes);
             println!("output");
             if let Some(gfa_output) = gfa_output {
                 hd.to_gfa_file(gfa_output);

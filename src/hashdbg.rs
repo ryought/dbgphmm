@@ -2,18 +2,20 @@
 //! HashDbg
 //!
 use crate::common::{CopyNum, Reads, Seq, StyledSequence};
-use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
+use crate::graph::{compact::compact_simple_paths_for_targeted_nodes, utils::split_node};
 use crate::kmer::kmer::{
     linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
 };
-use crate::multi_dbg::draft::{ErrorMetric, MinSquaredErrorCopyNumAndFreq};
+use crate::multi_dbg::draft::{ErrorMetric, MinSquaredErrorCopyNumAndFreq, V1Error};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
 use petgraph::{
+    algo::kosaraju_scc,
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::EdgeRef,
     Direction,
 };
+use rustflow::min_flow::min_cost_flow_convex_fast;
 use std::iter::Iterator;
 
 ///
@@ -37,9 +39,12 @@ impl<K: KmerLike> HashDbg<K> {
             kmers: HashMap::default(),
         }
     }
-    /// Create HashDbg from a set of k-mers
-    pub fn from_kmers(kmers: &[K]) -> HashDbg<K> {
-        unimplemented!();
+    /// Create HashDbg from a set of k-mers with copy number
+    pub fn from_kmers(k: usize, kmers_and_copy_nums: Vec<(K, CopyNum)>) -> HashDbg<K> {
+        // TODO assert all kmers are of the same size
+        // assert!(kmers_and_copy_nums.iter().all();
+        let kmers = kmers_and_copy_nums.into_iter().collect();
+        HashDbg { k, kmers }
     }
     /// Size of k-mer in HashDbg
     pub fn k(&self) -> usize {
@@ -90,6 +95,10 @@ impl<K: KmerLike> HashDbg<K> {
             nodes.insert(kmer.suffix());
         }
         nodes.into_iter().collect()
+    }
+    /// Get the number of k-mers (edges) in the DBG
+    pub fn n(&self) -> usize {
+        self.kmers.len()
     }
     pub fn kmers(&self) -> impl Iterator<Item = &K> {
         self.kmers.keys()
@@ -377,37 +386,148 @@ impl<K: KmerLike> HashDbg<K> {
     ///
     /// if k-mer has no parent, then add starting k-mers (nnn -> k-mer)
     /// if k-mer has no child, then add ending k-mers (k-mer -> nnn)
-    pub fn augment_deadends(&mut self) {
+    ///
+    /// Returns the starting/ending k-mers
+    pub fn augment_deadends(&mut self) -> (Vec<K>, Vec<K>) {
+        let mut starts = Vec::new();
+        let mut ends = Vec::new();
+
         for edge in self.edges() {
             // (1) edge is starting point if it has no parent.
             // then add starting k-mers to the edge.
             if self.parents(&edge).len() == 0 {
                 self.add_starting_kmers(&edge);
+                starts.push(edge.clone());
             }
 
             // (2) edge is ending point if it has no child.
             // then add ending k-mers to the edge.
             if self.childs(&edge).len() == 0 {
                 self.add_ending_kmers(&edge);
+                ends.push(edge);
             }
         }
+
+        (starts, ends)
     }
-    /// DBG into connected components
+    /// DBG into connected components as a set of sets of k-mers.
+    /// vec of components to be returned is sorted in descending order of its size.
+    ///
+    /// Implementation: convert HashDbg into petgraph::DiGraph and run `petgraph::algo::kosaraju_scc`
     pub fn connected_components(&self) -> Vec<Vec<K>> {
+        // convert to petgraph::DiGraph whose edge weight is kmer: K
+        let graph = self.to_graph(|_km1mer| (), |kmer| kmer.clone());
+        // tarjan_scc
+        let mut components = kosaraju_scc(&graph);
+        components.sort_by_key(|component| std::cmp::Reverse(component.len()));
+        // convert nodes in a component into in-coming edges
+        // connected component defined by a set of nodes corresponds to a set of edges.
+        components
+            .into_iter()
+            .map(|component| {
+                component
+                    .into_iter()
+                    .flat_map(|node| {
+                        graph
+                            .edges_directed(node, Direction::Incoming)
+                            .map(|edge| edge.weight().clone())
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+    /// Get subgraph of this HashDbg
+    pub fn largest_component(&self) -> HashDbg<K> {
+        let component = self.connected_components().first();
         unimplemented!();
     }
     ///
     /// Find approximate copy numbers from k-mer counts
     ///
+    /// * coverage
+    /// * specify n_haplotypes
     /// * convert to min-flow network
+    ///
+    /// Return
+    /// * Network flow graph (edge weight is `MinSquaredErrorCopyNumAndFreq`)
+    /// * Mapping from edge index into k-mers as `Vec<Vec<K>>`
     ///
     pub fn to_min_squared_error_copy_nums_network<T: ErrorMetric>(
         &self,
-    ) -> DiGraph<(), MinSquaredErrorCopyNumAndFreq<T>> {
-        // let graph = self.to_graph(|_km1mer| (), |kmer| (kmer.clone(),));
-        // let network =
-        // compact_simple_paths_for_targeted_nodes(full, |node_weight| !node_weight.is_terminal);
-        unimplemented!();
+        coverage: f64,
+        n_haplotypes: Option<usize>,
+    ) -> (DiGraph<(), MinSquaredErrorCopyNumAndFreq<T>>, Vec<Vec<K>>) {
+        // convert to full graph
+        // node weight is km1mer: K
+        // edge weight is (kmer: K, count: CopyNum)
+        let full = self.to_graph(
+            |km1mer| km1mer.clone(),
+            |kmer| (kmer.clone(), self.get(kmer)),
+        );
+
+        // compact
+        // contract nodes except terminal node `nnn`
+        let compact = compact_simple_paths_for_targeted_nodes(&full, |km1mer| !km1mer.is_null());
+
+        // flow network
+        let mut network = compact.map(
+            |_node, _| (),
+            |_edge, edge_weight| {
+                let freqs = edge_weight
+                    .iter()
+                    .filter_map(|(_, (kmer, count))| {
+                        if kmer.has_null() {
+                            None
+                        } else {
+                            Some(*count as f64 / coverage)
+                        }
+                    })
+                    .collect();
+                MinSquaredErrorCopyNumAndFreq::new(freqs, None, false)
+            },
+        );
+
+        // split terminal node into two to specify (fix) the number of haplotypes
+        let terminal = compact
+            .node_indices()
+            .find(|&node| compact[node].is_null())
+            .expect("graph has no terminal node");
+        split_node(
+            &mut network,
+            terminal,
+            Some(MinSquaredErrorCopyNumAndFreq::new(
+                vec![],
+                n_haplotypes,
+                false,
+            )),
+        );
+
+        // mapping from edge into kmers
+        let mut kmers: Vec<Vec<K>> = compact
+            .edge_indices()
+            .map(|edge| {
+                compact[edge]
+                    .iter()
+                    .map(|(_, (kmer, _))| kmer.clone())
+                    .collect()
+            })
+            .collect();
+        // the last edge added by splitting terminal does not correspond to any k-mer
+        kmers.push(vec![]);
+
+        (network, kmers)
+    }
+    ///
+    pub fn assign_min_squared_error_copy_nums(&self, coverage: f64, n_haplotypes: Option<usize>) {
+        let (network, kmer_map) =
+            self.to_min_squared_error_copy_nums_network::<V1Error>(coverage, n_haplotypes);
+        println!(
+            "network n_nodes={} n_edges={}",
+            network.node_count(),
+            network.edge_count()
+        );
+        let copy_nums =
+            min_cost_flow_convex_fast(&network).expect("mse flownetwork cannot be solved");
     }
 }
 
