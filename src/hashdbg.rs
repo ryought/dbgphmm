@@ -37,6 +37,10 @@ impl<K: KmerLike> HashDbg<K> {
             kmers: HashMap::default(),
         }
     }
+    /// Create HashDbg from a set of k-mers
+    pub fn from_kmers(kmers: &[K]) -> HashDbg<K> {
+        unimplemented!();
+    }
     /// Size of k-mer in HashDbg
     pub fn k(&self) -> usize {
         self.k
@@ -350,6 +354,47 @@ impl<K: KmerLike> HashDbg<K> {
 
         println!("removed {} deadends", n_deadends);
         n_deadends
+    }
+    /// Add all starting k-mers of the k-mer (i.e. connect from terminal `nnn` into the k-mer).
+    ///
+    /// Example: if kmer is `AGCT`, then `nnnA, nnAG, nAGC` will be added.
+    pub fn add_starting_kmers(&mut self, kmer: &K) {
+        let copy_num = self.get(kmer);
+        for starting_kmer in kmer.starting_kmers() {
+            self.add(starting_kmer, copy_num);
+        }
+    }
+    /// Add all ending k-mers of the k-mer (i.e. connect from the k-mer into terminal `nnn`).
+    ///
+    /// Example: if kmer is `AGCT`, then `GCTn, CTnn, Tnnn` will be added.
+    pub fn add_ending_kmers(&mut self, kmer: &K) {
+        let copy_num = self.get(kmer);
+        for ending_kmer in kmer.ending_kmers() {
+            self.add(ending_kmer, copy_num);
+        }
+    }
+    /// Add starting/ending k-mers for all deadend k-mers.
+    ///
+    /// if k-mer has no parent, then add starting k-mers (nnn -> k-mer)
+    /// if k-mer has no child, then add ending k-mers (k-mer -> nnn)
+    pub fn augment_deadends(&mut self) {
+        for edge in self.edges() {
+            // (1) edge is starting point if it has no parent.
+            // then add starting k-mers to the edge.
+            if self.parents(&edge).len() == 0 {
+                self.add_starting_kmers(&edge);
+            }
+
+            // (2) edge is ending point if it has no child.
+            // then add ending k-mers to the edge.
+            if self.childs(&edge).len() == 0 {
+                self.add_ending_kmers(&edge);
+            }
+        }
+    }
+    /// DBG into connected components
+    pub fn connected_components(&self) -> Vec<Vec<K>> {
+        unimplemented!();
     }
     ///
     /// Find approximate copy numbers from k-mer counts
