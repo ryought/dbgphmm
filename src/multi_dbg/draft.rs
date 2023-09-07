@@ -9,6 +9,7 @@ use crate::e2e::Dataset;
 use crate::graph::utils::split_node;
 use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
+use crate::prob::Prob;
 use crate::utils::timer;
 use itertools::izip;
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -320,7 +321,7 @@ impl MultiDbg {
         seqs: T,
         base_coverage: f64,
         ave_read_length: usize,
-        p_error: f64,
+        p_error: Prob,
         end_node_inference: &EndNodeInference<VecKmer>,
     ) -> Self
     where
@@ -361,7 +362,7 @@ impl MultiDbg {
             dataset.reads(),
             dataset.coverage(),
             dataset.average_read_length(),
-            dataset.params().p_error().to_value(),
+            dataset.params().p_error(),
             // &EndNodeInference::Auto,
             &EndNodeInference::Custom(starts_and_ends_of_genome(dataset.genome(), k)),
         );
