@@ -65,6 +65,10 @@ impl<K: KmerLike> HashDbg<K> {
         let copy_num_old = self.get(&kmer);
         self.set(kmer, copy_num + copy_num_old);
     }
+    /// Remove k-mer from DBG
+    pub fn remove(&mut self, kmer: &K) {
+        self.kmers.remove(kmer);
+    }
     /// Check k-mer (edge) exists in DBG
     pub fn has(&self, kmer: &K) -> bool {
         assert_eq!(kmer.k(), self.k());
@@ -285,10 +289,67 @@ impl<K: KmerLike> HashDbg<K> {
 
         graph
     }
+    /// Check the copy numbers are consistent
+    /// i.e. for all nodes, sum of copy numbers of in-edges/out-edges is the same.
+    pub fn is_copy_nums_consistent(&self) -> bool {
+        self.nodes().into_iter().all(|node| {
+            let copy_nums_in: CopyNum = self
+                .edges_in(&node)
+                .into_iter()
+                .map(|edge_in| self.get(&edge_in))
+                .sum();
+            let copy_nums_out: CopyNum = self
+                .edges_out(&node)
+                .into_iter()
+                .map(|edge_out| self.get(&edge_out))
+                .sum();
+            copy_nums_in == copy_nums_out
+        })
+    }
     /// Remove kmers whose count is less than `min_copy_num`
     pub fn remove_rare_kmers(&mut self, min_copy_num: CopyNum) {
         self.kmers
             .retain(|_kmer, copy_num| *copy_num >= min_copy_num)
+    }
+    /// k-mer (edge) is deadend (= edge that has no child/parent edges) or not?
+    pub fn is_deadend(&self, kmer: &K) -> bool {
+        self.childs(kmer).len() == 0 || self.parents(kmer).len() == 0
+    }
+    /// Remove deadend k-mers whose count is less than `min_count`
+    ///
+    /// Removing a deadend can create some new deadends that is childs/parents of that node
+    ///
+    /// Returns the number of removed deadends
+    pub fn remove_deadends(&mut self, min_count: CopyNum) -> usize {
+        let mut deadends: Vec<K> = self
+            .edges()
+            .into_iter()
+            .filter(|edge| self.get(edge) < min_count)
+            .filter(|edge| self.is_deadend(edge))
+            .collect();
+        let mut n_deadends = 0;
+        println!("initial deadends {}", deadends.len());
+
+        while let Some(deadend) = deadends.pop() {
+            // remove the deadend
+            self.remove(&deadend);
+            n_deadends += 1;
+
+            // child/parent of the deadend is added to the list if it is a new deadend
+            for child in self.childs(&deadend) {
+                if self.is_deadend(&child) {
+                    deadends.push(child);
+                }
+            }
+            for parent in self.parents(&deadend) {
+                if self.is_deadend(&parent) {
+                    deadends.push(parent);
+                }
+            }
+        }
+
+        println!("removed {} deadends", n_deadends);
+        n_deadends
     }
     ///
     /// Find approximate copy numbers from k-mer counts
