@@ -704,7 +704,7 @@ mod tests {
                 dataset.reads(),
                 dataset.coverage(),
                 100,
-                0.01,
+                Prob::from_prob(0.01),
                 &EndNodeInference::Auto,
             );
         let phmm = dbg.to_phmm(dataset.params());

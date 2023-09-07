@@ -2,11 +2,13 @@
 //! Constructor of draft dbg from reads or genomes
 //!
 use super::{CopyNums, MultiDbg};
-use crate::common::collection::starts_and_ends_of_genome;
+use crate::common::collection::{starts_and_ends_of_genome, ReadCollection};
 use crate::common::{CopyNum, Freq, Seq, StyledSequence};
 use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
+use crate::distribution::kmer_coverage;
 use crate::e2e::Dataset;
 use crate::graph::utils::split_node;
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::prob::Prob;
@@ -338,6 +340,35 @@ impl MultiDbg {
                 end_node_inference,
             );
         dbg.into()
+    }
+    ///
+    /// Create from reads V2
+    ///
+    pub fn create_draft_from_reads_v2<S: Seq>(
+        k: usize,
+        reads: &ReadCollection<S>,
+        p_error: Prob,
+        genome_size: usize,
+        n_haplotypes: Option<usize>,
+        min_count: usize,
+        min_deadend_count: usize,
+    ) -> Self {
+        let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, reads);
+        hd.remove_rare_kmers(min_count);
+        hd.remove_deadends(min_deadend_count);
+        let (starts, ends) = hd.augment_deadends();
+        // TODO pick the largest component
+
+        let adjusted_coverage = kmer_coverage(
+            k,
+            reads.average_length(),
+            reads.coverage(genome_size),
+            p_error,
+        );
+        let hd =
+            hd.generate_hashdbg_with_min_squared_error_copy_nums(adjusted_coverage, n_haplotypes);
+
+        Self::from_hashdbg(&hd, false)
     }
     ///
     /// Create from styled seqs

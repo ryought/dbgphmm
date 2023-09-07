@@ -221,7 +221,9 @@ impl MultiDbg {
     ///
     pub fn from_hashdbg<K: KmerLike>(hashdbg: &HashDbg<K>, ignore_copy_num: bool) -> MultiDbg {
         // assert copy_num is consistent
-        assert!(hashdbg.is_copy_nums_consistent());
+        if !ignore_copy_num {
+            assert!(hashdbg.is_copy_nums_consistent());
+        }
 
         let full = hashdbg.to_graph(
             |km1mer| MultiFullNode::new(km1mer.is_null()),

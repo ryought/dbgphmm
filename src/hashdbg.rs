@@ -41,8 +41,10 @@ impl<K: KmerLike> HashDbg<K> {
     }
     /// Create HashDbg from a set of k-mers with copy number
     pub fn from_kmers(k: usize, kmers_and_copy_nums: Vec<(K, CopyNum)>) -> HashDbg<K> {
-        // TODO assert all kmers are of the same size
-        // assert!(kmers_and_copy_nums.iter().all();
+        // assert all kmers are of the same size
+        assert!(kmers_and_copy_nums.iter().all(|(kmer, _)| kmer.k() == k));
+
+        // convert Vec into HashMap
         let kmers = kmers_and_copy_nums.into_iter().collect();
         HashDbg { k, kmers }
     }
@@ -51,14 +53,9 @@ impl<K: KmerLike> HashDbg<K> {
         self.k
     }
     /// Set copy number of k-mer (edge)
-    /// if copy number is 0, remove the k-mer from HashMap.
     pub fn set(&mut self, kmer: K, copy_num: CopyNum) {
         assert_eq!(kmer.k(), self.k());
-        if copy_num > 0 {
-            self.kmers.insert(kmer, copy_num);
-        } else {
-            self.kmers.remove(&kmer);
-        }
+        self.kmers.insert(kmer, copy_num);
     }
     /// Get copy number of k-mer (edge)
     /// if the k-mer does not exist in DBG, the copy number is zero.
@@ -81,7 +78,7 @@ impl<K: KmerLike> HashDbg<K> {
     /// Check k-mer (edge) exists in DBG
     pub fn has(&self, kmer: &K) -> bool {
         assert_eq!(kmer.k(), self.k());
-        self.get(kmer) > 0
+        self.kmers.contains_key(kmer)
     }
     /// Get a list of edges (k-mers)
     pub fn edges(&self) -> Vec<K> {
@@ -518,7 +515,12 @@ impl<K: KmerLike> HashDbg<K> {
         (network, kmers)
     }
     ///
-    pub fn assign_min_squared_error_copy_nums(&self, coverage: f64, n_haplotypes: Option<usize>) {
+    pub fn generate_hashdbg_with_min_squared_error_copy_nums(
+        &self,
+        coverage: f64,
+        n_haplotypes: Option<usize>,
+    ) -> HashDbg<K> {
+        println!("converting");
         let (network, kmer_map) =
             self.to_min_squared_error_copy_nums_network::<V1Error>(coverage, n_haplotypes);
         println!(
@@ -528,6 +530,17 @@ impl<K: KmerLike> HashDbg<K> {
         );
         let copy_nums =
             min_cost_flow_convex_fast(&network).expect("mse flownetwork cannot be solved");
+
+        let kmers: Vec<(K, CopyNum)> = network
+            .edge_indices()
+            .flat_map(|edge| {
+                let copy_num = copy_nums[edge];
+                kmer_map[edge.index()]
+                    .iter()
+                    .map(move |kmer| (kmer.clone(), copy_num))
+            })
+            .collect();
+        HashDbg::from_kmers(self.k(), kmers)
     }
 }
 
@@ -620,8 +633,10 @@ mod tests {
         assert_eq!(hd.edges_in(&kmer(b"TTT")), vec![kmer(b"TTTT")]);
 
         // set and delete
-        hd.set(Kmer::from_bases(b"TTTT"), 0);
-        assert_eq!(hd.has(&Kmer::from_bases(b"TTTT")), false);
+        hd.set(kmer(b"TTTT"), 0);
+        assert_eq!(hd.has(&kmer(b"TTTT")), true);
+        hd.remove(&kmer(b"TTTT"));
+        assert_eq!(hd.has(&kmer(b"TTTT")), false);
 
         assert_eq!(hd.edges(), vec![kmer(b"ATCG")]);
         assert_eq!(hd.nodes(), vec![kmer(b"ATC"), kmer(b"TCG")]);

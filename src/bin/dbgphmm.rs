@@ -2,9 +2,11 @@ use clap::{Parser, Subcommand};
 use dbgphmm::{
     common::collection::{Reads, Seq},
     dbg::draft::EndNodeInference,
+    distribution::kmer_coverage,
     hashdbg::HashDbg,
     kmer::VecKmer,
     multi_dbg::MultiDbg,
+    prob::Prob,
 };
 
 #[derive(Parser, Debug)]
@@ -26,7 +28,7 @@ enum Commands {
         min_count: usize,
         /// Minimum occurrence of deadend k-mers in read
         #[clap(short = 'M')]
-        min_count_of_deadend: usize,
+        min_deadend_count: usize,
         /// Expected error rate of reads.
         /// If not specified, it will use p=0.001 (0.1%) HiFi error rate.
         #[clap(short = 'p', default_value_t = 0.001)]
@@ -82,7 +84,7 @@ fn main() {
         Commands::Draft {
             k,
             min_count,
-            min_count_of_deadend,
+            min_deadend_count,
             p_error,
             genome_size,
             n_haplotypes,
@@ -98,16 +100,26 @@ fn main() {
             println!("removing");
             hd.remove_rare_kmers(*min_count);
             println!("removing deadend");
-            hd.remove_deadends(*min_count_of_deadend);
+            hd.remove_deadends(*min_deadend_count);
             let (starts, ends) = hd.augment_deadends();
             println!("starts={} ends={}", starts.len(), ends.len());
+            hd.to_gfa_file("raw.gfa");
+
             let components = hd.connected_components();
             for (i, component) in components.into_iter().enumerate() {
                 println!("component #{} {}", i, component.len());
             }
             println!("mse");
             // TODO test run
-            hd.assign_min_squared_error_copy_nums(coverage, *n_haplotypes);
+            let hd = hd.generate_hashdbg_with_min_squared_error_copy_nums(
+                kmer_coverage(
+                    *k,
+                    reads.average_length(),
+                    coverage,
+                    Prob::from_prob(*p_error),
+                ),
+                *n_haplotypes,
+            );
             println!("output");
             if let Some(gfa_output) = gfa_output {
                 hd.to_gfa_file(gfa_output);

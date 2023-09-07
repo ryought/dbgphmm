@@ -372,8 +372,8 @@ mod tests {
                     32,
                     dataset.reads(),
                     dataset.coverage(),
-                    50,                       // 50bp read
-                    Prob::from_value(0.00_1), // 0.1% error
+                    50,                      // 50bp read
+                    Prob::from_prob(0.00_1), // 0.1% error
                     &EndNodeInference::Auto,
                 );
             // to check with cytoscape
