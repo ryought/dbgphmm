@@ -6,7 +6,7 @@
 //! * `tandem_repeat`
 //! * `tandem_repeat_diploid`
 //!
-use crate::common::{sequence_to_string, Reads, Seq, Sequence, StyledSequence};
+use crate::common::{collection::sanitize_bases, SeqStyle, StyledSequence};
 use crate::random_seq::{
     generate, join, random_mutation, random_mutation_with_rng, tandem_repeat, MutationProfile,
 };
@@ -26,15 +26,18 @@ impl Genome {
     pub fn new(seqs: Vec<StyledSequence>) -> Self {
         Genome(seqs)
     }
-    ///
-    ///
-    ///
+    /// The number of haplotypes in the genome
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    ///
-    ///
-    ///
+    /// The number of linear haplotypes in the genome
+    pub fn n_linear_haplotypes(&self) -> usize {
+        self.0
+            .iter()
+            .filter(|h| h.style() == SeqStyle::Linear)
+            .count()
+    }
+    /// Total size (base count) of the genome
     pub fn genome_size(&self) -> usize {
         self.0.iter().map(|seq| seq.len()).sum()
     }
@@ -50,6 +53,45 @@ impl Genome {
         for i in 0..self.len() {
             println!("# genome[{}]={}, len={}", i, self[i], self[i].len());
         }
+    }
+    /// Save genome as FASTA file
+    pub fn to_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let file = std::fs::File::create(path)?;
+        self.to_fasta_writer(file)
+    }
+    /// Save genome as FASTA using `bio::io::fasta::Writer`
+    pub fn to_fasta_writer<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
+        let mut writer = bio::io::fasta::Writer::new(writer);
+        for (i, g) in self.into_iter().enumerate() {
+            writer.write(&format!("g{}", i), Some(&g.style().to_string()), g.seq())?;
+        }
+        Ok(())
+    }
+    /// Parse FASTA file into genome
+    pub fn from_fasta<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        Self::from_fasta_reader(file)
+    }
+    /// Parse FASTA into genome using `bio::io::fasta::Reader`
+    ///
+    /// If the description string is "C", the haplotype is regarded as circular string
+    /// otherwise, it will be linear.
+    pub fn from_fasta_reader<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
+        let reader = bio::io::fasta::Reader::new(reader);
+        let haps = reader
+            .records()
+            .map(|r| {
+                let record = r.unwrap();
+                let seq = sanitize_bases(record.seq());
+                let style = if record.desc().is_some_and(|desc| desc == "C") {
+                    SeqStyle::Circular
+                } else {
+                    SeqStyle::Linear
+                };
+                StyledSequence::new(seq, style)
+            })
+            .collect();
+        Ok(Genome(haps))
     }
 }
 
@@ -366,6 +408,20 @@ pub fn tandem_repeat_small(
     Genome::new(vec![hap_0, hap_1])
 }
 
+/// Test case genome `u500`
+/// 500bp unit `n`-times repeat, 300bp unique ends
+/// diploid with H0=2%, H=2%
+pub fn u500(n: usize) -> Genome {
+    tandem_repeat_polyploid_with_unique_homo_ends(500, n, 0, 0.02, 1, 300, 2, 0.02, 0)
+}
+
+/// Test case genome `u20`
+/// 20bp unit `n`-times repeat, 300bp unique ends
+/// diploid with H0=2%, H=2%
+pub fn u20(n: usize) -> Genome {
+    tandem_repeat_polyploid_with_unique_homo_ends(20, n, 0, 0.02, 1, 300, 2, 0.02, 0)
+}
+
 //
 // tests
 //
@@ -555,5 +611,25 @@ mod tests {
                 ),
             ])
         );
+    }
+    #[test]
+    fn genome_fasta() {
+        let genome = Genome::new(vec![
+            StyledSequence::linear(b"ATCGGCT".to_vec()),
+            StyledSequence::linear(b"TTCGCC".to_vec()),
+            StyledSequence::circular(b"AAATAA".to_vec()),
+        ]);
+
+        // save
+        let mut file: Vec<u8> = Vec::new();
+        genome.to_fasta_writer(&mut file);
+        let s = String::from_utf8(file.clone()).unwrap();
+        println!("{}", s);
+        assert_eq!(s, ">g0 L\nATCGGCT\n>g1 L\nTTCGCC\n>g2 C\nAAATAA\n");
+
+        // load
+        let genome2 = Genome::from_fasta_reader(file.as_slice()).unwrap();
+        genome2.show();
+        assert_eq!(genome2, genome);
     }
 }

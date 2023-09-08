@@ -9,6 +9,7 @@ use crate::hmmv2::freq::NodeFreqs;
 use crate::kmer::kmer::KmerLike;
 use crate::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, total_cost, Cost, FlowEdge};
 use crate::multi_dbg::draft::{MinSquaredErrorCopyNumAndFreq, V2Error};
+use crate::prob::Prob;
 use crate::utils::timer;
 use crate::vector::graph::flow_to_edgevec;
 use fnv::FnvHashMap as HashMap;
@@ -78,7 +79,7 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
         seqs: T,
         base_coverage: f64,
         ave_read_length: usize,
-        p_error: f64,
+        p_error: Prob,
         end_node_inference: &EndNodeInference<N::Kmer>,
     ) -> Self
     where
@@ -371,8 +372,8 @@ mod tests {
                     32,
                     dataset.reads(),
                     dataset.coverage(),
-                    50,     // 50bp read
-                    0.00_1, // 0.1% error
+                    50,                      // 50bp read
+                    Prob::from_prob(0.00_1), // 0.1% error
                     &EndNodeInference::Auto,
                 );
             // to check with cytoscape
@@ -395,7 +396,7 @@ mod tests {
                 dataset.reads(),
                 dataset.coverage(),
                 dataset.reads().average_length(),
-                dataset.params().p_error().to_value(),
+                dataset.params().p_error(),
                 &EndNodeInference::Auto,
             );
         let (copy_nums_true, _) = dbg.to_copy_nums_of_styled_seqs(dataset.genome()).unwrap();

@@ -222,6 +222,7 @@ impl<S: Seq> ReadCollection<S> {
     }
     ///
     /// Dump FASTA file of reads
+    /// Position data is ignored
     ///
     pub fn to_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let file = std::fs::File::create(path).unwrap();

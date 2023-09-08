@@ -51,17 +51,22 @@ fn main() {
     writeln!(&mut log_file, "# opts={:?}", opts);
     check_memory_usage();
 
-    let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-        opts.unit_size,
-        opts.n_unit,
-        0,
-        opts.hap_init_divergence,
-        1,
-        opts.end_length,
-        opts.n_haplotypes,
-        opts.hap_divergence,
-        0,
-    );
+    let genome = if let Some(genome_fasta) = &opts.genome_fasta {
+        genome::Genome::from_fasta(genome_fasta).expect("genome fasta is invalid")
+    } else {
+        // generate genome
+        genome::tandem_repeat_polyploid_with_unique_homo_ends(
+            opts.unit_size,
+            opts.n_unit,
+            0,
+            opts.hap_init_divergence,
+            1,
+            opts.end_length,
+            opts.n_haplotypes,
+            opts.hap_divergence,
+            0,
+        )
+    };
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, t) = timer(|| {
         generate_dataset(

@@ -38,7 +38,7 @@ use crate::kmer::{
 };
 
 use arrayvec::ArrayVec;
-use fnv::FnvHashMap as HashMap;
+use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
@@ -220,7 +220,10 @@ impl MultiDbg {
     /// Conversion HashDbg -> MultiDbg
     ///
     pub fn from_hashdbg<K: KmerLike>(hashdbg: &HashDbg<K>, ignore_copy_num: bool) -> MultiDbg {
-        // TODO assert copy_num is consistent
+        // assert copy_num is consistent
+        if !ignore_copy_num {
+            assert!(hashdbg.is_copy_nums_consistent());
+        }
 
         let full = hashdbg.to_graph(
             |km1mer| MultiFullNode::new(km1mer.is_null()),
@@ -902,6 +905,28 @@ impl MultiDbg {
             hm.insert(kmer, edge);
         }
         hm
+    }
+    /// Create kmer mapping f: Kmer -> CopyNum
+    /// Useful when comparing two multidbg's k-mer contents.
+    ///
+    /// If k is large, it will be too slow.
+    pub fn to_kmer_copy_num_map(&self) -> HashMap<VecKmer, CopyNum> {
+        let mut hm = HashMap::default();
+        for edge in self.graph_full().edge_indices() {
+            let copy_num = self.copy_num(edge);
+            let kmer = self.kmer_full(edge);
+            hm.insert(kmer, copy_num);
+        }
+        hm
+    }
+    /// Create kmer set. If k is large, it will be too slow.
+    pub fn to_kmer_set(&self) -> HashSet<VecKmer> {
+        let mut set = HashSet::default();
+        for edge in self.graph_full().edge_indices() {
+            let kmer = self.kmer_full(edge);
+            set.insert(kmer);
+        }
+        set
     }
     /// Convert styled seqs into paths
     ///

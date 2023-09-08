@@ -2,15 +2,21 @@
 //! Constructor of draft dbg from reads or genomes
 //!
 use super::{CopyNums, MultiDbg};
-use crate::common::collection::starts_and_ends_of_genome;
+use crate::common::collection::{starts_and_ends_of_genome, ReadCollection};
 use crate::common::{CopyNum, Freq, Seq, StyledSequence};
 use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
+use crate::distribution::kmer_coverage;
 use crate::e2e::Dataset;
+use crate::genome::Genome;
 use crate::graph::utils::split_node;
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
+use crate::prob::Prob;
 use crate::utils::timer;
-use itertools::izip;
+
+use fnv::FnvHashMap as HashMap;
+use itertools::{izip, Itertools};
 use petgraph::graph::{DiGraph, NodeIndex};
 use rustflow::min_flow::{convex::ConvexCost, min_cost_flow_convex_fast, FlowEdge};
 
@@ -320,7 +326,7 @@ impl MultiDbg {
         seqs: T,
         base_coverage: f64,
         ave_read_length: usize,
-        p_error: f64,
+        p_error: Prob,
         end_node_inference: &EndNodeInference<VecKmer>,
     ) -> Self
     where
@@ -339,6 +345,56 @@ impl MultiDbg {
         dbg.into()
     }
     ///
+    /// Create from reads V2
+    ///
+    pub fn create_draft_from_reads_v2<S: Seq>(
+        k: usize,
+        reads: &ReadCollection<S>,
+        p_error: Prob,
+        genome_size: usize,
+        n_haplotypes: Option<usize>,
+        min_count: usize,
+        min_deadend_count: usize,
+    ) -> Self {
+        eprintln!("[draftv2] reads..");
+        let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, reads);
+        eprintln!("[draftv2] raw degree_stats={:?}", hd.degree_stats());
+        eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
+        hd.remove_rare_kmers(min_count);
+        eprintln!("[draftv2] removed rare k-mers");
+        let n_removed_deadends = hd.remove_deadends(min_deadend_count);
+        eprintln!(
+            "[draftv2] removed {} rare deadend k-mers",
+            n_removed_deadends
+        );
+        let (starts, ends) = hd.augment_deadends();
+        eprintln!(
+            "[draftv2] deadends start={} end={}",
+            starts.iter().join(","),
+            ends.iter().join(","),
+        );
+
+        let components = hd.connected_components();
+        for (i, component) in components.into_iter().enumerate() {
+            eprintln!("component #{} {}", i, component.len());
+        }
+        let hd = hd.largest_component();
+
+        eprintln!("[draftv2] n={}", hd.n());
+        let coverage = reads.coverage(genome_size);
+        let adjusted_coverage = kmer_coverage(k, reads.average_length(), coverage, p_error);
+        eprintln!(
+            "[draftv2] coverage={} adjusted_coverage={}",
+            coverage, adjusted_coverage
+        );
+        let hd =
+            hd.generate_hashdbg_with_min_squared_error_copy_nums(adjusted_coverage, n_haplotypes);
+        eprintln!("[draftv2] raw degree_stats={:?}", hd.degree_stats());
+        eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
+
+        Self::from_hashdbg(&hd, false)
+    }
+    ///
     /// Create from styled seqs
     ///
     pub fn create_from_styled_seqs<T>(k: usize, seqs: T) -> Self
@@ -355,18 +411,60 @@ impl MultiDbg {
     /// * use end inference from genome
     /// * true path
     ///
-    pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
+    pub fn create_draft_from_dataset_old(k: usize, dataset: &Dataset) -> Self {
         let d = Self::create_draft_from_reads(
             k,
             dataset.reads(),
             dataset.coverage(),
             dataset.average_read_length(),
-            dataset.params().p_error().to_value(),
+            dataset.params().p_error(),
             // &EndNodeInference::Auto,
             &EndNodeInference::Custom(starts_and_ends_of_genome(dataset.genome(), k)),
         );
         d
     }
+    /// Create read-draft MultiDbg from dataset V2
+    pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
+        Self::create_draft_from_reads_v2(
+            k,
+            dataset.reads(),
+            dataset.params().p_error(),
+            dataset.genome_size(),
+            Some(dataset.genome().n_linear_haplotypes()),
+            2,
+            (dataset.coverage() / 4.0) as usize,
+        )
+    }
+}
+
+/// assertion
+fn check_dbg_contains_true_kmers(dbg: &MultiDbg, genome: &Genome) {
+    assert!(dbg.paths_from_styled_seqs(genome).is_ok());
+}
+
+fn show_kmer_copy_num_map(map: &HashMap<VecKmer, CopyNum>) {
+    for (kmer, copy_num) in map {
+        println!("{} {}x", kmer, copy_num);
+    }
+}
+
+fn show_kmer_copy_num_map_diff(a: &HashMap<VecKmer, CopyNum>, b: &HashMap<VecKmer, CopyNum>) {
+    println!("--- diff ---");
+    for (x, xa) in a {
+        if let Some(xb) = b.get(x) {
+            if xa != xb {
+                println!("{} a:{}x b:{}x", x, xa, xb);
+            }
+        } else {
+            println!("{} a:{}x b:-", x, xa);
+        }
+    }
+    for (x, xb) in b {
+        if !a.contains_key(x) {
+            println!("{} a:-  b:{}x", x, xb);
+        }
+    }
+    println!("--- diff ---");
 }
 
 //
@@ -376,7 +474,33 @@ impl MultiDbg {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
+    use crate::hmmv2::params::PHMMParams;
+
+    fn check_no_diff_between_draft_v1_and_v2(dataset: Dataset, k: usize) {
+        // starts_and_ends_of_genome(&genome, k);
+        let (d1, t1) = timer(|| MultiDbg::create_draft_from_dataset_old(k, &dataset));
+        check_dbg_contains_true_kmers(&d1, dataset.genome());
+
+        let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, dataset.reads());
+
+        let (d2, t2) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
+        // if missing, dump raw hashdbg
+        if !d2.paths_from_styled_seqs(dataset.genome()).is_ok() {
+            hd.to_gfa_file(format!("tmp.gfa"));
+        }
+        check_dbg_contains_true_kmers(&d2, dataset.genome());
+        assert_eq!(d2.n_haplotypes(), 2);
+
+        let m1 = d1.to_kmer_copy_num_map();
+        let m2 = d2.to_kmer_copy_num_map();
+        show_kmer_copy_num_map_diff(&m1, &m2);
+        assert_eq!(d1.to_kmer_set(), d2.to_kmer_set());
+
+        // m1, m2);
+        println!("################## t1={} t2={} ################", t1, t2);
+    }
 
     #[test]
     #[ignore]
@@ -420,5 +544,37 @@ mod tests {
         assert_eq!(w.demand(), 2);
         assert_eq!(w.capacity(), 2);
         assert_eq!(w.convex_cost(2), 1.0);
+    }
+    #[test]
+    #[ignore]
+    fn draft_check_v2_n_1_to_12() {
+        for n in 1..=12 {
+            println!("################## n={} ################", n);
+            let genome = genome::u500(n);
+            let k = 40;
+            let dataset = generate_dataset(
+                genome.clone(),
+                0,
+                20,
+                1000,
+                ReadType::FragmentWithRevComp,
+                PHMMParams::uniform(0.001),
+            );
+            check_no_diff_between_draft_v1_and_v2(dataset, k);
+        }
+    }
+    #[test]
+    fn draft_check_v2_n6() {
+        let genome = genome::u500(6);
+        let k = 40;
+        let dataset = generate_dataset(
+            genome.clone(),
+            0,
+            20,
+            1000,
+            ReadType::FragmentWithRevComp,
+            PHMMParams::uniform(0.001),
+        );
+        check_no_diff_between_draft_v1_and_v2(dataset, k);
     }
 }
