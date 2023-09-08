@@ -16,7 +16,6 @@ use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::utils::spaces;
-use bio::io;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -139,14 +138,7 @@ impl Dataset {
     /// Dump genome as fasta
     ///
     pub fn to_genome_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let file = std::fs::File::create(path).unwrap();
-        let mut writer = io::fasta::Writer::new(file);
-
-        for (i, g) in self.genome().into_iter().enumerate() {
-            writer.write(&format!("g{}", i), Some(&g.style().to_string()), g.seq())?;
-        }
-
-        Ok(())
+        self.genome().to_fasta(path)
     }
     ///
     /// Dump reads as fasta.
