@@ -408,11 +408,18 @@ pub fn tandem_repeat_small(
     Genome::new(vec![hap_0, hap_1])
 }
 
-/// Test case genome `n`
+/// Test case genome `u500`
 /// 500bp unit `n`-times repeat, 300bp unique ends
 /// diploid with H0=2%, H=2%
-pub fn n(n: usize) -> Genome {
+pub fn u500(n: usize) -> Genome {
     tandem_repeat_polyploid_with_unique_homo_ends(500, n, 0, 0.02, 1, 300, 2, 0.02, 0)
+}
+
+/// Test case genome `u20`
+/// 20bp unit `n`-times repeat, 300bp unique ends
+/// diploid with H0=2%, H=2%
+pub fn u20(n: usize) -> Genome {
+    tandem_repeat_polyploid_with_unique_homo_ends(20, n, 0, 0.02, 1, 300, 2, 0.02, 0)
 }
 
 //

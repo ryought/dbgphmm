@@ -411,7 +411,7 @@ impl MultiDbg {
     /// * use end inference from genome
     /// * true path
     ///
-    pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
+    pub fn create_draft_from_dataset_old(k: usize, dataset: &Dataset) -> Self {
         let d = Self::create_draft_from_reads(
             k,
             dataset.reads(),
@@ -424,7 +424,7 @@ impl MultiDbg {
         d
     }
     /// Create read-draft MultiDbg from dataset V2
-    pub fn create_draft_from_dataset_v2(k: usize, dataset: &Dataset) -> Self {
+    pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
         Self::create_draft_from_reads_v2(
             k,
             dataset.reads(),
@@ -478,6 +478,30 @@ mod tests {
     use crate::genome;
     use crate::hmmv2::params::PHMMParams;
 
+    fn check_no_diff_between_draft_v1_and_v2(dataset: Dataset, k: usize) {
+        // starts_and_ends_of_genome(&genome, k);
+        let (d1, t1) = timer(|| MultiDbg::create_draft_from_dataset_old(k, &dataset));
+        check_dbg_contains_true_kmers(&d1, dataset.genome());
+
+        let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, dataset.reads());
+
+        let (d2, t2) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
+        // if missing, dump raw hashdbg
+        if !d2.paths_from_styled_seqs(dataset.genome()).is_ok() {
+            hd.to_gfa_file(format!("tmp.gfa"));
+        }
+        check_dbg_contains_true_kmers(&d2, dataset.genome());
+        assert_eq!(d2.n_haplotypes(), 2);
+
+        let m1 = d1.to_kmer_copy_num_map();
+        let m2 = d2.to_kmer_copy_num_map();
+        show_kmer_copy_num_map_diff(&m1, &m2);
+        assert_eq!(d1.to_kmer_set(), d2.to_kmer_set());
+
+        // m1, m2);
+        println!("################## t1={} t2={} ################", t1, t2);
+    }
+
     #[test]
     #[ignore]
     fn from_styled_seqs_large() {
@@ -522,12 +546,12 @@ mod tests {
         assert_eq!(w.convex_cost(2), 1.0);
     }
     #[test]
-    fn draft_check_v2() {
-        let k = 40;
+    #[ignore]
+    fn draft_check_v2_n_1_to_12() {
         for n in 1..=12 {
             println!("################## n={} ################", n);
-            let genome = genome::n(n);
-            // starts_and_ends_of_genome(&genome, k);
+            let genome = genome::u500(n);
+            let k = 40;
             let dataset = generate_dataset(
                 genome.clone(),
                 0,
@@ -536,30 +560,21 @@ mod tests {
                 ReadType::FragmentWithRevComp,
                 PHMMParams::uniform(0.001),
             );
-            let (d1, t1) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
-            check_dbg_contains_true_kmers(&d1, &genome);
-
-            let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, dataset.reads());
-
-            let (d2, t2) = timer(|| MultiDbg::create_draft_from_dataset_v2(k, &dataset));
-            // if missing, dump raw hashdbg
-            if !d2.paths_from_styled_seqs(&genome).is_ok() {
-                hd.to_gfa_file(format!("n{}.gfa", n));
-            }
-            check_dbg_contains_true_kmers(&d2, &genome);
-            assert_eq!(d2.n_haplotypes(), 2);
-
-            let m1 = d1.to_kmer_copy_num_map();
-            let m2 = d2.to_kmer_copy_num_map();
-            show_kmer_copy_num_map_diff(&m1, &m2);
-            assert_eq!(d1.to_kmer_set(), d2.to_kmer_set());
-
-            // m1, m2);
-
-            println!(
-                "################## n={} t1={} t2={} ################",
-                n, t1, t2
-            );
+            check_no_diff_between_draft_v1_and_v2(dataset, k);
         }
+    }
+    #[test]
+    fn draft_check_v2_n6() {
+        let genome = genome::u500(6);
+        let k = 40;
+        let dataset = generate_dataset(
+            genome.clone(),
+            0,
+            20,
+            1000,
+            ReadType::FragmentWithRevComp,
+            PHMMParams::uniform(0.001),
+        );
+        check_no_diff_between_draft_v1_and_v2(dataset, k);
     }
 }
