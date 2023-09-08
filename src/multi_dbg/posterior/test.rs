@@ -3,7 +3,7 @@
 //!
 use super::super::{neighbors::NeighborConfig, CopyNums, MultiDbg, Path};
 use super::{infer_posterior_by_extension, Posterior};
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
+use crate::common::{CopyNum, ReadCollection, Seq};
 use crate::e2e::Dataset;
 use crate::hmmv2::hint::Mappings;
 use crate::hmmv2::params::PHMMParams;
@@ -117,7 +117,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     output_prefix: P,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
-    test_inference_from_dbg(
+    test_inference_from_dbg_with_dataset(
         dataset,
         dbg,
         k_final,
@@ -231,21 +231,22 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
 ///
 ///
 ///
-pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
-    dataset: &Dataset,
+pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
     dbg: MultiDbg,
+    reads: &ReadCollection<S>,
     k_final: usize,
     param_infer: PHMMParams, // virtual error rate
     param_error: PHMMParams, // actual error rate of reads
-    sigma: CopyNum,          // 200
-    max_iter: usize,         // 10
-    max_cycle_size: usize,   // 10
+    genome_size: CopyNum,
+    genome_size_sigma: CopyNum, // 200
+    max_iter: usize,            // 10
+    max_cycle_size: usize,      // 10
     output_prefix: P,
+    paths: Option<Vec<Path>>,
     mappings: Option<Mappings>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     println!("# started_at={}", chrono::Local::now());
 
-    let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
     let output: std::path::PathBuf = output_prefix.as_ref().into();
 
     let (dbg, posterior, paths, mappings) = infer_posterior_by_extension(
@@ -253,9 +254,9 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
         dbg,
         param_infer,
         param_error,
-        dataset.reads(),
-        dataset.genome_size(),
-        sigma,
+        reads,
+        genome_size,
+        genome_size_sigma,
         NeighborConfig {
             max_cycle_size,
             max_flip: 2,
@@ -287,13 +288,13 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
             );
             dbg.to_map_file(
                 output.with_extension(format!("k{}.map", dbg.k())),
-                dataset.reads(),
+                reads,
                 mappings,
             );
         },
         |dbg, mappings| {},
         |dbg, mappings| {},
-        paths_true.ok(),
+        paths,
         mappings,
     );
 
@@ -315,6 +316,38 @@ pub fn test_inference_from_dbg<P: AsRef<std::path::Path>>(
     println!("# finished_at={}", chrono::Local::now());
 
     (dbg, posterior, paths, mappings)
+}
+
+///
+///
+///
+pub fn test_inference_from_dbg_with_dataset<P: AsRef<std::path::Path>>(
+    dataset: &Dataset,
+    dbg: MultiDbg,
+    k_final: usize,
+    param_infer: PHMMParams, // virtual error rate
+    param_error: PHMMParams, // actual error rate of reads
+    sigma: CopyNum,          // 200
+    max_iter: usize,         // 10
+    max_cycle_size: usize,   // 10
+    output_prefix: P,
+    mappings: Option<Mappings>,
+) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
+    let paths_true = dbg.paths_from_styled_seqs(dataset.genome());
+    test_inference_from_dbg(
+        dbg,
+        dataset.reads(),
+        k_final,
+        param_infer,
+        param_error,
+        dataset.genome_size(),
+        sigma,
+        max_iter,
+        max_cycle_size,
+        output_prefix,
+        paths_true.ok(),
+        mappings,
+    )
 }
 
 ///

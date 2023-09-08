@@ -4,8 +4,9 @@ use dbgphmm::{
     dbg::draft::EndNodeInference,
     distribution::kmer_coverage,
     hashdbg::HashDbg,
+    hmmv2::params::PHMMParams,
     kmer::VecKmer,
-    multi_dbg::MultiDbg,
+    multi_dbg::{posterior::test::test_inference_from_dbg, MultiDbg},
     prob::Prob,
 };
 
@@ -83,11 +84,20 @@ enum Commands {
         /// of target genome
         #[clap(short = 'S')]
         genome_size_sigma: usize,
-        /// Expected number of haplotypes in target genome if known
-        #[clap(short = 'P')]
-        n_haplotypes: Option<usize>,
         /// Input read FASTA filename
         read_fasta: std::path::PathBuf,
+        /// Expected error rate of reads.
+        /// If not specified, it will use p=0.001 (0.1%) HiFi error rate.
+        #[clap(short = 'p', default_value_t = 0.001)]
+        p_error: f64,
+        /// Error rate of reads while inference
+        #[clap(short = 'p', default_value_t = 0.00001)]
+        p_infer: f64,
+        /// Maximum number of iteration of posterior sampling of single k
+        #[clap(short = 'I', default_value = "50")]
+        max_iter: usize,
+        #[clap(short = 'c', default_value = "1000")]
+        max_cycle_size: usize,
     },
 }
 
@@ -140,6 +150,35 @@ fn main() {
             if let Some(gfa_output) = gfa_output {
                 dbg.to_gfa_file(gfa_output);
             }
+        }
+        Commands::Infer {
+            dbg_input,
+            output_prefix,
+            k_max,
+            genome_size,
+            genome_size_sigma,
+            read_fasta,
+            p_error,
+            p_infer,
+            max_iter,
+            max_cycle_size,
+        } => {
+            let reads = Reads::from_fasta(read_fasta).unwrap();
+            let dbg = MultiDbg::from_dbg_file(dbg_input);
+            test_inference_from_dbg(
+                dbg,
+                &reads,
+                *k_max,
+                PHMMParams::uniform(*p_infer),
+                PHMMParams::uniform(*p_error),
+                *genome_size,
+                *genome_size_sigma,
+                *max_iter,
+                *max_cycle_size,
+                output_prefix,
+                None,
+                None,
+            );
         }
         _ => {}
     }
