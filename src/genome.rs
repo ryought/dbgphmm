@@ -26,15 +26,18 @@ impl Genome {
     pub fn new(seqs: Vec<StyledSequence>) -> Self {
         Genome(seqs)
     }
-    ///
-    ///
-    ///
+    /// The number of haplotypes in the genome
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    ///
-    ///
-    ///
+    /// The number of linear haplotypes in the genome
+    pub fn n_linear_haplotypes(&self) -> usize {
+        self.0
+            .iter()
+            .filter(|h| h.style() == SeqStyle::Linear)
+            .count()
+    }
+    /// Total size (base count) of the genome
     pub fn genome_size(&self) -> usize {
         self.0.iter().map(|seq| seq.len()).sum()
     }
@@ -403,6 +406,13 @@ pub fn tandem_repeat_small(
     );
 
     Genome::new(vec![hap_0, hap_1])
+}
+
+/// Test case genome `n`
+/// 500bp unit `n`-times repeat, 300bp unique ends
+/// diploid with H0=2%, H=2%
+pub fn n(n: usize) -> Genome {
+    tandem_repeat_polyploid_with_unique_homo_ends(500, n, 0, 0.02, 1, 300, 2, 0.02, 0)
 }
 
 //

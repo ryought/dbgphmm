@@ -199,19 +199,13 @@ impl<K: KmerLike + std::fmt::Display> std::fmt::Display for HashDbg<K> {
 ///
 /// Constructors
 ///
-/// * from_profile
+/// * new
+/// * from_kmers
+///
 /// * from_styled_seqs (like genome)
 /// * from_fragment_seqs (like reads)
 ///
 impl<K: KmerLike> HashDbg<K> {
-    pub fn from_profile(k: usize, profile: &[(K, CopyNum)]) -> Self {
-        let mut d = HashDbg::new(k);
-        for (kmer, copy_num) in profile.iter() {
-            assert!(!d.has(kmer));
-            d.set(kmer.clone(), *copy_num);
-        }
-        d
-    }
     pub fn from_seq<S: Seq>(k: usize, seq: &S) -> Self {
         let mut d = HashDbg::new(k);
         d.add_seq(seq.as_ref());
@@ -453,8 +447,21 @@ impl<K: KmerLike> HashDbg<K> {
     }
     /// Get subgraph of this HashDbg
     pub fn largest_component(&self) -> HashDbg<K> {
-        let component = self.connected_components().first();
-        unimplemented!();
+        let mut components = self.connected_components();
+        if components.is_empty() {
+            // empty
+            HashDbg::new(self.k())
+        } else {
+            let component = components.remove(0);
+            let kmers: Vec<(K, CopyNum)> = component
+                .into_iter()
+                .map(|kmer| {
+                    let copy_num = self.get(&kmer);
+                    (kmer, copy_num)
+                })
+                .collect();
+            HashDbg::from_kmers(self.k(), kmers)
+        }
     }
     ///
     /// Find approximate copy numbers from k-mer counts
