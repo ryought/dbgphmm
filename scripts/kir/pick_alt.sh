@@ -16,3 +16,7 @@ python ../scripts/kir/lift.py suffix.sam --pos 1001
 seqkit faidx alts.fa --region-file ../scripts/kir/alts.txt > haps.fa
 # check mutations by visualizing alignment
 minimap2 -a -c --cs -t 16 -x asm20 chr19.fa haps.fa > haps.sam
+
+# pick first(LRC_KIR_Primary) and second(NW_016107304.1)
+# because it seems to have SV (unit insertion)
+seqkit faidx alts.fa --region-file ../scripts/kir/01.txt > haps01.fa
