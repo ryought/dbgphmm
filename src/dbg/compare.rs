@@ -3,8 +3,8 @@
 //!
 use super::dbg::{Dbg, DbgEdge, DbgNode};
 use crate::common::{CopyNum, Genome, Seq, SeqStyle, Sequence};
-use crate::dbg::hashdbg_v2::HashDbg;
 use crate::e2e::Experiment;
+use crate::hashdbg::HashDbg;
 use crate::hist::Hist;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::common::linear_sequence_to_kmers;

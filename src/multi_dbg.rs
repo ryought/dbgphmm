@@ -18,13 +18,13 @@ use crate::common::{
     NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
-use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::euler_circuit_count;
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{
     bridge_edges, degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap,
 };
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::{
     common::PModel,
     hint::{Mapping, Mappings},
@@ -38,7 +38,7 @@ use crate::kmer::{
 };
 
 use arrayvec::ArrayVec;
-use fnv::FnvHashMap as HashMap;
+use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoNodeReferences};
@@ -215,12 +215,36 @@ impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
     }
 }
 
-///
-/// Conversion HashDbg -> MultiDbg
-///
-impl<K: KmerLike> std::convert::From<HashDbg<K>> for MultiDbg {
-    fn from(hashdbg: HashDbg<K>) -> MultiDbg {
-        unimplemented!();
+impl MultiDbg {
+    ///
+    /// Conversion HashDbg -> MultiDbg
+    ///
+    pub fn from_hashdbg<K: KmerLike>(hashdbg: &HashDbg<K>, ignore_copy_num: bool) -> MultiDbg {
+        // assert copy_num is consistent
+        if !ignore_copy_num {
+            assert!(hashdbg.is_copy_nums_consistent());
+        }
+
+        let full = hashdbg.to_graph(
+            |km1mer| MultiFullNode::new(km1mer.is_null()),
+            |kmer| {
+                MultiFullEdge::new(
+                    kmer.emission(),
+                    if ignore_copy_num {
+                        0
+                    } else {
+                        hashdbg.get(kmer)
+                    },
+                )
+            },
+        );
+        let compact = Self::construct_compact_from_full(&full);
+
+        MultiDbg {
+            k: hashdbg.k(),
+            full,
+            compact,
+        }
     }
 }
 
@@ -881,6 +905,28 @@ impl MultiDbg {
             hm.insert(kmer, edge);
         }
         hm
+    }
+    /// Create kmer mapping f: Kmer -> CopyNum
+    /// Useful when comparing two multidbg's k-mer contents.
+    ///
+    /// If k is large, it will be too slow.
+    pub fn to_kmer_copy_num_map(&self) -> HashMap<VecKmer, CopyNum> {
+        let mut hm = HashMap::default();
+        for edge in self.graph_full().edge_indices() {
+            let copy_num = self.copy_num(edge);
+            let kmer = self.kmer_full(edge);
+            hm.insert(kmer, copy_num);
+        }
+        hm
+    }
+    /// Create kmer set. If k is large, it will be too slow.
+    pub fn to_kmer_set(&self) -> HashSet<VecKmer> {
+        let mut set = HashSet::default();
+        for edge in self.graph_full().edge_indices() {
+            let kmer = self.kmer_full(edge);
+            set.insert(kmer);
+        }
+        set
     }
     /// Convert styled seqs into paths
     ///

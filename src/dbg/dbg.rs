@@ -10,10 +10,10 @@ use super::impls::{SimpleDbg, SimpleDbgEdge, SimpleDbgNode};
 use super::json::DbgAsJson;
 use crate::common::{CopyNum, Reads, Seq, SeqStyle, Sequence, StyledSequence, NULL_BASE};
 use crate::dbg::flow_intersection::FlowIntersection;
-use crate::dbg::hashdbg_v2::HashDbg;
 use crate::graph::compact::remove_deadends_fast;
 use crate::graph::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use crate::graph::utils::degree_stats;
+use crate::hashdbg::HashDbg;
 use crate::kmer::common::kmers_to_string;
 use crate::kmer::kmer::styled_sequence_to_kmers;
 use crate::kmer::{KmerLike, NullableKmer};
@@ -868,6 +868,25 @@ impl<N: DbgNode, E: DbgEdge> Dbg<N, E> {
     pub fn augment_sources_and_sinks(&mut self) {
         let sources = self.get_sources();
         let sinks = self.get_sinks();
+
+        // TODO for debug
+        for &source in sources.iter() {
+            println!(
+                "source v{} {} {}x",
+                source.index(),
+                self.kmer(source),
+                self.copy_num(source)
+            );
+        }
+        for &sink in sinks.iter() {
+            println!(
+                "sink v{} {} {}x",
+                sink.index(),
+                self.kmer(sink),
+                self.copy_num(sink)
+            );
+        }
+
         for source in sources {
             self.add_starting_kmers(source);
         }

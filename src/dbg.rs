@@ -1,7 +1,5 @@
 pub mod dbg;
 pub use dbg::Dbg;
-pub mod hashdbg_v2;
-pub use hashdbg_v2::HashDbg;
 pub mod edge_centric;
 pub mod impls;
 pub mod traverse;

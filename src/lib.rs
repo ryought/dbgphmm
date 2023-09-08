@@ -9,6 +9,7 @@ pub mod float;
 pub mod genome;
 pub mod graph;
 pub mod greedy;
+pub mod hashdbg;
 pub mod hist;
 pub mod hmmv2;
 pub mod inspect;

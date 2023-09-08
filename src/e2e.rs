@@ -8,14 +8,14 @@ use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
 };
-use crate::dbg::{Dbg, HashDbg, SimpleDbg};
+use crate::dbg::{Dbg, SimpleDbg};
 use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
+use crate::hashdbg::HashDbg;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
 use crate::kmer::VecKmer;
 use crate::utils::spaces;
-use bio::io;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +76,7 @@ impl Dataset {
     /// estimate coverage of reads by (total_bases_in_reads) / (true_genome_size)
     ///
     pub fn coverage(&self) -> f64 {
-        self.reads().total_bases() as f64 / self.genome_size() as f64
+        self.reads().coverage(self.genome_size())
     }
     ///
     /// Average of read lengths
@@ -138,14 +138,7 @@ impl Dataset {
     /// Dump genome as fasta
     ///
     pub fn to_genome_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let file = std::fs::File::create(path).unwrap();
-        let mut writer = io::fasta::Writer::new(file);
-
-        for (i, g) in self.genome().into_iter().enumerate() {
-            writer.write(&format!("g{}", i), Some(&g.style().to_string()), g.seq())?;
-        }
-
-        Ok(())
+        self.genome().to_fasta(path)
     }
     ///
     /// Dump reads as fasta.
