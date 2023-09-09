@@ -91,7 +91,7 @@ enum Commands {
         #[clap(short = 'p', default_value_t = 0.001)]
         p_error: f64,
         /// Error rate of reads while inference
-        #[clap(short = 'p', default_value_t = 0.00001)]
+        #[clap(short = 'e', default_value_t = 0.00001)]
         p_infer: f64,
         /// Maximum number of iteration of posterior sampling of single k
         #[clap(short = 'I', default_value = "50")]
