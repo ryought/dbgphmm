@@ -16,6 +16,7 @@ use crate::hmmv2::freq::NodeFreqs;
 use itertools::Itertools;
 use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
 use petgraph_algos::common::is_edge_simple;
+use rayon::prelude::*;
 use rustflow::min_flow::{
     base::{FlowEdgeBase, FlowGraph},
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
@@ -246,11 +247,16 @@ impl MultiDbg {
         k_total: usize,
         sort_by_freq: bool,
     ) -> Vec<(CopyNums, UpdateInfo)> {
-        let mut ret = vec![];
+        let zero_edges: Vec<EdgeIndex> = self
+            .graph_compact()
+            .edge_indices()
+            .filter(|&edge| self.copy_num_of_edge_in_compact(edge) == 0)
+            .collect();
 
-        for (edge, _, _, _) in self.edges_compact() {
-            if self.copy_num_of_edge_in_compact(edge) == 0 {
-                let cycles = self.to_rescue_neighbors_for_edge_merged(
+        zero_edges
+            .into_par_iter()
+            .flat_map(|edge| {
+                self.to_rescue_neighbors_for_edge_merged(
                     edge,
                     node_freqs,
                     coverage,
@@ -259,12 +265,9 @@ impl MultiDbg {
                     weighted_by_copy_num,
                     k_total,
                     sort_by_freq,
-                );
-                ret.extend_from_slice(&cycles);
-            }
-        }
-
-        ret
+                )
+            })
+            .collect()
     }
     /// Rescue neighbors
     ///
