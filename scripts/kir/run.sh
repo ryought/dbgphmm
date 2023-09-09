@@ -25,4 +25,9 @@ export OMP_NUM_THREADS=1
 
 # (2) kir/hifi
 # ./target/release/dbgphmm draft -k 40 -G 360000 -m 2 -M 10 -p 0.001 -P 2 -d kir/hifi/trimed.dbg -g kir/hifi/trimed.gfa kir/hifi/trimed.fa
-./target/release/dbgphmm infer -K 20000 -G 360000 -S 10000 -p 0.001 -e 0.00001 -d kir/hifi/trimed.dbg -o kir/hifi/v0 kir/hifi/trimed.fa
+# full
+# ./target/release/dbgphmm infer -K 20000 -G 360000 -S 10000 -p 0.001 -e 0.00001 -d kir/hifi/trimed.dbg -o kir/hifi/v0 kir/hifi/trimed.fa
+# 10x
+./target/release/dbgphmm infer -K 20000 -G 360000 -S 10000 -p 0.001 -e 0.00001 -d kir/hifi/10x/v0.dbg -o kir/hifi/10x/v0 kir/hifi/10x.fa
+# 20x
+./target/release/dbgphmm infer -K 20000 -G 360000 -S 10000 -p 0.001 -e 0.00001 -d kir/hifi/20x/v0.dbg -o kir/hifi/20x/v0 kir/hifi/20x.fa
