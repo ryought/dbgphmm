@@ -86,3 +86,7 @@ done
 
 python scripts/kir/sam_to_fa.py merged.fa.sam merged.fa --start 54705634 --end 54885634 > trimed.fa
 mapping_with_igv trimed.fa
+
+# subsample
+seqkit sample -p 0.5 -s 0 trimed.fa > 20x.fa
+seqkit sample -p 0.25 -s 1 trimed.fa > 10x.fa
