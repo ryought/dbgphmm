@@ -11,15 +11,19 @@ use std::io::Write;
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
 struct Opts {
+    // dbg
     #[clap(short)]
     k: usize,
+    // read
     #[clap(short = 'C')]
     coverage: usize,
     #[clap(short = 'L')]
     read_length: usize,
     #[clap(short = 'p')]
     p_error: f64,
-    // genome related
+    #[clap(long, default_value = "0")]
+    read_seed: u64,
+    // genome
     #[clap(short = 'U')]
     unit_size: usize,
     #[clap(short = 'N')]
@@ -32,11 +36,13 @@ struct Opts {
     hap_init_divergence: f64,
     #[clap(short = 'P')]
     n_haplotypes: usize,
+    #[clap(long, default_value = "0")]
+    genome_seed: u64,
+    #[clap(long)]
+    genome_fasta: Option<std::path::PathBuf>,
     // output
     #[clap(long)]
     output_prefix: std::path::PathBuf,
-    #[clap(long)]
-    genome_fasta: Option<std::path::PathBuf>,
 }
 
 // -U 10000 -N 10 -E 200 -P 2 -H 0.01
@@ -58,20 +64,20 @@ fn main() {
         genome::tandem_repeat_polyploid_with_unique_homo_ends(
             opts.unit_size,
             opts.n_unit,
-            0,
+            opts.genome_seed,
             opts.hap_init_divergence,
-            1,
+            opts.genome_seed.wrapping_add(1),
             opts.end_length,
             opts.n_haplotypes,
             opts.hap_divergence,
-            0,
+            opts.genome_seed,
         )
     };
     let param = PHMMParams::uniform(opts.p_error);
     let (dataset, t) = timer(|| {
         generate_dataset(
             genome,
-            0,
+            opts.read_seed,
             opts.coverage,
             opts.read_length,
             ReadType::FragmentWithRevComp,
