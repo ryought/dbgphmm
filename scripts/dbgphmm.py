@@ -17,6 +17,7 @@ Parsers for dbgphmm output files
 """
 import csv
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 from typing import List, Tuple, Dict
 import argparse
 from pathlib import Path
@@ -414,7 +415,24 @@ def plt_common_settings(plt, inspects, prob=False):
     ks = [inspect.k for inspect in inspects]
     plt.xscale('log')
     plt.xlabel('k')
-    plt.xticks(ks, ks, rotation=90, fontsize=5)
+
+    # print(ks, ks[0], ks[1:-1], ks[-1])
+    n = max(len(ks) // 50, 1)
+    ks = [ks[0]] + ks[0:-1:n] + [ks[-1]]
+    plt.xticks(ks, ks, rotation=90, fontsize=3, minor=True)
+    # plt.axes().xaxis.set_minor_locator(ml)
+    # plt.gca().xaxis.set_major_locator(ticker.LinearLocator(6))
+
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(ticker.LogLocator(base=10.0))
+    # ax.xaxis.set_major_formatter(ticker.NullFormatter())
+
+    # ax.xaxis.set_minor_locator(ticker.LogLocator(base=10.0))
+    # ax.xaxis.set_minor_formatter(lambda x, pos: '{:.0f}'.format(x))
+    # ax.xaxis.set_minor_locator(ticker.MaxNLocator(40))
+    # ax.xaxis.set_minor_locator(ticker.LogLocator(base=10.0))
+    # ax.xaxis.set_minor_formatter(lambda x, pos: '{:.0f}'.format(x))
+
     plt.grid(axis='both')
     if prob:
         plt.ylim(0-0.1, 1+0.1)
