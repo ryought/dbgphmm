@@ -14,6 +14,12 @@ struct Opts {
     // dbg
     #[clap(short)]
     k: usize,
+    /// Minimum occurrence of k-mers in read
+    #[clap(short = 'm', default_value_t = 2)]
+    min_count: usize,
+    /// Minimum occurrence of deadend k-mers in read
+    #[clap(short = 'M')]
+    min_deadend_count: Option<usize>,
     // read
     #[clap(short = 'C')]
     coverage: usize,
@@ -93,7 +99,17 @@ fn main() {
     dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
     dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
 
-    let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(opts.k, &dataset));
+    let min_deadend_count = opts
+        .min_deadend_count
+        .unwrap_or((dataset.coverage() / 4.0) as usize);
+    let (mut mdbg, t) = timer(|| {
+        MultiDbg::create_draft_from_dataset_with(
+            opts.k,
+            &dataset,
+            opts.min_count,
+            min_deadend_count,
+        )
+    });
     writeln!(&mut log_file, "# draft dbg created in {}ms", t);
     mdbg.to_gfa_file(opts.output_prefix.with_extension("gfa"));
     mdbg.to_dbg_file(opts.output_prefix.with_extension("dbg"));

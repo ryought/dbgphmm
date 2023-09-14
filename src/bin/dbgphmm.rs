@@ -1,8 +1,6 @@
 use clap::{Parser, Subcommand};
 use dbgphmm::{
-    common::collection::{Reads, Seq},
-    dbg::draft::EndNodeInference,
-    distribution::kmer_coverage,
+    common::collection::Reads,
     hashdbg::HashDbg,
     hmmv2::params::PHMMParams,
     kmer::VecKmer,

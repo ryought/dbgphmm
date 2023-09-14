@@ -424,15 +424,26 @@ impl MultiDbg {
         d
     }
     /// Create read-draft MultiDbg from dataset V2
+    /// with `min_count=2` and `min_deadend_count=coverage/4`
     pub fn create_draft_from_dataset(k: usize, dataset: &Dataset) -> Self {
+        Self::create_draft_from_dataset_with(k, dataset, 2, (dataset.coverage() / 4.0) as usize)
+    }
+    /// Create read-draft MultiDbg from dataset V2
+    /// with specifying `min_count` and `min_deadend_count`
+    pub fn create_draft_from_dataset_with(
+        k: usize,
+        dataset: &Dataset,
+        min_count: usize,
+        min_deadend_count: usize,
+    ) -> Self {
         Self::create_draft_from_reads_v2(
             k,
             dataset.reads(),
             dataset.params().p_error(),
             dataset.genome_size(),
             Some(dataset.genome().n_linear_haplotypes()),
-            2,
-            (dataset.coverage() / 4.0) as usize,
+            min_count,
+            min_deadend_count,
         )
     }
 }
