@@ -114,14 +114,15 @@ fn main() {
     mdbg.to_gfa_file(opts.output_prefix.with_extension("gfa"));
     mdbg.to_dbg_file(opts.output_prefix.with_extension("dbg"));
 
-    match mdbg.paths_from_styled_seqs(dataset.genome()) {
-        Ok(paths_true) => {
-            mdbg.to_paths_file(opts.output_prefix.with_extension("paths"), &paths_true);
-        }
-        Err(notfound) => {
+    let paths_true = mdbg
+        .paths_from_styled_seqs(dataset.genome())
+        .unwrap_or_else(|notfound| {
             writeln!(&mut log_file, "# kmer notfound {}", notfound);
-        }
-    };
+            panic!("some true kmers notfound {}", notfound);
+        });
+
+    mdbg.to_paths_file(opts.output_prefix.with_extension("paths"), &paths_true);
+    println!("DBG has all true kmers");
 
     writeln!(&mut log_file, "# finished_at={}", chrono::Local::now());
 }
