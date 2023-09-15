@@ -597,9 +597,15 @@ impl MultiDbg {
     ///
     ///
     pub fn from_map_file_raw<P: AsRef<std::path::Path>>(&self, path: P) -> Mappings {
-        let file = std::fs::File::open(path).unwrap();
+        let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
-        self.from_map_reader_raw(reader)
+
+        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+            let decoder = GzDecoder::new(reader);
+            self.from_map_reader_raw(std::io::BufReader::new(decoder))
+        } else {
+            self.from_map_reader_raw(reader)
+        }
     }
 }
 
