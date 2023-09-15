@@ -329,9 +329,13 @@ impl<K: KmerLike> HashDbg<K> {
         })
     }
     /// Remove kmers whose count is less than `min_copy_num`
-    pub fn remove_rare_kmers(&mut self, min_copy_num: CopyNum) {
+    /// Returns the number of removed k-mers
+    pub fn remove_rare_kmers(&mut self, min_copy_num: CopyNum) -> usize {
+        let n0 = self.n();
         self.kmers
-            .retain(|_kmer, copy_num| *copy_num >= min_copy_num)
+            .retain(|_kmer, copy_num| *copy_num >= min_copy_num);
+        let n1 = self.n();
+        n0 - n1
     }
     /// k-mer (edge) is deadend (= edge that has no child/parent edges) or not?
     pub fn is_deadend(&self, kmer: &K) -> bool {

@@ -360,8 +360,8 @@ impl MultiDbg {
         let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, reads);
         eprintln!("[draftv2] raw degree_stats={:?}", hd.degree_stats());
         eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
-        hd.remove_rare_kmers(min_count);
-        eprintln!("[draftv2] removed rare k-mers");
+        let n_removed = hd.remove_rare_kmers(min_count);
+        eprintln!("[draftv2] removed {} rare k-mers", n_removed);
         let n_removed_deadends = hd.remove_deadends(min_deadend_count);
         eprintln!(
             "[draftv2] removed {} rare deadend k-mers",
