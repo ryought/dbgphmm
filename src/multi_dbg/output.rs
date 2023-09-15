@@ -131,13 +131,20 @@ impl MultiDbg {
         self.to_dbg_writer(&mut writer).unwrap();
         String::from_utf8(writer).unwrap()
     }
+    fn is_gzipped_dbg_file<P: AsRef<std::path::Path>>(path: P) -> bool {
+        path.as_ref()
+            .extension()
+            .is_some_and(|ext| ext == "gz" || ext == "dbz")
+    }
     ///
     /// create DBG file with `to_dbg_writer`
+    ///
+    /// if extension is ended with .dbg.gz or .dbz, then generates gzip compressed output.
     ///
     pub fn to_dbg_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path.as_ref()).unwrap();
 
-        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+        if Self::is_gzipped_dbg_file(path.as_ref()) {
             let mut writer = GzEncoder::new(file, Compression::default());
             self.to_dbg_writer(&mut writer)?;
             writer.try_finish()
@@ -340,7 +347,7 @@ impl MultiDbg {
         let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
 
-        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+        if Self::is_gzipped_dbg_file(path.as_ref()) {
             let decoder = GzDecoder::new(reader);
             Self::from_dbg_reader(std::io::BufReader::new(decoder))
         } else {
@@ -449,7 +456,7 @@ impl MultiDbg {
     ///
     /// create MAP file with [`MultiDbg::to_map_writer`]
     ///
-    /// if extension is ended with .gz, then generates gzip compressed output.
+    /// if extension is ended with .map.gz or .mpz, then generates gzip compressed output.
     ///
     pub fn to_map_file<F: AsRef<std::path::Path>, S: Seq>(
         &self,
@@ -459,14 +466,18 @@ impl MultiDbg {
     ) -> std::io::Result<()> {
         let mut file = std::fs::File::create(filename.as_ref()).unwrap();
 
-        if filename.as_ref().extension().is_some_and(|ext| ext == "gz") {
-            println!("using gz");
+        if Self::is_gzipped_map_file(filename.as_ref()) {
             let mut writer = GzEncoder::new(file, Compression::default());
             self.to_map_writer(&mut writer, reads, mappings)?;
             writer.try_finish()
         } else {
             self.to_map_writer(&mut file, reads, mappings)
         }
+    }
+    fn is_gzipped_map_file<P: AsRef<std::path::Path>>(path: P) -> bool {
+        path.as_ref()
+            .extension()
+            .is_some_and(|ext| ext == "gz" || ext == "mpz")
     }
     ///
     /// create MAP string with [`MultiDbg::to_map_writer`]
@@ -579,6 +590,8 @@ impl MultiDbg {
     ///
     /// parse MAP file with [`MultiDbg::from_map_reader`]
     ///
+    /// if extension is either `.map.gz` or `.mpz` the output will be gzip compressed.
+    ///
     pub fn from_map_file<P: AsRef<std::path::Path>, S: Seq>(
         &self,
         path: P,
@@ -587,7 +600,7 @@ impl MultiDbg {
         let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
 
-        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+        if Self::is_gzipped_map_file(path.as_ref()) {
             let decoder = GzDecoder::new(reader);
             self.from_map_reader(std::io::BufReader::new(decoder), reads)
         } else {
@@ -600,7 +613,7 @@ impl MultiDbg {
         let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
 
-        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+        if Self::is_gzipped_map_file(path.as_ref()) {
             let decoder = GzDecoder::new(reader);
             self.from_map_reader_raw(std::io::BufReader::new(decoder))
         } else {
