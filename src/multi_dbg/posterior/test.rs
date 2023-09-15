@@ -287,7 +287,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
                 copy_nums_true.as_ref(),
             );
             dbg.to_map_file(
-                output.with_extension(format!("k{}.map", dbg.k())),
+                output.with_extension(format!("k{}.map.gz", dbg.k())),
                 reads,
                 mappings,
             );
