@@ -449,14 +449,24 @@ impl MultiDbg {
     ///
     /// create MAP file with [`MultiDbg::to_map_writer`]
     ///
+    /// if extension is ended with .gz, then generates gzip compressed output.
+    ///
     pub fn to_map_file<F: AsRef<std::path::Path>, S: Seq>(
         &self,
         filename: F,
         reads: &ReadCollection<S>,
         mappings: &Mappings,
     ) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(filename).unwrap();
-        self.to_map_writer(&mut file, reads, mappings)
+        let mut file = std::fs::File::create(filename.as_ref()).unwrap();
+
+        if filename.as_ref().extension().is_some_and(|ext| ext == "gz") {
+            println!("using gz");
+            let mut writer = GzEncoder::new(file, Compression::default());
+            self.to_map_writer(&mut writer, reads, mappings)?;
+            writer.try_finish()
+        } else {
+            self.to_map_writer(&mut file, reads, mappings)
+        }
     }
     ///
     /// create MAP string with [`MultiDbg::to_map_writer`]
@@ -574,9 +584,15 @@ impl MultiDbg {
         path: P,
         reads: &ReadCollection<S>,
     ) -> Mappings {
-        let file = std::fs::File::open(path).unwrap();
+        let file = std::fs::File::open(path.as_ref()).unwrap();
         let reader = std::io::BufReader::new(file);
-        self.from_map_reader(reader, reads)
+
+        if path.as_ref().extension().is_some_and(|ext| ext == "gz") {
+            let decoder = GzDecoder::new(reader);
+            self.from_map_reader(std::io::BufReader::new(decoder), reads)
+        } else {
+            self.from_map_reader(reader, reads)
+        }
     }
     ///
     ///
@@ -790,21 +806,27 @@ mod tests {
     use super::super::toy;
     use super::*;
     use crate::hmmv2::params::PHMMParams;
+    use tempfile::tempdir;
 
     fn assert_dbg_dumpload_is_correct(dbg: MultiDbg) {
         dbg.show_graph_with_kmer();
 
+        // string
         let s = dbg.to_dbg_string();
         println!("{}", s);
-
-        dbg.to_dbg_file("hoge.dbg");
-
         let dbg_1 = MultiDbg::from_dbg_str(&s);
         dbg_1.show_graph_with_kmer();
         let s_1 = dbg.to_dbg_string();
-
         assert!(dbg.is_equivalent(&dbg_1));
-        assert!(s == s_1);
+        assert_eq!(dbg.to_kmer_copy_num_map(), dbg_1.to_kmer_copy_num_map());
+        assert_eq!(s, s_1);
+
+        // file
+        let dir = tempdir().unwrap();
+        let filename = dir.path().join("hoge.dbg");
+        dbg.to_dbg_file(&filename).unwrap();
+        let dbg_1 = MultiDbg::from_dbg_file(&filename);
+        assert_eq!(dbg.to_kmer_copy_num_map(), dbg_1.to_kmer_copy_num_map());
     }
     #[test]
     fn dumpload() {
@@ -825,13 +847,16 @@ mod tests {
     }
     #[test]
     fn dbg_gz_compressed() {
+        let dir = tempdir().unwrap();
+        let filename = dir.path().join("repeat.dbg.gz");
+
         let dbg_a = toy::repeat();
         dbg_a.show_graph_with_kmer();
-        dbg_a.to_dbg_file("repeat.gfa.gz");
+        dbg_a.to_dbg_file(&filename).unwrap();
 
-        let dbg_b = MultiDbg::from_dbg_file("repeat.gfa.gz");
+        let dbg_b = MultiDbg::from_dbg_file(&filename);
         dbg_b.show_graph_with_kmer();
-        // assert!(dbg_b.is_equal(&dbg_a));
+        assert_eq!(dbg_a.to_kmer_copy_num_map(), dbg_b.to_kmer_copy_num_map());
     }
     #[test]
     fn map() {
@@ -842,6 +867,8 @@ mod tests {
         };
         let param = PHMMParams::default();
         let mappings = dbg.generate_mappings(param, &reads, None);
+
+        // string
         let s = dbg.to_map_string(&reads, &mappings);
         println!("{}", s);
 
@@ -852,6 +879,22 @@ mod tests {
             for j in 0..read.len() {
                 assert_eq!(mappings[i].nodes(j), mappings2[i].nodes(j));
             }
+        }
+
+        // file
+        let dir = tempdir().unwrap();
+        {
+            let filename = dir.path().join("test.map");
+            dbg.to_map_file(&filename, &reads, &mappings).unwrap();
+            let mappings2 = dbg.from_map_file(&filename, &reads);
+            assert_eq!(mappings, mappings2);
+        }
+        // gzipped
+        {
+            let filename = dir.path().join("test.map.gz");
+            dbg.to_map_file(&filename, &reads, &mappings).unwrap();
+            let mappings2 = dbg.from_map_file(&filename, &reads);
+            assert_eq!(mappings, mappings2);
         }
     }
 }
