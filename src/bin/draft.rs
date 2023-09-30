@@ -2,7 +2,9 @@ use clap::Parser;
 use dbgphmm::{
     e2e::{generate_dataset, ReadType},
     genome,
+    hashdbg::HashDbg,
     hmmv2::params::PHMMParams,
+    kmer::VecKmer,
     multi_dbg::MultiDbg,
     utils::{check_memory_usage, timer},
 };
@@ -52,6 +54,8 @@ struct Opts {
     /// Generate dataset (genome and reads) only
     #[clap(long)]
     dataset_only: bool,
+    #[clap(long)]
+    dump_raw_dbg: bool,
 }
 
 // -U 10000 -N 10 -E 200 -P 2 -H 0.01
@@ -101,6 +105,15 @@ fn main() {
     dataset.to_json_file(opts.output_prefix.with_extension("json"));
     dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
     dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
+
+    if opts.dump_raw_dbg {
+        let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(opts.k, dataset.reads());
+        hd.inspect_with_genome(dataset.genome());
+        hd.to_gfa_file_with_genome(
+            opts.output_prefix.with_extension("rawdbg.gfa"),
+            dataset.genome(),
+        );
+    }
 
     if opts.dataset_only {
         return;

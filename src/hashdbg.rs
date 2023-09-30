@@ -1,7 +1,7 @@
 //!
 //! HashDbg
 //!
-use crate::common::{CopyNum, Reads, Seq, StyledSequence};
+use crate::common::{CopyNum, Genome, Seq, StyledSequence};
 use crate::graph::{
     compact::compact_simple_paths_for_targeted_nodes,
     utils::{degree_stats, split_node},
@@ -577,29 +577,70 @@ impl<K: KmerLike> HashDbg<K> {
 /// Output
 ///
 impl<K: KmerLike> HashDbg<K> {
+    pub fn inspect_with_genome(&self, genome: &Genome) {
+        let kmers = genome.to_kmers::<K>(self.k());
+
+        println!("# kmer\thap\tpos\tcopy_num\tcount");
+
+        for (i, g) in genome.into_iter().enumerate() {
+            for (j, kmer) in styled_sequence_to_kmers::<K>(g, self.k()).enumerate() {
+                let count = self.get(&kmer);
+                let copy_num = kmers.get(&kmer).copied().unwrap_or(0);
+                if count <= 1 && copy_num > 0 && !kmer.has_null() {
+                    println!("{}\t{}:{}\t{}\t{}", kmer, i, j, copy_num, count);
+                }
+            }
+        }
+    }
     ///
     ///
-    pub fn to_gfa_writer<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+    pub fn to_gfa_writer<W: std::io::Write>(
+        &self,
+        mut writer: W,
+        genome: Option<&Genome>,
+    ) -> std::io::Result<()> {
         let graph = self.to_graph(
             |km1mer| km1mer.clone(),
             |kmer| (kmer.clone(), self.get(kmer)),
         );
         let compact = compact_simple_paths_for_targeted_nodes(&graph, |km1mer| !km1mer.is_null());
 
+        // convert genome
+        let genome_count = genome.map(|genome| genome.to_kmers::<K>(self.k()));
+
         for edge in compact.edge_indices() {
             let weight = &compact[edge];
             let label = weight.iter().map(|(_, (_, count))| count).join(",");
             let count_sum: usize = weight.iter().map(|(_, (_, count))| count).sum();
             let count_ave = count_sum as f64 / weight.len() as f64;
+            let genome_label = weight
+                .iter()
+                .map(|(_, (kmer, _))| {
+                    genome_count
+                        .as_ref()
+                        .and_then(|g| g.get(kmer).copied())
+                        .unwrap_or(0)
+                })
+                .join(",");
             // let seq = &self.seq_compact(edge);
+            let is_missing = weight.iter().any(|(_, (kmer, count))| {
+                let copy_num = genome_count
+                    .as_ref()
+                    .and_then(|g| g.get(kmer).copied())
+                    .unwrap_or(0);
+                *count <= 1 && copy_num > 0
+            });
+            let color = if is_missing { "#ff0000" } else { "#000000" };
             writeln!(
                 writer,
-                "S\t{}\t*\tDP:f:{}\tLN:i:{}\tLB:Z:{}",
+                "S\t{}\t*\tDP:f:{}\tLN:i:{}\tLB:Z:{} {}\tCL:Z:{}",
                 edge.index(),
                 // sequence_to_string(&seq),
                 count_ave,
                 weight.len(),
                 label,
+                genome_label,
+                color,
             )?
         }
         for node in compact.node_indices() {
@@ -624,7 +665,17 @@ impl<K: KmerLike> HashDbg<K> {
     ///
     pub fn to_gfa_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path).unwrap();
-        self.to_gfa_writer(&mut file)
+        self.to_gfa_writer(&mut file, None)
+    }
+    ///
+    ///
+    pub fn to_gfa_file_with_genome<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        genome: &Genome,
+    ) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+        self.to_gfa_writer(&mut file, Some(genome))
     }
 }
 

@@ -7,9 +7,12 @@
 //! * `tandem_repeat_diploid`
 //!
 use crate::common::{collection::sanitize_bases, SeqStyle, StyledSequence};
+use crate::kmer::{kmer::styled_sequence_to_kmers, KmerLike};
 use crate::random_seq::{
     generate, join, random_mutation, random_mutation_with_rng, tandem_repeat, MutationProfile,
 };
+
+use fnv::FnvHashMap as HashMap;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use serde::{Deserialize, Serialize};
@@ -92,6 +95,16 @@ impl Genome {
             })
             .collect();
         Ok(Genome(haps))
+    }
+    /// `Genome` -> k-mer occurrence table `HashMap<VecKmer, CopyNum>`
+    pub fn to_kmers<K: KmerLike>(&self, k: usize) -> HashMap<K, usize> {
+        let mut hm = HashMap::default();
+        for g in self {
+            for kmer in styled_sequence_to_kmers(g, k) {
+                *hm.entry(kmer).or_insert(0) += 1;
+            }
+        }
+        hm
     }
 }
 
