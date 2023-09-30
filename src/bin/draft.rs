@@ -49,6 +49,9 @@ struct Opts {
     // output
     #[clap(long)]
     output_prefix: std::path::PathBuf,
+    /// Generate dataset (genome and reads) only
+    #[clap(long)]
+    dataset_only: bool,
 }
 
 // -U 10000 -N 10 -E 200 -P 2 -H 0.01
@@ -98,6 +101,10 @@ fn main() {
     dataset.to_json_file(opts.output_prefix.with_extension("json"));
     dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
     dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
+
+    if opts.dataset_only {
+        return;
+    }
 
     let min_deadend_count = opts
         .min_deadend_count
