@@ -650,9 +650,9 @@ impl PositionedSequence {
         run_length_encoding(&self.alignments())
             .into_iter()
             .map(|(aln, count)| match aln {
-                Aln::M => format!("M{}", count),
-                Aln::I => format!("I{}", count),
-                Aln::D => format!("D{}", count),
+                Aln::M => format!("{}M", count),
+                Aln::I => format!("{}I", count),
+                Aln::D => format!("{}D", count),
             })
             .join("")
     }
@@ -662,6 +662,7 @@ impl PositionedSequence {
     pub fn to_sam_string(&self, name: &str) -> String {
         let node = self.origin_node();
         let pos = self.origin_pos();
+
         format!(
             "{}\t0\tg{}\t{}\t255\t{}\t*\t0\t0\t{}\t*",
             name,
