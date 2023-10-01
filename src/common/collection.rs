@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{
     serde_as, DeserializeAs, DeserializeFromStr, DisplayFromStr, SerializeAs, SerializeDisplay,
 };
+use std::io::Write;
 use std::str::FromStr;
 
 #[cfg(feature = "python")]
@@ -303,6 +304,18 @@ impl PositionedReads {
             })
             .collect();
         PositionedReads::from(reads)
+    }
+    ///
+    /// Dump SAM file of reads
+    ///
+    pub fn to_sam<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+
+        for (i, r) in self.iter().enumerate() {
+            writeln!(file, "{}", r.to_sam_string(&format!("r{}", i)))?;
+        }
+
+        Ok(())
     }
 }
 

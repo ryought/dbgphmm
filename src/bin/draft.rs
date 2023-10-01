@@ -105,6 +105,9 @@ fn main() {
     dataset.to_json_file(opts.output_prefix.with_extension("json"));
     dataset.to_genome_fasta(opts.output_prefix.with_extension("genome.fa"));
     dataset.to_reads_fasta(opts.output_prefix.with_extension("reads.fa"));
+    dataset
+        .reads()
+        .to_sam(opts.output_prefix.with_extension("reads.sam"));
 
     if opts.dump_raw_dbg {
         let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(opts.k, dataset.reads());
