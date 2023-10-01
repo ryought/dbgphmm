@@ -930,11 +930,11 @@ mod tests {
                 Aln::M, // x[9]
             ]
         );
-        assert_eq!(s1.cigar(), "M2D1M3D2M1I1M1");
+        assert_eq!(s1.cigar(), "2M1D3M2D1M1I1M");
         println!("{}", s1.to_sam_string("r1"));
         assert_eq!(
             s1.to_sam_string("r1"),
-            "r1\t0\tg0\t1\t255\tM2D1M3D2M1I1M1\t*\t0\t0\tATCGTTCG\t*"
+            "r1\t0\tg0\t1\t255\t2M1D3M2D1M1I1M\t*\t0\t0\tATCGTTCG\t*"
         );
 
         let s2 = PositionedSequence::new(
@@ -972,11 +972,11 @@ mod tests {
             ]
         );
         println!("{:?}", s2.alignments());
-        assert_eq!(s2.cigar(), "I3M1I1D4M1D1M1I1M1");
+        assert_eq!(s2.cigar(), "3I1M1I4D1M1D1M1I1M");
         println!("{}", s2.to_sam_string("r2"));
         assert_eq!(
             s2.to_sam_string("r2"),
-            "r2\t0\tg1\t11\t255\tI3M1I1D4M1D1M1I1M1\t*\t0\t0\tGTCGTTCGG\t*"
+            "r2\t0\tg1\t11\t255\t3I1M1I4D1M1D1M1I1M\t*\t0\t0\tGTCGTTCGG\t*"
         );
 
         // let aligned = s1.to_aligned_str();
