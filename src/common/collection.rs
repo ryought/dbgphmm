@@ -305,18 +305,6 @@ impl PositionedReads {
             .collect();
         PositionedReads::from(reads)
     }
-    ///
-    /// Dump SAM file of reads
-    ///
-    pub fn to_sam<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(path).unwrap();
-
-        for (i, r) in self.iter().enumerate() {
-            writeln!(file, "{}", r.to_sam_string(&format!("r{}", i)))?;
-        }
-
-        Ok(())
-    }
 }
 
 impl<'a, S: Seq> IntoIterator for &'a ReadCollection<S> {
@@ -671,7 +659,7 @@ impl PositionedSequence {
     /// SAM format
     ///
     /// https://samtools.github.io/hts-specs/SAMv1.pdf
-    fn to_sam_string(&self, name: &str) -> String {
+    pub fn to_sam_string(&self, name: &str) -> String {
         let node = self.origin_node();
         let pos = self.origin_pos();
         format!(
