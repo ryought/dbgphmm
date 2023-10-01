@@ -2,3 +2,6 @@ maturin==0.13.6
 networkx==2
 numpy==1.20
 tomli==2.0.1
+pysam
+biopython
+pafpy
