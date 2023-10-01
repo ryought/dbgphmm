@@ -18,6 +18,7 @@ use crate::kmer::VecKmer;
 use crate::utils::spaces;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 
 ///
 /// Read types
@@ -146,6 +147,23 @@ impl Dataset {
     ///
     pub fn to_reads_fasta<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         self.reads().to_fasta(path)
+    }
+    ///
+    /// Dump SAM file of reads
+    ///
+    pub fn to_reads_sam<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path).unwrap();
+
+        // header
+        for (i, g) in self.genome().into_iter().enumerate() {
+            writeln!(file, "@SQ\tSN:g{}\tLN:{}", i, g.len())?;
+        }
+
+        for (i, r) in self.reads().iter().enumerate() {
+            writeln!(file, "{}", r.to_sam_string(&format!("r{}", i)))?;
+        }
+
+        Ok(())
     }
 }
 
