@@ -573,6 +573,103 @@ impl PositionedSequence {
             is_revcomp: !self.is_revcomp,
         }
     }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+enum Aln {
+    M,
+    I,
+    D,
+}
+
+/// Run Length Encoding
+/// [A,A,A,B,B,C,B,B] -> [(A,3),(B,2),(C,1),(B,2)]
+fn run_length_encoding<T: PartialEq + Copy>(xs: &[T]) -> Vec<(T, usize)> {
+    let mut ret = Vec::new();
+
+    // if xs.len() == 0
+    if xs.is_empty() {
+        return ret;
+    }
+
+    // assuming xs.len() >= 1
+    let mut x0 = xs[0];
+    let mut n = 1;
+    for &x in &xs[1..] {
+        if x == x0 {
+            // continue
+            n += 1;
+        } else {
+            // different symbol
+            ret.push((x0, n));
+            x0 = x;
+            n = 1;
+        }
+    }
+    ret.push((x0, n));
+    ret
+}
+
+///
+/// Output-related methods of PositionedSequence
+///
+impl PositionedSequence {
+    /// PAF format
+    ///
+    /// https://lh3.github.io/minimap2/minimap2.html#10
+    pub fn to_paf_string(&self) -> String {
+        unimplemented!();
+    }
+    /// create `Vec<Aln> = [M/I/D]`
+    fn alignments(&self) -> Vec<Aln> {
+        let mut pos = None;
+        let mut ret = Vec::new();
+
+        for &origin in self.origins.iter() {
+            if origin.is_match() {
+                let x = origin.pos().unwrap();
+                if let Some(y) = pos {
+                    let n_del = x - y - 1;
+                    for _ in 0..n_del {
+                        ret.push(Aln::D);
+                    }
+                }
+                ret.push(Aln::M);
+                pos = Some(x);
+            } else {
+                ret.push(Aln::I);
+            }
+        }
+        ret
+    }
+    /// generate cigar
+    /// that is run-length encoding of `self.alignments()`
+    fn cigar(&self) -> String {
+        assert!(!self.is_revcomp);
+        run_length_encoding(&self.alignments())
+            .into_iter()
+            .map(|(aln, count)| match aln {
+                Aln::M => format!("M{}", count),
+                Aln::I => format!("I{}", count),
+                Aln::D => format!("D{}", count),
+            })
+            .join("")
+    }
+    /// SAM format
+    ///
+    /// https://samtools.github.io/hts-specs/SAMv1.pdf
+    fn to_sam_string(&self, name: &str) -> String {
+        let node = self.origin_node();
+        let pos = self.origin_pos();
+        format!(
+            "{}\t0\tg{}\t{}\t255\t{}\t*\t0\t0\t{}\t*",
+            name,
+            node.index(),
+            pos + 1,
+            self.cigar(),
+            self.seq().to_str(),
+        )
+    }
     ///
     /// To aligned two-row string representation
     ///
@@ -799,8 +896,7 @@ mod tests {
         );
     }
     #[test]
-    #[should_panic] // not implemented yet
-    fn positioned_seq_aligned_str() {
+    fn positioned_seq_alignment() {
         let s1 = PositionedSequence::new(
             b"ATCGTTCG".to_vec(),
             vec![
@@ -809,14 +905,80 @@ mod tests {
                 GenomeGraphPos::new_match(ni(0), 3),
                 GenomeGraphPos::new_match(ni(0), 4),
                 GenomeGraphPos::new_match(ni(0), 5),
-                GenomeGraphPos::new_match(ni(0), 5),
-                GenomeGraphPos::new_match(ni(0), 6),
-                GenomeGraphPos::new_match(ni(0), 7),
+                GenomeGraphPos::new_match(ni(0), 8),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(0), 9),
             ],
             false,
         );
-        let aligned = s1.to_aligned_str();
-        println!("{}\n{}", aligned[0], aligned[1]);
+        println!("{:?}", s1.alignments());
+        assert_eq!(
+            s1.alignments(),
+            vec![
+                Aln::M, // x[0]
+                Aln::M, // x[1]
+                Aln::D, // x[2]
+                Aln::M, // x[3]
+                Aln::M, // x[4]
+                Aln::M, // x[5]
+                Aln::D, // x[6]
+                Aln::D, // x[7]
+                Aln::M, // x[8]
+                Aln::I,
+                Aln::M, // x[9]
+            ]
+        );
+        assert_eq!(s1.cigar(), "M2D1M3D2M1I1M1");
+        println!("{}", s1.to_sam_string("r1"));
+        assert_eq!(
+            s1.to_sam_string("r1"),
+            "r1\t0\tg0\t1\t255\tM2D1M3D2M1I1M1\t*\t0\t0\tATCGTTCG\t*"
+        );
+
+        let s2 = PositionedSequence::new(
+            b"GTCGTTCGG".to_vec(),
+            vec![
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(1), 10),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(1), 15),
+                GenomeGraphPos::new_match(ni(1), 17),
+                GenomeGraphPos::new_ins(),
+                GenomeGraphPos::new_match(ni(1), 18),
+            ],
+            false,
+        );
+        assert_eq!(
+            s2.alignments(),
+            vec![
+                Aln::I,
+                Aln::I,
+                Aln::I,
+                Aln::M, // x[10]
+                Aln::I,
+                Aln::D, // x[11]
+                Aln::D, // x[12]
+                Aln::D, // x[13]
+                Aln::D, // x[14]
+                Aln::M, // x[15]
+                Aln::D, // x[16]
+                Aln::M, // x[17]
+                Aln::I,
+                Aln::M, // x[18]
+            ]
+        );
+        println!("{:?}", s2.alignments());
+        assert_eq!(s2.cigar(), "I3M1I1D4M1D1M1I1M1");
+        println!("{}", s2.to_sam_string("r2"));
+        assert_eq!(
+            s2.to_sam_string("r2"),
+            "r2\t0\tg1\t11\t255\tI3M1I1D4M1D1M1I1M1\t*\t0\t0\tGTCGTTCGG\t*"
+        );
+
+        // let aligned = s1.to_aligned_str();
+        // println!("{}\n{}", aligned[0], aligned[1]);
     }
     #[test]
     fn read_collection_fasta() {
