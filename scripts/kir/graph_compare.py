@@ -9,34 +9,36 @@ from gfapy import Gfa
 import networkx as nx
 import sys
 from collections import defaultdict
+import matplotlib.colors as mcolors
+COLORS = [c for c in mcolors.TABLEAU_COLORS.values()]
 
 
-def rect(x, y, width, height, fill="red"):
-    return '<rect x="{}" y="{}" width="{}" height="{}" fill-opacity="0.5" fill="{}" />'.format(x, y, width, height, fill)
+def rect(x, y, width, height, opacity=1, fill="black"):
+    return '<rect x="{}" y="{}" width="{}" height="{}" fill-opacity="{}" fill="{}" />'.format(x, y, width, height, opacity, fill)
 
 
 def text(x, y, size, text):
-    return '<text x="{}" y="{}" font-size="{}">{}</text>'.format(x, y, size, text)
+    return '<text x="{}" y="{}" font-family="monospace" font-size="{}">{}</text>'.format(x, y, size, text)
 
 
-def line(x1, y1, x2, y2):
-    return '<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="1" />'.format(x1, y1, x2, y2)
+def line(x1, y1, x2, y2, color="black", width=1, opacity=1):
+    return '<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="{}" stroke-opacity="{}" />'.format(x1, y1, x2, y2, color, width, opacity)
 
 
-def path(x0, y0, x1, y1, x2, y2, x3, y3):
-    return '<path d="M {} {} C {} {}, {} {}, {} {}" stroke="green" fill="transparent" stroke-width="5"/>'.format(x0, y0, x1, y1, x2, y2, x3, y3)
+def path(x0, y0, x1, y1, x2, y2, x3, y3, color='#777', width=5, opacity=1):
+    return '<path d="M {} {} C {} {}, {} {}, {} {}" stroke="{}" fill="transparent" stroke-width="{}" stroke-opacity="{}"/>'.format(x0, y0, x1, y1, x2, y2, x3, y3, color, width, opacity)
 
 
 def poly(x0, y0, x1, y1, x2, y2, x3, y3, opacity=0.5, color="black"):
     return '<path d="M {} {} L {} {} L {} {} L {} {} z" fill="{}" fill-opacity="{}"/>'.format(x0, y0, x1, y1, x2, y2, x3, y3, color, opacity)
 
 
-def join(x1, y1, x2, y2, start_to_right, end_to_right, dx=100):
+def join(x1, y1, x2, y2, start_to_right, end_to_right, dx=100, opacity=1.0):
     x1c = x1 + dx if start_to_right else x1 - dx
     y1c = y1
     x2c = x1 + dx if end_to_right else x2 - dx
     y2c = y2
-    return path(x1, y1, x1c, y1c, x2c, y2c, x2, y2)
+    return path(x1, y1, x1c, y1c, x2c, y2c, x2, y2, opacity=opacity)
 
 
 def parse_gfa(filename):
@@ -83,6 +85,7 @@ def main():
     parser.add_argument('--width', type=int, default=1000, help='svg width')
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
+    parser.add_argument('--min_length', type=int, default=1000, help='')
     parser.add_argument('--order', type=str, nargs='+')
     args = parser.parse_args()
 
@@ -134,6 +137,7 @@ def main():
     box_height = args.box_height
     bp_per_px = max(haps.values()) / (width - 2 * margin)
     font_size = 20
+    text_margin = 3
     px_per_row = margin + box_height
     # raw position function
     def x(bp): return bp / bp_per_px
@@ -153,7 +157,7 @@ def main():
 
     def seq_to_x(seqname):
         hapname, start, strand = seqpositions[seqname]
-        length = len(seqs[seqname])
+        length = max(args.min_length, len(seqs[seqname]))
         left = margin + x(start)
         right = margin + x(start) + x(length)
         return (left, right)
@@ -163,16 +167,19 @@ def main():
     for hapname in hapnames:
         x_hap = margin
         y_hap = hap_to_y(hapname)
-        print(text(x_hap, y_hap, font_size, hapname))
-        print(rect(x_hap, y_hap, x(haps[hapname]), box_height, fill="red"))
+        print(text(x_hap, y_hap - text_margin, font_size,
+              "{} {}bp".format(hapname, haps[hapname])))
+        print(rect(x_hap, y_hap, x(haps[hapname]), box_height, fill="#555"))
 
     for i, seqname in enumerate(seqnames):
+        color = COLORS[i % len(COLORS)]
         hapname, start, strand = seqpositions[seqname]
         y_seq = seq_to_y(seqname)
         x_seq_left, x_seq_right = seq_to_x(seqname)
         x_seq_width = x_seq_right - x_seq_left
-        print(text(x_seq_left, y_seq, font_size, "{} {}".format(seqname, strand)))
-        print(rect(x_seq_left, y_seq, x_seq_width, box_height, fill="blue"))
+        print(text(x_seq_left, y_seq - text_margin,
+              font_size, "{}{} {}bp".format(seqname, strand, len(seqs[seqname]))))
+        print(rect(x_seq_left, y_seq, x_seq_width, box_height, fill=color))
 
         # show alignment
         for m in match[seqname]:
@@ -195,7 +202,9 @@ def main():
             print(line(x_seq_end, y_seq, x_hap_end, y_hap))
 
             print(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                  x_hap_end, y_hap, x_hap_start, y_hap, opacity=0.2 if mapq > 0 else 0))
+                       x_hap_end, y_hap, x_hap_start, y_hap,
+                       color=color if mapq > 0 else '#bbb',
+                       opacity=0.2 if mapq > 0 else 0.2))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
@@ -215,7 +224,7 @@ def main():
             x_t = x_seq_right_child if end_to_right else x_seq_left_child
             y_t = seq_to_y(seqname_child) + box_height / 2
             # draw curve line
-            print(join(x_s, y_s, x_t, y_t, start_to_right, end_to_right))
+            print(join(x_s, y_s, x_t, y_t, start_to_right, end_to_right, opacity=0.5))
     print('</svg>')
 
 
