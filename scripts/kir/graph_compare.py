@@ -27,6 +27,10 @@ def path(x0, y0, x1, y1, x2, y2, x3, y3):
     return '<path d="M {} {} C {} {}, {} {}, {} {}" stroke="green" fill="transparent" stroke-width="5"/>'.format(x0, y0, x1, y1, x2, y2, x3, y3)
 
 
+def poly(x0, y0, x1, y1, x2, y2, x3, y3, opacity=0.5, color="black"):
+    return '<path d="M {} {} L {} {} L {} {} L {} {} z" fill="{}" fill-opacity="{}"/>'.format(x0, y0, x1, y1, x2, y2, x3, y3, color, opacity)
+
+
 def join(x1, y1, x2, y2, start_to_right, end_to_right, dx=100):
     x1c = x1 + dx if start_to_right else x1 - dx
     y1c = y1
@@ -173,6 +177,7 @@ def main():
         # show alignment
         for m in match[seqname]:
             hapname = m.tname
+            mapq = m.mapq
 
             y_hap = hap_to_y(hapname)
             y_seq = seq_to_y(seqname)
@@ -188,6 +193,9 @@ def main():
             x_seq_end = x_seq_left + x(m.qend)
             x_hap_end = margin + x(m.tend)
             print(line(x_seq_end, y_seq, x_hap_end, y_hap))
+
+            print(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                  x_hap_end, y_hap, x_hap_start, y_hap, opacity=0.2 if mapq > 0 else 0))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
