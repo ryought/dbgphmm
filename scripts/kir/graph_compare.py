@@ -79,11 +79,11 @@ def main():
     parser.add_argument('--width', type=int, default=1000, help='svg width')
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
+    parser.add_argument('--order', type=str, nargs='+')
     args = parser.parse_args()
 
     graph, seqs = parse_gfa(args.gfa)
     eprint(graph.nodes)
-    n_seqs = len(seqs)
 
     match, haps = parse_paf(args.paf)
     eprint(match)
@@ -91,6 +91,7 @@ def main():
     n_haps = len(haps)
     assert n_haps == 2, "genome is not diploid"
 
+    # debug output
     hapnames = sorted(haps.keys())
     for i, hapname in enumerate(hapnames):
         print('HAP', i, hapname, haps[hapname], file=sys.stderr)
@@ -109,6 +110,21 @@ def main():
     for i, seqname in enumerate(seqnames):
         print('SEQ', i, seqname, seqpositions[seqname], file=sys.stderr)
 
+    if args.order:
+        print('ORDER', args.order, file=sys.stderr)
+        seqnames = []
+        for order in args.order:
+            segs = order.split(',')
+            seqname = segs[0]
+            if len(segs) == 3:
+                # "seqname,position,strand"
+                position = int(segs[1])
+                strand = segs[2]
+                assert strand == '+' or strand == '-'
+                seqpositions[seqname] = (hapnames[0], position, strand)
+            seqnames.append(seqname)
+
+    # bp vs pixel conversion
     width = args.width
     margin = args.margin
     box_height = args.box_height
@@ -118,6 +134,7 @@ def main():
     # raw position function
     def x(bp): return bp / bp_per_px
     def y(n): return margin + n * px_per_row
+    n_seqs = len(seqnames)
     height = y(n_haps + n_seqs)
 
     def hap_to_y(hapname):
@@ -177,6 +194,8 @@ def main():
             _, (seqname_child, strand_child) = edge
             print("EDGE", seqname, strand, seqname_child,
                   strand_child, file=sys.stderr)
+            if seqname_child not in seqnames:
+                continue
             # parent
             start_to_right = strand == '+'
             x_s = x_seq_right if start_to_right else x_seq_left
