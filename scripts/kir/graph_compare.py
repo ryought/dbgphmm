@@ -9,6 +9,7 @@ from gfapy import Gfa
 import networkx as nx
 import sys
 from collections import defaultdict
+import re
 import matplotlib.colors as mcolors
 COLORS = [c for c in mcolors.TABLEAU_COLORS.values()]
 
@@ -39,6 +40,62 @@ def join(x1, y1, x2, y2, start_to_right, end_to_right, dx=100, opacity=1.0):
     x2c = x1 + dx if end_to_right else x2 - dx
     y2c = y2
     return path(x1, y1, x1c, y1c, x2c, y2c, x2, y2, opacity=opacity)
+
+
+def svg(elements, width=800, height=800):
+    head = '<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">'.format(
+        width, height)
+    tail = '</svg>'
+    return head + '\n'.join(elements) + tail
+
+
+def aligned_pairs(cigar, ignore_match=False):
+    """
+    given `cigar=":733*ga:12536*ga:21*cg:1013*ga:2138+t:6250+t:142*ct:1058+a:283*ct:2736+a:5472+t:4382+t:2454"`
+    supported: :,*,+,-
+    ignored: =,~
+
+    >>> cigar = "-ac:2+tt:1*ac"
+    >>> aligned_pairs(cigar)
+    [(0, 0), (1, 0), (2, 0), (3, 1), (4, 2), (4, 3), (4, 4), (5, 5)]
+    >>> aligned_pairs(cigar, ignore_match=True)
+    [(0, 0), (1, 0), (4, 2), (4, 3), (5, 5)]
+    """
+    pairs = []
+    # ref query
+    i, j = 0, 0
+    for segment in re.findall('\*[acgt][acgt]|:\d+|\+[acgt]+|-[acgt]+', cigar):
+        type = segment[0]
+        if type == ':':
+            # :n
+            n = int(segment[1:])
+            for _ in range(n):
+                if not ignore_match:
+                    pairs.append((i, j))
+                i += 1
+                j += 1
+        elif type == '*':
+            # *xy
+            x = segment[1]
+            y = segment[2]
+            pairs.append((i, j))
+            i += 1
+            j += 1
+        elif type == '+':
+            # +s (insertion)
+            s = segment[1:]
+            n = len(s)
+            for _ in range(n):
+                pairs.append((i, j))
+                j += 1
+        elif type == '-':
+            # -s (deletion)
+            s = segment[1:]
+            n = len(s)
+            for _ in range(n):
+                pairs.append((i, j))
+                i += 1
+    return pairs
 
 
 def parse_gfa(filename):
@@ -82,11 +139,14 @@ def main():
     parser = argparse.ArgumentParser(description='generate SVG')
     parser.add_argument('gfa', type=Path, help='GFA of asm')
     parser.add_argument('paf', type=Path, help='PAF of genome vs asm')
-    parser.add_argument('--width', type=int, default=1000, help='svg width')
+    parser.add_argument('--width', type=int,
+                        default=1000, help='svg width')
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
     parser.add_argument('--min_length', type=int, default=1000, help='')
     parser.add_argument('--order', type=str, nargs='+')
+    parser.add_argument('--draw_mismatch_threshold', type=int, default=100,
+                        help='if the number of mismatches is below this threshold, visualize mismatch position in red line. To disable mismatch visualization, set threshold to zero.')
     args = parser.parse_args()
 
     graph, seqs = parse_gfa(args.gfa)
@@ -206,6 +266,15 @@ def main():
                        color=color if mapq > 0 else '#bbb',
                        opacity=0.2 if mapq > 0 else 0.2))
 
+            nm = m.get_tag("NM").value
+            cigar = m.get_tag("cs").value
+            if nm <= args.draw_mismatch_threshold:
+                for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
+                    x_hap = margin + x(m.tstart + tindex)
+                    x_seq = x_seq_left + x(m.qstart + qindex)
+                    print(line(x_seq, y_seq, x_hap, y_hap,
+                          color="red", opacity=0.5))
+
         # show graph
         for edge in graph.out_edges((seqname, strand)):
             _, (seqname_child, strand_child) = edge
@@ -229,4 +298,6 @@ def main():
 
 
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
     main()
