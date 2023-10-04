@@ -249,7 +249,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
     println!("# started_at={}", chrono::Local::now());
 
-    let output: std::path::PathBuf = output_prefix.as_ref().into();
+    let output: String = output_prefix.as_ref().to_str().unwrap().to_owned();
 
     let (dbg, posterior, paths, mappings) = infer_posterior_by_extension(
         k_final,
@@ -272,27 +272,23 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
             let k = dbg.k();
             println!("callback k={} n_edges={}", k, dbg.n_edges_full());
 
-            dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", k)));
-            posterior.to_file(output.with_extension(format!("k{}.post", k)));
+            dbg.to_dbg_file(format!("{}.k{}.dbg", output, k));
+            posterior.to_file(format!("{}.k{}.post", output, k));
 
             let copy_nums_true = paths
                 .as_ref()
                 .map(|paths| dbg.copy_nums_from_full_path(paths));
             dbg.to_gfa_post_file(
-                output.with_extension(format!("k{}.gfa", k)),
+                format!("{}.k{}.gfa", output, k),
                 posterior,
                 copy_nums_true.as_ref(),
             );
             dbg.to_inspect_file(
-                output.with_extension(format!("k{}.inspect", k)),
+                format!("{}.k{}.inspect", output, k),
                 posterior,
                 copy_nums_true.as_ref(),
             );
-            dbg.to_map_file(
-                output.with_extension(format!("k{}.mpz", dbg.k())),
-                reads,
-                mappings,
-            );
+            dbg.to_map_file(format!("{}.k{}.mpz", output, k), reads, mappings);
         },
         |dbg, mappings| {},
         |dbg, mappings| {},
@@ -305,12 +301,12 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
         .as_ref()
         .map(|paths| dbg.copy_nums_from_full_path(paths));
     dbg.to_gfa_post_file(
-        output.with_extension("final.gfa"),
+        format!("{}.final.gfa", output),
         &posterior,
         copy_nums_true.as_ref(),
     );
     dbg.to_inspect_file(
-        output.with_extension("final.inspect"),
+        format!("{}.final.inspect", output),
         &posterior,
         copy_nums_true.as_ref(),
     );
