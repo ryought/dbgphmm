@@ -98,6 +98,15 @@ def aligned_pairs(cigar, ignore_match=False):
     return pairs
 
 
+def reverse(strand):
+    if strand == '+':
+        return '-'
+    elif strand == '-':
+        return '+'
+    else:
+        raise Exception()
+
+
 def parse_gfa(filename):
     graph = nx.DiGraph()
     seqs = dict()
@@ -110,25 +119,31 @@ def parse_gfa(filename):
 
                 graph.add_node((name, '+'))
                 graph.add_node((name, '-'))
-                seqs[name] = seq
+                seqs[name] = len(seq)
             elif segments[0] == 'L':
                 name_a = segments[1]
                 strand_a = segments[2]
                 name_b = segments[3]
                 strand_b = segments[4]
+                # a -> b
                 graph.add_edge((name_a, strand_a), (name_b, strand_b))
+                # b -> a
+                graph.add_edge((name_b, reverse(strand_b)),
+                               (name_a, reverse(strand_a)))
     return graph, seqs
 
 
 def parse_paf(filename):
     match = defaultdict(list)
     haps = dict()
+    seqs = dict()
     with PafFile(filename) as paf:
         for record in paf:
             # nm = record.get_tag("NM").value
             match[record.qname].append(record)
             haps[record.tname] = record.tlen
-    return match, haps
+            seqs[record.qname] = record.qlen
+    return match, haps, seqs
 
 
 def eprint(*args):
@@ -152,11 +167,17 @@ def main():
     graph, seqs = parse_gfa(args.gfa)
     eprint(graph.nodes)
 
-    match, haps = parse_paf(args.paf)
+    match, haps, seqs_from_paf = parse_paf(args.paf)
     eprint(match)
     eprint(haps)
     n_haps = len(haps)
     assert n_haps == 2, "genome is not diploid"
+
+    for seqname, seqlen in seqs_from_paf.items():
+        if seqs[seqname] != seqlen:
+            print('seq "{}" length not match gfa={} paf={} using paf'.format(
+                seqname, seqs[seqname], seqlen), file=sys.stderr)
+            seqs[seqname] = seqlen
 
     # debug output
     hapnames = sorted(haps.keys())
@@ -217,7 +238,7 @@ def main():
 
     def seq_to_x(seqname):
         hapname, start, strand = seqpositions[seqname]
-        length = max(args.min_length, len(seqs[seqname]))
+        length = max(args.min_length, seqs[seqname])
         left = margin + x(start)
         right = margin + x(start) + x(length)
         return (left, right)
@@ -238,7 +259,7 @@ def main():
         x_seq_left, x_seq_right = seq_to_x(seqname)
         x_seq_width = x_seq_right - x_seq_left
         print(text(x_seq_left, y_seq - text_margin,
-              font_size, "{}{} {}bp".format(seqname, strand, len(seqs[seqname]))))
+              font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
         print(rect(x_seq_left, y_seq, x_seq_width, box_height, fill=color))
 
         # show alignment
