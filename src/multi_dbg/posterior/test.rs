@@ -126,6 +126,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
         sigma,
         max_iter,
         max_cycle_size,
+        p(0.8),
         output_prefix,
         None,
     )
@@ -241,6 +242,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
     genome_size_sigma: CopyNum, // 200
     max_iter: usize,            // 10
     max_cycle_size: usize,      // 10
+    p0: Prob,
     output_prefix: P,
     paths: Option<Vec<Path>>,
     mappings: Option<Mappings>,
@@ -265,7 +267,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
             use_reducers: true,
         },
         max_iter,
-        p(0.8),
+        p0,
         |dbg, posterior, paths, mappings| {
             let k = dbg.k();
             println!("callback k={} n_edges={}", k, dbg.n_edges_full());
@@ -330,6 +332,7 @@ pub fn test_inference_from_dbg_with_dataset<P: AsRef<std::path::Path>>(
     sigma: CopyNum,          // 200
     max_iter: usize,         // 10
     max_cycle_size: usize,   // 10
+    p0: Prob,
     output_prefix: P,
     mappings: Option<Mappings>,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
@@ -344,6 +347,7 @@ pub fn test_inference_from_dbg_with_dataset<P: AsRef<std::path::Path>>(
         sigma,
         max_iter,
         max_cycle_size,
+        p0,
         output_prefix,
         paths_true.ok(),
         mappings,

@@ -91,6 +91,12 @@ enum Commands {
         /// Error rate of reads while inference
         #[clap(short = 'e', default_value_t = 0.00001)]
         p_infer: f64,
+        /// If probability of copy number being zero is above p0,
+        /// the k-mer will be regarded as zero-copy and purged.
+        /// In default, 0.8 will be used.
+        /// Larger p0, bigger the graph.
+        #[clap(long, default_value_t = 0.8)]
+        p0: f64,
         /// Maximum number of iteration of posterior sampling of single k
         #[clap(short = 'I', default_value = "50")]
         max_iter: usize,
@@ -158,6 +164,7 @@ fn main() {
             read_fasta,
             p_error,
             p_infer,
+            p0,
             max_iter,
             max_cycle_size,
         } => {
@@ -173,6 +180,7 @@ fn main() {
                 *genome_size_sigma,
                 *max_iter,
                 *max_cycle_size,
+                Prob::from_prob(*p0),
                 output_prefix,
                 None,
                 None,

@@ -3,7 +3,6 @@ use dbgphmm::{
     common::ei,
     e2e::Dataset,
     hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_inference_from_dbg_with_dataset,
     multi_dbg::MultiDbg,
     utils::{check_memory_usage, timer},
 };

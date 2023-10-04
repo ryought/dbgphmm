@@ -5,6 +5,7 @@ use dbgphmm::{
     hmmv2::params::PHMMParams,
     multi_dbg::posterior::test::test_inference_from_dbg_with_dataset,
     multi_dbg::MultiDbg,
+    prob::Prob,
     utils::{check_memory_usage, timer},
 };
 
@@ -19,6 +20,8 @@ struct Opts {
     p_error: f64,
     #[clap(short = 'p')]
     p_infer: f64,
+    #[clap(long, default_value = "0.8")]
+    p0: f64,
     #[clap(short = 's')]
     sigma: usize,
     #[clap(short = 'I', default_value = "10")]
@@ -62,6 +65,7 @@ fn main() {
         opts.sigma,
         opts.max_iter,
         opts.max_cycle_size,
+        Prob::from_prob(opts.p0),
         opts.output_prefix,
         mappings,
     );
