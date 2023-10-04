@@ -160,6 +160,8 @@ def main():
     parser.add_argument('--box_height', type=int, default=20, help='')
     parser.add_argument('--min_length', type=int, default=1000, help='')
     parser.add_argument('--order', type=str, nargs='+')
+    parser.add_argument('--draw_mismatch_primary_only',
+                        action='store_true', help='')
     parser.add_argument('--draw_mismatch_threshold', type=int, default=100,
                         help='if the number of mismatches is below this threshold, visualize mismatch position in red line. To disable mismatch visualization, set threshold to zero.')
     args = parser.parse_args()
@@ -243,26 +245,32 @@ def main():
         right = margin + x(start) + x(length)
         return (left, right)
 
-    print('<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">'.format(width, height))
+    elements_top = []
+    elements = []
 
+    # (1) haplotypes
     for hapname in hapnames:
         x_hap = margin
         y_hap = hap_to_y(hapname)
-        print(text(x_hap, y_hap - text_margin, font_size,
-              "{} {}bp".format(hapname, haps[hapname])))
-        print(rect(x_hap, y_hap, x(haps[hapname]), box_height, fill="#555"))
+        elements_top.append(text(x_hap, y_hap - text_margin, font_size,
+                                 "{} {}bp".format(hapname, haps[hapname])))
+        elements_top.append(rect(x_hap, y_hap,
+                                 x(haps[hapname]), box_height,
+                                 fill="#555"))
 
+    # (2) sequences (contigs/unitigs)
     for i, seqname in enumerate(seqnames):
         color = COLORS[i % len(COLORS)]
         hapname, start, strand = seqpositions[seqname]
         y_seq = seq_to_y(seqname)
         x_seq_left, x_seq_right = seq_to_x(seqname)
         x_seq_width = x_seq_right - x_seq_left
-        print(text(x_seq_left, y_seq - text_margin,
-              font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
-        print(rect(x_seq_left, y_seq, x_seq_width, box_height, fill=color))
+        elements_top.append(text(x_seq_left, y_seq - text_margin,
+                                 font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
+        elements_top.append(rect(x_seq_left, y_seq, x_seq_width, box_height,
+                                 fill=color))
 
-        # show alignment
+        # (2a) show alignment
         for m in match[seqname]:
             hapname = m.tname
             mapq = m.mapq
@@ -274,27 +282,33 @@ def main():
             else:
                 y_seq += box_height
 
+            # alignment start
             x_seq_start = x_seq_left + x(m.qstart)
             x_hap_start = margin + x(m.tstart)
-            print(line(x_seq_start, y_seq, x_hap_start, y_hap))
+            elements.append(line(x_seq_start, y_seq, x_hap_start, y_hap))
 
+            # alignment end
             x_seq_end = x_seq_left + x(m.qend)
             x_hap_end = margin + x(m.tend)
-            print(line(x_seq_end, y_seq, x_hap_end, y_hap))
+            elements.append(line(x_seq_end, y_seq, x_hap_end, y_hap))
 
-            print(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                       x_hap_end, y_hap, x_hap_start, y_hap,
-                       color=color if mapq > 0 else '#bbb',
-                       opacity=0.2 if mapq > 0 else 0.2))
+            # shade
+            elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                 x_hap_end, y_hap, x_hap_start, y_hap,
+                                 color=color if mapq > 0 else '#bbb',
+                                 opacity=0.2 if mapq > 0 else 0.2))
 
             nm = m.get_tag("NM").value
             cigar = m.get_tag("cs").value
             if nm <= args.draw_mismatch_threshold:
+                if args.draw_mismatch_primary_only and not m.is_primary():
+                    continue
                 for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
                     x_hap = margin + x(m.tstart + tindex)
                     x_seq = x_seq_left + x(m.qstart + qindex)
-                    print(line(x_seq, y_seq, x_hap, y_hap,
-                          color="red", opacity=0.5))
+                    # mismatch
+                    elements.append(line(x_seq, y_seq, x_hap, y_hap,
+                                         color="red", opacity=0.5))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
@@ -314,8 +328,10 @@ def main():
             x_t = x_seq_right_child if end_to_right else x_seq_left_child
             y_t = seq_to_y(seqname_child) + box_height / 2
             # draw curve line
-            print(join(x_s, y_s, x_t, y_t, start_to_right, end_to_right, opacity=0.5))
-    print('</svg>')
+            elements_top.append(join(x_s, y_s, x_t, y_t,
+                                     start_to_right, end_to_right, opacity=0.5))
+    s = svg(elements + elements_top, width=width, height=height)
+    print(s)
 
 
 if __name__ == '__main__':
