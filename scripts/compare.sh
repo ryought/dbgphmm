@@ -18,10 +18,11 @@ function run_hifiasm () {
   KEY=$1
   READ="t/$KEY/data.reads.fa"
   GENOME="t/$KEY/data.genome.fa"
-  DIR="t/$KEY/hifiasm_opt"
+  DIR="t/$KEY/hifiasm"
+  # DIR="t/$KEY/hifiasm_opt"
   mkdir -p $DIR
-  # hifiasm -o $DIR/out -t4 -f0 $READ 2> $DIR/log
-  hifiasm -o $DIR/out -t4 -f0 --hg-size 70k -D 50 -i $READ 2> $DIR/log
+  hifiasm -o $DIR/out -t4 -f0 $READ 2> $DIR/log
+  # hifiasm -o $DIR/out -t4 -f0 --hg-size 70k -D 50 -i $READ 2> $DIR/log
 
   gfa2fa $DIR/out.bp.p_ctg.gfa
   gfa2fa $DIR/out.bp.p_utg.gfa
@@ -31,6 +32,13 @@ function run_hifiasm () {
 
   minimap2 --secondary=no -c --cs -t4 -x asm20 $GENOME $DIR/out.fa > $DIR/out.paf
   minimap2 --secondary=no -c --cs -t4 -x asm20 $GENOME $DIR/out.bp.p_utg.fa > $DIR/out.p_utg.paf
+}
+
+
+function generate_svg () {
+  KEY=$1
+  DIR="t/$KEY/hifiasm"
+  python scripts/kir/graph_compare.py $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.svg
 }
 
 
@@ -60,6 +68,33 @@ function run_v0 () {
   done
   # ./target/release/infer -k 40 -p 0.00001 -K 10000 -e 0.001 -I 50 -s 10000 --dbg t/t8.dbg --dataset-json t/t8.json --output-prefix t/t8
 }
+
+function run_v1 () {
+  C=10
+  for N in 5 10 20 25
+  do
+    U=$(( $G / $N ))
+    for H in 0.002 0.001
+    do
+      H0=0
+      KEY="U${U}_N${N}_H${H}_H0${H0}_C${C}"
+      echo "$C $U $N $H $KEY"
+      # mkdir -p t/$KEY
+
+      # create dataset
+      # ./target/release/draft -k 40 -C $C -L 10000 -p 0.001 -m 1 -M 2 -U $U -N $N -E 10000 -H $H --H0 $H0 -P 2 --output-prefix t/$KEY/data --dataset-only
+
+      # run hifiasm
+      # run_hifiasm $KEY
+
+      # summary_paf "t/$KEY/hifiasm/out.p_utg.paf"
+      # summary_paf "t/$KEY/hifiasm_opt/out.paf"
+
+      generate_svg $KEY
+    done
+  done
+}
+run_v1
 
 
 function run_dbgphmm () {
