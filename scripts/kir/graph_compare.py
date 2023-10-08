@@ -5,7 +5,6 @@
 import argparse
 from pathlib import Path
 from pafpy import PafFile
-from gfapy import Gfa
 import networkx as nx
 import sys
 from collections import defaultdict
@@ -167,11 +166,11 @@ def main():
     args = parser.parse_args()
 
     graph, seqs = parse_gfa(args.gfa)
-    eprint(graph.nodes)
+    # eprint(graph.nodes)
 
     match, haps, seqs_from_paf = parse_paf(args.paf)
-    eprint(match)
-    eprint(haps)
+    # eprint(match)
+    # eprint(haps)
     n_haps = len(haps)
     assert n_haps == 2, "genome is not diploid"
 
