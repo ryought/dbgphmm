@@ -24,7 +24,19 @@ function summary_paf () {
 function generate_svg () {
   GFA=$1
   PAF=$2
+  # --draw_mismatch_primary_only
+  python scripts/kir/graph_compare.py --draw_mismatch_threshold 100 $GFA $PAF
+}
+
+function generate_svg_primary () {
+  GFA=$1
+  PAF=$2
   python scripts/kir/graph_compare.py --draw_mismatch_primary_only $GFA $PAF
+}
+
+function gepard () {
+  java -cp /home/ryought/data06/tools/gepard/gepard_fixed-20190402.jar org.gepard.client.cmdline.CommandLine \
+    -seq1 $1 -seq2 $2 -matrix /home/ryought/data06/tools/gepard/edna.mat -outfile $3 -maxwidth 1000 -maxheight 1000
 }
 
 function run_hifiasm () {
@@ -34,7 +46,7 @@ function run_hifiasm () {
   DIR="t/$KEY/hifiasm"
   # DIR="t/$KEY/hifiasm_opt"
   mkdir -p $DIR
-  hifiasm -o $DIR/out -t4 -f0 $READ 2> $DIR/log
+  hifiasm -o $DIR/out -t4 -f0 -i $READ 2> $DIR/log
   # hifiasm -o $DIR/out -t4 -f0 --hg-size 70k -D 50 -i $READ 2> $DIR/log
 
   gfa2fa $DIR/out.bp.p_ctg.gfa
@@ -47,6 +59,9 @@ function run_hifiasm () {
   map_to_genome $GENOME $DIR/out.bp.p_utg.fa > $DIR/out.p_utg.paf
 
   generate_svg $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.svg
+  generate_svg_primary $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.primary.svg
+
+  gepard $DIR/out.fa $DIR/out.fa $DIR/out.fa.png
 }
 
 function run_verkko () {
@@ -133,26 +148,29 @@ function run_v1 () {
 
 function run_v2 () {
   C=10
-  p=0.001
-  U=10000
+  p=0.0003
+  # p=0.001
+  U=2000
+  L=10000
   # for N in 2 3 4 5
-  for N in 2 3 4
+  # for N in 2 3 4
+  for N in 10
   do
-    for H in 0.001 0.0005 0.0001
+    for H in 0.01 0.001 0.0001
     do
-      for H0 in 0.0002 0.0001
+      for H0 in 0.001 0.0001
       do
         KEY="U${U}_N${N}_H${H}_H0${H0}_C${C}_p${p}"
         mkdir -p t/$KEY
         echo $KEY
 
         # create dataset
-        ./target/release/draft -k 40 -C $C -L 10000 -p $p -m 1 -M 2 -U $U -N $N -E 10000 -H $H --H0 $H0 -P 2 --output-prefix t/$KEY/data --dataset-only
+        ./target/release/draft -k 40 -C $C -L $L -p $p -m 1 -M 2 -U $U -N $N -E 2000 -H $H --H0 $H0 -P 2 --output-prefix t/$KEY/data --dataset-only
         # ./target/release/draft -k 40 -C $C -L 10000 -p $p -M 4 -U $U -N $N -E 10000 -H $H --H0 $H0 -P 2 --output-prefix t/$KEY/data
 
         # self-vs-self alignment
-        map_to_genome t/$KEY/data.genome.fa t/$KEY/data.genome.fa > t/$KEY/data.genome.paf
-        awk '$1 != $6' t/$KEY/data.genome.paf
+        # map_to_genome t/$KEY/data.genome.fa t/$KEY/data.genome.fa > t/$KEY/data.genome.paf
+        # awk '$1 != $6' t/$KEY/data.genome.paf
 
         # run hifiasm
         run_hifiasm $KEY
@@ -169,10 +187,23 @@ function run_dbgphmm () {
   N=$(( $G / $U ))
   KEY="U${U}_N${N}_H${H}_C${C}"
   ./target/release/draft -k 40 -C $C -L 10000 -p 0.001 -M 4 -U $U -N $N -E 10000 -H $H --H0 $H -P 2 --output-prefix t/$KEY/data
-  ./target/release/infer --dbg t/$KEY/data.dbg -K 10000 -p 0.00001 -e 0.001 -s 10000 -I 50 --dataset-json t/$KEY/data.json --output-prefix t/$KEY/v0
+  ./target/release/infer --dbg t/$KEY/data.dbg -K 10000 -p 0.00001 -e 0.001 -s 10000 -I 50 --dataset-json t/$KEY/data.json --output-prefix t/$KEY/dbgphmm
+
+  gfa2fa t/$KEY/dbgphmm/*.final.gfa
+  map_to_genome $GENOME $DIR/out.fa > $DIR/out.paf
 }
 
-run_v2
+function benchmark_dbgphmm () {
+  KEY=$1
+  INFER_KEY=$2
+  GENOME="t/$KEY/data.genome.fa"
+  DIR="t/$KEY/dbgphmm"
+  gfa2fa $DIR/$INFER_KEY.final.gfa
+  map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
+  generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
+}
+
+# run_v2
 # run_v1
 # run_hifiasm "U10000_N5_H0.001_H00.0_C10_p0.0003"
 # run_lja "U10000_N5_H0.001_H00.0_C10_LJA"

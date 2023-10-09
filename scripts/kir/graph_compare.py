@@ -307,7 +307,7 @@ def main():
                     x_seq = x_seq_left + x(m.qstart + qindex)
                     # mismatch
                     elements.append(line(x_seq, y_seq, x_hap, y_hap,
-                                         color="red", opacity=0.5))
+                                         color=color, opacity=0.5))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
