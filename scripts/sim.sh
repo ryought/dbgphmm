@@ -49,6 +49,19 @@ function gepard () {
     -seq1 $1 -seq2 $2 -matrix /home/ryought/data06/tools/gepard/edna.mat -outfile $3 -maxwidth 1000 -maxheight 1000
 }
 
+function asm_eval () {
+  GENOME=$1
+  ASM=$2
+  GFA=$3
+
+  map_to_genome $GENOME $ASM > $ASM.paf
+
+  generate_svg $GFA $ASM.paf > $ASM.svg
+  generate_svg_primary $GFA $ASM.paf > $ASM.primary.svg
+
+  gepard $ASM $ASM $ASM.png
+}
+
 function run_hifiasm () {
   KEY=$1
   READ="$KEY/data.reads.fa"
@@ -84,9 +97,7 @@ function run_verkko () {
 
   if [ -e "$DIR/assembly.fasta" ]
   then
-    map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
-    gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
-    generate_svg $DIR/assembly.homopolymer-compressed.gfa $DIR/out.paf > $DIR/out.svg
+    asm_eval $GENOME $DIR/assembly.fasta $DIR/assembly.homopolymer-compressed.gfa
   fi
 }
 
@@ -124,7 +135,7 @@ function run_dbgphmm () {
   pz=0.99
   INFER_KEY=pz${pz}_pi${pi}
   mkdir -p $DIR
-  ./target/release/infer -t 32 -k 40 -K 10000 -p $pi -e $p -s 4000 -I 50 --p0 $pz --dataset-json $DIR/data.json --output-prefix $DIR/pz${pz}_pi${pi}
+  ./target/release/infer -t 32 -M 4 -k 40 -K 10000 -p $pi -e $p -s 5000 -I 50 --p0 $pz --dataset-json $KEY/data.json --output-prefix $DIR/$INFER_KEY
 
   # evaluate_dbgphmm $KEY $INFER_KEY
 }
@@ -160,13 +171,39 @@ function run_n4 () {
       echo $KEY
 
       # create dataset
-      ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
-      genome_self_vs_self $KEY/data.genome.fa
-      run_hifiasm $KEY
-      run_lja $KEY
+      # ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
+      # genome_self_vs_self $KEY/data.genome.fa
+      # run_hifiasm $KEY
+      # run_lja $KEY
 
       # TODO activate miniconda to use verkko
-      run_verkko $KEY
+      # run_verkko $KEY
+
+      # run_dbgphmm $KEY $p   # run locally
+      qsub_run_dbgphmm $KEY $p   # run on cluster
+    done
+  done
+}
+
+function run_n10 () {
+  p=0.0003
+
+  for H in 0.01 0.001 0.0001
+  do
+    for H0 in 0.0002 0.0001
+    do
+      KEY="sim/n10_p${p}/H${H}_H0${H0}"
+      mkdir -p $KEY
+      echo $KEY
+
+      # create dataset
+      # ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 2000 -N 10 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
+      # genome_self_vs_self $KEY/data.genome.fa
+      # run_hifiasm $KEY
+      # run_lja $KEY
+
+      # TODO activate miniconda to use verkko
+      # run_verkko $KEY
 
       # run_dbgphmm $KEY $p   # run locally
       qsub_run_dbgphmm $KEY $p   # run on cluster
