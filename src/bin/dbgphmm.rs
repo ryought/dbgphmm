@@ -13,6 +13,10 @@ use dbgphmm::{
 struct Opts {
     #[clap(subcommand)]
     command: Commands,
+    /// Number of threads used in parallel posterior sampling.
+    /// Use all threads if not specified.
+    #[clap(short = 't')]
+    n_threads: Option<usize>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -111,6 +115,16 @@ fn main() {
     println!("# n_threads={}", rayon::current_num_threads());
     println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
+
+    if let Some(n_threads) = opts.n_threads {
+        println!("# n_threads_specified={}", n_threads);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(n_threads)
+            .build_global()
+            .unwrap();
+        println!("# n_threads={}", rayon::current_num_threads());
+    }
+
     match &opts.command {
         Commands::RawDbg {
             k,
