@@ -42,6 +42,10 @@ struct Opts {
     dataset_json: std::path::PathBuf,
     #[clap(long)]
     output_prefix: std::path::PathBuf,
+    /// Number of threads used in parallel posterior sampling.
+    /// Use all threads if not specified.
+    #[clap(short = 't')]
+    n_threads: Option<usize>,
 }
 
 fn main() {
@@ -50,6 +54,15 @@ fn main() {
     println!("# n_threads={}", rayon::current_num_threads());
     println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
+
+    if let Some(n_threads) = opts.n_threads {
+        println!("# n_threads_specified={}", n_threads);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(n_threads)
+            .build_global()
+            .unwrap();
+        println!("# n_threads={}", rayon::current_num_threads());
+    }
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
     let dbg = if let Some(dbg_filename) = opts.dbg {
