@@ -677,7 +677,7 @@ impl MultiDbg {
                     for (out_edge, _, _) in self.childs_compact(node) {
                         writeln!(
                             writer,
-                            "L\t{}\t+\t{}\t+\t*\tID:Z:{}",
+                            "L\t{}\t+\t{}\t+\t0M\tID:Z:{}",
                             in_edge.index(),
                             out_edge.index(),
                             node.index(),
