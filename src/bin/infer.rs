@@ -14,6 +14,12 @@ use dbgphmm::{
 struct Opts {
     #[clap(short = 'k')]
     k_init: Option<usize>,
+    /// Minimum occurrence of k-mers in read
+    #[clap(short = 'm', default_value_t = 2)]
+    min_count: usize,
+    /// Minimum occurrence of deadend k-mers in read
+    #[clap(short = 'M')]
+    min_deadend_count: Option<usize>,
     #[clap(short = 'K')]
     k_max: usize,
     #[clap(short = 'e')]
@@ -49,7 +55,15 @@ fn main() {
     let dbg = if let Some(dbg_filename) = opts.dbg {
         MultiDbg::from_dbg_file(dbg_filename)
     } else {
-        MultiDbg::create_draft_from_dataset(opts.k_init.unwrap(), &dataset)
+        let min_deadend_count = opts
+            .min_deadend_count
+            .unwrap_or((dataset.coverage() / 4.0) as usize);
+        MultiDbg::create_draft_from_dataset_with(
+            opts.k_init.unwrap(),
+            &dataset,
+            opts.min_count,
+            min_deadend_count,
+        )
     };
     let mappings = if let Some(map_filename) = opts.map {
         Some(dbg.from_map_file(map_filename, dataset.reads()))

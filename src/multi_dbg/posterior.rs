@@ -543,7 +543,7 @@ impl MultiDbg {
                 .find(&current_copy_nums)
                 .expect("current copy number was not sampled")
                 .score;
-            eprintln!("multi move from p={}", current_score.p());
+            // eprintln!("multi move from p={}", current_score.p());
 
             for (i, (copy_nums, info)) in neighbors
                 .iter()
@@ -553,20 +553,20 @@ impl MultiDbg {
             {
                 let score = posterior.find(&copy_nums).unwrap().score;
 
-                eprintln!(
-                    "{} {} {} {}",
-                    i,
-                    update_cycle_to_string(&info.cycle()),
-                    score.p(),
-                    info.cycle()
-                        .iter()
-                        .map(|(edge, _)| format!(
-                            "e{}={}x",
-                            edge.index(),
-                            original_copy_nums[*edge]
-                        ))
-                        .join(",")
-                );
+                // eprintln!(
+                //     "{} {} {} {}",
+                //     i,
+                //     update_cycle_to_string(&info.cycle()),
+                //     score.p(),
+                //     info.cycle()
+                //         .iter()
+                //         .map(|(edge, _)| format!(
+                //             "e{}={}x",
+                //             edge.index(),
+                //             original_copy_nums[*edge]
+                //         ))
+                //         .join(",")
+                // );
 
                 // if the change improves the score and independent (does not conflicts with other
                 // accepted changes)
@@ -575,11 +575,11 @@ impl MultiDbg {
                 let is_independent =
                     self.is_independent_update(&current_copy_nums, &accepted_update_cycles, &cycle);
                 if improves_score && is_independent {
-                    eprintln!("accept!! {} {}", improves_score, is_independent);
+                    // eprintln!("accept!! {} {}", improves_score, is_independent);
                     self.apply_update_info_to_copy_nums(&mut current_copy_nums, &cycle);
                     accepted_update_cycles.push(cycle.clone());
                 } else {
-                    eprintln!("reject {} {}", improves_score, is_independent);
+                    // eprintln!("reject {} {}", improves_score, is_independent);
                 }
 
                 // neighbors are sorted by score
@@ -591,7 +591,7 @@ impl MultiDbg {
             // run once and check if the score actually improves.
             let info = UpdateInfo::new(accepted_update_cycles, UpdateMethod::MultiMove);
             let sample = evaluate(current_copy_nums, info);
-            println!("multi move score {}", sample.score.p());
+            // println!("multi move score {}", sample.score.p());
             posterior.add(sample);
         }
 
@@ -747,7 +747,7 @@ pub fn infer_posterior_by_extension<
     let coverage = reads.total_bases() as f64 / genome_size_expected as f64;
 
     loop {
-        eprintln!("k={}", dbg.k());
+        eprintln!("[[start]] k={}", dbg.k());
 
         // (2) posterior
         let t_start_posterior = std::time::Instant::now();
@@ -764,7 +764,7 @@ pub fn infer_posterior_by_extension<
         dbg.set_copy_nums(posterior.max_copy_nums());
         let t_posterior = t_start_posterior.elapsed();
         eprintln!(
-            "posterior sampling k={} t={}ms",
+            "[[posterior sampling]] k={} t={}ms",
             dbg.k(),
             t_posterior.as_millis()
         );
@@ -785,7 +785,7 @@ pub fn infer_posterior_by_extension<
         dbg = dbg_new;
         paths = paths_new;
         let t_extend = t_start_extend.elapsed();
-        eprintln!("extend t={}ms", t_extend.as_millis());
+        eprintln!("[[extend]] k={} t={}ms", dbg.k(), t_extend.as_millis());
         on_extend(&dbg, &mappings);
 
         // (1) update hints before extending
@@ -794,7 +794,7 @@ pub fn infer_posterior_by_extension<
         // TODO use extended mapping as hint
         mappings = dbg.generate_mappings(param_error, reads, None);
         let t_hint = t_start_hint.elapsed();
-        eprintln!("hint t={}ms", t_hint.as_millis());
+        eprintln!("[[hint]] k={} t={}ms", dbg.k(), t_hint.as_millis());
         on_map(&dbg, &mappings);
 
         // (1b) approximate copy numbers from the mapping and frequency
@@ -803,7 +803,12 @@ pub fn infer_posterior_by_extension<
         let copy_num = dbg.min_squared_error_copy_nums_from_freqs(&freqs, coverage, Some(2));
         dbg.set_copy_nums(&copy_num);
         let t_approx = t_start_approx.elapsed();
-        eprintln!("approx t={}ms coverage={}", t_approx.as_millis(), coverage);
+        eprintln!(
+            "[[approx]] k={} t={}ms coverage={}",
+            dbg.k(),
+            t_approx.as_millis(),
+            coverage
+        );
     }
 
     // final run using p_error

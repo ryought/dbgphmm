@@ -580,7 +580,7 @@ impl<K: KmerLike> HashDbg<K> {
     pub fn inspect_with_genome(&self, genome: &Genome) {
         let kmers = genome.to_kmers::<K>(self.k());
 
-        println!("# kmer\thap\tpos\tcopy_num\tcount");
+        println!("# kmer\thap:pos\tcopy_num\tcount");
 
         for (i, g) in genome.into_iter().enumerate() {
             for (j, kmer) in styled_sequence_to_kmers::<K>(g, self.k()).enumerate() {
