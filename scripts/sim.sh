@@ -82,10 +82,12 @@ function run_verkko () {
 
   verkko -d $DIR --hifi $READ
 
-  map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
-  gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
-  # FIXME
-  generate_svg $DIR/assembly.homopolymer-compressed.gfa $DIR/out.paf > $DIR/out.svg
+  if [ -e "$DIR/assembly.fasta" ]
+  then
+    map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
+    gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
+    generate_svg $DIR/assembly.homopolymer-compressed.gfa $DIR/out.paf > $DIR/out.svg
+  fi
 }
 
 function run_lja () {
@@ -102,6 +104,18 @@ function run_lja () {
   gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
 }
 
+function evaluate_dbgphmm () {
+  KEY=$1
+  INFER_KEY=$2
+  GENOME="$KEY/data.genome.fa"
+  DIR="$KEY/dbgphmm"
+  gfa2fa $DIR/$INFER_KEY.final.gfa
+  map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
+  generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.primary.svg
+  generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
+  gepard $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.png
+}
+
 function run_dbgphmm () {
   KEY=$1
   p=$2
@@ -110,14 +124,9 @@ function run_dbgphmm () {
   pz=0.99
   INFER_KEY=pz${pz}_pi${pi}
   mkdir -p $DIR
-  ./target/release/infer -k 40 -K 10000 -p $pi -e $p -s 4000 -I 50 --p0 $pz --dataset-json $DIR/data.json --output-prefix $DIR/pz${pz}_pi${pi}
+  ./target/release/infer -t 32 -k 40 -K 10000 -p $pi -e $p -s 4000 -I 50 --p0 $pz --dataset-json $DIR/data.json --output-prefix $DIR/pz${pz}_pi${pi}
 
-  GENOME="$KEY/data.genome.fa"
-  gfa2fa $DIR/$INFER_KEY.final.gfa
-  map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
-  generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.primary.svg
-  generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
-  gepard $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.png
+  # evaluate_dbgphmm $KEY $INFER_KEY
 }
 
 function qsub_run_dbgphmm () {
@@ -125,8 +134,18 @@ function qsub_run_dbgphmm () {
   p=$2
 
   # execute run_dbgphmm $KEY $p in qsub
-  # with -N sim_$KEY
-  # TODO
+  # Key: replace / to -
+  # -l hostname=z02 \
+  qsub \
+    -S /bin/bash -cwd -q all.q -j y -pe smp 32 \
+    -N ${KEY//\//-} \
+    << EOS
+export OMP_NUM_THREADS=1
+export LD_LIBRARY_PATH="/home/ryought/.miniconda3/lib:$LD_LIBRARY_PATH"
+. scripts/sim.sh
+echo "running $KEY with $p"
+run_dbgphmm $KEY $p
+EOS
 }
 
 function run_n4 () {
@@ -142,15 +161,15 @@ function run_n4 () {
 
       # create dataset
       ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
-
       genome_self_vs_self $KEY/data.genome.fa
-
       run_hifiasm $KEY
-      run_verkko $KEY
       run_lja $KEY
 
-      # run_dbgphmm $KEY $p
-      # qsub_run_dbgphmm $KEY $p
+      # TODO activate miniconda to use verkko
+      run_verkko $KEY
+
+      # run_dbgphmm $KEY $p   # run locally
+      qsub_run_dbgphmm $KEY $p   # run on cluster
     done
   done
 }
