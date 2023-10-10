@@ -5,6 +5,7 @@
 import argparse
 from pathlib import Path
 from pafpy import PafFile
+from Bio import SeqIO
 import networkx as nx
 import sys
 from collections import defaultdict
@@ -132,6 +133,16 @@ def parse_gfa(filename):
     return graph, seqs
 
 
+def parse_fa(filename):
+    graph = nx.DiGraph()
+    fasta = SeqIO.to_dict(SeqIO.parse(args.fasta, "fasta"))
+    for name, record in fasta.items():
+        graph.add_node((name, '+'))
+        graph.add_node((name, '-'))
+        seqs[name] = len(seq)
+    return graph, seqs
+
+
 def parse_paf(filename):
     match = defaultdict(list)
     haps = dict()
@@ -151,7 +162,7 @@ def eprint(*args):
 
 def main():
     parser = argparse.ArgumentParser(description='generate SVG')
-    parser.add_argument('gfa', type=Path, help='GFA of asm')
+    parser.add_argument('gfa_or_fa', type=Path, help='GFA or FA of asm')
     parser.add_argument('paf', type=Path, help='PAF of genome vs asm')
     parser.add_argument('--width', type=int,
                         default=1000, help='svg width')
@@ -165,7 +176,13 @@ def main():
                         help='if the number of mismatches is below this threshold, visualize mismatch position in red line. To disable mismatch visualization, set threshold to zero.')
     args = parser.parse_args()
 
-    graph, seqs = parse_gfa(args.gfa)
+    if args.gfa_or_fa.suffix == '.gfa':
+        graph, seqs = parse_gfa(args.gfa_or_fa)
+    elif args.gfa_or_fa.suffix == '.fa':
+        graph, seqs = parse_fa(args.gfa_or_fa)
+    else:
+        raise Exception("args.gfa_or_fa is neither .gfa nor .fa")
+
     # eprint(graph.nodes)
 
     match, haps, seqs_from_paf = parse_paf(args.paf)

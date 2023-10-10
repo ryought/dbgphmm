@@ -7,3 +7,7 @@
 /.env/
 /*.json
 /*.txt
+# data
+/kir
+/sim
+/t

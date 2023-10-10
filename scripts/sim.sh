@@ -1,0 +1,156 @@
+#!/bin/bash
+#
+# Simulation functions
+#
+
+# to disable openblas threading
+export OMP_NUM_THREADS=1
+
+function gfa2fa () {
+  GFA=$1
+  FA=${GFA/.gfa/.fa}
+  awk '/^S/{print ">"$2;print $3}' $GFA > $FA
+}
+
+function map_to_genome() {
+  GENOME=$1
+  ASM=$2
+  # minimap2 --secondary=no -c --cs -t4 -x asm20 $GENOME $ASM
+  minimap2 -c --cs -t4 -x asm20 $GENOME $ASM
+}
+
+function genome_self_vs_self () {
+  GENOME=$1
+  # self-vs-self alignment
+  map_to_genome $GENOME $GENOME > $GENOME.paf
+  # awk '$1 != $6'
+}
+
+function summary_paf () {
+  PAF=$1
+  awk 'BEGIN{OFS="\t"} { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$13,$24 }' $1
+}
+
+function generate_svg () {
+  GFA=$1
+  PAF=$2
+  # --draw_mismatch_primary_only
+  python scripts/kir/graph_compare.py --draw_mismatch_threshold 100 $GFA $PAF
+}
+
+function generate_svg_primary () {
+  GFA=$1
+  PAF=$2
+  python scripts/kir/graph_compare.py --draw_mismatch_primary_only $GFA $PAF
+}
+
+function gepard () {
+  java -cp /home/ryought/data06/tools/gepard/gepard_fixed-20190402.jar org.gepard.client.cmdline.CommandLine \
+    -seq1 $1 -seq2 $2 -matrix /home/ryought/data06/tools/gepard/edna.mat -outfile $3 -maxwidth 1000 -maxheight 1000
+}
+
+function run_hifiasm () {
+  KEY=$1
+  READ="$KEY/data.reads.fa"
+  GENOME="$KEY/data.genome.fa"
+  DIR="$KEY/hifiasm"
+  mkdir -p $DIR
+  hifiasm -o $DIR/out -t4 -f0 -i $READ 2> $DIR/log
+  # hifiasm -o $DIR/out -t4 -f0 --hg-size 70k -D 50 -i $READ 2> $DIR/log
+
+  gfa2fa $DIR/out.bp.p_ctg.gfa
+  gfa2fa $DIR/out.bp.p_utg.gfa
+  gfa2fa $DIR/out.bp.hap1.p_ctg.gfa
+  gfa2fa $DIR/out.bp.hap2.p_ctg.gfa
+  cat $DIR/out.bp.hap1.p_ctg.fa $DIR/out.bp.hap2.p_ctg.fa > $DIR/out.fa
+
+  map_to_genome $GENOME $DIR/out.fa > $DIR/out.paf
+  map_to_genome $GENOME $DIR/out.bp.p_utg.fa > $DIR/out.p_utg.paf
+
+  generate_svg $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.svg
+  generate_svg_primary $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.primary.svg
+
+  gepard $DIR/out.fa $DIR/out.fa $DIR/out.fa.png
+}
+
+function run_verkko () {
+  KEY=$1
+  READ="$KEY/data.reads.fa"
+  GENOME="$KEY/data.genome.fa"
+  DIR="$KEY/verkko"
+  mkdir -p $DIR
+
+  verkko -d $DIR --hifi $READ
+
+  map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
+  gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
+  # FIXME
+  generate_svg $DIR/assembly.homopolymer-compressed.gfa $DIR/out.paf > $DIR/out.svg
+}
+
+function run_lja () {
+  KEY=$1
+  READ="$KEY/data.reads.fa"
+  GENOME="$KEY/data.genome.fa"
+  DIR="$KEY/lja"
+  mkdir -p $DIR
+
+  lja -o $DIR --diploid --reads $READ
+
+  map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
+  generate_svg $DIR/mdbg.gfa $DIR/out.paf > $DIR/out.svg
+  gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
+}
+
+function run_dbgphmm () {
+  KEY=$1
+  p=$2
+  pi=$2
+  DIR="$KEY/dbgphmm"
+  pz=0.99
+  INFER_KEY=pz${pz}_pi${pi}
+  mkdir -p $DIR
+  ./target/release/infer -k 40 -K 10000 -p $pi -e $p -s 4000 -I 50 --p0 $pz --dataset-json $DIR/data.json --output-prefix $DIR/pz${pz}_pi${pi}
+
+  GENOME="$KEY/data.genome.fa"
+  gfa2fa $DIR/$INFER_KEY.final.gfa
+  map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
+  generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.primary.svg
+  generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
+  gepard $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.png
+}
+
+function qsub_run_dbgphmm () {
+  KEY=$1
+  p=$2
+
+  # execute run_dbgphmm $KEY $p in qsub
+  # with -N sim_$KEY
+  # TODO
+}
+
+function run_n4 () {
+  p=0.0003
+
+  for H in 0.01 0.001 0.0001
+  do
+    for H0 in 0.0002 0.0001
+    do
+      KEY="sim/n4_p${p}/H${H}_H0${H0}"
+      mkdir -p $KEY
+      echo $KEY
+
+      # create dataset
+      ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
+
+      genome_self_vs_self $KEY/data.genome.fa
+
+      run_hifiasm $KEY
+      run_verkko $KEY
+      run_lja $KEY
+
+      # run_dbgphmm $KEY $p
+      # qsub_run_dbgphmm $KEY $p
+    done
+  done
+}
