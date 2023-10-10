@@ -112,7 +112,6 @@ enum Commands {
 fn main() {
     let opts: Opts = Opts::parse();
     println!("# started_at={}", chrono::Local::now());
-    println!("# n_threads={}", rayon::current_num_threads());
     println!("# git_hash={}", env!("GIT_HASH"));
     println!("# opts={:?}", opts);
 
@@ -122,8 +121,8 @@ fn main() {
             .num_threads(n_threads)
             .build_global()
             .unwrap();
-        println!("# n_threads={}", rayon::current_num_threads());
     }
+    println!("# n_threads={}", rayon::current_num_threads());
 
     match &opts.command {
         Commands::RawDbg {
