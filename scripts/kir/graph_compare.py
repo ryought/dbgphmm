@@ -135,11 +135,12 @@ def parse_gfa(filename):
 
 def parse_fa(filename):
     graph = nx.DiGraph()
-    fasta = SeqIO.to_dict(SeqIO.parse(args.fasta, "fasta"))
+    seqs = dict()
+    fasta = SeqIO.to_dict(SeqIO.parse(filename, "fasta"))
     for name, record in fasta.items():
         graph.add_node((name, '+'))
         graph.add_node((name, '-'))
-        seqs[name] = len(seq)
+        seqs[name] = len(record.seq)
     return graph, seqs
 
 
@@ -169,10 +170,15 @@ def main():
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
     parser.add_argument('--min_length', type=int, default=1000, help='')
+    parser.add_argument('--layout', choices=['mapq', 'first'], default='mapq',
+                        help=('how to determine (primary) unitig position?'
+                              'mapq: alignment of highest mapq will be used'
+                              'first: first mapping in PAF file will be used'
+                              '(useful when with manually reordered PAF file'))
     parser.add_argument('--order', type=str, nargs='+')
     parser.add_argument('--draw_mismatch_primary_only',
                         action='store_true', help='')
-    parser.add_argument('--draw_mismatch_threshold', type=int, default=100,
+    parser.add_argument('--draw_mismatch_threshold', type=int, default=None,
                         help='if the number of mismatches is below this threshold, visualize mismatch position in red line. To disable mismatch visualization, set threshold to zero.')
     args = parser.parse_args()
 
@@ -202,12 +208,21 @@ def main():
     for i, hapname in enumerate(hapnames):
         print('HAP', i, hapname, haps[hapname], file=sys.stderr)
 
+    def hit(record):
+        return (record.tname, record.tstart, str(record.strand))
+
     def bestmatch(records):
         """convert List[paf records] into best hit (hap, pos, strand) (in terms of match length)"""
         if len(records) == 0:
             return (hapnames[0], 0, '+')
-        record = max(records, key=lambda record: record.mlen)
-        return (record.tname, record.tstart, str(record.strand))
+
+        if args.layout == 'first':
+            record = records[0]
+        elif args.layout == 'mapq':
+            record = max(records, key=lambda record: record.mlen)
+        else:
+            raise ValueError('invalid layout mode')
+        return hit(record)
 
     seqpositions = {seqname: bestmatch(match[seqname])
                     for seqname in seqs.keys()}
@@ -308,15 +323,19 @@ def main():
             x_hap_end = margin + x(m.tend)
             elements.append(line(x_seq_end, y_seq, x_hap_end, y_hap))
 
-            # shade
-            elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                 x_hap_end, y_hap, x_hap_start, y_hap,
-                                 color=color if mapq > 0 else '#bbb',
-                                 opacity=0.2 if mapq > 0 else 0.2))
+            # shade the best match
+            if bestmatch(match[seqname]) == hit(m):
+                elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                     x_hap_end, y_hap, x_hap_start, y_hap,
+                                     color=color, opacity=0.2))
+            else:
+                elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                     x_hap_end, y_hap, x_hap_start, y_hap,
+                                     color='#bbb', opacity=0.1))
 
             nm = m.get_tag("NM").value
             cigar = m.get_tag("cs").value
-            if nm <= args.draw_mismatch_threshold:
+            if args.draw_mismatch_threshold is None or nm <= args.draw_mismatch_threshold:
                 if args.draw_mismatch_primary_only and not m.is_primary():
                     continue
                 for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
