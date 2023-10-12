@@ -83,9 +83,14 @@ pub fn euler_circuit_count_in_connected(graph: &DiGraph<(), usize>) -> f64 {
 }
 
 ///
+/// Count the number of Eulerian circuits in the graph (whose edge has its multiplicity) (in log
+/// space)
 ///
+/// if `allow_multiple_component=true`, the final count will be the product of count of each components.
+/// otherwise, the resulting count is log(0) if the graph is not strongly connected. (because there
+/// is no Eulerian circuit)
 ///
-pub fn euler_circuit_count(graph: &DiGraph<(), usize>) -> f64 {
+pub fn euler_circuit_count(graph: &DiGraph<(), usize>, allow_multiple_component: bool) -> f64 {
     let mut graph = graph.clone();
     graph.retain_edges(|g, e| g[e] > 0);
     graph.retain_nodes(|g, v| g.edges_directed(v, Direction::Outgoing).count() > 0);
@@ -100,11 +105,15 @@ pub fn euler_circuit_count(graph: &DiGraph<(), usize>) -> f64 {
     }
 
     // for each strongly connected component..
-    for component in tarjan_scc(&graph) {
-        let h = subgraph(&graph, &component);
-        let count = euler_circuit_count_in_connected(&h);
-        // println!("compont={:?} count={}", component, count.exp());
-        ret += count;
+    if allow_multiple_component {
+        for component in tarjan_scc(&graph) {
+            let h = subgraph(&graph, &component);
+            let count = euler_circuit_count_in_connected(&h);
+            // println!("compont={:?} count={}", component, count.exp());
+            ret += count;
+        }
+    } else {
+        ret = euler_circuit_count_in_connected(&graph);
     }
 
     ret

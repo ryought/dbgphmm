@@ -816,7 +816,7 @@ impl MultiDbg {
             .graph_compact()
             .map(|_, _| (), |e, _| self.copy_num_of_edge_in_compact(e));
 
-        euler_circuit_count(&graph)
+        euler_circuit_count(&graph, false)
     }
 }
 
