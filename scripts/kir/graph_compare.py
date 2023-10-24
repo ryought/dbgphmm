@@ -167,7 +167,7 @@ def hsl(h: float):
     return 'hsl({}, 100%, 50%)'.format(h * 360)
 
 
-def spring_layout(seqpositions, seqnames, match, graph, min_identity):
+def spring_layout(seqpositions, seqs, seqnames, match, graph, min_identity):
     """
     seqpositions[seqname] = (hapname, start, strand)
     """
@@ -185,9 +185,9 @@ def spring_layout(seqpositions, seqnames, match, graph, min_identity):
             for edge in graph.out_edges((seqname, strand)):
                 _, (seqname_child, strand_child) = edge
                 j = next((i for i, s in enumerate(
-                    seqnames) if s == seqname_child))
-                y += 0.01 * (x[i] - x[j]) ** 2
-                eprint(i, j, x[i], x[j])
+                    seqnames) if s == seqname_child), None)
+                if j is not None:
+                    y += 0.01 * ((x[i] + seqs[seqname]) - x[j]) ** 2
         return y
 
     eprint('minimizing', x0)
@@ -275,7 +275,7 @@ def main():
 
     if args.spring_layout:
         seqpositions = spring_layout(
-            seqpositions, seqnames, match, graph, args.min_identity
+            seqpositions, seqs, seqnames, match, graph, args.min_identity
         )
 
     if args.order:
