@@ -161,6 +161,11 @@ def eprint(*args):
     print(*args, file=sys.stderr)
 
 
+def hsl(h: float):
+    assert 0 <= h <= 1
+    return 'hsl({}, 100%, 50%)'.format(h * 360)
+
+
 def main():
     parser = argparse.ArgumentParser(description='generate SVG')
     parser.add_argument('gfa_or_fa', type=Path, help='GFA or FA of asm')
@@ -169,13 +174,17 @@ def main():
                         default=1000, help='svg width')
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
-    parser.add_argument('--min_length', type=int, default=1000, help='')
+    parser.add_argument('--min_length', type=int, default=500, help='')
     parser.add_argument('--layout', choices=['mapq', 'first'], default='mapq',
                         help=('how to determine (primary) unitig position?'
                               'mapq: alignment of highest mapq will be used'
                               'first: first mapping in PAF file will be used'
                               '(useful when with manually reordered PAF file'))
     parser.add_argument('--order', type=str, nargs='+')
+    parser.add_argument('--shade_by_identity',
+                        action='store_true', help='')
+    parser.add_argument('--min_identity', type=float, default=0.999, help='')
+    parser.add_argument('--hide_text', action='store_true', help='')
     parser.add_argument('--draw_mismatch_primary_only',
                         action='store_true', help='')
     parser.add_argument('--draw_mismatch_threshold', type=int, default=None,
@@ -247,11 +256,11 @@ def main():
 
     # bp vs pixel conversion
     width = args.width
-    margin = args.margin
+    text_margin = 3
+    margin = args.margin - 15 if args.hide_text else args.margin
     box_height = args.box_height
     bp_per_px = max(haps.values()) / (width - 2 * margin)
     font_size = 20
-    text_margin = 3
     px_per_row = margin + box_height
     # raw position function
     def x(bp): return bp / bp_per_px
@@ -283,8 +292,9 @@ def main():
     for hapname in hapnames:
         x_hap = margin
         y_hap = hap_to_y(hapname)
-        elements_top.append(text(x_hap, y_hap - text_margin, font_size,
-                                 "{} {}bp".format(hapname, haps[hapname])))
+        if not args.hide_text:
+            elements_top.append(text(x_hap, y_hap - text_margin, font_size,
+                                     "{} {}bp".format(hapname, haps[hapname])))
         elements_top.append(rect(x_hap, y_hap,
                                  x(haps[hapname]), box_height,
                                  fill="#555"))
@@ -296,8 +306,9 @@ def main():
         y_seq = seq_to_y(seqname)
         x_seq_left, x_seq_right = seq_to_x(seqname)
         x_seq_width = x_seq_right - x_seq_left
-        elements_top.append(text(x_seq_left, y_seq - text_margin,
-                                 font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
+        if not args.hide_text:
+            elements_top.append(text(x_seq_left, y_seq - text_margin,
+                                     font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
         elements_top.append(rect(x_seq_left, y_seq, x_seq_width, box_height,
                                  fill=color))
 
@@ -316,34 +327,65 @@ def main():
             # alignment start
             x_seq_start = x_seq_left + x(m.qstart)
             x_hap_start = margin + x(m.tstart)
-            elements.append(line(x_seq_start, y_seq, x_hap_start, y_hap))
-
             # alignment end
             x_seq_end = x_seq_left + x(m.qend)
             x_hap_end = margin + x(m.tend)
-            elements.append(line(x_seq_end, y_seq, x_hap_end, y_hap))
 
             # shade the best match
-            if bestmatch(match[seqname]) == hit(m):
-                elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                     x_hap_end, y_hap, x_hap_start, y_hap,
-                                     color=color, opacity=0.2))
-            else:
-                elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                     x_hap_end, y_hap, x_hap_start, y_hap,
-                                     color='#bbb', opacity=0.1))
+            if args.shade_by_identity:
+                identity = m.mlen / m.blen
+                # opacity(1.00) = 1
+                # opacity(0.99) = 0
+                min_identity = args.min_identity
 
-            nm = m.get_tag("NM").value
-            cigar = m.get_tag("cs").value
-            if args.draw_mismatch_threshold is None or nm <= args.draw_mismatch_threshold:
-                if args.draw_mismatch_primary_only and not m.is_primary():
-                    continue
-                for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
-                    x_hap = margin + x(m.tstart + tindex)
-                    x_seq = x_seq_left + x(m.qstart + qindex)
-                    # mismatch
-                    elements.append(line(x_seq, y_seq, x_hap, y_hap,
-                                         color=color, opacity=0.5))
+                if identity > min_identity:
+                    ratio = max(0, (identity - min_identity) /
+                                (1 - min_identity))
+                    # opacity = ratio * 0.3
+                    opacity = 0.3
+                    # eprint(m.qname, m.tname, opacity)
+                    # lines
+                    elements.append(
+                        line(x_seq_start, y_seq, x_hap_start, y_hap, opacity=opacity))
+                    elements.append(
+                        line(x_seq_end, y_seq, x_hap_end, y_hap, opacity=opacity))
+                    # shade
+                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                         x_hap_end, y_hap, x_hap_start, y_hap,
+                                         color=color, opacity=opacity))
+                    # mismatch sign
+                    cigar = m.get_tag("cs").value
+                    for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
+                        x_hap = margin + x(m.tstart + tindex)
+                        x_seq = x_seq_left + x(m.qstart + qindex)
+                        # mismatch
+                        elements.append(line(x_seq, y_seq, x_hap, y_hap,
+                                             color=color, opacity=0.5))
+            else:
+                # lines
+                elements.append(line(x_seq_start, y_seq, x_hap_start, y_hap))
+                elements.append(line(x_seq_end, y_seq, x_hap_end, y_hap))
+
+                if bestmatch(match[seqname]) == hit(m):
+                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                         x_hap_end, y_hap, x_hap_start, y_hap,
+                                         color=color, opacity=0.2))
+                else:
+                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                         x_hap_end, y_hap, x_hap_start, y_hap,
+                                         color='#bbb', opacity=0.1))
+                # mismatch
+                nm = m.get_tag("NM").value
+                cigar = m.get_tag("cs").value
+                if args.draw_mismatch_threshold is None or nm <= args.draw_mismatch_threshold:
+                    if args.draw_mismatch_primary_only and not m.is_primary():
+                        continue
+                    for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
+                        x_hap = margin + x(m.tstart + tindex)
+                        x_seq = x_seq_left + x(m.qstart + qindex)
+                        # mismatch
+                        elements.append(line(x_seq, y_seq, x_hap, y_hap,
+                                             color=color, opacity=0.5))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
