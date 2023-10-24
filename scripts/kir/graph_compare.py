@@ -11,11 +11,12 @@ import sys
 from collections import defaultdict
 import re
 import matplotlib.colors as mcolors
+from scipy.optimize import minimize
 COLORS = [c for c in mcolors.TABLEAU_COLORS.values()]
 
 
-def rect(x, y, width, height, opacity=1, fill="black"):
-    return '<rect x="{}" y="{}" width="{}" height="{}" fill-opacity="{}" fill="{}" />'.format(x, y, width, height, opacity, fill)
+def rect(x, y, width, height, opacity=1, fill="black", stroke="black", stroke_width=0):
+    return '<rect x="{}" y="{}" width="{}" height="{}" fill-opacity="{}" fill="{}" stroke="{}" stroke-width="{}" />'.format(x, y, width, height, opacity, fill, stroke, stroke_width)
 
 
 def text(x, y, size, text):
@@ -115,11 +116,11 @@ def parse_gfa(filename):
             segments = line.split('\t')
             if segments[0] == 'S':
                 name = segments[1]
-                seq = segments[2]
-
-                graph.add_node((name, '+'))
-                graph.add_node((name, '-'))
-                seqs[name] = len(seq)
+                seq = segments[2].replace('n', '')
+                if seq:
+                    graph.add_node((name, '+'))
+                    graph.add_node((name, '-'))
+                    seqs[name] = len(seq)
             elif segments[0] == 'L':
                 name_a = segments[1]
                 strand_a = segments[2]
@@ -166,6 +167,41 @@ def hsl(h: float):
     return 'hsl({}, 100%, 50%)'.format(h * 360)
 
 
+def spring_layout(seqpositions, seqnames, match, graph, min_identity):
+    """
+    seqpositions[seqname] = (hapname, start, strand)
+    """
+    x0 = [seqpositions[seqname][1] for seqname in seqnames]
+
+    def fun(x):
+        y = 0
+        for i, seqname in enumerate(seqnames):
+            for m in match[seqname]:
+                identity = m.mlen / m.blen
+                if identity > min_identity:
+                    y += (x[i] - m.tstart) ** 2
+
+            hapname, start, strand = seqpositions[seqname]
+            for edge in graph.out_edges((seqname, strand)):
+                _, (seqname_child, strand_child) = edge
+                j = next((i for i, s in enumerate(
+                    seqnames) if s == seqname_child))
+                y += 0.01 * (x[i] - x[j]) ** 2
+                eprint(i, j, x[i], x[j])
+        return y
+
+    eprint('minimizing', x0)
+    x = minimize(fun, x0).x
+    eprint('x=', x)
+
+    seqpositions_new = dict()
+    for i, seqname in enumerate(seqnames):
+        (hapname, start, strand) = seqpositions[seqname]
+        seqpositions_new[seqname] = (hapname, x[i], strand)
+
+    return seqpositions_new
+
+
 def main():
     parser = argparse.ArgumentParser(description='generate SVG')
     parser.add_argument('gfa_or_fa', type=Path, help='GFA or FA of asm')
@@ -174,13 +210,14 @@ def main():
                         default=1000, help='svg width')
     parser.add_argument('--margin', type=int, default=30, help='')
     parser.add_argument('--box_height', type=int, default=20, help='')
-    parser.add_argument('--min_length', type=int, default=500, help='')
+    parser.add_argument('--min_length', type=int, default=0, help='')
     parser.add_argument('--layout', choices=['mapq', 'first'], default='mapq',
                         help=('how to determine (primary) unitig position?'
                               'mapq: alignment of highest mapq will be used'
                               'first: first mapping in PAF file will be used'
                               '(useful when with manually reordered PAF file'))
     parser.add_argument('--order', type=str, nargs='+')
+    parser.add_argument('--spring_layout', action='store_true', help='')
     parser.add_argument('--shade_by_identity',
                         action='store_true', help='')
     parser.add_argument('--min_identity', type=float, default=0.999, help='')
@@ -198,11 +235,7 @@ def main():
     else:
         raise Exception("args.gfa_or_fa is neither .gfa nor .fa")
 
-    # eprint(graph.nodes)
-
     match, haps, seqs_from_paf = parse_paf(args.paf)
-    # eprint(match)
-    # eprint(haps)
     n_haps = len(haps)
     assert n_haps == 2, "genome is not diploid"
 
@@ -239,6 +272,11 @@ def main():
                       key=lambda seqname: seqpositions[seqname])
     for i, seqname in enumerate(seqnames):
         print('SEQ', i, seqname, seqpositions[seqname], file=sys.stderr)
+
+    if args.spring_layout:
+        seqpositions = spring_layout(
+            seqpositions, seqnames, match, graph, args.min_identity
+        )
 
     if args.order:
         print('ORDER', args.order, file=sys.stderr)
@@ -297,7 +335,7 @@ def main():
                                      "{} {}bp".format(hapname, haps[hapname])))
         elements_top.append(rect(x_hap, y_hap,
                                  x(haps[hapname]), box_height,
-                                 fill="#555"))
+                                 fill="#555", stroke="#555", stroke_width=2))
 
     # (2) sequences (contigs/unitigs)
     for i, seqname in enumerate(seqnames):
@@ -310,7 +348,7 @@ def main():
             elements_top.append(text(x_seq_left, y_seq - text_margin,
                                      font_size, "{}{} {}bp".format(seqname, strand, seqs[seqname])))
         elements_top.append(rect(x_seq_left, y_seq, x_seq_width, box_height,
-                                 fill=color))
+                                 fill=color, stroke="#555", stroke_width=2))
 
         # (2a) show alignment
         for m in match[seqname]:
