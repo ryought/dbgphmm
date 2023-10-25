@@ -108,7 +108,7 @@ def reverse(strand):
         raise Exception()
 
 
-def parse_gfa(filename):
+def parse_gfa(filename, ignore_n=True, ignore_zero_copy=True):
     graph = nx.DiGraph()
     seqs = dict()
     with open(filename) as f:
@@ -116,7 +116,13 @@ def parse_gfa(filename):
             segments = line.split('\t')
             if segments[0] == 'S':
                 name = segments[1]
-                seq = segments[2].replace('n', '')
+                seq = segments[2]
+                copy_num = next(
+                    (int(s[5:]) for s in segments[3:] if s.startswith('DP:f:')), None)
+                if ignore_n:
+                    seq = seq.replace('n', '')
+                if ignore_zero_copy and copy_num == 0:
+                    continue
                 if seq:
                     graph.add_node((name, '+'))
                     graph.add_node((name, '-'))
@@ -178,7 +184,7 @@ def spring_layout(seqpositions, seqs, seqnames, match, graph, min_identity):
         for i, seqname in enumerate(seqnames):
             for m in match[seqname]:
                 identity = m.mlen / m.blen
-                if identity > min_identity:
+                if identity >= min_identity:
                     y += (x[i] - m.tstart) ** 2
 
             hapname, start, strand = seqpositions[seqname]
@@ -217,7 +223,7 @@ def main():
                               'first: first mapping in PAF file will be used'
                               '(useful when with manually reordered PAF file'))
     parser.add_argument('--order', type=str, nargs='+')
-    parser.add_argument('--spring_layout', action='store_true', help='')
+    parser.add_argument('--no_spring_layout', action='store_true', help='')
     parser.add_argument('--shade_by_identity',
                         action='store_true', help='')
     parser.add_argument('--min_identity', type=float, default=0.999, help='')
@@ -240,7 +246,7 @@ def main():
     assert n_haps == 2, "genome is not diploid"
 
     for seqname, seqlen in seqs_from_paf.items():
-        if seqs[seqname] != seqlen:
+        if seqname in seqs and seqs[seqname] != seqlen:
             print('seq "{}" length not match gfa={} paf={} using paf'.format(
                 seqname, seqs[seqname], seqlen), file=sys.stderr)
             seqs[seqname] = seqlen
@@ -273,10 +279,14 @@ def main():
     for i, seqname in enumerate(seqnames):
         print('SEQ', i, seqname, seqpositions[seqname], file=sys.stderr)
 
-    if args.spring_layout:
+    if not args.no_spring_layout:
+        # adjust horizontal layout by spring layout of alignment and graph connection
         seqpositions = spring_layout(
             seqpositions, seqs, seqnames, match, graph, args.min_identity
         )
+        # sort by starting positions to determine vertical ordering
+        seqnames = sorted([seqname for seqname in seqs.keys()],
+                          key=lambda seqname: seqpositions[seqname])
 
     if args.order:
         print('ORDER', args.order, file=sys.stderr)
@@ -376,9 +386,9 @@ def main():
                 # opacity(0.99) = 0
                 min_identity = args.min_identity
 
-                if identity > min_identity:
+                if identity >= min_identity:
                     ratio = max(0, (identity - min_identity) /
-                                (1 - min_identity))
+                                (1 - min_identity)) if min_identity < 1 else 1
                     # opacity = ratio * 0.3
                     opacity = 0.3
                     # eprint(m.qname, m.tname, opacity)
