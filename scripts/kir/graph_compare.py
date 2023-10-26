@@ -222,7 +222,8 @@ def main():
                               'mapq: alignment of highest mapq will be used'
                               'first: first mapping in PAF file will be used'
                               '(useful when with manually reordered PAF file'))
-    parser.add_argument('--order', type=str, nargs='+')
+    parser.add_argument('--order', type=str, nargs='+',
+                        help='specify manual layout by <seqname>,<position>,<strand>')
     parser.add_argument('--no_spring_layout', action='store_true', help='')
     parser.add_argument('--shade_by_identity',
                         action='store_true', help='')
@@ -276,8 +277,6 @@ def main():
                     for seqname in seqs.keys()}
     seqnames = sorted([seqname for seqname in seqs.keys()],
                       key=lambda seqname: seqpositions[seqname])
-    for i, seqname in enumerate(seqnames):
-        print('SEQ', i, seqname, seqpositions[seqname], file=sys.stderr)
 
     if not args.no_spring_layout:
         # adjust horizontal layout by spring layout of alignment and graph connection
@@ -296,11 +295,22 @@ def main():
             seqname = segs[0]
             if len(segs) == 3:
                 # "seqname,position,strand"
-                position = int(segs[1])
+                position = float(segs[1])
                 strand = segs[2]
                 assert strand == '+' or strand == '-'
                 seqpositions[seqname] = (hapnames[0], position, strand)
             seqnames.append(seqname)
+
+    for i, seqname in enumerate(seqnames):
+        seqlen = seqs[seqname]
+        hapname, start, strand = seqpositions[seqname]
+        print('SEQ', i, seqname, hapname, start,
+              start+seqlen, strand, file=sys.stderr)
+
+    print('--order', file=sys.stderr)
+    for i, seqname in enumerate(seqnames):
+        hapname, start, strand = seqpositions[seqname]
+        print('{},{},{}'.format(seqname, start, strand), file=sys.stderr)
 
     # bp vs pixel conversion
     width = args.width
