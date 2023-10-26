@@ -7,9 +7,10 @@
 export OMP_NUM_THREADS=1
 
 function gfa2fa () {
+  # remove n gaps
   GFA=$1
   FA=${GFA/.gfa/.fa}
-  awk '/^S/{print ">"$2;print $3}' $GFA > $FA
+  awk '/^S/{print ">"$2;print $3}' $GFA | seqkit seq -g -G n | seqkit seq -m 1 > $FA
 }
 
 function map_to_genome() {
@@ -35,7 +36,7 @@ function generate_svg () {
   GFA=$1
   PAF=$2
   # --draw_mismatch_primary_only
-  python scripts/kir/graph_compare.py --draw_mismatch_threshold 100 $GFA $PAF
+  python scripts/kir/graph_compare.py --shade_by_identity --draw_mismatch_threshold 0 --min_identity 1.0 $GFA $PAF
 }
 
 function generate_svg_primary () {
@@ -84,6 +85,7 @@ function run_hifiasm () {
   generate_svg_primary $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.primary.svg
 
   gepard $DIR/out.fa $DIR/out.fa $DIR/out.fa.png
+  gepard $GENOME $DIR/out.fa $DIR/out.fa.genome.png
 }
 
 function run_verkko () {
@@ -124,7 +126,9 @@ function evaluate_dbgphmm () {
   map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
   generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.primary.svg
   generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
+
   gepard $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.png
+  gepard $GENOME $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.genome.png
 }
 
 function run_dbgphmm () {
@@ -173,14 +177,15 @@ function run_n4 () {
       # create dataset
       # ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
       # genome_self_vs_self $KEY/data.genome.fa
-      # run_hifiasm $KEY
+      run_hifiasm $KEY
       # run_lja $KEY
 
       # TODO activate miniconda to use verkko
       # run_verkko $KEY
 
       # run_dbgphmm $KEY $p   # run locally
-      qsub_run_dbgphmm $KEY $p   # run on cluster
+      # qsub_run_dbgphmm $KEY $p   # run on cluster
+      evaluate_dbgphmm $KEY "pz0.99_pi0.0003"
     done
   done
 }
@@ -197,7 +202,7 @@ function run_n10 () {
       echo $KEY
 
       # create dataset
-      # ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 2000 -N 10 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
+      ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 2000 -N 10 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
       # genome_self_vs_self $KEY/data.genome.fa
       # run_hifiasm $KEY
       # run_lja $KEY
