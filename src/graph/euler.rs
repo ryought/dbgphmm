@@ -2,11 +2,13 @@
 //! Calculating the number of euler circuits
 //!
 use crate::utils::log_factorial;
+use fnv::FnvHashMap as HashMap;
 use ndarray::prelude::*;
 use ndarray_linalg::solve::Determinant;
 use petgraph::algo::connected_components;
 use petgraph::algo::tarjan_scc;
 use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 
 ///
@@ -126,6 +128,133 @@ pub fn euler_circuit_count(graph: &DiGraph<(), usize>, allow_multiple_component:
     ret
 }
 
+///
+/// join two circuit at an intersection point
+///
+pub fn join_circuit(
+    graph: &DiGraph<(), usize>,
+    mut a: Vec<EdgeIndex>,
+    mut b: Vec<EdgeIndex>,
+) -> Vec<EdgeIndex> {
+    // find intersection point (node that is passed by both cycle)
+    let hash_a: HashMap<NodeIndex, usize> = a
+        .iter()
+        .enumerate()
+        .map(|(i, &ea)| {
+            let (source, _) = graph.edge_endpoints(ea).unwrap();
+            (source, i)
+        })
+        .collect();
+    let (ia, ib) = b
+        .iter()
+        .enumerate()
+        .find_map(|(ib, &eb)| {
+            let (source, _) = graph.edge_endpoints(eb).unwrap();
+            hash_a.get(&source).map(|&ia| (ia, ib))
+        })
+        .expect("two cycle has no intersection");
+
+    // a
+    //
+    // a        a2
+    // 0 1 2    3 4
+    // ->->-> v ->->
+    // a  = [0, ia)
+    // a2 = [ia, na)
+    let mut a2 = a.split_off(ia);
+    // b
+    //
+    // b        b2
+    // 0 1 2    3 4
+    // ->->-> v ->->
+    // b  = [0, ib)
+    // b2 = [ib, nb)
+    let mut b2 = b.split_off(ib);
+
+    // join
+    // a     b2   b   a
+    // ----> ---> --> ------->
+    a.append(&mut b2);
+    a.append(&mut b);
+    a.append(&mut a2);
+
+    a
+}
+
+///
+/// get an Euler circuit as edge vector
+///
+pub fn euler_circuit(graph: &DiGraph<(), usize>, from: NodeIndex) -> Vec<EdgeIndex> {
+    // remain[edge] = (how many multiplicity remains in the edge?)
+    let mut remain: Vec<usize> = graph.edge_indices().map(|e| graph[e]).collect();
+    let mut total_remain: usize = remain.iter().sum();
+    let mut cycles: Vec<Vec<EdgeIndex>> = Vec::new();
+    let node_remain = |node: NodeIndex, remain: &[usize]| {
+        graph
+            .edges_directed(node, Direction::Outgoing)
+            .map(|edge| remain[edge.id().index()])
+            .sum::<usize>()
+    };
+
+    // empty cycle is fine
+    if total_remain == 0 {
+        return vec![];
+    }
+
+    assert!(
+        node_remain(from, &remain) > 0,
+        "from node do not have outgoing edges"
+    );
+
+    let mut start = from;
+    loop {
+        // traverse to find a cycle
+        let mut cycle: Vec<EdgeIndex> = Vec::new();
+        let mut node = start;
+        loop {
+            match graph
+                .edges_directed(node, Direction::Outgoing)
+                .find(|edge| remain[edge.id().index()] > 0)
+            {
+                Some(edge) => {
+                    cycle.push(edge.id());
+                    remain[edge.id().index()] -= 1;
+                    total_remain -= 1;
+                    node = edge.target();
+                }
+                None => break,
+            }
+        }
+        assert_eq!(
+            start, node,
+            "end node of cycle is different from start node"
+        );
+        cycles.push(cycle);
+
+        // there is no more cycles
+        if total_remain == 0 {
+            break;
+        }
+
+        // find a new start node
+        start = graph
+            .node_indices()
+            .find(|&node| node_remain(node, &remain) > 0)
+            .unwrap();
+    }
+
+    let cycle = cycles
+        .into_iter()
+        .reduce(|cycle_a, cycle_b| join_circuit(graph, cycle_a, cycle_b))
+        .unwrap();
+
+    // check that cycle is passes all edges
+    let total: usize = graph.edge_indices().map(|e| graph[e]).sum();
+    assert_eq!(total, cycle.len());
+
+    cycle
+}
+
 //
 // tests
 //
@@ -133,6 +262,7 @@ pub fn euler_circuit_count(graph: &DiGraph<(), usize>, allow_multiple_component:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::ei;
 
     #[test]
     fn subgraph_test() {
@@ -187,7 +317,7 @@ mod tests {
             (0, 1, 1), // A2
             (1, 2, 2), // B
             (2, 3, 1), // C1
-            (2, 3, 1), // C1
+            (2, 3, 1), // C2
             (3, 0, 2), // D
         ]);
         assert_euler_approx_eq(&g, 2, 2);
@@ -205,6 +335,56 @@ mod tests {
             "{} {}",
             euler_circuit_count(&g, false).exp(),
             euler_circuit_count(&g, true).exp(),
+        );
+    }
+
+    #[test]
+    fn euler_circuit_test() {
+        // two bubbles with two euler circuit
+        // - A1 B C1 D A2 B C2 D
+        // - A1 B C2 D A2 B C1 D
+        let g: DiGraph<(), usize> = DiGraph::from_edges(&[
+            (0, 1, 1), // 0 A1
+            (0, 1, 1), // 1 A2
+            (1, 2, 2), // 2 B
+            (2, 3, 1), // 3 C1
+            (2, 3, 1), // 4 C2
+            (3, 4, 1), // 5 L
+            (4, 5, 1), // 6 L
+            (5, 3, 1), // 7 L
+            (3, 0, 2), // 8 D
+        ]);
+
+        let c = join_circuit(
+            &g,
+            vec![ei(0), ei(2), ei(4), ei(8)],
+            vec![ei(6), ei(7), ei(5)],
+        );
+        assert_eq!(c, vec![ei(0), ei(2), ei(4), ei(5), ei(6), ei(7), ei(8)]);
+
+        let c = join_circuit(
+            &g,
+            vec![ei(8), ei(0), ei(2), ei(4)],
+            vec![ei(5), ei(6), ei(7)],
+        );
+        assert_eq!(c, vec![ei(5), ei(6), ei(7), ei(8), ei(0), ei(2), ei(4)]);
+
+        let c = euler_circuit(&g, NodeIndex::new(0));
+        assert_eq!(
+            c,
+            vec![
+                ei(1),
+                ei(2),
+                ei(4),
+                ei(8),
+                ei(0),
+                ei(2),
+                ei(3),
+                ei(5),
+                ei(6),
+                ei(7),
+                ei(8)
+            ]
         );
     }
 }
