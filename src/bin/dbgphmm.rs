@@ -107,6 +107,14 @@ enum Commands {
         #[clap(short = 'c', default_value = "1000")]
         max_cycle_size: usize,
     },
+    /// Generate a candidate eularian traverse as FASTA file
+    Euler {
+        /// Filename of DBG
+        #[clap(short, long)]
+        dbg: std::path::PathBuf,
+        /// Output FASTA filename
+        fasta_out: std::path::PathBuf,
+    },
 }
 
 fn main() {
@@ -198,6 +206,10 @@ fn main() {
                 None,
                 None,
             );
+        }
+        Commands::Euler { dbg, fasta_out } => {
+            let dbg = MultiDbg::from_dbg_file(dbg);
+            dbg.to_fasta_linear(fasta_out);
         }
         _ => {}
     }
