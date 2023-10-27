@@ -124,8 +124,8 @@ def parse_gfa(filename, ignore_n=True, ignore_zero_copy=True):
                 if ignore_zero_copy and copy_num == 0:
                     continue
                 if seq:
-                    graph.add_node((name, '+'))
-                    graph.add_node((name, '-'))
+                    graph.add_node((name, '+'), copy_num=copy_num)
+                    graph.add_node((name, '-'), copy_num=copy_num)
                     seqs[name] = len(seq)
             elif segments[0] == 'L':
                 name_a = segments[1]
@@ -173,9 +173,16 @@ def hsl(h: float):
     return 'hsl({}, 100%, 50%)'.format(h * 360)
 
 
+def hit(record):
+    return (record.tname, record.tstart, str(record.strand))
+
+
 def spring_layout(seqpositions, seqs, seqnames, match, graph, min_identity):
     """
     seqpositions[seqname] = (hapname, start, strand)
+
+    minimize (edge length)^2 + (start point of target and query of alignments)^2
+    using scipy.optimize
     """
     x0 = [seqpositions[seqname][1] for seqname in seqnames]
 
@@ -208,6 +215,60 @@ def spring_layout(seqpositions, seqs, seqnames, match, graph, min_identity):
     return seqpositions_new
 
 
+def hierarchical_layout(seqpositions, seqs, seqnames, match, graph, min_identity):
+    """
+    """
+    # find possible matches
+    anchor = dict()
+    seqpositions_new = dict()
+    # [(seqname, orientation, pos)]
+    stack = list()
+    for seqname in seqnames:
+        ms = [m for m in match[seqname] if m.mlen / m.blen >= min_identity]
+        # if anchor is unique
+        if len(ms) == 1:
+            m = ms[0]
+            anchor[seqname] = m
+            seqpositions_new[seqname] = hit(m)
+            stack.append((seqname, str(m.strand), m.tstart))
+    eprint(anchor)
+    eprint(seqpositions_new)
+    eprint(stack)
+
+    while stack:
+        # sort by reverse order or seqlength
+        stack.sort(key=lambda x: seqs[x[0]])
+        eprint('s', stack)
+
+        (seqname, orientation, pos) = stack.pop()
+        eprint('pop', seqname, orientation, pos)
+        eprint(list(graph.successors((seqname, orientation))),
+               list(graph.predecessors((seqname, orientation))))
+
+        # child
+        for child, child_orientation in graph.successors((seqname, orientation)):
+            # if not determined yet
+            if child in seqnames and child not in seqpositions_new:
+                child_pos = pos + seqs[seqname]
+                stack.append((child, child_orientation, child_pos))
+                seqpositions_new[child] = ('g0', child_pos, child_orientation)
+
+        # parent
+        for parent, parent_orientation in graph.predecessors((seqname, orientation)):
+            # if not determined yet
+            if parent in seqnames and parent not in seqpositions_new:
+                parent_pos = pos - seqs[parent]
+                stack.append((parent, parent_orientation, parent_pos))
+                seqpositions_new[parent] = (
+                    'g0', parent_pos, parent_orientation)
+
+        eprint('stack', stack, seqname, child, parent)
+
+    eprint('done', seqpositions_new)
+
+    return seqpositions_new
+
+
 def main():
     parser = argparse.ArgumentParser(description='generate SVG')
     parser.add_argument('gfa_or_fa', type=Path, help='GFA or FA of asm')
@@ -224,7 +285,7 @@ def main():
                               '(useful when with manually reordered PAF file'))
     parser.add_argument('--order', type=str, nargs='+',
                         help='specify manual layout by <seqname>,<position>,<strand>')
-    parser.add_argument('--no_spring_layout', action='store_true', help='')
+    parser.add_argument('--spring_layout', action='store_true', help='')
     parser.add_argument('--shade_by_identity',
                         action='store_true', help='')
     parser.add_argument('--min_identity', type=float, default=0.999, help='')
@@ -257,9 +318,6 @@ def main():
     for i, hapname in enumerate(hapnames):
         print('HAP', i, hapname, haps[hapname], file=sys.stderr)
 
-    def hit(record):
-        return (record.tname, record.tstart, str(record.strand))
-
     def bestmatch(records):
         """convert List[paf records] into best hit (hap, pos, strand) (in terms of match length)"""
         if len(records) == 0:
@@ -278,14 +336,19 @@ def main():
     seqnames = sorted([seqname for seqname in seqs.keys()],
                       key=lambda seqname: seqpositions[seqname])
 
-    if not args.no_spring_layout:
+    if args.spring_layout:
         # adjust horizontal layout by spring layout of alignment and graph connection
         seqpositions = spring_layout(
             seqpositions, seqs, seqnames, match, graph, args.min_identity
         )
-        # sort by starting positions to determine vertical ordering
-        seqnames = sorted([seqname for seqname in seqs.keys()],
-                          key=lambda seqname: seqpositions[seqname])
+    else:
+        seqpositions = hierarchical_layout(
+            seqpositions, seqs, seqnames, match, graph, args.min_identity
+        )
+
+    # sort by starting positions to determine vertical ordering
+    seqnames = sorted([seqname for seqname in seqpositions.keys()],
+                      key=lambda seqname: seqpositions[seqname])
 
     if args.order:
         print('ORDER', args.order, file=sys.stderr)
