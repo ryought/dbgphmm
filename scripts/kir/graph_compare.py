@@ -298,14 +298,12 @@ def main():
                         help='specify manual layout by <seqname>,<position>,<strand>')
 
     # output
-    parser.add_argument('--shade_by_identity',
-                        action='store_true', help='')
     parser.add_argument('--min_identity', type=float, default=0.999, help='')
+    parser.add_argument('--show_mismatch',
+                        choices=['primary', 'identity'], default=None)
+    parser.add_argument('--min_identity_to_show_mismatch',
+                        type=float, default=0.999, help='')
     parser.add_argument('--hide_text', action='store_true', help='')
-    parser.add_argument('--draw_mismatch_primary_only',
-                        action='store_true', help='')
-    parser.add_argument('--draw_mismatch_threshold', type=int, default=None,
-                        help='if the number of mismatches is below this threshold, visualize mismatch position in red line. To disable mismatch visualization, set threshold to zero.')
     args = parser.parse_args()
 
     if args.gfa_or_fa.suffix == '.gfa':
@@ -490,60 +488,36 @@ def main():
             x_hap_end = margin + x(m.tend)
 
             # shade the best match
-            if args.shade_by_identity:
-                identity = m.mlen / m.blen
-                # opacity(1.00) = 1
-                # opacity(0.99) = 0
-                min_identity = args.min_identity
+            identity = m.mlen / m.blen
+            # opacity(1.00) = 1
+            # opacity(0.99) = 0
+            min_identity = args.min_identity
 
-                if identity >= min_identity:
-                    ratio = max(0, (identity - min_identity) /
-                                (1 - min_identity)) if min_identity < 1 else 1
-                    # opacity = ratio * 0.3
-                    opacity = 0.3
-                    # eprint(m.qname, m.tname, opacity)
-                    # lines
-                    elements.append(
-                        line(x_seq_start, y_seq, x_hap_start, y_hap, opacity=opacity))
-                    elements.append(
-                        line(x_seq_end, y_seq, x_hap_end, y_hap, opacity=opacity))
-                    # shade
-                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                         x_hap_end, y_hap, x_hap_start, y_hap,
-                                         color=color, opacity=opacity))
-                    # mismatch sign
-                    cigar = m.get_tag("cs").value
-                    for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
-                        x_hap = margin + x(m.tstart + tindex)
-                        x_seq = x_seq_left + x(m.qstart + qindex)
-                        # mismatch
-                        elements.append(line(x_seq, y_seq, x_hap, y_hap,
-                                             color=color, opacity=0.5))
-            else:
+            if identity >= min_identity:
+                ratio = max(0, (identity - min_identity) /
+                            (1 - min_identity)) if min_identity < 1 else 1
+                # opacity = ratio * 0.3
+                opacity = 0.3
+                # eprint(m.qname, m.tname, opacity)
                 # lines
-                elements.append(line(x_seq_start, y_seq, x_hap_start, y_hap))
-                elements.append(line(x_seq_end, y_seq, x_hap_end, y_hap))
+                elements.append(
+                    line(x_seq_start, y_seq, x_hap_start, y_hap, opacity=opacity))
+                elements.append(
+                    line(x_seq_end, y_seq, x_hap_end, y_hap, opacity=opacity))
+                # shade
+                elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
+                                     x_hap_end, y_hap, x_hap_start, y_hap,
+                                     color=color, opacity=opacity))
 
-                if bestmatch(match[seqname]) == hit(m):
-                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                         x_hap_end, y_hap, x_hap_start, y_hap,
-                                         color=color, opacity=0.2))
-                else:
-                    elements.append(poly(x_seq_start, y_seq, x_seq_end, y_seq,
-                                         x_hap_end, y_hap, x_hap_start, y_hap,
-                                         color='#bbb', opacity=0.1))
-                # mismatch
-                nm = m.get_tag("NM").value
+            # mismatch sign
+            if (args.show_mismatch == 'identity' and identity >= args.min_identity_to_show_mismatch) or (args.show_mismatch == 'primary' and m.is_primary()):
                 cigar = m.get_tag("cs").value
-                if args.draw_mismatch_threshold is None or nm <= args.draw_mismatch_threshold:
-                    if args.draw_mismatch_primary_only and not m.is_primary():
-                        continue
-                    for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
-                        x_hap = margin + x(m.tstart + tindex)
-                        x_seq = x_seq_left + x(m.qstart + qindex)
-                        # mismatch
-                        elements.append(line(x_seq, y_seq, x_hap, y_hap,
-                                             color=color, opacity=0.5))
+                for (tindex, qindex) in aligned_pairs(cigar, ignore_match=True):
+                    x_hap = margin + x(m.tstart + tindex)
+                    x_seq = x_seq_left + x(m.qstart + qindex)
+                    # mismatch
+                    elements.append(line(x_seq, y_seq, x_hap, y_hap,
+                                         color=color, opacity=0.5))
 
         # show graph
         for edge in graph.out_edges((seqname, strand)):
