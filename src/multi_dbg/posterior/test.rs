@@ -310,6 +310,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
         &posterior,
         copy_nums_true.as_ref(),
     );
+    dbg.to_fasta_linear(format!("{}.final.euler.fa", output));
 
     println!("# finished_at={}", chrono::Local::now());
 
