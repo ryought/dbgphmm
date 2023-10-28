@@ -77,7 +77,7 @@ fn main() {
         let copy_num =
             dbg.min_squared_error_copy_nums_from_freqs(&freqs, dataset.coverage(), Some(2));
         eprintln!("copy_num={}", copy_num);
-        dbg.to_map_file(map, dataset.reads(), &mappings);
+        dbg.to_map_file(map, dataset.reads(), &mappings).unwrap();
         eprintln!("map {} written", map.display());
         return;
     }

@@ -1,6 +1,5 @@
 #![feature(test)]
 #![feature(step_trait)]
-#![feature(is_some_and)]
 pub mod common;
 pub mod distribution;
 pub mod e2e;
@@ -10,7 +9,6 @@ pub mod graph;
 pub mod hashdbg;
 pub mod hist;
 pub mod hmmv2;
-pub mod io;
 pub mod kmer;
 pub mod min_flow;
 pub mod multi_dbg;

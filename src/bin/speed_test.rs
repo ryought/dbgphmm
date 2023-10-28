@@ -1,9 +1,10 @@
+#![allow(unused)]
 use dbgphmm::{
     e2e::{generate_dataset, ReadType},
     genome,
     hmmv2::params::PHMMParams,
     multi_dbg::MultiDbg,
-    utils::{check_memory_usage, timer},
+    utils::timer,
 };
 
 fn main() {

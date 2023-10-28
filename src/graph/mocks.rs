@@ -1,6 +1,6 @@
 use super::genome_graph::{GenomeEdge, GenomeGraph, GenomeNode};
 use crate::random_seq::generate;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::graph::DiGraph;
 
 ///
 /// Sample linear genome (10bp) "ATTCGATCGT"

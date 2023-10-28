@@ -6,7 +6,7 @@
 //! * collapse_simple_paths
 //!
 use petgraph::{
-    graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph},
+    graph::{DiGraph, EdgeIndex, NodeIndex},
     stable_graph::StableDiGraph,
     visit::EdgeRef,
     Direction,

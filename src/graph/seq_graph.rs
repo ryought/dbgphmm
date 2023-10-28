@@ -8,7 +8,6 @@ use crate::graph::genome_graph::GenomeGraphPos;
 use crate::hmmv2::common::{PEdge, PModel, PNode};
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
-use petgraph::dot::Dot;
 use petgraph::graph::DiGraph;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::visit::{IntoNodeReferences, NodeRef};
@@ -140,7 +139,6 @@ impl<N: SeqNode, E: SeqEdge> SeqGraph for DiGraph<N, E> {
     }
     fn edge_copy_nums_is_consistent(&self) -> bool {
         self.node_indices().all(|v| {
-            let vw = self.node_weight(v).unwrap();
             self.edges_directed(v, Direction::Outgoing)
                 .all(|e| e.weight().copy_num().is_some())
         })

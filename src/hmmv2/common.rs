@@ -201,6 +201,7 @@ where
 #[derive(Debug, Copy, Clone)]
 pub struct PNode {
     ///
+    #[allow(unused)]
     copy_num: CopyNum,
     /// initial transition probability
     ///  = (copy_num) / (sum of copy_nums of all nodes)
@@ -255,6 +256,7 @@ pub struct PEdge {
     ///
     trans_prob: Prob,
     ///
+    #[allow(unused)]
     copy_num: Option<CopyNum>,
 }
 

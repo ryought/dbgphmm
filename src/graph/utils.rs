@@ -1,9 +1,8 @@
 use fnv::FnvHashMap as HashMap;
 use petgraph::algo::tarjan_scc;
-use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
-use std::iter::FromIterator;
 
 pub fn to_node_list<N: Clone, E>(graph: &DiGraph<N, E>) -> Vec<(usize, N)> {
     graph
@@ -357,6 +356,7 @@ pub fn split_node<N: Clone, E: Clone>(
 mod tests {
     use super::*;
     use crate::common::ei;
+    use std::iter::FromIterator;
 
     #[test]
     fn purge_edges_with_mapping_test() {

@@ -1,11 +1,5 @@
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::MultiDbg,
-    utils::{check_memory_usage, timer},
-};
+use dbgphmm::{e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::MultiDbg, utils::timer};
 use petgraph::graph::NodeIndex;
 
 #[derive(Parser, Debug)]

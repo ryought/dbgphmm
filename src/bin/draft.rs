@@ -61,6 +61,7 @@ struct Opts {
 // -U 10000 -N 10 -E 200 -P 2 -H 0.01
 // -C 20 -p 0.01 -L 20000
 
+#[allow(unused_must_use)]
 fn main() {
     let opts: Opts = Opts::parse();
     let mut log_file = std::fs::File::create(&opts.output_prefix).unwrap();
@@ -123,7 +124,7 @@ fn main() {
     let min_deadend_count = opts
         .min_deadend_count
         .unwrap_or((dataset.coverage() / 4.0) as usize);
-    let (mut mdbg, t) = timer(|| {
+    let (mdbg, t) = timer(|| {
         MultiDbg::create_draft_from_dataset_with(
             opts.k,
             &dataset,

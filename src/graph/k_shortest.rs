@@ -4,7 +4,7 @@
 //! petgraph::algo::k_shortest_path::k_shortest_path
 //!
 use petgraph::{
-    graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph},
+    graph::{DiGraph, EdgeIndex, NodeIndex},
     stable_graph::StableDiGraph,
     visit::EdgeRef,
     Direction,
@@ -144,7 +144,7 @@ where
     }
 
     // Iteration k
-    for iter in 1..k {
+    for _iter in 1..k {
         // (i) create candidates of a_k from a_0 ... a_k-1
         let mut graph = graph.clone();
         let a = &paths[paths.len() - 1];
@@ -256,7 +256,7 @@ where
 ///
 ///
 ///
-pub fn total_cost<N, E, F>(graph: &StableDiGraph<N, E>, edges: &[EdgeIndex], edge_cost: F) -> usize
+pub fn total_cost<N, E, F>(_graph: &StableDiGraph<N, E>, edges: &[EdgeIndex], edge_cost: F) -> usize
 where
     F: Fn(EdgeIndex) -> usize,
 {
@@ -271,6 +271,7 @@ where
 mod tests {
     use super::*;
     use crate::common::{ei, ni};
+    use petgraph::graph::Graph;
     use rustflow::min_flow::residue::{
         is_meaningful_move_on_residue_graph, ResidueDirection, ResidueEdge, ResidueGraph,
     };

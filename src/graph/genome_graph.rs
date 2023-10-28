@@ -4,17 +4,13 @@
 //! Edge: its adjacency
 //!
 use super::seq_graph::{get_start_points, SimpleSeqEdge, SimpleSeqGraph, SimpleSeqNode};
-use crate::common::{
-    CopyNum, PositionedReads, PositionedSequence, Reads, Seq, SeqStyle, Sequence, StyledSequence,
-};
+use crate::common::{CopyNum, PositionedReads, Reads, Seq, SeqStyle, Sequence, StyledSequence};
 use crate::graph::seq_graph::SeqGraph;
 use crate::hmmv2::params::PHMMParams;
-use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
+use crate::hmmv2::sample::{SampleProfile, StartPoints};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-use petgraph::visit::EdgeRef;
-use petgraph::visit::IntoNodeReferences;
 use petgraph::Direction;
 use std::collections::HashMap;
 
@@ -100,19 +96,19 @@ impl GenomeGraphPos {
     }
     pub fn is_match(&self) -> bool {
         match self {
-            GenomeGraphPos::Match { pos, node } => true,
+            GenomeGraphPos::Match { pos: _, node: _ } => true,
             GenomeGraphPos::Ins => false,
         }
     }
     pub fn node(&self) -> Option<NodeIndex> {
         match self {
-            GenomeGraphPos::Match { pos, node } => Some(*node),
+            GenomeGraphPos::Match { pos: _, node } => Some(*node),
             GenomeGraphPos::Ins => None,
         }
     }
     pub fn pos(&self) -> Option<usize> {
         match self {
-            GenomeGraphPos::Match { pos, node } => Some(*pos),
+            GenomeGraphPos::Match { pos, node: _ } => Some(*pos),
             GenomeGraphPos::Ins => None,
         }
     }
@@ -463,6 +459,7 @@ mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
     use crate::graph::seq_graph::find_node_from_source_pos;
+    use crate::hmmv2::sample::{ReadAmount, ReadLength};
     use crate::random_seq::generate;
 
     fn has_edge_between_two_pos(

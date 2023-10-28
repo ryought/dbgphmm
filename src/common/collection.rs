@@ -236,7 +236,7 @@ impl<S: Seq> ReadCollection<S> {
 pub fn sanitize_bases(seq: &[u8]) -> Vec<u8> {
     seq.iter()
         .enumerate()
-        .map(|(i, base)| match base {
+        .map(|(_i, base)| match base {
             b'A' | b'a' => b'A',
             b'C' | b'c' => b'C',
             b'G' | b'g' => b'G',

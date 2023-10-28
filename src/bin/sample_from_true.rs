@@ -1,13 +1,8 @@
 use clap::Parser;
 use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_posterior_from_true,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::{check_memory_usage, timer},
+    e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::posterior::test::test_posterior_from_true,
+    multi_dbg::MultiDbg,
 };
-use petgraph::algo::connected_components;
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
@@ -41,5 +36,6 @@ fn main() {
         opts.dbg.with_extension("from_true.gfa"),
         &post,
         Some(&copy_nums_true),
-    );
+    )
+    .unwrap();
 }

@@ -48,7 +48,7 @@ pub fn breakpoints<T, K: PartialEq>(xs: &[(T, K)]) -> Vec<usize> {
     ret
 }
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 ///
 /// measure time in milli-seconds (ms) of closure.
 ///

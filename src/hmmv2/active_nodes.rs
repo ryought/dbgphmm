@@ -4,9 +4,8 @@
 //!
 use super::table::MAX_ACTIVE_NODES;
 use crate::hmmv2::common::{PHMMEdge, PHMMModel, PHMMNode};
-use crate::prob::Prob;
 use arrayvec::ArrayVec;
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 
 impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {

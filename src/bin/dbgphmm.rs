@@ -144,7 +144,7 @@ fn main() {
             let mut hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(*k, &reads);
             hd.remove_rare_kmers(*min_count);
             hd.remove_deadends(*min_deadend_count);
-            hd.to_gfa_file(gfa_output);
+            hd.to_gfa_file(gfa_output).unwrap();
         }
         Commands::Draft {
             k,
@@ -171,9 +171,9 @@ fn main() {
             );
 
             // output
-            dbg.to_dbg_file(dbg_output);
+            dbg.to_dbg_file(dbg_output).unwrap();
             if let Some(gfa_output) = gfa_output {
-                dbg.to_gfa_file(gfa_output);
+                dbg.to_gfa_file(gfa_output).unwrap();
             }
         }
         Commands::Infer {
@@ -209,9 +209,8 @@ fn main() {
         }
         Commands::Euler { dbg, fasta_out } => {
             let dbg = MultiDbg::from_dbg_file(dbg);
-            dbg.to_fasta_linear(fasta_out);
+            dbg.to_fasta_linear(fasta_out).unwrap();
         }
-        _ => {}
     }
     println!("# finished_at={}", chrono::Local::now());
 }

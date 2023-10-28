@@ -24,7 +24,7 @@ pub fn test_posterior(
 ) -> (MultiDbg, Posterior, CopyNums) {
     println!("# started_at={}", chrono::Local::now());
 
-    let (mut mdbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
+    let (mut mdbg, _t) = timer(|| MultiDbg::create_draft_from_dataset(k, &dataset));
     let paths_true = mdbg.paths_from_styled_seqs(dataset.genome()).unwrap();
     // mdbg.to_paths_file("simple.paths", &paths_true);
 
@@ -53,12 +53,14 @@ pub fn test_posterior(
     // post.to_file("simple.post");
     let copy_nums_true = mdbg.copy_nums_from_full_path(&paths_true);
     mdbg.set_copy_nums(&copy_nums_true);
-    mdbg.to_gfa_post_file(gfa_filename, &post, Some(&copy_nums_true));
+    mdbg.to_gfa_post_file(gfa_filename, &post, Some(&copy_nums_true))
+        .unwrap();
     mdbg.to_inspect_file(
         format!("{}.inspect", gfa_filename),
         &post,
         Some(&copy_nums_true),
-    );
+    )
+    .unwrap();
 
     println!("# finished_at={}", chrono::Local::now());
 
@@ -97,7 +99,8 @@ pub fn test_posterior_from_true<P: AsRef<std::path::Path>>(
         10,
         false,
     );
-    dbg.to_inspect_file(inspect_filename, &post, Some(&copy_nums_true));
+    dbg.to_inspect_file(inspect_filename, &post, Some(&copy_nums_true))
+        .unwrap();
 
     (dbg, post, copy_nums_true)
 }
@@ -116,7 +119,7 @@ pub fn test_inference<P: AsRef<std::path::Path>>(
     max_cycle_size: usize, // 10
     output_prefix: P,
 ) -> (MultiDbg, Posterior, Option<Vec<Path>>, Mappings) {
-    let (dbg, t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
+    let (dbg, _t) = timer(|| MultiDbg::create_draft_from_dataset(k_init, &dataset));
     test_inference_from_dbg_with_dataset(
         dataset,
         dbg,
@@ -188,7 +191,8 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
             output.with_extension(format!("k{}.extend.map", dbg.k())),
             dataset.reads(),
             &mappings,
-        );
+        )
+        .unwrap();
 
         // compute true mapping
         eprintln!("computing true...");
@@ -201,10 +205,13 @@ pub fn test_mapping_extension<P: AsRef<std::path::Path>>(
             output.with_extension(format!("k{}.true.map", dbg.k())),
             dataset.reads(),
             &mappings_true,
-        );
+        )
+        .unwrap();
 
-        dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", dbg.k())));
-        dbg.to_gfa_file(output.with_extension(format!("k{}.gfa", dbg.k())));
+        dbg.to_dbg_file(output.with_extension(format!("k{}.dbg", dbg.k())))
+            .unwrap();
+        dbg.to_gfa_file(output.with_extension(format!("k{}.gfa", dbg.k())))
+            .unwrap();
 
         let p_extend = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings));
         let p_true = dbg.to_likelihood(param_infer, dataset.reads(), Some(&mappings_true));
@@ -272,8 +279,10 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
             let k = dbg.k();
             println!("callback k={} n_edges={}", k, dbg.n_edges_full());
 
-            dbg.to_dbg_file(format!("{}.k{}.dbg", output, k));
-            posterior.to_file(format!("{}.k{}.post", output, k));
+            dbg.to_dbg_file(format!("{}.k{}.dbg", output, k)).unwrap();
+            posterior
+                .to_file(format!("{}.k{}.post", output, k))
+                .unwrap();
 
             let copy_nums_true = paths
                 .as_ref()
@@ -282,16 +291,19 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
                 format!("{}.k{}.gfa", output, k),
                 posterior,
                 copy_nums_true.as_ref(),
-            );
+            )
+            .unwrap();
             dbg.to_inspect_file(
                 format!("{}.k{}.inspect", output, k),
                 posterior,
                 copy_nums_true.as_ref(),
-            );
-            dbg.to_map_file(format!("{}.k{}.mpz", output, k), reads, mappings);
+            )
+            .unwrap();
+            dbg.to_map_file(format!("{}.k{}.mpz", output, k), reads, mappings)
+                .unwrap();
         },
-        |dbg, mappings| {},
-        |dbg, mappings| {},
+        |_dbg, _mappings| {},
+        |_dbg, _mappings| {},
         paths,
         mappings,
     );
@@ -300,18 +312,21 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
     let copy_nums_true = paths
         .as_ref()
         .map(|paths| dbg.copy_nums_from_full_path(paths));
-    dbg.to_dbg_file(format!("{}.final.dbg", output));
+    dbg.to_dbg_file(format!("{}.final.dbg", output)).unwrap();
     dbg.to_gfa_post_file(
         format!("{}.final.gfa", output),
         &posterior,
         copy_nums_true.as_ref(),
-    );
+    )
+    .unwrap();
     dbg.to_inspect_file(
         format!("{}.final.inspect", output),
         &posterior,
         copy_nums_true.as_ref(),
-    );
-    dbg.to_fasta_linear(format!("{}.final.euler.fa", output));
+    )
+    .unwrap();
+    dbg.to_fasta_linear(format!("{}.final.euler.fa", output))
+        .unwrap();
 
     println!("# finished_at={}", chrono::Local::now());
 
@@ -355,6 +370,7 @@ pub fn test_inference_from_dbg_with_dataset<P: AsRef<std::path::Path>>(
 ///
 /// * P(X(e)=0 | R) is not too high for true edge e
 ///
+#[allow(dead_code)]
 fn check_posterior_non_zero_edges(
     dbg: &MultiDbg,
     posterior: &Posterior,
@@ -374,8 +390,9 @@ fn check_posterior_non_zero_edges(
 ///
 /// * P(true copy nums | R) is the highest
 ///
+#[allow(dead_code)]
 fn check_posterior_highest_at_true(
-    dbg: &MultiDbg,
+    _dbg: &MultiDbg,
     posterior: &Posterior,
     copy_nums_true: &CopyNums,
 ) {
@@ -383,6 +400,7 @@ fn check_posterior_highest_at_true(
     assert_eq!(posterior.max_copy_nums(), copy_nums_true);
 }
 
+#[allow(dead_code)]
 fn check_posterior_highest_at_true_path(
     dbg: &MultiDbg,
     posterior: &Posterior,

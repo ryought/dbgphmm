@@ -1,12 +1,5 @@
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_posterior_from_true,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::{check_memory_usage, timer},
-};
+use dbgphmm::multi_dbg::MultiDbg;
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
@@ -35,5 +28,5 @@ fn main() {
     //     println!("{:?}", sample);
     // }
     dbg.set_copy_nums(&posterior.samples[opts.sample_id].copy_nums);
-    dbg.to_dbg_file(&opts.dbg_out);
+    dbg.to_dbg_file(&opts.dbg_out).unwrap();
 }

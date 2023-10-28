@@ -28,7 +28,7 @@ pub fn lp(lp: f64) -> Prob {
 
 use once_cell::sync::Lazy;
 const MAX_PRECALCULATED_X: usize = 10;
-static ys: Lazy<[f64; MAX_PRECALCULATED_X]> = Lazy::new(|| {
+static YS: Lazy<[f64; MAX_PRECALCULATED_X]> = Lazy::new(|| {
     let mut v = [0f64; MAX_PRECALCULATED_X];
     for x in 0..MAX_PRECALCULATED_X {
         v[x] = (x as f64).ln();
@@ -43,7 +43,7 @@ static ys: Lazy<[f64; MAX_PRECALCULATED_X]> = Lazy::new(|| {
 pub fn ln_int(x: usize) -> f64 {
     // if x is small, return the precalculated
     if x < MAX_PRECALCULATED_X {
-        ys[x]
+        YS[x]
     } else {
         (x as f64).ln()
     }
@@ -510,7 +510,7 @@ mod tests {
             let mut r = 0.0;
             for x in 0..10 {
                 // r += ln_int(test::black_box(x));
-                r += ys[x];
+                r += YS[x];
             }
         })
     }

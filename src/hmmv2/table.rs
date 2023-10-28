@@ -4,7 +4,7 @@
 //! Updated version of PHMMTable using SparseVec
 //!
 use super::sample::State;
-use crate::prob::{p, Prob};
+use crate::prob::Prob;
 use arrayvec::ArrayVec;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;

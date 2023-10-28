@@ -1,10 +1,7 @@
 use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::*;
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    multi_dbg::{MultiDbg, NeighborConfig},
-};
+use dbgphmm::{e2e::Dataset, multi_dbg::MultiDbg};
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
@@ -25,9 +22,9 @@ fn main() {
 
     let dataset = Dataset::from_json_file(opts.dataset_json);
     let dbg = MultiDbg::from_dbg_file(&opts.dbg);
-    dbg.to_fasta(opts.dbg.with_extension("fa"));
+    dbg.to_fasta(opts.dbg.with_extension("fa")).unwrap();
 
-    let s = dbg.to_styled_seqs();
+    let _s = dbg.to_styled_seqs();
 
     for (i, s) in dbg.to_styled_seqs().into_iter().enumerate() {
         for (j, g) in dataset.genome().into_iter().enumerate() {

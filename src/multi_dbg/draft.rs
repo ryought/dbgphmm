@@ -2,8 +2,8 @@
 //! Constructor of draft dbg from reads or genomes
 //!
 use super::{CopyNums, MultiDbg};
-use crate::common::collection::{starts_and_ends_of_genome, ReadCollection};
-use crate::common::{CopyNum, Freq, Seq, StyledSequence};
+use crate::common::collection::ReadCollection;
+use crate::common::{CopyNum, Freq, Seq};
 use crate::distribution::kmer_coverage;
 use crate::e2e::Dataset;
 use crate::genome::Genome;
@@ -12,7 +12,6 @@ use crate::hashdbg::HashDbg;
 use crate::hmmv2::{freq::NodeFreqs, hint::Mappings};
 use crate::kmer::VecKmer;
 use crate::prob::Prob;
-use crate::utils::timer;
 
 use fnv::FnvHashMap as HashMap;
 use itertools::{izip, Itertools};
@@ -393,16 +392,19 @@ impl MultiDbg {
 }
 
 /// assertion
+#[allow(dead_code)]
 fn check_dbg_contains_true_kmers(dbg: &MultiDbg, genome: &Genome) {
     assert!(dbg.paths_from_styled_seqs(genome).is_ok());
 }
 
+#[allow(dead_code)]
 fn show_kmer_copy_num_map(map: &HashMap<VecKmer, CopyNum>) {
     for (kmer, copy_num) in map {
         println!("{} {}x", kmer, copy_num);
     }
 }
 
+#[allow(dead_code)]
 fn show_kmer_copy_num_map_diff(a: &HashMap<VecKmer, CopyNum>, b: &HashMap<VecKmer, CopyNum>) {
     println!("--- diff ---");
     for (x, xa) in a {
@@ -432,6 +434,7 @@ mod tests {
     use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
     use crate::hmmv2::params::PHMMParams;
+    use crate::utils::timer;
 
     fn check_no_diff_between_draft_v1_and_v2(dataset: Dataset, k: usize) {
         // starts_and_ends_of_genome(&genome, k);

@@ -1,12 +1,5 @@
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::{check_memory_usage, timer},
-};
-use petgraph::algo::connected_components;
+use dbgphmm::{e2e::Dataset, multi_dbg::MultiDbg};
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]

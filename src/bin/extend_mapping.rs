@@ -1,7 +1,7 @@
 use clap::Parser;
 use dbgphmm::{
-    e2e::Dataset, genome, hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_mapping_extension, multi_dbg::MultiDbg,
+    e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::posterior::test::test_mapping_extension,
+    multi_dbg::MultiDbg,
 };
 
 #[derive(Parser, Debug)]

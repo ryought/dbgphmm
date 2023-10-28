@@ -5,9 +5,8 @@ use crate::utils::log_factorial;
 use fnv::FnvHashMap as HashMap;
 use ndarray::prelude::*;
 use ndarray_linalg::solve::Determinant;
-use petgraph::algo::connected_components;
 use petgraph::algo::tarjan_scc;
-use petgraph::graph::{DiGraph, EdgeIndex, Graph, NodeIndex, UnGraph};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 

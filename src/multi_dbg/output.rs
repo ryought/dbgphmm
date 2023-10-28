@@ -180,7 +180,7 @@ impl MultiDbg {
         writeln!(writer, "# {}", env!("GIT_HASH"))?;
         writeln!(writer, "# degree_stats={:?}", self.degree_stats())?;
         writeln!(writer, "K\t{}", self.k())?;
-        for (node, weight) in self.nodes_compact() {
+        for (node, _weight) in self.nodes_compact() {
             writeln!(writer, "N\t{}\t{}", node.index(), self.km1mer_compact(node))?
         }
         for (edge, s, t, weight) in self.edges_compact() {
@@ -655,7 +655,7 @@ impl MultiDbg {
         FL: Fn(EdgeIndex) -> String,
         FC: Fn(EdgeIndex) -> (u8, u8, u8),
     {
-        for (edge, s, t, weight) in self.edges_compact() {
+        for (edge, _s, _t, _weight) in self.edges_compact() {
             let seq = &self.seq_compact(edge);
             let (r, g, b) = color(edge);
             let color = format!("#{:02x}{:02x}{:02x}", r, g, b);
@@ -671,7 +671,7 @@ impl MultiDbg {
             )?
         }
         let terminal = self.terminal_node_compact();
-        for (node, weight) in self.nodes_compact() {
+        for (node, _weight) in self.nodes_compact() {
             if terminal.is_some() && node != terminal.unwrap() {
                 for (in_edge, _, _) in self.parents_compact(node) {
                     for (out_edge, _, _) in self.childs_compact(node) {
@@ -694,7 +694,7 @@ impl MultiDbg {
         self.to_gfa_writer_with(
             writer,
             |e| sequence_to_string(&self.seq_compact(e)).to_string(),
-            |e| (0, 255, 0),
+            |_| (0, 255, 0),
         )
     }
     ///

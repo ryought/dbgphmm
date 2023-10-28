@@ -38,7 +38,7 @@ pub fn shortest_cycle<N, E>(
         },
         |_| 0,
     ) {
-        Some((cost, path)) => Some(path),
+        Some((_cost, path)) => Some(path),
         None => None,
     }
 }
@@ -51,7 +51,6 @@ pub fn shortest_cycle<N, E>(
 mod tests {
     use super::*;
     use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-    use petgraph::visit::Bfs;
 
     #[test]
     fn starting() {

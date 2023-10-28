@@ -1,4 +1,3 @@
-pub mod fasta;
 pub mod json;
 
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};

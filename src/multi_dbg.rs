@@ -13,10 +13,7 @@
 //! * No generics
 //! * Use compact copy number vector
 //!
-use crate::common::{
-    collection::trim_n_in_bases, sequence_to_string, CopyNum, ReadCollection, Reads, Seq, SeqStyle,
-    Sequence, StyledSequence, NULL_BASE,
-};
+use crate::common::{collection::trim_n_in_bases, CopyNum, SeqStyle, StyledSequence, NULL_BASE};
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::{euler_circuit, euler_circuit_count};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
@@ -28,19 +25,17 @@ use crate::hmmv2::{
     common::PModel,
     hint::{Mapping, Mappings},
     params::PHMMParams,
-    table::MAX_ACTIVE_NODES,
 };
 use crate::kmer::{
-    common::{kmers_to_string, KmerLike, NullableKmer},
+    common::{kmers_to_string, KmerLike},
     kmer::styled_sequence_to_kmers,
     veckmer::VecKmer,
 };
 
-use arrayvec::ArrayVec;
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
-use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
-use petgraph::visit::{EdgeRef, IntoNodeReferences};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use petgraph_algos::iterators::{ChildEdges, EdgesIterator, NodesIterator, ParentEdges};
 use rustflow::min_flow::Flow;
@@ -1374,7 +1369,7 @@ impl MultiDbg {
     ///
     fn to_seq_graph(&self) -> DiGraph<SNode, SEdge> {
         self.to_node_centric_graph(
-            |e, ew| SNode {
+            |_e, ew| SNode {
                 copy_num: ew.copy_num,
                 base: ew.base,
             },

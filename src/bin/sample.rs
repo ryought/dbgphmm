@@ -1,10 +1,6 @@
 use clap::Parser;
 use dbgphmm::{
-    common::ei,
-    e2e::Dataset,
-    hmmv2::params::PHMMParams,
-    multi_dbg::MultiDbg,
-    utils::{check_memory_usage, timer},
+    common::ei, e2e::Dataset, hmmv2::params::PHMMParams, multi_dbg::MultiDbg, utils::timer,
 };
 
 #[derive(Parser, Debug)]
@@ -73,7 +69,8 @@ fn main() {
     );
     let paths_true = dbg.paths_from_styled_seqs(dataset.genome()).unwrap();
     let copy_nums_true = dbg.copy_nums_from_full_path(paths_true);
-    dbg.to_inspect_file(&opts.inspect_filename, &posterior, Some(&copy_nums_true));
+    dbg.to_inspect_file(&opts.inspect_filename, &posterior, Some(&copy_nums_true))
+        .unwrap();
 
     println!("# finished_at={}", chrono::Local::now());
 }

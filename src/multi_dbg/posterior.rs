@@ -5,22 +5,17 @@ use super::{
     neighbors::{NeighborConfig, UpdateInfo, UpdateMethod},
     CopyNums, MultiDbg, Path,
 };
-use crate::common::{CopyNum, PositionedReads, PositionedSequence, ReadCollection, Seq};
+use crate::common::{CopyNum, ReadCollection, Seq};
 use crate::distribution::normal;
-use crate::e2e::Dataset;
 use crate::hist::DiscreteDistribution;
 use crate::hmmv2::hint::Mappings;
 use crate::hmmv2::params::PHMMParams;
 use crate::prob::Prob;
 use crate::utils::{progress_common_style, timer};
-use fnv::FnvHashMap as HashMap;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rayon::prelude::*;
-use rustflow::min_flow::residue::{
-    update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
-};
 use serde::{Deserialize, Serialize};
 
 pub mod output;
@@ -537,7 +532,6 @@ impl MultiDbg {
         if multi_move {
             // accept independent moves
             let mut current_copy_nums = self.get_copy_nums();
-            let original_copy_nums = self.get_copy_nums();
             let mut accepted_update_cycles = vec![];
             let current_score = posterior
                 .find(&current_copy_nums)
@@ -545,7 +539,7 @@ impl MultiDbg {
                 .score;
             // eprintln!("multi move from p={}", current_score.p());
 
-            for (i, (copy_nums, info)) in neighbors
+            for (_i, (copy_nums, info)) in neighbors
                 .iter()
                 .sorted_by_key(|(copy_nums, _)| posterior.find(&copy_nums).unwrap().score.p())
                 .rev()

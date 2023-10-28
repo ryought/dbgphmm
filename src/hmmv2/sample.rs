@@ -6,8 +6,7 @@
 //! * create a special struct for storeing the sampling result instead of `Vec<(State, Emission)>`
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
-use crate::common::{Freq, Reads, Sequence};
-use crate::hmmv2::params::PHMMParams;
+use crate::common::Sequence;
 use crate::prob::Prob;
 pub use petgraph::graph::{EdgeIndex, NodeIndex};
 use picker::{pick_ins_emission, pick_match_emission, pick_with_prob};
@@ -15,7 +14,6 @@ use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 pub mod history;
 pub mod picker;
-pub mod utils;
 pub use history::{History, Historys};
 
 ///
@@ -493,6 +491,7 @@ mod tests {
     use super::*;
     use crate::common::{ni, sequence_to_string};
     use crate::hmmv2::mocks::mock_linear_phmm;
+    use crate::hmmv2::params::PHMMParams;
 
     #[test]
     fn hmm_sample_state() {

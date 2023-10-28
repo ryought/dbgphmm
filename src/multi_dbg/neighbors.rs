@@ -9,20 +9,19 @@ use super::{
     CopyNums, MultiDbg,
 };
 use crate::float::NonNanF64;
-use crate::graph::k_shortest::{k_shortest_cycle, k_shortest_simple_path};
-use crate::graph::utils::split_node;
+use crate::graph::k_shortest::k_shortest_simple_path;
 use crate::hmmv2::freq::NodeFreqs;
 
 use itertools::Itertools;
-use petgraph::graph::{DefaultIx, DiGraph, EdgeIndex, NodeIndex};
+use petgraph::graph::EdgeIndex;
 use petgraph_algos::common::is_edge_simple;
 use rayon::prelude::*;
 use rustflow::min_flow::{
     base::{FlowEdgeBase, FlowGraph},
     enumerate_neighboring_flows, find_neighboring_flow_by_edge_change,
     residue::{
-        flow_to_residue_convex, is_meaningful_move_on_residue_graph, residue_graph_cycle_to_flow,
-        update_cycle_from_str, update_cycle_to_string, ResidueDirection, UpdateCycle,
+        flow_to_residue_convex, residue_graph_cycle_to_flow, update_cycle_from_str,
+        update_cycle_to_string, ResidueDirection, UpdateCycle,
     },
 };
 
@@ -307,11 +306,11 @@ impl MultiDbg {
                 .chain(cycles_zero.into_iter())
                 .sorted_by_key(|(_, info)| match info.method {
                     UpdateMethod::Rescue {
-                        index,
-                        length,
+                        index: _,
+                        length: _,
                         freq,
-                        n_kmers,
-                        non_zero,
+                        n_kmers: _,
+                        non_zero: _,
                     } => NonNanF64::new(freq), // NonNanF64::new(freq / n_kmers as f64)
                     _ => unreachable!(),
                 })
@@ -493,7 +492,7 @@ impl MultiDbg {
     ///
     pub fn is_independent_update(
         &self,
-        copy_nums: &CopyNums,
+        _copy_nums: &CopyNums,
         cycles: &[UpdateCycle],
         next_cycle: &UpdateCycle,
     ) -> bool {

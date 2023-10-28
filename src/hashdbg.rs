@@ -7,14 +7,14 @@ use crate::graph::{
     utils::{degree_stats, split_node},
 };
 use crate::kmer::kmer::{
-    linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, Kmer, KmerLike,
+    linear_fragment_sequence_to_kmers, sequence_to_kmers, styled_sequence_to_kmers, KmerLike,
 };
 use crate::multi_dbg::draft::{ErrorMetric, MinSquaredErrorCopyNumAndFreq, V1Error};
 use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use itertools::Itertools;
 use petgraph::{
     algo::kosaraju_scc,
-    graph::{DiGraph, EdgeIndex, NodeIndex},
+    graph::{DiGraph, NodeIndex},
     visit::EdgeRef,
     Direction,
 };

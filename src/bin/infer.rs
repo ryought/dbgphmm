@@ -1,12 +1,8 @@
 use clap::Parser;
 use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::posterior::test::test_inference_from_dbg_with_dataset,
-    multi_dbg::MultiDbg,
+    e2e::Dataset, hmmv2::params::PHMMParams,
+    multi_dbg::posterior::test::test_inference_from_dbg_with_dataset, multi_dbg::MultiDbg,
     prob::Prob,
-    utils::{check_memory_usage, timer},
 };
 
 #[derive(Parser, Debug)]

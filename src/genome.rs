@@ -154,7 +154,6 @@ pub fn simple_circular(genome_size: usize, seed: u64) -> Genome {
 /// will be deprecated
 ///
 pub fn simple_diploid() -> Genome {
-    let genome_size_hap = 100;
     let haplotype1 = generate(100, 0);
     let mut haplotype2 = haplotype1.clone();
     haplotype2[30] = b'C';
@@ -177,7 +176,7 @@ pub fn simple_diploid() -> Genome {
 ///
 pub fn diploid(hap_size: usize, hap_seed: u64, div_rate: f64, div_seed: u64) -> Genome {
     let hap_a = generate(hap_size, hap_seed);
-    let (hap_b, ops) = random_mutation(&hap_a, MutationProfile::uniform(div_rate), div_seed);
+    let (hap_b, _ops) = random_mutation(&hap_a, MutationProfile::uniform(div_rate), div_seed);
     // println!("ops={:?}", ops);
     Genome::new(vec![
         StyledSequence::linear(hap_a),
@@ -242,9 +241,9 @@ pub fn tandem_repeat_diploid(
     divergence_between_haplotypes: f64,
     div_seed: u64,
 ) -> Genome {
-    let mut hap = tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
+    let hap = tandem_repeat_haploid(unit_size, n_unit, divergence_init, unit_seed, hap_seed);
     let hap_a = hap[0].clone();
-    let (hap_b_seq, ops) = random_mutation(
+    let (hap_b_seq, _ops) = random_mutation(
         &hap_a.seq(),
         MutationProfile::uniform(divergence_between_haplotypes),
         div_seed,
@@ -264,7 +263,7 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
     divergence_between_haplotypes: f64,
     div_seed: u64,
 ) -> Genome {
-    let mut hap = tandem_repeat_haploid_with_unique_ends(
+    let hap = tandem_repeat_haploid_with_unique_ends(
         unit_size,
         n_unit,
         divergence_init,
@@ -278,7 +277,7 @@ pub fn tandem_repeat_polyploid_with_unique_ends(
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(div_seed);
     for _ in 1..n_haplotypes {
-        let (hap_b_seq, ops) = random_mutation_with_rng(
+        let (hap_b_seq, _ops) = random_mutation_with_rng(
             &hap_a.seq(),
             MutationProfile::uniform(divergence_between_haplotypes),
             &mut rng,
@@ -308,7 +307,7 @@ pub fn tandem_repeat_polyploid_with_unique_homo_ends(
     let tandem_repeat = tandem_repeat(&unit, n_unit);
 
     // initial divergence
-    let (tandem_repeat, ops) = random_mutation(
+    let (tandem_repeat, _ops) = random_mutation(
         &tandem_repeat,
         MutationProfile::uniform(divergence_init),
         div_init_seed,

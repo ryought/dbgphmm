@@ -109,7 +109,6 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
             kind: PHMMKind::Backward,
         };
         let n = emissions.as_ref().len();
-        let param = self.param;
         let all_nodes = self.to_all_nodes();
         // feed the emissions backward
         let mut r =

@@ -1,12 +1,5 @@
 use clap::Parser;
-use dbgphmm::{
-    e2e::Dataset,
-    genome,
-    hmmv2::params::PHMMParams,
-    multi_dbg::{MultiDbg, NeighborConfig},
-    utils::{check_memory_usage, timer},
-};
-use petgraph::algo::connected_components;
+use dbgphmm::{e2e::Dataset, multi_dbg::MultiDbg};
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version = env!("GIT_HASH"))]
@@ -76,7 +69,8 @@ fn main() {
     );
     println!("true\tmapping...");
     let mappings = dbg.generate_mappings(params, dataset.reads(), None);
-    dbg.to_map_file("true.map", dataset.reads(), &mappings);
+    dbg.to_map_file("true.map", dataset.reads(), &mappings)
+        .unwrap();
     // println!("true\tncc={}", connected_components(dbg.graph_compact()));
 
     // for (copy_nums, info) in dbg.to_neighbor_copy_nums_and_infos(NeighborConfig {

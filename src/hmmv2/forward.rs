@@ -7,7 +7,6 @@ use super::hint::Mapping;
 use super::table::{PHMMKind, PHMMTable, PHMMTables};
 use crate::common::collection::Bases;
 use crate::prob::{p, Prob};
-use crate::utils::timer_us;
 use petgraph::graph::NodeIndex;
 
 ///

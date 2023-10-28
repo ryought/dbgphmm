@@ -23,14 +23,12 @@
 //!
 use super::common::{PHMMEdge, PHMMModel, PHMMNode};
 use super::hint::{Mapping, Mappings};
-use super::table::{NodeVec, PHMMOutput, PHMMTable, PHMMTables, MAX_ACTIVE_NODES};
+use super::table::{PHMMOutput, PHMMTable, MAX_ACTIVE_NODES};
 use super::trans_table::{EdgeFreqs, InitTransProbs, TransProb, TransProbs};
 use crate::common::collection::Bases;
-use crate::common::{Freq, ReadCollection, Reads, Seq, Sequence};
-use crate::graph::active_nodes::ActiveNodes;
+use crate::common::{Freq, ReadCollection, Seq};
 use crate::prob::Prob;
-use crate::utils::check_memory_usage;
-use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use sparsevec::SparseVec;
 
@@ -202,6 +200,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
 pub type NodeFreqs = SparseVec<Freq, NodeIndex, MAX_ACTIVE_NODES>;
 
 /// utility function to convert Vec<Prob> into Vec<f64> by calling Prob::to_log_value
+#[allow(dead_code)]
 fn from_prob_to_f64_vec(ps: Vec<Prob>) -> Vec<f64> {
     ps.into_iter().map(|p| p.to_log_value()).collect()
 }
@@ -230,7 +229,6 @@ impl PHMMOutput {
     ///
     pub fn iter_emit_probs<'a>(&'a self) -> impl Iterator<Item = PHMMTable> + 'a {
         let n = self.forward.n_emissions();
-        let p = self.to_full_prob_forward();
         (0..=n).map(move |i| self.to_emit_probs(i))
     }
     /// Calculate the expected value of the usage frequency of each hidden states
@@ -399,6 +397,7 @@ impl<N: PHMMNode, E: PHMMEdge> PHMMModel<N, E> {
     ///
     /// PHMMModel version of `Dbg::show_mapping_summary`
     ///
+    #[allow(dead_code)]
     fn inspect<F: Fn(NodeIndex) -> String>(
         &self,
         output: &PHMMOutput,

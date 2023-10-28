@@ -7,7 +7,6 @@ pub mod genome_graph;
 pub mod iterators;
 pub mod k_shortest;
 pub mod mocks;
-pub mod node_mapping;
 pub mod seq_graph;
 pub mod shortest_cycle;
 pub mod utils;

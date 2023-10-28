@@ -10,7 +10,6 @@ use super::table::{PHMMOutput, MAX_ACTIVE_NODES};
 use crate::common::{ReadCollection, Seq};
 use crate::prob::Prob;
 use crate::utils::progress_common_style;
-use arrayvec::ArrayVec;
 use fnv::FnvHashMap as HashMap;
 use indicatif::ParallelProgressIterator;
 use itertools::{izip, Itertools};

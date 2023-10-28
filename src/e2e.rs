@@ -91,7 +91,7 @@ impl Dataset {
     ///
     ///
     pub fn show_reads_with_genome(&self) {
-        let n = self.reads().len();
+        let _n = self.reads().len();
         let n_hap = self.genome().len();
         let mut pos: Vec<Vec<usize>> = vec![vec![]; n_hap];
         for read_id in 0..(self.reads().len()) {
