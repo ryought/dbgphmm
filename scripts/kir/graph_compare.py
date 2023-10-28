@@ -50,6 +50,10 @@ def svg(elements, width=800, height=800):
     return head + '\n'.join(elements) + tail
 
 
+def average(xs):
+    return sum(xs) / len(xs)
+
+
 def aligned_pairs(cigar, ignore_match=False):
     """
     given `cigar=":733*ga:12536*ga:21*cg:1013*ga:2138+t:6250+t:142*ct:1058+a:283*ct:2736+a:5472+t:4382+t:2454"`
@@ -283,9 +287,17 @@ def main():
                               'mapq: alignment of highest mapq will be used'
                               'first: first mapping in PAF file will be used'
                               '(useful when with manually reordered PAF file'))
+    parser.add_argument('--spring_layout', action='store_true', help='')
+
+    # manually specify layout
+    parser.add_argument('--haps', type=str, nargs=2,
+                        help='list of unitig names of <g0> <g1> delimited by comma')
+    parser.add_argument('--euler_fa', type=Path,
+                        help='FASTA of an eularian traverse(for dbgphmm DBGs)')
     parser.add_argument('--order', type=str, nargs='+',
                         help='specify manual layout by <seqname>,<position>,<strand>')
-    parser.add_argument('--spring_layout', action='store_true', help='')
+
+    # output
     parser.add_argument('--shade_by_identity',
                         action='store_true', help='')
     parser.add_argument('--min_identity', type=float, default=0.999, help='')
@@ -363,6 +375,31 @@ def main():
                 assert strand == '+' or strand == '-'
                 seqpositions[seqname] = (hapnames[0], position, strand)
             seqnames.append(seqname)
+    elif args.haps or args.euler_fa:
+        # parse haps/euler_fa to generate seqorder
+        if args.haps:
+            seqorder = [s.split(',') for s in args.haps]
+        else:
+            fasta = SeqIO.to_dict(SeqIO.parse(args.euler_fa, "fasta"))
+            seqorder = [name.split(',') for name in fasta.keys()]
+        eprint('seqorder', seqorder)
+
+        seqpos = defaultdict(list)
+        for h, hap in enumerate(seqorder):
+            pos = 0
+            for seq in hap:
+                seqpos[seq].append((hapnames[h], pos))
+                pos += seqs[seq]
+        eprint('seqpos', seqpos)
+
+        seqpositions = dict()
+        for seq, ps in seqpos.items():
+            pos = sum(p for _, p in ps) / len(ps)
+            hapname = ps[0][0]
+            seqpositions[seq] = (hapname, pos, '+')
+        seqnames = sorted(seqpositions.keys(),
+                          key=lambda seq: seqpositions[seq])
+        eprint('seqpos', seqpositions, seqnames)
 
     for i, seqname in enumerate(seqnames):
         seqlen = seqs[seqname]
