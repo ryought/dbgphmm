@@ -12,7 +12,7 @@
 //! * `Genome`: simple vector
 //! * `Reads`: read collections
 //!
-use crate::common::CopyNum;
+use crate::common::{CopyNum, NULL_BASE};
 pub use crate::genome::Genome;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
 use crate::hmmv2::hint::Mapping;
@@ -250,6 +250,11 @@ pub fn sanitize_bases(seq: &[u8]) -> Vec<u8> {
             }
         })
         .collect()
+}
+
+pub fn trim_n_in_bases(mut seq: Vec<u8>) -> Vec<u8> {
+    seq.retain(|&base| base != NULL_BASE);
+    seq
 }
 
 impl ReadCollection<Sequence> {

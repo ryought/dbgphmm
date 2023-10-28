@@ -14,12 +14,12 @@
 //! * Use compact copy number vector
 //!
 use crate::common::{
-    sequence_to_string, CopyNum, ReadCollection, Reads, Seq, SeqStyle, Sequence, StyledSequence,
-    NULL_BASE,
+    collection::trim_n_in_bases, sequence_to_string, CopyNum, ReadCollection, Reads, Seq, SeqStyle,
+    Sequence, StyledSequence, NULL_BASE,
 };
 use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
-use crate::graph::euler::euler_circuit_count;
+use crate::graph::euler::{euler_circuit, euler_circuit_count};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
 use crate::graph::utils::{
     bridge_edges, degree_stats, delete_isolated_nodes, purge_edges_with_mapping, EdgeMap,
@@ -645,6 +645,50 @@ impl MultiDbg {
         }
 
         paths
+    }
+    ///
+    /// Get a single euler circuit corresponding to linear haplotypes
+    ///
+    pub fn get_euler_circuit(&self) -> Path {
+        let graph = self
+            .graph_compact()
+            .map(|_, _| (), |e, _| self.copy_num_of_edge_in_compact(e));
+        let terminal = self.terminal_node_compact().expect("no terminal node");
+        let circuit = euler_circuit(&graph, terminal);
+        circuit
+    }
+    ///
+    pub fn get_linear_haplotype_seqs(&self) -> Vec<(StyledSequence, Vec<EdgeIndex>)> {
+        let terminal = self.terminal_node_compact().expect("no terminal node");
+
+        let mut ret = vec![];
+        let mut seq: Vec<u8> = vec![];
+        let mut cycle: Vec<EdgeIndex> = vec![];
+        for edge in self.get_euler_circuit() {
+            seq.append(&mut self.seq_compact(edge));
+            cycle.push(edge);
+            let (_, target) = self.graph_compact().edge_endpoints(edge).unwrap();
+            if target == terminal {
+                ret.push((StyledSequence::linear(trim_n_in_bases(seq)), cycle));
+                seq = vec![];
+                cycle = vec![];
+            }
+        }
+        ret
+    }
+    ///
+    /// FASTA file Consists of linear haplotypes
+    ///
+    pub fn to_fasta_linear<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
+        let file = std::fs::File::create(path).unwrap();
+        let mut writer = bio::io::fasta::Writer::new(file);
+
+        for (seq, cycle) in self.get_linear_haplotype_seqs().iter() {
+            let name = cycle.iter().map(|e| e.index()).join(",");
+            writer.write(&name, None, seq.seq())?;
+        }
+
+        Ok(())
     }
     ///
     /// used in `get_euler_circuit` to create copy_nums_remain
@@ -1987,6 +2031,47 @@ mod tests {
             let q = dbg.to_path_in_compact(&p);
             println!("{:?}", q);
             assert_eq!(q, vec![ei(2), ei(0)]);
+        }
+    }
+    #[test]
+    fn euler_circuit_seq() {
+        {
+            let dbg = toy::intersection();
+            let c = dbg.get_euler_circuit();
+            println!("c={:?}", c);
+            assert_eq!(c, vec![ei(3), ei(1), ei(2), ei(0)]);
+
+            let hs = dbg.get_linear_haplotype_seqs();
+            assert_eq!(
+                hs,
+                vec![
+                    (
+                        StyledSequence::linear(b"GATCC".to_vec()),
+                        vec![ei(3), ei(1)]
+                    ),
+                    (
+                        StyledSequence::linear(b"TATCA".to_vec()),
+                        vec![ei(2), ei(0)]
+                    ),
+                ]
+            );
+        }
+
+        {
+            let dbg = toy::repeat();
+            dbg.show_graph_with_kmer();
+            let c = dbg.get_euler_circuit();
+            println!("c={:?}", c);
+            assert_eq!(c, vec![ei(2), ei(1), ei(1), ei(1), ei(0)]);
+
+            let hs = dbg.get_linear_haplotype_seqs();
+            assert_eq!(
+                hs,
+                vec![(
+                    StyledSequence::linear(b"TCCCAGCAGCAGCAGGAA".to_vec()),
+                    vec![ei(2), ei(1), ei(1), ei(1), ei(0)],
+                )]
+            );
         }
     }
     #[test]
