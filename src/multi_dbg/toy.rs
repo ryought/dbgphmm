@@ -1,3 +1,4 @@
+#![allow(unused)]
 //!
 //! Toy example MultiDbg for debug
 //!

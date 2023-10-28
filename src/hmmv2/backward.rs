@@ -573,7 +573,6 @@ mod tests {
     use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::hmmv2::params::PHMMParams;
     use crate::prob::lp;
-    use crate::vector::DenseStorage;
     #[test]
     fn hmm_backward_mock_linear_zero_error() {
         let params = PHMMParams::zero_error();

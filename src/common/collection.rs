@@ -15,17 +15,13 @@
 use crate::common::{CopyNum, NULL_BASE};
 pub use crate::genome::Genome;
 use crate::graph::genome_graph::{GenomeGraphPos, GenomeGraphPosVec};
-use crate::hmmv2::hint::Mapping;
 use crate::kmer::kmer::KmerLike;
 use fnv::FnvHashMap as HashMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_with::{
-    serde_as, DeserializeAs, DeserializeFromStr, DisplayFromStr, SerializeAs, SerializeDisplay,
-};
-use std::io::Write;
+use serde_with::{serde_as, DeserializeAs, DeserializeFromStr, SerializeAs, SerializeDisplay};
 use std::str::FromStr;
 
 #[cfg(feature = "python")]
@@ -776,7 +772,6 @@ impl StoreableTypeTrait for PositionedSequence {
 mod tests {
     use super::*;
     use crate::common::ni;
-    use crate::kmer::common::kmers_to_string;
     use crate::kmer::VecKmer;
     #[test]
     fn seq_style() {

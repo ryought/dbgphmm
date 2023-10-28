@@ -209,148 +209,150 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore]
-    fn test_g1m() {
-        let genome = g1m();
-        let k = 40;
-        let (dbg, time): (SimpleDbg<VecKmer>, _) =
-            timer(|| SimpleDbg::from_styled_seqs(k, &genome));
-        // ~0.5s in M1 mac
-        println!(
-            "dbg created in {}ms: n={} e={}",
-            time,
-            dbg.n_nodes(),
-            dbg.n_edges()
-        );
-        assert_eq!(dbg.n_nodes(), 204734);
-        let mut param = PHMMParams::uniform(0.01);
-        let (phmm, time) = timer(|| dbg.to_phmm(param));
-        // ~0.01s in M1 mac
-        println!("phmm converted in {}ms", time);
+    /*
+        #[test]
+        #[ignore]
+        fn test_g1m() {
+            let genome = g1m();
+            let k = 40;
+            let (dbg, time): (SimpleDbg<VecKmer>, _) =
+                timer(|| SimpleDbg::from_styled_seqs(k, &genome));
+            // ~0.5s in M1 mac
+            println!(
+                "dbg created in {}ms: n={} e={}",
+                time,
+                dbg.n_nodes(),
+                dbg.n_edges()
+            );
+            assert_eq!(dbg.n_nodes(), 204734);
+            let mut param = PHMMParams::uniform(0.01);
+            let (phmm, time) = timer(|| dbg.to_phmm(param));
+            // ~0.01s in M1 mac
+            println!("phmm converted in {}ms", time);
 
-        let (cedbg, time) = timer(|| dbg.to_compact_edbg_graph());
-        println!("compact edbg converted in {}ms", time);
+            let (cedbg, time) = timer(|| dbg.to_compact_edbg_graph());
+            println!("compact edbg converted in {}ms", time);
 
-        // ~2s
-        let (mdbg, time): (MultiDbg, _) = timer(|| dbg.into());
-        println!("mdbg converted in {}ms", time);
-        // mdbg.to_dbg_file("g1m.dbg");
+            // ~2s
+            let (mdbg, time): (MultiDbg, _) = timer(|| dbg.into());
+            println!("mdbg converted in {}ms", time);
+            // mdbg.to_dbg_file("g1m.dbg");
 
-        //
-        // test using full-length error-free read
-        //
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
-        // ~368sec (10min) in release on m1_mac
-        println!("p={} t={}", p, time);
-        let p_true = lp(-105721.1);
-        assert!(p.log_diff(p_true) < 1.0);
-    }
+            //
+            // test using full-length error-free read
+            //
+            let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
+            // ~368sec (10min) in release on m1_mac
+            println!("p={} t={}", p, time);
+            let p_true = lp(-105721.1);
+            assert!(p.log_diff(p_true) < 1.0);
+        }
 
-    #[test]
-    #[ignore]
-    fn test_g10k() {
-        let genome = g10k();
-        let k = 40;
-        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, &genome);
-        println!("{:?}", dbg.degree_stats());
-        let param = PHMMParams::uniform(0.01);
-        let phmm = dbg.to_phmm(param);
+        #[test]
+        #[ignore]
+        fn test_g10k() {
+            let genome = g10k();
+            let k = 40;
+            let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, &genome);
+            println!("{:?}", dbg.degree_stats());
+            let param = PHMMParams::uniform(0.01);
+            let phmm = dbg.to_phmm(param);
 
-        let dataset = generate_dataset(
-            genome,
-            0,
-            2, // 2x
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
-        inspect_sparse_vs_dense(&dataset, &phmm, "g10k");
-    }
+            let dataset = generate_dataset(
+                genome,
+                0,
+                2, // 2x
+                500,
+                ReadType::FragmentWithRevComp,
+                param,
+            );
+            inspect_sparse_vs_dense(&dataset, &phmm, "g10k");
+        }
 
-    #[test]
-    #[ignore = "39sec"]
-    fn test_g1k() {
-        let genome = g1k();
-        let k = 40;
-        let (dbg, time): (SimpleDbg<VecKmer>, _) =
-            timer(|| SimpleDbg::from_styled_seqs(k, &genome));
-        // ~9ms in M1 mac
-        println!(
-            "dbg created in {}ms: n={} e={}",
-            time,
-            dbg.n_nodes(),
-            dbg.n_edges()
-        );
-        assert_eq!(dbg.n_nodes(), 512);
-        let param = PHMMParams::uniform(0.01);
-        let (mut phmm, time) = timer(|| dbg.to_phmm(param));
-        // ~0ms in M1 mac
-        println!("phmm converted in {}ms", time);
+        #[test]
+        #[ignore = "39sec"]
+        fn test_g1k() {
+            let genome = g1k();
+            let k = 40;
+            let (dbg, time): (SimpleDbg<VecKmer>, _) =
+                timer(|| SimpleDbg::from_styled_seqs(k, &genome));
+            // ~9ms in M1 mac
+            println!(
+                "dbg created in {}ms: n={} e={}",
+                time,
+                dbg.n_nodes(),
+                dbg.n_edges()
+            );
+            assert_eq!(dbg.n_nodes(), 512);
+            let param = PHMMParams::uniform(0.01);
+            let (mut phmm, time) = timer(|| dbg.to_phmm(param));
+            // ~0ms in M1 mac
+            println!("phmm converted in {}ms", time);
 
-        // fragment reads
-        let dataset = generate_dataset(
-            genome.clone(),
-            0,
-            2, // 2x
-            500,
-            ReadType::FragmentWithRevComp,
-            param,
-        );
-        dataset.show_reads_with_genome();
+            // fragment reads
+            let dataset = generate_dataset(
+                genome.clone(),
+                0,
+                2, // 2x
+                500,
+                ReadType::FragmentWithRevComp,
+                param,
+            );
+            dataset.show_reads_with_genome();
 
-        //
-        // test using full-length error-free read
-        //
-        let p_true = lp(-138.0);
-        // dense ~0.6sec
-        let (p, time) = timer(|| phmm.to_full_prob(&genome));
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
-        // sparse ~0.3sec
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
-        // sparse ~0.3sec
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
-        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(&genome));
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
+            //
+            // test using full-length error-free read
+            //
+            let p_true = lp(-138.0);
+            // dense ~0.6sec
+            let (p, time) = timer(|| phmm.to_full_prob(&genome));
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
+            // sparse ~0.3sec
+            let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
+            // sparse ~0.3sec
+            let (p, time) = timer(|| phmm.to_full_prob_sparse(&genome, false));
+            let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(&genome));
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
 
-        //
-        // test using fragment and errorneous read
-        //
-        println!("read");
-        // dense ~1.6s
-        let (p, time) = timer(|| phmm.to_full_prob(dataset.reads()));
-        let p_true = lp(-1448.0);
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
-        // sparse ~0.5s
-        let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads(), false));
-        let p_true = lp(-1448.0);
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
-        // sparse backward ~0.6s
-        // n_active_nodes = 40 causes inaccurate prob
-        phmm.param.n_active_nodes = 40;
-        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
-        let p_true = lp(-1486.0);
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
-        // n = 100 is ok.
-        phmm.param.n_active_nodes = 100;
-        let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
-        let p_true = lp(-1448.0);
-        println!("p={} t={}", p, time);
-        assert!(p.log_diff(p_true) < 1.0);
+            //
+            // test using fragment and errorneous read
+            //
+            println!("read");
+            // dense ~1.6s
+            let (p, time) = timer(|| phmm.to_full_prob(dataset.reads()));
+            let p_true = lp(-1448.0);
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
+            // sparse ~0.5s
+            let (p, time) = timer(|| phmm.to_full_prob_sparse(dataset.reads(), false));
+            let p_true = lp(-1448.0);
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
+            // sparse backward ~0.6s
+            // n_active_nodes = 40 causes inaccurate prob
+            phmm.param.n_active_nodes = 40;
+            let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+            let p_true = lp(-1486.0);
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
+            // n = 100 is ok.
+            phmm.param.n_active_nodes = 100;
+            let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+            let p_true = lp(-1448.0);
+            println!("p={} t={}", p, time);
+            assert!(p.log_diff(p_true) < 1.0);
 
-        // let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
-        // println!("p={} t={}", p, time);
-        // assert!(p.log_diff(p_true) < 1.0);
+            // let (p, time) = timer(|| phmm.to_full_prob_sparse_backward(dataset.reads()));
+            // println!("p={} t={}", p, time);
+            // assert!(p.log_diff(p_true) < 1.0);
 
-        inspect_sparse_vs_dense(&dataset, &phmm, "g1k");
+            inspect_sparse_vs_dense(&dataset, &phmm, "g1k");
 
-        inspect_forward_vs_state(&dataset, &phmm, "g1k");
-    }
+            inspect_forward_vs_state(&dataset, &phmm, "g1k");
+        }
+    */
 }

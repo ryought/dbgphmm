@@ -4,18 +4,12 @@
 //! * generate genome
 //! * generate reads
 //!
-use crate::common::{
-    sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
-    StyledSequence,
-};
+use crate::common::{Genome, PositionedReads, Seq};
 use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
-use crate::hashdbg::HashDbg;
 use crate::hmmv2::params::PHMMParams;
 use crate::hmmv2::sample::{ReadAmount, ReadLength, SampleProfile, StartPoints};
-use crate::kmer::VecKmer;
 use crate::utils::spaces;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 
@@ -395,8 +389,8 @@ pub fn generate_tandem_repeat_1kbp() -> Dataset {
 mod tests {
     use super::*;
     use crate::common::ni;
+    use crate::common::{PositionedSequence, StyledSequence};
     use crate::graph::genome_graph::GenomeGraphPos;
-    use crate::utils::resource_dir;
 
     #[test]
     fn e2e_dataset_serialize_test() {
