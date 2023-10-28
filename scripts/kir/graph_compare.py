@@ -379,15 +379,17 @@ def main():
             seqorder = [s.split(',') for s in args.haps]
         else:
             fasta = SeqIO.to_dict(SeqIO.parse(args.euler_fa, "fasta"))
-            seqorder = [name.split(',') for name in fasta.keys()]
-        eprint('seqorder', seqorder)
+            seqorder = sorted([name.split(',') for name in fasta.keys()],
+                              key=lambda names: len(names), reverse=True)
+        eprint('seqorder', seqorder, seqs)
 
         seqpos = defaultdict(list)
         for h, hap in enumerate(seqorder):
             pos = 0
             for seq in hap:
-                seqpos[seq].append((hapnames[h], pos))
-                pos += seqs[seq]
+                if seq in seqs:
+                    seqpos[seq].append((hapnames[h], pos))
+                    pos += seqs[seq]
         eprint('seqpos', seqpos)
 
         seqpositions = dict()
