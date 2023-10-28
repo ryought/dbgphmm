@@ -512,9 +512,9 @@ dependencies = [
 
 [[package]]
 name = "dbgphmm"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
- "approx 0.5.1",
+ "approx 0.4.0",
  "arrayvec",
  "bio",
  "chrono",
@@ -526,7 +526,7 @@ dependencies = [
  "fnv",
  "histo",
  "indicatif",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "jemalloc-ctl",
  "jemallocator",
  "libm",

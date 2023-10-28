@@ -571,6 +571,7 @@ mod tests {
     use crate::hmmv2::params::PHMMParams;
     use crate::kmer::VecKmer;
     use crate::prob::lp;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
     #[test]
     fn hmm_forward_mock_linear_zero_error() {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());

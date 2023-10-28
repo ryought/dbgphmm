@@ -429,6 +429,7 @@ mod tests {
     use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::hmmv2::params::PHMMParams;
     use crate::prob::p;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
     #[test]
     fn hmm_freq_mock_linear_zero_error_full_prob() {
         let phmm = mock_linear_phmm(PHMMParams::zero_error());

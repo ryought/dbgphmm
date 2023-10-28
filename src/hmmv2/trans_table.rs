@@ -68,6 +68,7 @@ pub type EdgeFreqs = SparseVec<Freq, EdgeIndex, MAX_ACTIVE_NODES>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_relative_eq};
 
     #[test]
     fn trans_prob_sum() {

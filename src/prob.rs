@@ -302,6 +302,7 @@ impl Ord for Prob {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_relative_eq};
 
     #[test]
     fn test_id() {

@@ -323,6 +323,7 @@ mod tests {
     use crate::graph::seq_graph::SeqGraph;
     use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::prob::p;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
 
     #[test]
     fn phmmmodels_basic_ops() {

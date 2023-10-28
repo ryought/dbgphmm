@@ -431,6 +431,7 @@ mod tests {
     use crate::graph::mocks::{mock_crossing, mock_linear};
     use crate::hmmv2::params::PHMMParams;
     use crate::prob::p;
+    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_relative_eq};
     #[test]
     fn trait_test() {
         let sg = mock_linear().to_seq_graph();

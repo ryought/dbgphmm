@@ -199,6 +199,7 @@ mod tests {
     use crate::common::ni;
     use crate::hmmv2::mocks::mock_linear_phmm;
     use crate::hmmv2::params::PHMMParams;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
 
     #[test]
     fn hmm_history_to_sequence() {

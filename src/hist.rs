@@ -189,6 +189,7 @@ impl std::fmt::Display for Hist {
 mod tests {
     use super::*;
     use crate::prob::p;
+    use approx::assert_abs_diff_eq;
     #[test]
     fn hist_test() {
         let mut h = Hist::new();
