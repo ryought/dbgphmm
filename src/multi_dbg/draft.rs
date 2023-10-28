@@ -4,7 +4,6 @@
 use super::{CopyNums, MultiDbg};
 use crate::common::collection::{starts_and_ends_of_genome, ReadCollection};
 use crate::common::{CopyNum, Freq, Seq, StyledSequence};
-use crate::dbg::{draft::EndNodeInference, Dbg, SimpleDbg};
 use crate::distribution::kmer_coverage;
 use crate::e2e::Dataset;
 use crate::genome::Genome;
@@ -319,32 +318,6 @@ impl MultiDbg {
 
 impl MultiDbg {
     ///
-    /// Create from reads
-    ///
-    pub fn create_draft_from_reads<T>(
-        k: usize,
-        seqs: T,
-        base_coverage: f64,
-        ave_read_length: usize,
-        p_error: Prob,
-        end_node_inference: &EndNodeInference<VecKmer>,
-    ) -> Self
-    where
-        T: IntoIterator,
-        T::Item: Seq,
-    {
-        let dbg: SimpleDbg<VecKmer> =
-            SimpleDbg::create_draft_from_fragment_seqs_with_adjusted_coverage(
-                k,
-                seqs,
-                base_coverage,
-                ave_read_length,
-                p_error,
-                end_node_inference,
-            );
-        dbg.into()
-    }
-    ///
     /// Create from reads V2
     ///
     pub fn create_draft_from_reads_v2<S: Seq>(
@@ -393,35 +366,6 @@ impl MultiDbg {
         eprintln!("[draftv2] raw count_stats={:?}", hd.copy_num_stats());
 
         Self::from_hashdbg(&hd, false)
-    }
-    ///
-    /// Create from styled seqs
-    ///
-    pub fn create_from_styled_seqs<T>(k: usize, seqs: T) -> Self
-    where
-        T: IntoIterator,
-        T::Item: AsRef<StyledSequence>,
-    {
-        let dbg: SimpleDbg<VecKmer> = SimpleDbg::from_styled_seqs(k, seqs);
-        dbg.into()
-    }
-    ///
-    /// Create read-draft MultiDbg from dataset
-    ///
-    /// * use end inference from genome
-    /// * true path
-    ///
-    pub fn create_draft_from_dataset_old(k: usize, dataset: &Dataset) -> Self {
-        let d = Self::create_draft_from_reads(
-            k,
-            dataset.reads(),
-            dataset.coverage(),
-            dataset.average_read_length(),
-            dataset.params().p_error(),
-            // &EndNodeInference::Auto,
-            &EndNodeInference::Custom(starts_and_ends_of_genome(dataset.genome(), k)),
-        );
-        d
     }
     /// Create read-draft MultiDbg from dataset V2
     /// with `min_count=2` and `min_deadend_count=coverage/4`
@@ -491,8 +435,8 @@ mod tests {
 
     fn check_no_diff_between_draft_v1_and_v2(dataset: Dataset, k: usize) {
         // starts_and_ends_of_genome(&genome, k);
-        let (d1, t1) = timer(|| MultiDbg::create_draft_from_dataset_old(k, &dataset));
-        check_dbg_contains_true_kmers(&d1, dataset.genome());
+        // let (d1, t1) = timer(|| MultiDbg::create_draft_from_dataset_old(k, &dataset));
+        // check_dbg_contains_true_kmers(&d1, dataset.genome());
 
         let hd: HashDbg<VecKmer> = HashDbg::from_fragment_seqs(k, dataset.reads());
 
@@ -504,33 +448,15 @@ mod tests {
         check_dbg_contains_true_kmers(&d2, dataset.genome());
         assert_eq!(d2.n_haplotypes(), 2);
 
-        let m1 = d1.to_kmer_copy_num_map();
-        let m2 = d2.to_kmer_copy_num_map();
-        show_kmer_copy_num_map_diff(&m1, &m2);
-        assert_eq!(d1.to_kmer_set(), d2.to_kmer_set());
+        // let m1 = d1.to_kmer_copy_num_map();
+        // let m2 = d2.to_kmer_copy_num_map();
+        // show_kmer_copy_num_map_diff(&m1, &m2);
+        // assert_eq!(d1.to_kmer_set(), d2.to_kmer_set());
 
         // m1, m2);
-        println!("################## t1={} t2={} ################", t1, t2);
+        // println!("################## t1={} t2={} ################", t1, t2);
     }
 
-    #[test]
-    #[ignore]
-    fn from_styled_seqs_large() {
-        let genome = genome::tandem_repeat_polyploid_with_unique_homo_ends(
-            1_000, 1_000, 0, 0.0, 0, 1_000, 2, 0.01, 0,
-        );
-        let (mdbg, t) = timer(|| MultiDbg::create_from_styled_seqs(40, &genome));
-        // ~2391ms
-        println!("created mdbg in {}ms", t);
-        mdbg.to_gfa_file("g1m.gfa");
-        let (m, t) = timer(|| mdbg.to_kmer_map());
-        // ~182ms
-        println!("created map in {}ms", t);
-        println!("m {}", m.len());
-
-        let (n, t) = timer(|| mdbg.n_euler_circuits());
-        println!("n_euler={} in {}ms", n, t);
-    }
     #[test]
     fn mse_cost() {
         let w = MinSquaredErrorCopyNumAndFreq::<V1Error>::new(vec![], None, false);

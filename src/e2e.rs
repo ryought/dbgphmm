@@ -8,7 +8,6 @@ use crate::common::{
     sequence_to_string, Genome, PositionedReads, PositionedSequence, Reads, Seq, Sequence,
     StyledSequence,
 };
-use crate::dbg::{Dbg, SimpleDbg};
 use crate::genome;
 use crate::graph::genome_graph::{GenomeGraph, ReadProfile};
 use crate::hashdbg::HashDbg;
@@ -167,67 +166,6 @@ impl Dataset {
     }
 }
 
-///
-/// Dataset collection struct
-///
-/// * Dataset.reads
-/// * Dataset.phmm_params
-/// * Dataset.dbg_raw
-/// * Dataset.dbg_true_init
-/// * Dataset.dbg_true
-///
-#[derive(Clone)]
-pub struct Experiment {
-    pub dataset: Dataset,
-    ///
-    /// Profile HMM parameters
-    ///
-    pub phmm_params: PHMMParams,
-    ///
-    /// raw read-dbg k=k_init
-    ///
-    pub dbg_raw: SimpleDbg<VecKmer>,
-    ///
-    /// true-dbg k=k_init
-    ///
-    pub dbg_true_init: SimpleDbg<VecKmer>,
-    ///
-    /// true-dbg k=k_target
-    ///
-    pub dbg_true: SimpleDbg<VecKmer>,
-    ///
-    /// draft dbg (k=k_init)
-    ///
-    pub dbg_draft: Option<SimpleDbg<VecKmer>>,
-    ///
-    /// draft dbg (k=k_init) which assigned true copy_nums
-    ///
-    pub dbg_draft_true: Option<SimpleDbg<VecKmer>>,
-}
-
-impl Experiment {
-    pub fn dataset(&self) -> &Dataset {
-        &self.dataset
-    }
-    pub fn genome(&self) -> &Genome {
-        &self.dataset.genome
-    }
-    pub fn genome_size(&self) -> usize {
-        self.dataset.genome_size
-    }
-    pub fn reads(&self) -> &PositionedReads {
-        &self.dataset.reads
-    }
-    /// Alias of Experiment.dataset.show_reads
-    pub fn show_reads(&self) {
-        self.dataset.show_reads()
-    }
-    /// Alias of Experiment.dataset.show_genome
-    pub fn show_genome(&self) {
-        self.dataset.show_genome()
-    }
-}
-
 pub fn generate_dataset(
     genome: Genome,
     read_seed: u64,
@@ -307,121 +245,6 @@ pub fn generate_dataset(
     }
 }
 
-pub fn generate_experiment(
-    genome: Genome,
-    read_seed: u64,
-    phmm_params: PHMMParams,
-    coverage: usize,
-    read_length: usize,
-    read_type: ReadType,
-    k_init: usize,
-    k_target: usize,
-) -> Experiment {
-    let dataset = generate_dataset(
-        genome,
-        read_seed,
-        coverage,
-        read_length,
-        read_type,
-        phmm_params,
-    );
-
-    let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.reads());
-    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.genome());
-    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, dataset.genome());
-
-    Experiment {
-        dataset,
-        phmm_params,
-        dbg_raw,
-        dbg_true_init,
-        dbg_true,
-        dbg_draft: None,
-        dbg_draft_true: None,
-    }
-}
-
-pub fn generate_experiment_with_draft(
-    genome: Genome,
-    read_seed: u64,
-    phmm_params: PHMMParams,
-    coverage: usize,
-    read_length: usize,
-    read_type: ReadType,
-    k_init: usize,
-    k_target: usize,
-) -> Experiment {
-    let dataset = generate_dataset(
-        genome,
-        read_seed,
-        coverage,
-        read_length,
-        read_type,
-        phmm_params,
-    );
-
-    let dbg_raw: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.reads());
-    let dbg_true_init: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_init, dataset.genome());
-    let dbg_true: SimpleDbg<VecKmer> = SimpleDbg::from_seqs(k_target, dataset.genome());
-    // dbg_draft
-    let dbg_draft: SimpleDbg<VecKmer> =
-        SimpleDbg::create_draft_from_seqs(k_init, dataset.reads(), dataset.coverage());
-    // dbg_draft_true
-    let mut dbg_draft_true = dbg_draft.clone();
-    dbg_draft_true.set_copy_nums_by_styled_seq(dataset.genome());
-
-    Experiment {
-        dataset,
-        phmm_params,
-        dbg_raw,
-        dbg_true_init,
-        dbg_true,
-        dbg_draft: Some(dbg_draft),
-        dbg_draft_true: Some(dbg_draft_true),
-    }
-}
-
-///
-/// will deprecate
-///
-pub fn generate_full_length_experiment(
-    genome: Genome,
-    read_seed: u64,
-    phmm_params: PHMMParams,
-    coverage: usize,
-) -> Experiment {
-    generate_experiment(
-        genome,
-        read_seed,
-        phmm_params,
-        coverage,
-        1000,
-        ReadType::FullLengthWithRevComp, // type
-        8,                               // k_init
-        100,                             // k_target
-    )
-}
-
-///
-/// Easy toy example
-/// * 100bp simple genome
-/// * p=0.1% 20x full length reads
-///
-pub fn generate_simple_genome_mock() -> Experiment {
-    let genome = genome::simple(100, 5);
-    let param = PHMMParams::uniform(0.001);
-    generate_experiment_with_draft(
-        genome,
-        0,
-        param,
-        20, // coverage is 20x
-        2000,
-        ReadType::FullLengthForHaploid,
-        40,
-        40,
-    )
-}
-
 ///
 /// Easy toy example
 /// * 200bp simple genome
@@ -455,24 +278,6 @@ pub fn generate_tandem_repeat_fragment_dataset() -> Dataset {
         50, // length (50bp)
         ReadType::FragmentWithRevComp,
         param,
-    )
-}
-
-///
-/// 1000bp tandem repeat example
-///
-pub fn generate_small_tandem_repeat() -> Experiment {
-    let genome = genome::tandem_repeat_haploid(100, 10, 0.01, 0, 0);
-    let param = PHMMParams::uniform(0.001);
-    generate_experiment_with_draft(
-        genome,
-        0,
-        param,
-        10, // coverage
-        2000,
-        ReadType::FullLengthForHaploid,
-        40,
-        40,
     )
 }
 

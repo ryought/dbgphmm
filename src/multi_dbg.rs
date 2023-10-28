@@ -17,7 +17,6 @@ use crate::common::{
     collection::trim_n_in_bases, sequence_to_string, CopyNum, ReadCollection, Reads, Seq, SeqStyle,
     Sequence, StyledSequence, NULL_BASE,
 };
-use crate::dbg::dbg::{Dbg, DbgEdgeBase, DbgNode};
 use crate::graph::compact::compact_simple_paths_for_targeted_nodes;
 use crate::graph::euler::{euler_circuit, euler_circuit_count};
 use crate::graph::seq_graph::{SeqEdge, SeqGraph, SeqNode};
@@ -191,27 +190,6 @@ pub struct MultiCompactNode {
 impl MultiCompactNode {
     pub fn new(is_terminal: bool) -> Self {
         Self { is_terminal }
-    }
-}
-
-///
-/// Conversion Dbg (w/ copy number) -> MultiDbg
-///
-impl<N: DbgNode, E: DbgEdgeBase> std::convert::From<Dbg<N, E>> for MultiDbg {
-    fn from(dbg: Dbg<N, E>) -> MultiDbg {
-        let full = dbg.to_edbg_graph(
-            |km1mer| MultiFullNode::new(km1mer.is_null()),
-            |_node, node_weight| MultiFullEdge::new(node_weight.emission(), node_weight.copy_num()),
-        );
-
-        // create compact from
-        let compact = Self::construct_compact_from_full(&full);
-
-        MultiDbg {
-            k: dbg.k(),
-            full,
-            compact,
-        }
     }
 }
 
@@ -1827,24 +1805,11 @@ mod tests {
     use super::toy;
     use super::*;
     use crate::common::{ei, ni};
-    use crate::dbg::mocks as dbgmocks;
     use crate::e2e::{generate_dataset, ReadType};
     use crate::genome;
     use crate::kmer::veckmer::kmer;
     use crate::prob::p;
 
-    #[test]
-    fn convert_from_dbg() {
-        let dbg = dbgmocks::mock_intersection_small();
-        println!("{}", dbg);
-        let multidbg: MultiDbg = dbg.into();
-        println!("{}", multidbg.to_dot());
-
-        for node in multidbg.graph_full().node_indices() {
-            let km1mer = multidbg.km1mer_full(node);
-            println!("{:?} {}", node, km1mer);
-        }
-    }
     fn assert_dbg_dumpload_is_correct(dbg: MultiDbg) {
         dbg.show_graph_with_kmer();
 
@@ -1930,19 +1895,6 @@ mod tests {
     fn phmm_from_dbg() {
         let param = PHMMParams::uniform(0.01);
         let reads = &[b"CTAGCTT"];
-        let dbg = dbgmocks::mock_intersection();
-        let phmm_dbg = dbg.to_phmm(param);
-        println!("{}", phmm_dbg);
-        let p_dbg = phmm_dbg.to_full_prob(reads);
-        println!("{}", p_dbg);
-
-        let mdbg: MultiDbg = dbg.into();
-        let phmm_mdbg = mdbg.to_phmm(param);
-        println!("{}", phmm_mdbg);
-        let p_mdbg = phmm_mdbg.to_full_prob(reads);
-        println!("{}", p_mdbg);
-
-        assert_eq!(p_dbg, p_mdbg);
     }
     #[test]
     fn bridge_full_and_compact() {
