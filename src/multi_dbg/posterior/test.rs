@@ -300,6 +300,7 @@ pub fn test_inference_from_dbg<S: Seq, P: AsRef<std::path::Path>>(
     let copy_nums_true = paths
         .as_ref()
         .map(|paths| dbg.copy_nums_from_full_path(paths));
+    dbg.to_dbg_file(format!("{}.final.dbg", output));
     dbg.to_gfa_post_file(
         format!("{}.final.gfa", output),
         &posterior,
