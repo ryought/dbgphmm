@@ -51,17 +51,22 @@ def unique_kmers_in_ref(ref, asm):
 def count_kmers(seqs, k):
     kmers = defaultdict(int)
     for seq in seqs.values():
-        for i in range(len(seq) - k + 1):
-            kmer = str(seq[i:i+k].seq)
+        s = sanitize(str(seq.seq))
+        for i in range(len(s) - k + 1):
+            kmer = s[i:i+k]
             kmers[kmer] += 1
     return kmers
+
+
+def sanitize(seq: str):
+    return seq.upper().replace('N', '')
 
 
 def main():
     parser = argparse.ArgumentParser(description='unique k-mer analysis')
     parser.add_argument('ref', type=Path, help='FASTA')
     parser.add_argument('asm', type=Path, help='FASTA')
-    parser.add_argument('--k', type=int, default=100)
+    parser.add_argument('--k', type=int, default=40)
     args = parser.parse_args()
     k = args.k
 
