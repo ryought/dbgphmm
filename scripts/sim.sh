@@ -61,6 +61,12 @@ function gepard () {
     -seq1 $1 -seq2 $2 -matrix $GEPARD_MAT -outfile $3 -maxwidth 1000 -maxheight 10000
 }
 
+function unique_kmer () {
+  GENOME=$1
+  ASM=$2
+  python scripts/kir/unique_kmer.py $GENOME $ASM --k 40
+}
+
 function asm_eval () {
   GENOME=$1
   ASM=$2
