@@ -25,13 +25,36 @@ import sys
 from collections import defaultdict
 
 
-def has_kmer(asm, kmer):
-    has = False
-    for hap in asm.values():
-        if kmer in hap.seq:
-            has = True
+def disjoint_kmers(ref, asm):
+    n_ref_only = 0
+    n_asm_only = 0
+    for kmer, count in ref.items():
+        if kmer not in asm:
+            n_ref_only += 1
+    for kmer, count in asm.items():
+        if kmer not in ref:
+            n_asm_only += 1
+    return n_ref_only, n_asm_only
 
-    return has
+
+def unique_kmers_in_ref(ref, asm):
+    n_unique_kmers = 0
+    n_unique_kmers_contained = 0
+    for kmer, count in ref.items():
+        if count == 1:
+            n_unique_kmers += 1
+            if kmer in asm:
+                n_unique_kmers_contained += 1
+    return n_unique_kmers, n_unique_kmers_contained
+
+
+def count_kmers(seqs, k):
+    kmers = defaultdict(int)
+    for seq in seqs.values():
+        for i in range(len(seq) - k + 1):
+            kmer = str(seq[i:i+k].seq)
+            kmers[kmer] += 1
+    return kmers
 
 
 def main():
@@ -42,26 +65,21 @@ def main():
     args = parser.parse_args()
     k = args.k
 
-    ref = SeqIO.to_dict(SeqIO.parse(args.ref, "fasta"))
-    asm = SeqIO.to_dict(SeqIO.parse(args.asm, "fasta"))
+    ref = count_kmers(SeqIO.to_dict(SeqIO.parse(args.ref, "fasta")), k)
+    asm = count_kmers(SeqIO.to_dict(SeqIO.parse(args.asm, "fasta")), k)
 
-    kmers = defaultdict(int)
-    for hap in ref.values():
-        for i in range(len(hap) - k + 1):
-            kmer = str(hap[i:i+k].seq)
-            kmers[kmer] += 1
+    n_ref = len(ref.keys())
+    n_asm = len(asm.keys())
+    print('n_ref', n_ref)
+    print('n_asm', n_asm)
 
-    n_unique_kmers = 0
-    n_unique_kmers_contained = 0
-    for kmer, count in kmers.items():
-        if count == 1:
-            n_unique_kmers += 1
-            has = has_kmer(asm, kmer)
-            if has:
-                n_unique_kmers_contained += 1
-
+    n_unique_kmers, n_unique_kmers_contained = unique_kmers_in_ref(ref, asm)
     print(n_unique_kmers, n_unique_kmers_contained,
           n_unique_kmers_contained / n_unique_kmers)
+
+    n_ref_only, n_asm_only = disjoint_kmers(ref, asm)
+    print('n_ref_only', n_ref_only, n_ref_only / n_ref)
+    print('n_asm_only', n_asm_only, n_asm_only / n_asm)
 
 
 if __name__ == '__main__':
