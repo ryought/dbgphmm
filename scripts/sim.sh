@@ -50,9 +50,15 @@ function generate_svg_for_dbgphmm () {
   python scripts/kir/graph_compare.py --min_identity 1.0 --hide_text --euler_fa $EULER $GFA $PAF
 }
 
+function svg2pdf () {
+  SVG=$1
+  rsvg-convert -f pdf -o $SVG.pdf $SVG
+}
+
 function gepard () {
+  # fix width 1000px
   java -cp $GEPARD_JAR org.gepard.client.cmdline.CommandLine \
-    -seq1 $1 -seq2 $2 -matrix $GEPARD_MAT -outfile $3 -maxwidth 1000 -maxheight 1000
+    -seq1 $1 -seq2 $2 -matrix $GEPARD_MAT -outfile $3 -maxwidth 1000 -maxheight 10000
 }
 
 function asm_eval () {
@@ -193,6 +199,10 @@ function run_n4 () {
       # run_dbgphmm $KEY $p   # run locally
       qsub_run_dbgphmm $KEY $p   # run on cluster
       # evaluate_dbgphmm $KEY "pz0.99_pi0.0003"
+
+      # svg2pdf $KEY/hifiasm/out.svg
+      # svg2pdf $KEY/dbgphmm/pz0.99_pi0.0003.final.euler.svg
+      # svg2pdf $KEY/lja/out.svg
     done
   done
 }
@@ -221,6 +231,10 @@ function run_n10 () {
       qsub_run_dbgphmm $KEY $p   # run on cluster
       # run_dbgphmm $KEY $p   # run locally
       # evaluate_dbgphmm $KEY "pz0.99_pi0.0003"  # evaluate only
+
+      # svg2pdf $KEY/hifiasm/out.svg
+      # svg2pdf $KEY/dbgphmm/pz0.99_pi0.0003.final.euler.svg
+      # svg2pdf $KEY/lja/out.svg
     done
   done
 }
