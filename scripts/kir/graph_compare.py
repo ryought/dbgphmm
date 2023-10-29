@@ -379,8 +379,17 @@ def main():
             seqorder = [s.split(',') for s in args.haps]
         else:
             fasta = SeqIO.to_dict(SeqIO.parse(args.euler_fa, "fasta"))
+
+            def sum_hit(names):
+                ret = 0
+                for name in names:
+                    for m in match[name]:
+                        identity = m.mlen / m.blen
+                        if m.tname == hapnames[0] and identity >= args.min_identity:
+                            ret += m.mlen
+                return ret
             seqorder = sorted([name.split(',') for name in fasta.keys()],
-                              key=lambda names: len(names), reverse=True)
+                              key=lambda names: sum_hit(names), reverse=True)
         eprint('seqorder', seqorder, seqs)
 
         seqpos = defaultdict(list)
