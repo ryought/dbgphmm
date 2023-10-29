@@ -40,22 +40,14 @@ function summary_paf () {
 function generate_svg () {
   GFA=$1
   PAF=$2
-  # --draw_mismatch_primary_only
-  python scripts/kir/graph_compare.py --shade_by_identity --draw_mismatch_threshold 0 --min_identity 1.0 $GFA $PAF
+  python scripts/kir/graph_compare.py --min_identity 1.0 --spring_layout --hide_text $GFA $PAF
 }
 
 function generate_svg_for_dbgphmm () {
   GFA=$1
   PAF=$2
-  HAPS=$3
-  python scripts/kir/graph_compare.py --shade_by_identity --draw_mismatch_threshold 0 --min_identity 1.0 --haps $HAPS $GFA $PAF
-}
-
-function generate_svg_primary () {
-  GFA=$1
-  PAF=$2
-  # python scripts/kir/graph_compare.py --draw_mismatch_primary_only $GFA $PAF
-  python scripts/kir/graph_compare.py --shade_by_identity --draw_mismatch_threshold 0 --min_identity 1.0 --spring_layout $GFA $PAF
+  EULER=$3
+  python scripts/kir/graph_compare.py --min_identity 1.0 --hide_text --euler_fa $EULER $GFA $PAF
 }
 
 function gepard () {
@@ -71,7 +63,6 @@ function asm_eval () {
   map_to_genome $GENOME $ASM > $ASM.paf
 
   generate_svg $GFA $ASM.paf > $ASM.svg
-  generate_svg_primary $GFA $ASM.paf > $ASM.primary.svg
 
   gepard $ASM $ASM $ASM.png
 }
@@ -82,8 +73,8 @@ function run_hifiasm () {
   GENOME="$KEY/data.genome.fa"
   DIR="$KEY/hifiasm"
   mkdir -p $DIR
+
   hifiasm -o $DIR/out -t4 -f0 -i $READ 2> $DIR/log
-  # hifiasm -o $DIR/out -t4 -f0 --hg-size 70k -D 50 -i $READ 2> $DIR/log
 
   gfa2fa $DIR/out.bp.p_ctg.gfa
   gfa2fa $DIR/out.bp.p_utg.gfa
@@ -94,11 +85,10 @@ function run_hifiasm () {
   map_to_genome $GENOME $DIR/out.fa > $DIR/out.paf
   map_to_genome $GENOME $DIR/out.bp.p_utg.fa > $DIR/out.p_utg.paf
 
-  generate_svg $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.svg
-  generate_svg_primary $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.primary.svg
-
   gepard $DIR/out.fa $DIR/out.fa $DIR/out.fa.png
   gepard $GENOME $DIR/out.fa $DIR/out.fa.genome.png
+
+  generate_svg $DIR/out.bp.p_utg.gfa $DIR/out.p_utg.paf > $DIR/out.svg
 }
 
 function run_verkko () {
@@ -126,8 +116,10 @@ function run_lja () {
   lja -o $DIR --diploid --reads $READ
 
   map_to_genome $GENOME $DIR/assembly.fasta > $DIR/out.paf
-  generate_svg $DIR/mdbg.gfa $DIR/out.paf > $DIR/out.svg
   gepard $DIR/assembly.fasta $DIR/assembly.fasta $DIR/assembly.fasta.png
+  gepard $GENOME $DIR/assembly.fasta $DIR/assembly.fasta.genome.png
+
+  generate_svg $DIR/mdbg.gfa $DIR/out.paf > $DIR/out.svg
 }
 
 function evaluate_dbgphmm () {
@@ -137,10 +129,10 @@ function evaluate_dbgphmm () {
   DIR="$KEY/dbgphmm"
   gfa2fa $DIR/$INFER_KEY.final.gfa
   map_to_genome $GENOME $DIR/$INFER_KEY.final.fa > $DIR/$INFER_KEY.final.paf
-  generate_svg_primary $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.primary.svg
-  generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
 
-  gepard $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.png
+  generate_svg $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf > $DIR/$INFER_KEY.final.svg
+  generate_svg_for_dbgphmm $DIR/$INFER_KEY.final.gfa $DIR/$INFER_KEY.final.paf $DIR/$INFER_KEY.final.euler.fa > $DIR/$INFER_KEY.final.euler.svg
+
   gepard $GENOME $DIR/$INFER_KEY.final.fa $DIR/$INFER_KEY.final.fa.genome.png
   gepard $GENOME $DIR/$INFER_KEY.final.euler.fa $DIR/$INFER_KEY.final.euler.fa.genome.png
 }
@@ -155,7 +147,7 @@ function run_dbgphmm () {
   mkdir -p $DIR
   ./target/release/infer -t 32 -M 4 -k 40 -K 10000 -p $pi -e $p -s 5000 -I 50 --p0 $pz --dataset-json $KEY/data.json --output-prefix $DIR/$INFER_KEY
 
-  # evaluate_dbgphmm $KEY $INFER_KEY
+  evaluate_dbgphmm $KEY $INFER_KEY
 }
 
 function qsub_run_dbgphmm () {
@@ -190,15 +182,17 @@ function run_n4 () {
 
       # create dataset
       ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 10000 -N 4 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
+
       genome_self_vs_self $KEY/data.genome.fa
-      # run_hifiasm $KEY
-      # run_lja $KEY
+      run_hifiasm $KEY
+      run_lja $KEY
 
       # TODO activate miniconda to use verkko
-      # run_verkko $KEY
+      run_verkko $KEY
 
       # run_dbgphmm $KEY $p   # run locally
       qsub_run_dbgphmm $KEY $p   # run on cluster
+      # evaluate_dbgphmm $KEY "pz0.99_pi0.0003"
     done
   done
 }
@@ -216,15 +210,17 @@ function run_n10 () {
 
       # create dataset
       ./target/release/draft -k 40 -C 10 -L 10000 -p $p -M 4 -U 2000 -N 10 -E 2000 -H $H --H0 $H0 -P 2 --output-prefix $KEY/data --dataset-only
-      genome_self_vs_self $KEY/data.genome.fa
-      # run_hifiasm $KEY
-      # run_lja $KEY
+
+      # genome_self_vs_self $KEY/data.genome.fa
+      run_hifiasm $KEY
+      run_lja $KEY
 
       # TODO activate miniconda to use verkko
       # run_verkko $KEY
 
-      # run_dbgphmm $KEY $p   # run locally
       qsub_run_dbgphmm $KEY $p   # run on cluster
+      # run_dbgphmm $KEY $p   # run locally
+      # evaluate_dbgphmm $KEY "pz0.99_pi0.0003"  # evaluate only
     done
   done
 }

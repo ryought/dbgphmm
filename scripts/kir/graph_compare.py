@@ -541,7 +541,7 @@ def main():
             # draw curve line
             elements_top.append(join(x_s, y_s, x_t, y_t,
                                      start_to_right, end_to_right, opacity=0.5))
-    s = svg(elements + elements_top, width=width, height=height)
+    s = svg(elements + elements_top, width=width + 500, height=height)
     print(s)
 
 
