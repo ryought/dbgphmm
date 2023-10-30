@@ -85,23 +85,23 @@ def main():
 
     n_ref = len(ref.keys())
     n_asm = len(asm.keys())
-    print('n_ref', n_ref)
-    print('n_asm', n_asm)
+    print('n_ref={}'.format(n_ref))
+    print('n_asm={}'.format(n_asm))
 
     n_both = len(set(ref.keys()) | set(asm.keys()))
-    print('n_both', n_both)
+    print('n_both={}'.format(n_both))
 
     n_unique_kmers, n_unique_kmers_contained = unique_kmers_in_ref(ref, asm)
-    print('n_unique', n_unique_kmers, n_unique_kmers_contained,
-          n_unique_kmers_contained / n_unique_kmers)
+    print('n_unique={} n_unique_contained={} {}%'.format(n_unique_kmers,
+          n_unique_kmers_contained, n_unique_kmers_contained / n_unique_kmers * 100))
 
     n_ref_only, n_asm_only = disjoint_kmers(ref, asm)
-    print('n_ref_only', n_ref_only, n_ref_only / n_ref)
-    print('n_asm_only', n_asm_only, n_asm_only / n_asm)
+    print('n_ref_only={} {}%'.format(n_ref_only, n_ref_only / n_ref * 100))
+    print('n_asm_only={} {}%'.format(n_asm_only, n_asm_only / n_asm * 100))
 
     n_same, n_different = same_count(ref, asm)
-    print('n_same', n_same, n_same / n_both)
-    print('n_different', n_different, n_different / n_both)
+    print('n_same={} {}%'.format(n_same, n_same / n_both * 100))
+    print('n_different={} {}%'.format(n_different, n_different / n_both * 100))
 
 
 if __name__ == '__main__':
