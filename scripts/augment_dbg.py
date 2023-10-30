@@ -7,6 +7,17 @@ from pathlib import Path
 import networkx as nx
 
 
+def pred(graph, node, length):
+    v = node
+    s = ''
+    while len(s) < length:
+        v = next(graph.predecessors(v), None)
+        if v is None:
+            return s
+        s = graph.nodes[v]['seq'] + s
+    return s[-length:]
+
+
 def main():
     parser = argparse.ArgumentParser(description='Augment GFA of DBG')
     parser.add_argument('gfa', type=Path, help='GFA')
@@ -36,11 +47,9 @@ def main():
     for segment in segments:
         id = segment[1]
         seq = segment[2]
-        if graph.in_degree(id) > 0:
-            prefixes = [graph.nodes[pred]['seq'][-(k-1):]
-                        for pred in graph.predecessors(id)]
-            assert all(prefix == prefixes[0] for prefix in prefixes)
-            segment[2] = prefixes[0] + seq
+        prefix = pred(graph, id, k-1)
+        segment[2] = prefix + seq
+        # print(id, len(prefix), len(seq))
         print('\t'.join(segment), end='')
     for link in links:
         print('\t'.join(link), end='')
