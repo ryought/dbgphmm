@@ -1,21 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-% seqkit stat kir/hifi/10x/euler.fa
-file                   format  type  num_seqs  sum_len  min_len  avg_len  max_len
-kir/hifi/10x/euler.fa  FASTA   DNA          2  462,536  207,239  231,268  255,297
-% seqkit stat kir/hifi/hifiasm/10x.fa
-file                     format  type  num_seqs  sum_len  min_len    avg_len  max_len
-kir/hifi/hifiasm/10x.fa  FASTA   DNA          3  452,671   38,370  150,890.3  207,248
-
-% python scripts/kir/unique_kmer.py kir/hifi/t2t/KIR.fa kir/hifi/10x/euler.fa --k 40
-21198 20084 0.9474478724407963
-% python scripts/kir/unique_kmer.py kir/hifi/t2t/KIR.fa kir/hifi/10x/v0.final.fa --k 40
-21198 19986 0.9428247947919615
-% python scripts/kir/unique_kmer.py kir/hifi/t2t/KIR.fa kir/hifi/hifiasm/10x.fa --k 40
-21198 15960 0.7529012170959525
-% python scripts/kir/unique_kmer.py kir/hifi/t2t/KIR.fa kir/hifi/LJA/10x/10x.fa --k 40
-21198 13042 0.6152467213888103
 """
 
 from Bio import SeqIO
@@ -25,36 +10,59 @@ import sys
 from collections import defaultdict
 
 
-def disjoint_kmers(ref, asm):
+def disjoint_kmers(ref, asm, verbose=False):
     n_ref_only = 0
     n_asm_only = 0
-    for kmer, count in ref.items():
+    for kmer, occ in ref.items():
         if kmer not in asm:
             n_ref_only += 1
-    for kmer, count in asm.items():
+            if verbose:
+                print('ref_only', kmer, occ)
+    for kmer, occ in asm.items():
         if kmer not in ref:
             n_asm_only += 1
+            if verbose:
+                print('asm_only', kmer, occ)
     return n_ref_only, n_asm_only
 
 
 def unique_kmers_in_ref(ref, asm):
     n_unique_kmers = 0
     n_unique_kmers_contained = 0
-    for kmer, count in ref.items():
-        if count == 1:
+    for kmer, occ in ref.items():
+        if len(occ) == 1:
             n_unique_kmers += 1
             if kmer in asm:
                 n_unique_kmers_contained += 1
     return n_unique_kmers, n_unique_kmers_contained
 
 
-def count_kmers(seqs, k):
-    kmers = defaultdict(int)
-    for seq in seqs.values():
+def same_count(ref, asm, verbose=False):
+    n_same = 0
+    n_different = 0
+    for kmer in (set(ref.keys()) | set(asm.keys())):
+        if len(ref[kmer]) == len(asm[kmer]):
+            n_same += 1
+        else:
+            n_different += 1
+            if verbose:
+                print('different', kmer, ref[kmer], asm[kmer])
+    return n_same, n_different
+
+
+def count_kmers_with_position(seqs, k):
+    kmers = defaultdict(list)
+    for h, seq in enumerate(seqs.values()):
+        # forward
         s = sanitize(str(seq.seq))
         for i in range(len(s) - k + 1):
             kmer = s[i:i+k]
-            kmers[kmer] += 1
+            kmers[kmer].append((h, i))
+        # backward
+        s = sanitize(str(seq.seq.reverse_complement()))
+        for i in range(len(s) - k + 1):
+            kmer = s[i:i+k]
+            kmers[kmer].append((h, i))
     return kmers
 
 
@@ -70,21 +78,30 @@ def main():
     args = parser.parse_args()
     k = args.k
 
-    ref = count_kmers(SeqIO.to_dict(SeqIO.parse(args.ref, "fasta")), k)
-    asm = count_kmers(SeqIO.to_dict(SeqIO.parse(args.asm, "fasta")), k)
+    ref = count_kmers_with_position(
+        SeqIO.to_dict(SeqIO.parse(args.ref, "fasta")), k)
+    asm = count_kmers_with_position(
+        SeqIO.to_dict(SeqIO.parse(args.asm, "fasta")), k)
 
     n_ref = len(ref.keys())
     n_asm = len(asm.keys())
     print('n_ref', n_ref)
     print('n_asm', n_asm)
 
+    n_both = len(set(ref.keys()) | set(asm.keys()))
+    print('n_both', n_both)
+
     n_unique_kmers, n_unique_kmers_contained = unique_kmers_in_ref(ref, asm)
-    print(n_unique_kmers, n_unique_kmers_contained,
+    print('n_unique', n_unique_kmers, n_unique_kmers_contained,
           n_unique_kmers_contained / n_unique_kmers)
 
     n_ref_only, n_asm_only = disjoint_kmers(ref, asm)
     print('n_ref_only', n_ref_only, n_ref_only / n_ref)
     print('n_asm_only', n_asm_only, n_asm_only / n_asm)
+
+    n_same, n_different = same_count(ref, asm)
+    print('n_same', n_same, n_same / n_both)
+    print('n_different', n_different, n_different / n_both)
 
 
 if __name__ == '__main__':
