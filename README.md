@@ -18,7 +18,16 @@ cargo build --release
 ./target/release/infer -h
 ```
 
-## Output formats
+## Outputs
+
+* `${prefix}.k${k}.gfa`
+* `${prefix}.k${k}.inspect`
+* `${prefix}.k${k}.dbg`
+* `${prefix}.k${k}.post`
+
+* `${prefix}.final.gfa`
+* `${prefix}.final.euler.fa`
+
 
 ### INSPECT
 
